@@ -31,14 +31,14 @@ const ParticlesBackground = () => {
     () => ({
       background: {
         color: {
-          value: "#0d47a1",
+          value: "transparent",
         },
       },
       fpsLimit: 120,
       interactivity: {
         events: {
           onClick: {
-            enable: true,
+            enable: false,
             mode: "push",
           },
           onHover: {
@@ -58,10 +58,10 @@ const ParticlesBackground = () => {
       },
       particles: {
         color: {
-          value: "#ffffff",
+          value: "#5F6368",
         },
         links: {
-          color: "#ffffff",
+          color: "#5F6368",
           distance: 150,
           enable: true,
           opacity: 0.5,
@@ -101,6 +101,14 @@ const ParticlesBackground = () => {
   if (init) {
     return (
       <Particles
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 0, // 👈 capa inferior
+          width: "100%",
+          height: "100%",
+        }}
         id="tsparticles"
         particlesLoaded={particlesLoaded}
         options={options}

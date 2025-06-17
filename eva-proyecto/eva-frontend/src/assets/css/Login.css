@@ -1,287 +1,290 @@
 ﻿/* Fondo general del body con imagen y fuente base */
 body {
-    margin: 0;
-    padding: 0;
-    font-family: "Segoe UI", sans-serif;
-    background-color: #ffffff;
-    background-image: url("../img/bg-pattern.svg");
-    background-size: cover;
-    background-repeat: no-repeat;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", sans-serif;
+  background-color: #ffffff;
+  background-image: url("../img/bg-pattern.svg");
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 /* Estilo para el logo principal centrado */
 .Logo {
-    width: 900px;
-    height: auto;
-    margin-bottom: 20px;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
+  width: 900px;
+  height: auto;
+  margin-bottom: 20px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  z-index: 99;
+}
+
+.header-logo {
+  background: transparent;
 }
 
 /* Estilo para los modales generales */
 dialog.modal,
 dialog.modal-login {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    padding: 0;
-    margin: 0;
-    border: none;
-    background-color: rgba(0, 0, 0, 0.3);
-    /* Fondo oscuro semitransparente */
-    backdrop-filter: blur(8px);
-    /* Efecto borroso */
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: fadeInModal 0.3s ease;
-    font-size: 16px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background-color: rgba(0, 0, 0, 0.3);
+  /* Fondo oscuro semitransparente */
+  backdrop-filter: blur(8px);
+  /* Efecto borroso */
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInModal 0.3s ease;
+  font-size: 16px;
 }
-
 
 /* Animación de entrada para el modal */
 @keyframes fadeInModal {
-    0% {
-        opacity: 0;
-        transform: scale(0.95);
-    }
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Caja interna del modal (login o registro) */
 .modal-box,
 .modal-login .login-box {
-    background-color: #ffffff;
-    border-radius: 16px;
-    padding: 45px 40px;
-    max-width: 550px;
-    width: 100%;
-    box-sizing: border-box;
-    animation: slideUp 0.3s ease-in-out;
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 45px 40px;
+  max-width: 550px;
+  width: 100%;
+  box-sizing: border-box;
+  animation: slideUp 0.3s ease-in-out;
 }
 
 /* Animación de entrada vertical tipo deslizamiento */
 @keyframes slideUp {
-    from {
-        transform: translateY(50px);
-        opacity: 0;
-    }
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
 
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Estilo del título del modal */
 .modal-box h3,
 .login-box h3 {
-    font-size: 40px;
-    font-weight: bold;
-    color: #2b3d5e;
-    text-align: center;
+  font-size: 40px;
+  font-weight: bold;
+  color: #2b3d5e;
+  text-align: center;
 }
 
 /* Contenedor de campo con ícono a la izquierda */
 .form-group {
-    position: relative;
-    margin-bottom: 35px;
+  position: relative;
+  margin-bottom: 35px;
 }
 
 /* Ícono dentro del input */
 .form-group i {
-    position: absolute;
-    top: 60%;
-    left: 14px;
-    transform: translateY(-50%);
-    font-size: 18px;
-    color: #888;
+  position: absolute;
+  top: 60%;
+  left: 14px;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: #888;
 }
 
 /* Estilo de input moderno con padding para ícono */
 .form-group input,
 .modal-box input,
 .modal-box select {
-    width: 90%;
-    text-align: justify;
-    padding: 10px;
-    margin: 4px;
-    border: 3px solid #ccc;
-    border-radius: 15px;
-    font-size: 15px;
-    transition: border-color 0.3s, box-shadow 0.3s;
-    outline: none;
-    background-color: #fdfdfd;
-    box-sizing: border-box;
+  width: 90%;
+  text-align: justify;
+  padding: 10px;
+  margin: 4px;
+  border: 3px solid #ccc;
+  border-radius: 15px;
+  font-size: 15px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  outline: none;
+  background-color: #fdfdfd;
+  box-sizing: border-box;
 }
 
 /* Efecto visual al enfocar input o select */
 .form-group input:focus,
 .modal-box input:focus,
 .modal-box select:focus {
-    border-color: #2b3d5e;
-    box-shadow: 0 0 0 3px rgba(43, 61, 94, 0.2);
+  border-color: #2b3d5e;
+  box-shadow: 0 0 0 3px rgba(43, 61, 94, 0.2);
 }
 
 /* Estilo para select dentro de modal */
 .modal-box select {
-    padding-left: 12px;
-    margin-bottom: 20px;
+  padding-left: 12px;
+  margin-bottom: 20px;
 }
 
 /* Estilo visual para campos validados correctamente */
 input.is-valid {
-    border-color: #28a745;
-    background-color: #eaffea;
+  border-color: #28a745;
+  background-color: #eaffea;
 }
 
 /* Estilo visual para campos con error */
 input.is-invalid {
-    border-color: #dc3545;
-    background-color: #ffeaea;
+  border-color: #dc3545;
+  background-color: #ffeaea;
 }
 
 /* Estilo visual para campos con advertencia */
 input.is-warning {
-    border-color: #ffc107;
-    background-color: #fff8e1;
+  border-color: #ffc107;
+  background-color: #fff8e1;
 }
 
 /* Botón principal que abre el modal inicial */
 .abir-modal-inicial {
-    display: block;
-    width: auto;
-    margin: auto;
-    padding: 14px;
-    font-size: 16px;
-    background-color: #2b3d5e;
-    color: #fff;
-    font-weight: bold;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: background-color 0.3s, transform 0.2s;
+  display: block;
+  width: auto;
+  margin: auto;
+  padding: 14px;
+  font-size: 16px;
+  background-color: #2b3d5e;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 /* Botón de login dentro de modal */
 .btn-login {
-    display: block;
-    width: 60%;
-    margin: auto;
-    padding: 14px;
-    font-size: 16px;
-    background-color: #2b3d5e;
-    color: #fff;
-    font-weight: bold;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: background-color 0.3s, transform 0.2s;
+  display: block;
+  width: 60%;
+  margin: auto;
+  padding: 14px;
+  font-size: 16px;
+  background-color: #2b3d5e;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 /* Botón de login adicional para otros modales */
 .btn-login {
-    display: block;
-    width: 70%;
-    margin: auto;
-    padding: 15px;
-    font-size: 20px;
-    background-color: #2b3d5e;
-    color: #fff;
-    font-weight: bold;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: background-color 0.3s, transform 0.2s;
+  display: block;
+  width: 70%;
+  margin: auto;
+  padding: 15px;
+  font-size: 20px;
+  background-color: #2b3d5e;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 /* Hover para botones de login */
 .btn-login:hover {
-    background-color: #1f2d44;
-    transform: scale(1.02);
+  background-color: #1f2d44;
+  transform: scale(1.02);
 }
 
 /* Botón para registrarse */
 .btn-register {
-    margin-top: 16px;
-    padding: 14px;
-    background-color: #5cb85c;
-    color: white;
-    border: none;
-    width: auto;
-    border-radius: 10px;
-    font-weight: bold;
-    font-size: 15px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
-
+  margin-top: 16px;
+  padding: 14px;
+  background-color: #5cb85c;
+  color: white;
+  border: none;
+  width: auto;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 /* Hover para botón de registro */
 .btn-register:hover {
-    background-color: #4cae4c;
-    transform: scale(1.02);
+  background-color: #4cae4c;
+  transform: scale(1.02);
 }
 
 /* Botón para cerrar el modal */
 .close-modal {
-    margin-top: 20px;
-    background-color: crimson;
-    border: none;
-    color: white;
-    padding: 12px 22px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: bold;
-    display: block;
-    transition: background-color 0.3s ease;
+  margin-top: 20px;
+  background-color: crimson;
+  border: none;
+  color: white;
+  padding: 12px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  display: block;
+  transition: background-color 0.3s ease;
 }
 
 /* Hover para el botón de cerrar modal */
 .close-modal:hover {
-    background-color: darkred;
+  background-color: darkred;
 }
 
 /* Enlace para crear cuenta u otra acción */
 .create-account {
-    display: block;
-    margin-top: 20px;
-    color: #337ab7;
-    text-align: center;
-    font-size: 14px;
-    text-decoration: none;
+  display: block;
+  margin-top: 20px;
+  color: #337ab7;
+  text-align: center;
+  font-size: 14px;
+  text-decoration: none;
 }
 
 /* Hover para el enlace */
 .create-account:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
 
 /* Contenedor agrupado para campos de registro */
 .modal-box fieldset {
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 20px;
-    margin-top: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 10px;
 }
 
 /* Título del grupo de campos del fieldset */
 .modal-box legend {
-    font-size: 16px;
-    font-weight: bold;
-    color: #2b3d5e;
-    padding: 0 10px;
-    margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #2b3d5e;
+  padding: 0 10px;
+  margin-bottom: 15px;
 }
