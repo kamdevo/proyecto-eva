@@ -1,10 +1,19 @@
 ﻿<?php
-$host = "localhost";
-$db = "gestionthuv";
-$user = "root";
-$pass = "";
+$host = 'localhost';
+$db   = 'gestionthuv';
+$user = 'root';
+$pass = '';
+$charset = 'utf8mb4';
 
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Conexión fallida: " . $conn->connect_error);
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+];
+
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (\PDOException $e) {
+    die('Error de conexión: ' . $e->getMessage());
 }
