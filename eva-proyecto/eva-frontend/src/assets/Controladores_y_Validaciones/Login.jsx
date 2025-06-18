@@ -13,7 +13,7 @@ const Login = () => {
         formData.append('password', clave);
 
         try {
-            const response = await fetch('http://localhost/Proyecto-Eva/login.php', {
+            const response = await fetch('C:\Xampp1\htdocs\proyecto-eva-main\eva-proyecto\eva-backend\api\login.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData.toString()

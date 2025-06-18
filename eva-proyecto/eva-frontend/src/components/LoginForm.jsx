@@ -80,40 +80,51 @@ const LoginForm = () => {
               <div className="modal-box register">
                 <h3>Registrarse</h3>
                 <form action="/api/register.php" method="POST">
-                  <fieldset>
-                    <legend>Información de usuario</legend>
+                <fieldset>
+  <legend>Información de usuario</legend>
 
-                    <label>Seleccione su centro de costo</label>
-                    <select required>
-                      <option value="">--Seleccione--</option>
-                      <option value="1">Centro 1</option>
-                      <option value="2">Centro 2</option>
-                    </select>
+  <label>Seleccione su centro de costo</label>
+  <select required>
+    <option value="">--Seleccione--</option>
+    <option value="1">Centro 1</option>
+    <option value="2">Centro 2</option>
+  </select>
 
-                    <input type="text" placeholder="Nombres" required />
-                    <input type="text" placeholder="Apellidos" required />
-                    <input type="text" placeholder="Teléfono" required />
-                    <input
-                      type="email"
-                      placeholder="Correo electrónico"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Nombre de usuario"
-                      required
-                    />
-                    <input type="password" placeholder="Contraseña" required />
-                    <input
-                      type="password"
-                      placeholder="Confirmar contraseña"
-                      required
-                    />
+  <div className="input-grid">
+    <div className="input-group">
+      <label>Nombres</label>
+      <input type="text" required />
+    </div>
+    <div className="input-group">
+      <label>Apellidos</label>
+      <input type="text" required />
+    </div>
+    <div className="input-group">
+      <label>Teléfono</label>
+      <input type="text" required />
+    </div>
+    <div className="input-group">
+      <label>Correo electrónico</label>
+      <input type="email" required />
+    </div>
+    <div className="input-group">
+      <label>Nombre de usuario</label>
+      <input type="text" required />
+    </div>
+    <div className="input-group">
+      <label>Contraseña</label>
+      <input type="password" required />
+    </div>
+    <div className="input-group">
+      <label>Confirmar contraseña</label>
+      <input type="password" required />
+    </div>
+  </div>
 
-                    <button className="btn-login-modal" type="submit">
-                      Ingresar
-                    </button>
-                  </fieldset>
+  <button className="btn-login-modal" type="submit">
+    Ingresar
+  </button>
+</fieldset>
                 </form>
 
                 <button

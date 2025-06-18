@@ -11,7 +11,7 @@ body {
 
 /* Estilo para el logo principal centrado */
 .Logo {
-  width: 900px;
+  width: 750px;
   height: auto;
   margin-bottom: 20px;
   display: block;
@@ -62,16 +62,62 @@ dialog.modal-login {
 }
 
 /* Caja interna del modal (login o registro) */
+dialog.modal,
+dialog.modal-login {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto; /* permite scroll si se pasa */
+}
+
+/* Caja interna del modal (registro) mejorada */
 .modal-box,
-.modal-login .login-box {
+.modal-box-register {
   background-color: #ffffff;
   border-radius: 16px;
-  padding: 45px 40px;
-  max-width: 550px;
-  width: 100%;
+  padding: 20px 25px;
+  max-width: 500px;
+  width: 90%;
+  max-height: calc(100vh - 20px); /* deja espacio arriba y abajo */
+  margin-block: 10px; /* 10px de separación arriba y abajo */
   box-sizing: border-box;
   animation: slideUp 0.3s ease-in-out;
+  overflow-y: auto; /* por si se desborda el contenido */
 }
+  /* Contenedor con grid para organizar inputs en 2 columnas */
+.input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+.input-group {
+  display: flex;
+  flex-direction: column;
+}
+.input-group label {
+  font-size: 13px;
+  color: #2b3d5e;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+/* Inputs más compactos */
+.input-group input {
+  padding: 8px 10px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
 
 /* Animación de entrada vertical tipo deslizamiento */
 @keyframes slideUp {
@@ -115,7 +161,7 @@ dialog.modal-login {
 .form-group input,
 .modal-box input,
 .modal-box select {
-  width: 90%;
+  width: 95%;
   text-align: justify;
   padding: 10px;
   margin: 4px;
@@ -194,6 +240,21 @@ input.is-warning {
   transition: background-color 0.3s, transform 0.2s;
 }
 
+.btn-login-modal{
+  display: block;
+  width: 60%;
+  margin: auto;
+  padding: 14px;
+  font-size: 16px;
+  background-color: #2b3d5e;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s, transform 0.2s;
+}
 /* Botón de login adicional para otros modales */
 .btn-login {
   display: block;
