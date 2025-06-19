@@ -1,19 +1,10 @@
-import LoginForm from "./components/LoginForm";
-import ParticlesBackground from "./components/ParticlesBg";
-import "./App.css";
-import HomePage from "./components/HomePage";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
+import React from "react";
+import { MedicalDevicesView } from "./components/modals/medical-devices-view";
 
 const App = () => {
   return (
     <div>
-      <Navbar />
-      {/* Elimina el padding superior para que el contenido no sea empujado */}
-
-      <HomePage />
-
-      <Footer />
+      <MedicalDevicesView />
     </div>
   );
 };
