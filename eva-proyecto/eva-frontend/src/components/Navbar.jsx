@@ -1,6 +1,20 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Menu,
   Home,
   Monitor,
@@ -29,7 +43,6 @@ const Navbar = () => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
   const navigationItems = [
     { icon: Home, label: "Inicio", active: true, submenu: [] },
     {
@@ -121,66 +134,76 @@ const Navbar = () => {
             EVA APLICATIVO
           </h1>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
-          <User className="h-5 w-5 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline text-lg ">Administrador</span>
-          <span className="sm:hidden">Admin</span>
-        </div>
-      </header>
-
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside
-          className={`${
-            isMobile ? "fixed top-0 left-0" : "relative"
-          } bg-slate-800 text-white transition-all duration-300 z-50 ${
-            sidebarOpen ? "w-64" : "w-0 overflow-hidden"
-          } ${isMobile ? "h-full" : ""}`}
-          style={isMobile ? { top: 64 } : {}} // Ajusta 64 si tu navbar es más alto o bajo
-        >
-          <div className="p-4">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-              NAVEGACIÓN PRINCIPAL
-            </h2>
-            <nav className="space-y-1">
-              {navigationItems.map((item, index) => (
-                <div key={index} className="group">
-                  <Button
-                    variant="ghost"
-                    className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
-                      item.active ? "bg-slate-700 text-white" : "text-slate-300"
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
+              <User className="h-5 w-5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline text-lg ">Administrador</span>
+              <span className="sm:hidden">Admin</span>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="mr-2.5">
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <p>Perfil</p>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <p>Salir</p>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </header>{" "}
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-16 left-0 h-full bg-slate-800 text-white transition-all duration-300 z-40 ${
+          sidebarOpen ? "w-64" : "w-0 overflow-hidden"
+        }`}
+      >
+        <div className="p-4">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+            NAVEGACIÓN PRINCIPAL
+          </h2>
+          <nav className="space-y-1">
+            {navigationItems.map((item, index) => (
+              <div key={index} className="group">
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
+                    item.active ? "bg-slate-700 text-white" : "text-slate-300"
+                  }`}
+                  onClick={() => toggleSubmenu(item.label)}
+                >
+                  <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                  <ChevronRight
+                    className={`h-4 w-4 ml-auto transition-transform duration-200 ${
+                      openSubmenus.includes(item.label) ? "rotate-90" : ""
                     }`}
-                    onClick={() => toggleSubmenu(item.label)}
-                  >
-                    <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronRight
-                      className={`h-4 w-4 ml-auto transition-transform duration-200 ${
-                        openSubmenus.includes(item.label) ? "rotate-90" : ""
-                      }`}
-                    />
-                  </Button>
+                  />
+                </Button>
 
-                  {/* Submenu */}
-                  {openSubmenus.includes(item.label) && (
-                    <div className="ml-4 mt-1 space-y-1 border-l border-slate-600 pl-4">
-                      {item.submenu.map((subItem, subIndex) => (
-                        <Button
-                          key={subIndex}
-                          variant="ghost"
-                          className="w-full justify-start text-left h-auto py-2 px-3 text-slate-400 hover:bg-slate-700 hover:text-white text-sm"
-                        >
-                          <span>{subItem.label}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </nav>
-          </div>
-        </aside>
-      </div>
+                {/* Submenu */}
+                {openSubmenus.includes(item.label) && (
+                  <div className="ml-4 mt-1 space-y-1 border-l border-slate-600 pl-4">
+                    {item.submenu.map((subItem, subIndex) => (
+                      <Button
+                        key={subIndex}
+                        variant="ghost"
+                        className="w-full justify-start text-left h-auto py-2 px-3 text-slate-400 hover:bg-slate-700 hover:text-white text-sm"
+                      >
+                        <span>{subItem.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}{" "}
+          </nav>
+        </div>
+      </aside>
     </>
   );
 };
