@@ -1,12 +1,12 @@
-import React from "react";
-import { MedicalDevicesView } from "./components/modals/medical-devices-view";
+import React from "react"
+import { ManualesView } from "./components/manuales-view"
 
-const App = () => {
+function App() {
   return (
-    <div>
-      <MedicalDevicesView />
+    <div className="min-h-screen bg-slate-100">
+      <ManualesView />
     </div>
-  );
-};
+  )
+}
 
-export default App;
+export default App

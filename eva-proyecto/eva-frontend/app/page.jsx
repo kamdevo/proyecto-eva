@@ -1,5 +1,7 @@
-import { MedicalDevicesView } from "@/components/medical-devices-view"
+"use client"
+
+import { ContingenciesView } from "../src/components/contingencies-view"
 
 export default function Page() {
-  return <MedicalDevicesView />;
+  return <ContingenciesView />;
 }
