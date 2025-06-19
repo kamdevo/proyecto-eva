@@ -112,11 +112,13 @@ const Navbar = () => {
   ];
 
   const toggleSubmenu = (label) => {
-    setOpenSubmenus((prev) =>
-      prev.includes(label)
-        ? prev.filter((item) => item !== label)
-        : [...prev, label]
-    );
+    setOpenSubmenus((prev) => {
+      if (prev.includes(label)) {
+        return [];
+      } else {
+        return [label];
+      }
+    });
   };
 
   return (
