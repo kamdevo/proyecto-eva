@@ -1,7 +1,7 @@
 "use client"
 
-import { ContingenciesView } from "../src/components/contingencies-view"
+import { PlanesMantenimientoView } from "../planes-mantenimiento-view"
 
 export default function Page() {
-  return <ContingenciesView />;
+  return <PlanesMantenimientoView />;
 }

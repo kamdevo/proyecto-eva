@@ -1,10 +1,10 @@
 import React from "react"
-import { ManualesView } from "./components/manuales-view"
+import { PlanesMantenimientoView } from "./components/planes-mantenimiento-view"
 
 function App() {
   return (
-    <div className="min-h-screen bg-slate-100">
-      <ManualesView />
+    <div className="App">
+      <PlanesMantenimientoView />
     </div>
   )
 }
