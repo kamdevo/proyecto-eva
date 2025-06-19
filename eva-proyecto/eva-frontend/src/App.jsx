@@ -4,16 +4,15 @@ import "./App.css";
 import HomePage from "./components/HomePage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import ProfilePage from "./components/ProfilePage";
 
+import IndustrialDevices from "./components/EquiposIndustriales";
 const App = () => {
   return (
     <div>
       <Navbar />
-      {/* Elimina el padding superior para que el contenido no sea empujado */}
 
-      <HomePage />
-
-      <Footer />
+      <ProfilePage />
     </div>
   );
 };
