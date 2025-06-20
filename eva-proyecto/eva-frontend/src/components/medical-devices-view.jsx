@@ -785,3 +785,5 @@ export function MedicalDevicesView() {
     </div>
   );
 }
+
+export default MedicalDevicesView;
