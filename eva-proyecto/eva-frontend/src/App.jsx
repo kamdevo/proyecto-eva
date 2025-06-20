@@ -1,12 +1,12 @@
-import React from "react"
-import { PlanesMantenimientoView } from "./components/planes-mantenimiento-view"
-
+import React from "react";
+import { PlanesMantenimientoView } from "./components/planes-mantenimiento-view";
+import MyTickets from "./components/MyTickets";
 function App() {
   return (
     <div className="App">
-      <PlanesMantenimientoView />
+      <MyTickets />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
