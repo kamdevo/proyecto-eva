@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+=======
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+>>>>>>> b51342c1f2f70f4d0a585b0dbe6da4b208d5c9dc
 
 // Importa tus vistas
 import ContingenciesView from "./components/contingencies-view";
