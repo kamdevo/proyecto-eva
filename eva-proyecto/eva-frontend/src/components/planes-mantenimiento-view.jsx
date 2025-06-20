@@ -789,3 +789,5 @@ export function PlanesMantenimientoView() {
         </div>
     )
 }
+
+export default PlanesMantenimientoView;

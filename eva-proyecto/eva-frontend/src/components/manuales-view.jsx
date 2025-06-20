@@ -208,3 +208,5 @@ export function ManualesView() {
         </div>
     )
 }
+
+export default ManualesView;
