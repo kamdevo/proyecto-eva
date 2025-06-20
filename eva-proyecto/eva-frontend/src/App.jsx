@@ -1,17 +1,3 @@
-<<<<<<< HEAD
-import React from "react";
-import { PlanesMantenimientoView } from "./components/planes-mantenimiento-view";
-import MyTickets from "./components/MyTickets";
-function App() {
-  return (
-    <div className="App">
-      <MyTickets />
-    </div>
-  );
-}
-
-export default App;
-=======
 // src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
@@ -57,4 +43,3 @@ export default function App() {
     </Router>
   );
 }
->>>>>>> 23637563b083878132f45728b67ce7eb51159446
