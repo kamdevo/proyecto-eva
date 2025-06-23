@@ -13,10 +13,10 @@ const LoginForm = () => {
       </div>
 
       <div
-        style={{ position: "relative", background: "transparent" }}
+        style={{ zIndex: 10, position: "relative", background: "transparent" }}
         className="background-pattern"
       >
-        <div style={{ zIndex: 10 }} className=" container">
+        <div className=" container">
           <div className="header-logo">
             <img className="Logo" src={logo} alt="Logo EVA" />
           </div>
