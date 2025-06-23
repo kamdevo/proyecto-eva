@@ -8,7 +8,7 @@ const LoginForm = () => {
 
   return (
     <>
-      <div style={{ position: "relative", zIndex: -1 }}>
+      <div style={{ position: "relative", zIndex: 1 }}>
         <ParticlesBackground />
       </div>
 
@@ -16,7 +16,7 @@ const LoginForm = () => {
         style={{ position: "relative", background: "transparent" }}
         className="background-pattern"
       >
-        <div className="container">
+        <div style={{ zIndex: 10 }} className=" container">
           <div className="header-logo">
             <img className="Logo" src={logo} alt="Logo EVA" />
           </div>

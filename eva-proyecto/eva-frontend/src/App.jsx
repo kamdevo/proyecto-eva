@@ -4,20 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 // Importa tus vistas
 import ContingenciesView from "./components/contingencies-view";
 import HomePage from "./components/HomePage";
-<<<<<<< HEAD
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import ProfilePage from "./components/ProfilePage";
-
-import IndustrialDevices from "./components/EquiposIndustriales";
-const App = () => {
-  return (
-    <div>
-      <Navbar />
-
-      <ProfilePage />
-    </div>
-=======
 import LoginForm from "./components/LoginForm";
 import ManualesView from "./components/manuales-view";
 import MedicalDevicesView from "./components/medical-devices-view";
@@ -32,6 +18,7 @@ import ControlPanel from "./components/control-panel";
 import VistaAreasPrincipal from "./components/vista-areas";
 import VistaPropietariosPrincipal from "./components/vista-propietarios-principal";
 import VistaServiciosPrincipal from "./components/vista-servicios-principal";
+import AdministradorVista from "./components/AdministradorVista";
 
 export default function App() {
   return (
@@ -129,6 +116,14 @@ export default function App() {
           >
             Propietarios
           </Link>
+
+          <Link
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            to="/administrador"
+          >
+            Administrador
+          </Link>
+
           <Link
             className="text-blue-600 dark:text-blue-400 hover:underline"
             to="/servicios"
@@ -163,10 +158,10 @@ export default function App() {
             path="/propietarios"
             element={<VistaPropietariosPrincipal />}
           />
+          <Route path="/administrador" element={<AdministradorVista />} />
           <Route path="/servicios" element={<VistaServiciosPrincipal />} />
         </Routes>
       </div>
     </Router>
->>>>>>> main
   );
 }
