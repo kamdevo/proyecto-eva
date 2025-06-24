@@ -18,11 +18,15 @@ import ControlPanel from "./components/control-panel";
 import VistaAreasPrincipal from "./components/vista-areas";
 import VistaPropietariosPrincipal from "./components/vista-propietarios-principal";
 import VistaServiciosPrincipal from "./components/vista-servicios-principal";
-import AdministradorVista from "./components/AdministradorVista";
+import Usuarios from "./components/Usuarios";
 import Navbar from "./components/Navbar";
 import IndustrialDevicesView from "./components/IndustrialDevices";
 import GestionTickets from "./components/GestionTickets";
 import Footer from "./components/Footer";
+import EquiposBajas from "./components/EquiposBajas";
+import GuiasRapidas from "./components/GuiasRapidas";
+import RepuestosView from "./components/RepuestosView";
+import CapacitacionesView from "./components/CapacitacionesView";
 export default function App() {
   return (
     <>
@@ -53,10 +57,13 @@ export default function App() {
               path="/planes/preventivo"
               element={<PlanesMantenimientoView />}
             />
+            <Route path="/repuestos" element={<RepuestosView />} />
             <Route
               path="/equipos/industriales"
               element={<IndustrialDevicesView />}
             />
+            <Route path="/equipos/bajas" element={<EquiposBajas />} />
+            <Route path="/equipos/guias-rapidas" element={<GuiasRapidas />} />
             <Route
               path="/equipos/ordenes-compra"
               element={<PurchaseOrdersView />}
@@ -77,14 +84,15 @@ export default function App() {
             <Route path="/dashboard/graficas" element={<ControlPanel />} />
             <Route path="/config/areas" element={<VistaAreasPrincipal />} />
             <Route
-              path="propietarios"
+              path="/admin/propietarios"
               element={<VistaPropietariosPrincipal />}
             />
-            <Route path="/admin/usuarios" element={<AdministradorVista />} />
+            <Route path="/admin/usuarios" element={<Usuarios />} />
             <Route
               path="/config/servicios"
               element={<VistaServiciosPrincipal />}
             />
+            <Route path="/capacitaciones" element={<CapacitacionesView />} />
           </Routes>
 
           <Footer />

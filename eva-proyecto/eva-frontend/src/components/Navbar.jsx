@@ -76,14 +76,12 @@ const Navbar = () => {
     {
       icon: Wrench,
       label: "REPUESTOS",
-      submenu: [{ label: "REPUESTOS", href: "/repuestos/repuestos" }],
+      submenu: [{ label: "REPUESTOS", href: "/repuestos" }],
     },
     {
       icon: GraduationCap,
       label: "CAPACITACIONES",
-      submenu: [
-        { label: "CAPACITACIONES", href: "/capacitaciones/capacitaciones" },
-      ],
+      submenu: [{ label: "CAPACITACIONES", href: "/capacitaciones" }],
     },
     {
       icon: BarChart3,

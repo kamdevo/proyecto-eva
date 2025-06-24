@@ -24,7 +24,7 @@ import { Upload, Plus } from "lucide-react";
 export function AddEquipmentModal({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-6xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl min-w-6xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
             Agregar - Equipo biomédico
