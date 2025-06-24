@@ -63,7 +63,10 @@ export default function CapacitacionesView() {
   ];
 
   return (
-    <div className="flex flex-col  h-screen w-screen bg-gray-50 p-12 overflow-auto">
+    <div className="flex flex-col   h-screen w-screen bg-gray-50 p-12 overflow-auto">
+      <div className="flex items-center justify-center mb-6 w-full">
+        <h1 className="text-5xl font-bold">Capacitaciones</h1>
+      </div>
       <div className="flex flex-1">
         {/* Overlay para móviles */}
         {sidebarOpen && isMobile && (
@@ -88,7 +91,7 @@ export default function CapacitacionesView() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center gap-3 sm:gap-4 mb-4">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Search className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
+                      <Search className="h-0.5 w-0.5 sm:h-6 sm:w-6 text-gray-600" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">
@@ -134,16 +137,22 @@ export default function CapacitacionesView() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-
+            </div>{" "}
             {/* Right Column - Image */}
-            <div className="flex  justify-center order-1 lg:order-2">
+            <div className="flex flex-col justify-center order-1 lg:order-2 group">
               <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg">
                 <img
-                  className="w-full h-auto rounded-lg shadow-lg"
+                  className="w-full h-auto rounded-lg rounded-b-none shadow-lg cursor-pointer transition-transform duration-300  relative z-10"
                   src="https://hips.hearstapps.com/hmg-prod/images/gato-1603975456.gif?resize=640:*"
                   alt=""
                 />
+                <Card
+                  className={`bg-white p-2 sm:p-6 flex justify-center items-center rounded-t-none  transition-all duration-300 ease-in-out transform origin-top`}
+                >
+                  <h1 className="text-center font-semibold text-gray-800">
+                    NOMBRE DE CAPACITACION
+                  </h1>
+                </Card>
               </div>
             </div>
           </div>
