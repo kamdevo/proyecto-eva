@@ -36,16 +36,16 @@ class EquipmentController extends ApiController
     {
         try {
             $query = Equipo::with([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name',
-                'tipo:id,name'
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre',
+                'tipo:id,nombre'
             ]);
 
             // Aplicar filtros de búsqueda

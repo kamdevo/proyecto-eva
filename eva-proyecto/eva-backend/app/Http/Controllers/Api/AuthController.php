@@ -37,7 +37,7 @@ class AuthController extends ApiController
                 return ResponseFormatter::unauthorized('Credenciales incorrectas');
             }
 
-            if (!$usuario->activo) {
+            if (!$usuario->estado) {
                 return ResponseFormatter::unauthorized('Usuario inactivo');
             }
 
@@ -62,14 +62,14 @@ class AuthController extends ApiController
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'nullable|string|max:255',
+            'nombre' => 'required|string|max:100',
+            'apellido' => 'nullable|string|max:100',
             'telefono' => 'nullable|string|max:20',
             'email' => 'required|email|unique:usuarios,email',
-            'username' => 'required|string|unique:usuarios,username|max:255',
+            'username' => 'required|string|unique:usuarios,username|max:45',
             'password' => 'required|string|min:6|confirmed',
-            'centro_costo' => 'nullable|string|max:255',
-            'empresa' => 'nullable|string|max:255',
+            'centro_id' => 'nullable|string|max:100',
+            'id_empresa' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -79,16 +79,17 @@ class AuthController extends ApiController
         try {
             $usuario = Usuario::create([
                 'nombre' => $request->nombre,
-                'apellidos' => $request->apellidos,
+                'apellido' => $request->apellido,
                 'telefono' => $request->telefono,
                 'email' => $request->email,
                 'username' => $request->username,
                 'password' => Hash::make($request->password),
-                'rol' => 'usuario', // Rol por defecto
-                'centro_costo' => $request->centro_costo,
-                'empresa' => $request->empresa,
-                'cambio_clave' => false,
-                'activo' => true
+                'rol_id' => 4, // Rol por defecto (usuario)
+                'centro_id' => $request->centro_id,
+                'id_empresa' => $request->id_empresa ?? 0,
+                'estado' => 1, // Activo
+                'sede_id' => '1', // Sede por defecto
+                'anio_plan' => date('Y')
             ]);
 
             $token = $usuario->createToken('eva-token')->plainTextToken;
@@ -150,8 +151,8 @@ class AuthController extends ApiController
     public function updateProfile(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'nombre' => 'sometimes|required|string|max:255',
-            'apellidos' => 'nullable|string|max:255',
+            'nombre' => 'sometimes|required|string|max:100',
+            'apellido' => 'nullable|string|max:100',
             'telefono' => 'nullable|string|max:20',
             'email' => 'sometimes|required|email|unique:usuarios,email,' . $request->user()->id,
         ]);
@@ -162,7 +163,7 @@ class AuthController extends ApiController
 
         try {
             $usuario = $request->user();
-            $usuario->update($request->only(['nombre', 'apellidos', 'telefono', 'email']));
+            $usuario->update($request->only(['nombre', 'apellido', 'telefono', 'email']));
 
             return ResponseFormatter::success($usuario, 'Perfil actualizado exitosamente');
         } catch (\Exception $e) {
@@ -192,8 +193,7 @@ class AuthController extends ApiController
             }
 
             $usuario->update([
-                'password' => Hash::make($request->new_password),
-                'cambio_clave' => true
+                'password' => Hash::make($request->new_password)
             ]);
 
             return ResponseFormatter::success(null, 'Contraseña cambiada exitosamente');

@@ -15,7 +15,7 @@ class Tecnologia extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'name',
+        'nombre',
         'status',
         'created_at'
     ];

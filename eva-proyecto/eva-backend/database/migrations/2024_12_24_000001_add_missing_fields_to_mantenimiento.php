@@ -14,36 +14,36 @@ return new class extends Migration
         Schema::table('mantenimiento', function (Blueprint $table) {
             // Agregar campos faltantes identificados en las pruebas
             if (!Schema::hasColumn('mantenimiento', 'tecnico_id')) {
-                $table->unsignedBigInteger('tecnico_id')->nullable()->after('fecha_fin');
-                $table->foreign('tecnico_id')->references('id')->on('usuarios')->onDelete('set null');
+                $table->unsignedInteger('tecnico_id')->nullable();
+                // Foreign key será agregada manualmente si es necesario
             }
             
             if (!Schema::hasColumn('mantenimiento', 'prioridad')) {
-                $table->enum('prioridad', ['baja', 'media', 'alta', 'urgente'])->default('media')->after('status');
+                $table->enum('prioridad', ['baja', 'media', 'alta', 'urgente'])->default('media');
             }
             
             if (!Schema::hasColumn('mantenimiento', 'tiempo_estimado')) {
-                $table->integer('tiempo_estimado')->nullable()->comment('Tiempo estimado en horas')->after('prioridad');
+                $table->integer('tiempo_estimado')->nullable()->comment('Tiempo estimado en horas');
             }
-            
+
             if (!Schema::hasColumn('mantenimiento', 'tiempo_real')) {
-                $table->integer('tiempo_real')->nullable()->comment('Tiempo real en horas')->after('tiempo_estimado');
+                $table->integer('tiempo_real')->nullable()->comment('Tiempo real en horas');
             }
-            
+
             if (!Schema::hasColumn('mantenimiento', 'repuestos_utilizados')) {
-                $table->text('repuestos_utilizados')->nullable()->after('observaciones');
+                $table->text('repuestos_utilizados')->nullable();
             }
-            
+
             if (!Schema::hasColumn('mantenimiento', 'file_reporte')) {
-                $table->string('file_reporte')->nullable()->after('file');
+                $table->string('file_reporte')->nullable();
             }
-            
+
             if (!Schema::hasColumn('mantenimiento', 'motivo_cancelacion')) {
-                $table->text('motivo_cancelacion')->nullable()->after('file_reporte');
+                $table->text('motivo_cancelacion')->nullable();
             }
-            
+
             if (!Schema::hasColumn('mantenimiento', 'fecha_cancelacion')) {
-                $table->timestamp('fecha_cancelacion')->nullable()->after('motivo_cancelacion');
+                $table->timestamp('fecha_cancelacion')->nullable();
             }
         });
     }

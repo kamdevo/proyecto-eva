@@ -15,7 +15,7 @@ class FuenteAlimentacion extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'name',
+        'nombre',
         'created_at',
         'status'
     ];

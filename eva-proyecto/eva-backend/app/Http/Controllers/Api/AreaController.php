@@ -40,9 +40,8 @@ class AreaController extends ApiController
                 $query->where('servicio_id', $request->servicio_id);
             }
 
-            if ($request->has('activo')) {
-                $query->where('activo', $request->activo);
-            }
+            // Note: 'activo' column doesn't exist in actual database
+            // Remove this filter or add the column to database if needed
 
             if ($request->has('tipo')) {
                 $query->where('tipo', $request->tipo);
@@ -59,8 +58,7 @@ class AreaController extends ApiController
 
             // Agregar conteo de equipos por área
             $areas->getCollection()->transform(function ($area) {
-                $area->total_equipos = Equipo::where('area_id', $area->id)
-                    ->where('status', true)->count();
+                $area->total_equipos = Equipo::where('area_id', $area->id)->count();
                 return $area;
             });
 

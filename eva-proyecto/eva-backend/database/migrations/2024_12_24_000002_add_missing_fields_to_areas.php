@@ -14,24 +14,24 @@ return new class extends Migration
         Schema::table('areas', function (Blueprint $table) {
             // Agregar campos faltantes para áreas
             if (!Schema::hasColumn('areas', 'status')) {
-                $table->boolean('status')->default(true)->after('description');
+                $table->boolean('status')->default(true);
             }
-            
+
             if (!Schema::hasColumn('areas', 'responsable_id')) {
-                $table->unsignedBigInteger('responsable_id')->nullable()->after('status');
-                $table->foreign('responsable_id')->references('id')->on('usuarios')->onDelete('set null');
+                $table->unsignedInteger('responsable_id')->nullable();
+                // Foreign key será agregada manualmente si es necesario
             }
-            
+
             if (!Schema::hasColumn('areas', 'telefono')) {
-                $table->string('telefono', 20)->nullable()->after('responsable_id');
+                $table->string('telefono', 20)->nullable();
             }
-            
+
             if (!Schema::hasColumn('areas', 'email')) {
-                $table->string('email')->nullable()->after('telefono');
+                $table->string('email')->nullable();
             }
-            
+
             if (!Schema::hasColumn('areas', 'ubicacion')) {
-                $table->string('ubicacion')->nullable()->after('email');
+                $table->string('ubicacion')->nullable();
             }
         });
     }

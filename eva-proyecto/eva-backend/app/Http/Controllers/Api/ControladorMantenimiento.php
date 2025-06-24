@@ -29,8 +29,8 @@ class ControladorMantenimiento extends ApiController
         try {
             $query = Mantenimiento::with([
                 'equipo:id,name,code,servicio_id,area_id',
-                'equipo.servicio:id,name',
-                'equipo.area:id,name',
+                'equipo.servicio:id,nombre',
+                'equipo.area:id,nombre',
                 'tecnico:id,nombre,apellido',
                 'observaciones'
             ]);
@@ -154,8 +154,8 @@ class ControladorMantenimiento extends ApiController
         try {
             $mantenimiento = Mantenimiento::with([
                 'equipo:id,name,code,servicio_id,area_id,marca,modelo,serial',
-                'equipo.servicio:id,name',
-                'equipo.area:id,name',
+                'equipo.servicio:id,nombre',
+                'equipo.area:id,nombre',
                 'tecnico:id,nombre,apellido,telefono,email',
                 'observaciones.usuario:id,nombre,apellido'
             ])->findOrFail($id);
@@ -395,8 +395,8 @@ class ControladorMantenimiento extends ApiController
         try {
             $mantenimientos = Mantenimiento::with([
                 'equipo:id,name,code,servicio_id,area_id',
-                'equipo.servicio:id,name',
-                'equipo.area:id,name',
+                'equipo.servicio:id,nombre',
+                'equipo.area:id,nombre',
                 'tecnico:id,nombre,apellido'
             ])
             ->where('status', 'programado')
@@ -424,8 +424,8 @@ class ControladorMantenimiento extends ApiController
         try {
             $mantenimientos = Mantenimiento::with([
                 'equipo:id,name,code,servicio_id,area_id',
-                'equipo.servicio:id,name',
-                'equipo.area:id,name',
+                'equipo.servicio:id,nombre',
+                'equipo.area:id,nombre',
                 'tecnico:id,nombre,apellido'
             ])
             ->where('status', 'programado')
@@ -514,5 +514,197 @@ class ControladorMantenimiento extends ApiController
             default:
                 return $fechaBase->addMonths(3); // Default trimestral
         }
+    }
+
+    /**
+     * ENDPOINT COMPLETO: Planificación automática de mantenimientos
+     */
+    public function planificacionAutomatica(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'periodo' => 'required|string|in:mensual,trimestral,semestral,anual',
+                'servicios' => 'nullable|array',
+                'servicios.*' => 'integer|exists:servicios,id',
+                'tipos_equipo' => 'nullable|array',
+                'prioridad' => 'required|string|in:baja,media,alta,urgente',
+                'fecha_inicio' => 'required|date|after:today',
+                'incluir_calibraciones' => 'boolean'
+            ]);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::validation($validator->errors());
+            }
+
+            $periodo = $request->get('periodo');
+            $fechaInicio = Carbon::parse($request->get('fecha_inicio'));
+            $incluirCalibraciones = $request->get('incluir_calibraciones', false);
+
+            // Obtener equipos que requieren mantenimiento
+            $equiposQuery = Equipo::with(['servicio', 'area'])
+                ->where('status', true);
+
+            if ($request->has('servicios')) {
+                $equiposQuery->whereIn('servicio_id', $request->get('servicios'));
+            }
+
+            $equipos = $equiposQuery->get();
+            $mantenimientosProgramados = [];
+
+            DB::beginTransaction();
+
+            foreach ($equipos as $equipo) {
+                // Calcular próxima fecha de mantenimiento
+                $ultimoMantenimiento = $equipo->mantenimientos()
+                    ->where('tipo', 'preventivo')
+                    ->latest('fecha_programada')
+                    ->first();
+
+                $proximaFecha = $this->calcularProximaFecha($ultimoMantenimiento, $periodo, $fechaInicio);
+
+                // Crear mantenimiento preventivo
+                $mantenimiento = Mantenimiento::create([
+                    'equipo_id' => $equipo->id,
+                    'tipo' => 'preventivo',
+                    'description' => "Mantenimiento {$periodo} programado automáticamente",
+                    'fecha_programada' => $proximaFecha,
+                    'status' => 'programado',
+                    'prioridad' => $request->get('prioridad'),
+                    'tiempo_estimado' => $this->calcularTiempoEstimado($equipo),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                $mantenimientosProgramados[] = $mantenimiento;
+
+                // Programar calibración si es necesario
+                if ($incluirCalibraciones && $this->requiereCalibracion($equipo)) {
+                    $fechaCalibracion = $proximaFecha->copy()->addDays(7);
+
+                    Mantenimiento::create([
+                        'equipo_id' => $equipo->id,
+                        'tipo' => 'calibracion',
+                        'description' => 'Calibración programada automáticamente',
+                        'fecha_programada' => $fechaCalibracion,
+                        'status' => 'programado',
+                        'prioridad' => 'alta',
+                        'tiempo_estimado' => $this->calcularTiempoEstimado($equipo, 'calibracion'),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $resumen = [
+                'total_programados' => count($mantenimientosProgramados),
+                'periodo' => $periodo,
+                'fecha_inicio' => $fechaInicio->format('Y-m-d'),
+                'equipos_procesados' => $equipos->count(),
+                'calibraciones_incluidas' => $incluirCalibraciones,
+                'mantenimientos' => $mantenimientosProgramados
+            ];
+
+            return ResponseFormatter::success($resumen, 'Planificación automática completada exitosamente');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error('Error en planificación automática: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * ENDPOINT COMPLETO: Dashboard de mantenimientos
+     */
+    public function dashboardMantenimientos()
+    {
+        try {
+            $hoy = now();
+            $inicioMes = $hoy->copy()->startOfMonth();
+            $finMes = $hoy->copy()->endOfMonth();
+
+            // Estadísticas generales
+            $estadisticas = [
+                'total_mantenimientos' => Mantenimiento::count(),
+                'programados_hoy' => Mantenimiento::whereDate('fecha_programada', $hoy)->count(),
+                'vencidos' => Mantenimiento::where('fecha_programada', '<', $hoy)
+                    ->where('status', 'programado')->count(),
+                'en_proceso' => Mantenimiento::where('status', 'en_proceso')->count(),
+                'completados_mes' => Mantenimiento::where('status', 'completado')
+                    ->whereBetween('fecha_fin', [$inicioMes, $finMes])->count(),
+                'costo_total_mes' => Mantenimiento::where('status', 'completado')
+                    ->whereBetween('fecha_fin', [$inicioMes, $finMes])->sum('costo')
+            ];
+
+            // Mantenimientos próximos (7 días)
+            $proximosMantenimientos = Mantenimiento::with(['equipo:id,name,code', 'tecnico:id,nombre,apellido'])
+                ->whereBetween('fecha_programada', [$hoy, $hoy->copy()->addDays(7)])
+                ->where('status', 'programado')
+                ->orderBy('fecha_programada')
+                ->limit(10)
+                ->get();
+
+            // Mantenimientos vencidos
+            $mantenimientosVencidos = Mantenimiento::with(['equipo:id,name,code'])
+                ->where('fecha_programada', '<', $hoy)
+                ->where('status', 'programado')
+                ->orderBy('fecha_programada')
+                ->limit(10)
+                ->get();
+
+            $dashboard = [
+                'estadisticas' => $estadisticas,
+                'proximos_mantenimientos' => $proximosMantenimientos,
+                'mantenimientos_vencidos' => $mantenimientosVencidos,
+                'alertas' => [
+                    'vencidos' => $estadisticas['vencidos'],
+                    'hoy' => $estadisticas['programados_hoy'],
+                    'en_proceso' => $estadisticas['en_proceso']
+                ]
+            ];
+
+            return ResponseFormatter::success($dashboard, 'Dashboard de mantenimientos obtenido exitosamente');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al obtener dashboard: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Métodos auxiliares
+    private function calcularProximaFecha($ultimoMantenimiento, $periodo, $fechaInicio)
+    {
+        $fechaBase = $ultimoMantenimiento ? Carbon::parse($ultimoMantenimiento->fecha_programada) : $fechaInicio;
+
+        switch ($periodo) {
+            case 'mensual':
+                return $fechaBase->addMonth();
+            case 'trimestral':
+                return $fechaBase->addMonths(3);
+            case 'semestral':
+                return $fechaBase->addMonths(6);
+            case 'anual':
+                return $fechaBase->addYear();
+            default:
+                return $fechaBase->addMonths(3);
+        }
+    }
+
+    private function calcularTiempoEstimado($equipo, $tipo = 'preventivo')
+    {
+        // Tiempo estimado en horas basado en el tipo de equipo y mantenimiento
+        $tiempos = [
+            'preventivo' => 2,
+            'correctivo' => 4,
+            'calibracion' => 6
+        ];
+
+        return $tiempos[$tipo] ?? 2;
+    }
+
+    private function requiereCalibracion($equipo)
+    {
+        // Determinar si el equipo requiere calibración basado en su clasificación
+        return in_array($equipo->cbiomedica_id, [1, 2]); // Equipos críticos y de diagnóstico
     }
 }

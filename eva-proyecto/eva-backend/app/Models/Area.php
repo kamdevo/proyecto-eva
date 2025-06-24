@@ -4,35 +4,40 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Area Model - Matches actual database structure
+ * Table: areas
+ * Columns: id, name, servicio_id, centro_id, piso_id
+ */
 class Area extends Model
 {
     protected $table = 'areas';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false; // No timestamps in actual table
 
     protected $fillable = [
-        'nombre',
-        'codigo',
-        'descripcion',
+        'name',
         'servicio_id',
-        'sede_id',
-        'piso_id',
-        'activo'
+        'centro_id',
+        'piso_id'
     ];
 
     protected $casts = [
-        'activo' => 'boolean',
+        'id' => 'integer',
+        'servicio_id' => 'integer',
+        'centro_id' => 'integer',
+        'piso_id' => 'integer'
     ];
 
-    // Relaciones
+    // Relationships
     public function servicio()
     {
         return $this->belongsTo(Servicio::class, 'servicio_id');
     }
 
-    public function sede()
+    public function centro()
     {
-        return $this->belongsTo(Sede::class, 'sede_id');
+        return $this->belongsTo(Centro::class, 'centro_id');
     }
 
     public function piso()
@@ -43,5 +48,16 @@ class Area extends Model
     public function equipos()
     {
         return $this->hasMany(Equipo::class, 'area_id');
+    }
+
+    // Scopes
+    public function scopeByServicio($query, $servicioId)
+    {
+        return $query->where('servicio_id', $servicioId);
+    }
+
+    public function scopeByCentro($query, $centroId)
+    {
+        return $query->where('centro_id', $centroId);
     }
 }

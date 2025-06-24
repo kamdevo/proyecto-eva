@@ -14,44 +14,44 @@ return new class extends Migration
         Schema::table('contingencias', function (Blueprint $table) {
             // Agregar campos faltantes para contingencias
             if (!Schema::hasColumn('contingencias', 'estado')) {
-                $table->enum('estado', ['Activa', 'En Proceso', 'Resuelta', 'Cancelada'])->default('Activa')->after('severidad');
+                $table->enum('estado', ['Activa', 'En Proceso', 'Resuelta', 'Cancelada'])->default('Activa');
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'usuario_asignado')) {
-                $table->unsignedBigInteger('usuario_asignado')->nullable()->after('usuario_reporta');
-                $table->foreign('usuario_asignado')->references('id')->on('usuarios')->onDelete('set null');
+                $table->unsignedInteger('usuario_asignado')->nullable();
+                // Foreign key será agregada manualmente si es necesario
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'fecha_asignacion')) {
-                $table->timestamp('fecha_asignacion')->nullable()->after('usuario_asignado');
+                $table->timestamp('fecha_asignacion')->nullable();
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'fecha_resolucion')) {
-                $table->timestamp('fecha_resolucion')->nullable()->after('fecha_asignacion');
+                $table->timestamp('fecha_resolucion')->nullable();
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'tiempo_resolucion')) {
-                $table->integer('tiempo_resolucion')->nullable()->comment('Tiempo en horas')->after('fecha_resolucion');
+                $table->integer('tiempo_resolucion')->nullable()->comment('Tiempo en horas');
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'costo_estimado')) {
-                $table->decimal('costo_estimado', 10, 2)->nullable()->after('tiempo_resolucion');
+                $table->decimal('costo_estimado', 10, 2)->nullable();
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'costo_real')) {
-                $table->decimal('costo_real', 10, 2)->nullable()->after('costo_estimado');
+                $table->decimal('costo_real', 10, 2)->nullable();
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'archivo_evidencia')) {
-                $table->string('archivo_evidencia')->nullable()->after('costo_real');
+                $table->string('archivo_evidencia')->nullable();
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'impacto')) {
-                $table->enum('impacto', ['Bajo', 'Medio', 'Alto', 'Crítico'])->default('Medio')->after('archivo_evidencia');
+                $table->enum('impacto', ['Bajo', 'Medio', 'Alto', 'Crítico'])->default('Medio');
             }
-            
+
             if (!Schema::hasColumn('contingencias', 'categoria')) {
-                $table->string('categoria', 100)->nullable()->after('impacto');
+                $table->string('categoria', 100)->nullable();
             }
         });
     }

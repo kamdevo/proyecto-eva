@@ -19,6 +19,21 @@ use App\Http\Controllers\Api\CorrectivoController;
 use App\Http\Controllers\Api\ArchivosController;
 use App\Http\Controllers\Api\CapacitacionController;
 use App\Http\Controllers\Api\RepuestosController;
+use App\Http\Controllers\Api\FiltrosController;
+use App\Http\Controllers\Api\PropietarioController;
+use App\Http\Controllers\Api\ContactoController;
+use App\Http\Controllers\Api\GuiaRapidaController;
+use App\Http\Controllers\Api\ObservacionController;
+use App\Http\Controllers\Api\PlanMantenimientoController;
+use App\Http\Controllers\Api\ControladorEquipos;
+use App\Http\Controllers\Api\ControladorMantenimiento;
+use App\Http\Controllers\Api\ControladorContingencias;
+use App\Http\Controllers\Api\ControladorUsuarios;
+use App\Http\Controllers\Api\ControladorArchivos;
+use App\Http\Controllers\Api\ControladorReportes;
+use App\Http\Controllers\Api\ControladorConfiguracion;
+use App\Http\Controllers\Api\ControladorAuditoria;
+use App\Http\Controllers\Api\ControladorNotificaciones;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,12 +50,57 @@ use App\Http\Controllers\Api\RepuestosController;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
+// Test route for database connectivity
+Route::get('/test-db', function() {
+    try {
+        $areas = DB::table('areas')->count();
+        $contingencias = DB::table('contingencias')->count();
+        $equipos = DB::table('equipos')->count();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Database connection successful',
+            'data' => [
+                'areas_count' => $areas,
+                'contingencias_count' => $contingencias,
+                'equipos_count' => $equipos,
+                'timestamp' => now()
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Database connection failed',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
 // Rutas protegidas (requieren autenticación)
 Route::middleware('auth:sanctum')->group(function () {
     
     // Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA USUARIOS Y ROLES
+    Route::get('/usuarios/dashboard', [ControladorUsuarios::class, 'dashboardUsuarios']);
+    Route::post('/usuarios/{id}/cambiar-contrasena', [ControladorUsuarios::class, 'cambiarContrasena']);
+    Route::post('/usuarios/activar-masivo', [ControladorUsuarios::class, 'activarMasivo']);
+    Route::post('/usuarios/desactivar-masivo', [ControladorUsuarios::class, 'desactivarMasivo']);
+    Route::get('/usuarios/export/completo', [ControladorUsuarios::class, 'exportarCompleto']);
+    Route::post('/usuarios/importar-excel', [ControladorUsuarios::class, 'importarExcel']);
+    Route::get('/usuarios/actividad/{usuarioId}', [ControladorUsuarios::class, 'actividadUsuario']);
+    Route::post('/usuarios/{id}/resetear-password', [ControladorUsuarios::class, 'resetearPassword']);
+    Route::get('/usuarios/permisos/{usuarioId}', [ControladorUsuarios::class, 'permisosUsuario']);
+    Route::post('/usuarios/asignar-permisos', [ControladorUsuarios::class, 'asignarPermisos']);
+
+    // Gestión de roles
+    Route::match(['GET', 'POST'], '/roles/gestion', [ControladorUsuarios::class, 'gestionRoles']);
+    Route::put('/roles/{id}', [ControladorUsuarios::class, 'actualizarRol']);
+    Route::delete('/roles/{id}', [ControladorUsuarios::class, 'eliminarRol']);
+    Route::get('/roles/{id}/usuarios', [ControladorUsuarios::class, 'usuariosPorRol']);
+    Route::post('/roles/{id}/permisos', [ControladorUsuarios::class, 'asignarPermisosRol']);
     
     // Dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
@@ -68,7 +128,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/equipos/busqueda-avanzada', [EquipmentController::class, 'busquedaAvanzada']);
     Route::get('/equipos/marcas', [EquipmentController::class, 'getMarcas']);
     Route::get('/equipos/modelos/{marca}', [EquipmentController::class, 'getModelosPorMarca']);
-    
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA EQUIPOS MÉDICOS
+    Route::post('/equipos/gestion-avanzada', [ControladorEquipos::class, 'gestionAvanzada']);
+    Route::get('/equipos/{id}/historial', [ControladorEquipos::class, 'historial']);
+    Route::post('/equipos/programar-mantenimiento-masivo', [ControladorEquipos::class, 'programarMantenimientoMasivo']);
+    Route::get('/equipos/criticos-avanzado', [ControladorEquipos::class, 'equiposCriticos']);
+    Route::post('/equipos/transferir-masivo', [ControladorEquipos::class, 'transferirMasivo']);
+    Route::get('/equipos/{id}/qr-code', [ControladorEquipos::class, 'generarQR']);
+    Route::post('/equipos/importar-excel', [ControladorEquipos::class, 'importarExcel']);
+    Route::get('/equipos/export/completo', [ControladorEquipos::class, 'exportarCompleto']);
+    Route::post('/equipos/validar-codigos', [ControladorEquipos::class, 'validarCodigos']);
+    Route::get('/equipos/dashboard-metricas', [ControladorEquipos::class, 'dashboardMetricas']);
+
     // Equipos industriales (usa el mismo controlador con filtros)
     Route::get('/equipos-industriales', [EquipmentController::class, 'index'])->defaults('tipo', 'industrial');
     
@@ -96,7 +168,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mantenimientos', [EquipmentController::class, 'createMaintenance']);
     Route::put('/mantenimientos/{id}', [EquipmentController::class, 'updateMaintenance']);
     Route::delete('/mantenimientos/{id}', [EquipmentController::class, 'deleteMaintenance']);
-    
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA MANTENIMIENTOS
+    Route::post('/mantenimientos/planificacion-automatica', [ControladorMantenimiento::class, 'planificacionAutomatica']);
+    Route::get('/mantenimientos/dashboard', [ControladorMantenimiento::class, 'dashboardMantenimientos']);
+    Route::post('/mantenimientos/programar-masivo', [ControladorMantenimiento::class, 'programarMasivo']);
+    Route::get('/mantenimientos/calendario', [ControladorMantenimiento::class, 'calendario']);
+    Route::post('/mantenimientos/reasignar-tecnico', [ControladorMantenimiento::class, 'reasignarTecnico']);
+    Route::get('/mantenimientos/reporte-cumplimiento', [ControladorMantenimiento::class, 'reporteCumplimiento']);
+    Route::post('/mantenimientos/notificar-vencidos', [ControladorMantenimiento::class, 'notificarVencidos']);
+    Route::get('/mantenimientos/metricas-tecnico/{tecnicoId}', [ControladorMantenimiento::class, 'metricasTecnico']);
+    Route::post('/mantenimientos/importar-plan', [ControladorMantenimiento::class, 'importarPlan']);
+    Route::get('/mantenimientos/export/completo', [ControladorMantenimiento::class, 'exportarCompleto']);
+
     // Planes de mantenimiento
     Route::get('/planes-mantenimiento', [EquipmentController::class, 'getMaintenancePlans']);
     Route::post('/planes-mantenimiento', [EquipmentController::class, 'createMaintenancePlan']);
@@ -259,6 +343,66 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/archivos/{id}/toggle-status', [ArchivosController::class, 'toggleStatus']);
     Route::post('/archivos/buscar', [ArchivosController::class, 'buscar']);
 
+    // NUEVOS ENDPOINTS COMPLETOS PARA ARCHIVOS Y DOCUMENTOS
+    Route::get('/archivos/dashboard', [ControladorArchivos::class, 'dashboardArchivos']);
+    Route::get('/archivos/{id}/download-seguro', [ControladorArchivos::class, 'download'])->name('api.archivos.download');
+    Route::match(['GET', 'POST'], '/archivos/{id}/versiones', [ControladorArchivos::class, 'gestionVersiones']);
+    Route::post('/archivos/upload-masivo', [ControladorArchivos::class, 'uploadMasivo']);
+    Route::post('/archivos/organizar-automatico', [ControladorArchivos::class, 'organizarAutomatico']);
+    Route::get('/archivos/busqueda-avanzada', [ControladorArchivos::class, 'busquedaAvanzada']);
+    Route::post('/archivos/comprimir', [ControladorArchivos::class, 'comprimirArchivos']);
+    Route::get('/archivos/{id}/preview', [ControladorArchivos::class, 'preview']);
+    Route::post('/archivos/validar-integridad', [ControladorArchivos::class, 'validarIntegridad']);
+    Route::get('/archivos/estadisticas-uso', [ControladorArchivos::class, 'estadisticasUso']);
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA REPORTES Y ESTADÍSTICAS
+    Route::get('/reportes/dashboard-principal', [ControladorReportes::class, 'dashboardPrincipal']);
+    Route::post('/reportes/equipos', [ControladorReportes::class, 'reporteEquipos']);
+    Route::post('/reportes/mantenimientos', [ControladorReportes::class, 'reporteMantenimientos']);
+    Route::post('/reportes/contingencias', [ControladorReportes::class, 'reporteContingencias']);
+    Route::post('/reportes/analisis-rendimiento', [ControladorReportes::class, 'analisisRendimiento']);
+    Route::get('/reportes/estadisticas-tiempo-real', [ControladorReportes::class, 'estadisticasEnTiempoReal']);
+    Route::post('/reportes/personalizado', [ControladorReportes::class, 'reportePersonalizado']);
+    Route::get('/reportes/kpis', [ControladorReportes::class, 'kpisGenerales']);
+    Route::post('/reportes/comparativo', [ControladorReportes::class, 'reporteComparativo']);
+    Route::get('/reportes/tendencias', [ControladorReportes::class, 'analisisTendencias']);
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA CONFIGURACIÓN
+    Route::get('/configuracion/general', [ControladorConfiguracion::class, 'configuracionGeneral']);
+    Route::match(['GET', 'POST'], '/configuracion/parametros', [ControladorConfiguracion::class, 'parametrosSistema']);
+    Route::match(['GET', 'POST'], '/configuracion/notificaciones', [ControladorConfiguracion::class, 'configuracionNotificaciones']);
+    Route::match(['GET', 'POST'], '/configuracion/mantenimientos', [ControladorConfiguracion::class, 'configuracionMantenimientos']);
+    Route::get('/configuracion/estado-sistema', [ControladorConfiguracion::class, 'estadoSistema']);
+    Route::post('/configuracion/mantenimiento-sistema', [ControladorConfiguracion::class, 'mantenimientoSistema']);
+    Route::get('/configuracion/backup-list', [ControladorConfiguracion::class, 'listarBackups']);
+    Route::post('/configuracion/restore-backup', [ControladorConfiguracion::class, 'restaurarBackup']);
+    Route::get('/configuracion/logs-sistema', [ControladorConfiguracion::class, 'logsSistema']);
+    Route::post('/configuracion/test-conexiones', [ControladorConfiguracion::class, 'testConexiones']);
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA AUDITORÍA Y TRAZABILIDAD
+    Route::get('/auditoria/registro', [ControladorAuditoria::class, 'registroAuditoria']);
+    Route::get('/auditoria/dashboard', [ControladorAuditoria::class, 'dashboardAuditoria']);
+    Route::get('/auditoria/trazabilidad/{tabla}/{id}', [ControladorAuditoria::class, 'trazabilidadEntidad']);
+    Route::post('/auditoria/analisis-seguridad', [ControladorAuditoria::class, 'analisisSeguridad']);
+    Route::post('/auditoria/exportar-logs', [ControladorAuditoria::class, 'exportarLogs']);
+    Route::get('/auditoria/eventos-criticos', [ControladorAuditoria::class, 'eventosCriticos']);
+    Route::post('/auditoria/marcar-revisado', [ControladorAuditoria::class, 'marcarRevisado']);
+    Route::get('/auditoria/estadisticas-usuario/{usuarioId}', [ControladorAuditoria::class, 'estadisticasUsuario']);
+    Route::post('/auditoria/generar-reporte', [ControladorAuditoria::class, 'generarReporte']);
+    Route::get('/auditoria/alertas-seguridad', [ControladorAuditoria::class, 'alertasSeguridad']);
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA NOTIFICACIONES EN TIEMPO REAL
+    Route::get('/notificaciones', [ControladorNotificaciones::class, 'index']);
+    Route::post('/notificaciones', [ControladorNotificaciones::class, 'store']);
+    Route::put('/notificaciones/{id}/marcar-leida', [ControladorNotificaciones::class, 'marcarLeida']);
+    Route::put('/notificaciones/marcar-todas-leidas', [ControladorNotificaciones::class, 'marcarTodasLeidas']);
+    Route::get('/notificaciones/dashboard', [ControladorNotificaciones::class, 'dashboardNotificaciones']);
+    Route::get('/notificaciones/tiempo-real', [ControladorNotificaciones::class, 'notificacionesEnTiempoReal']);
+    Route::post('/notificaciones/configurar-preferencias', [ControladorNotificaciones::class, 'configurarPreferencias']);
+    Route::post('/notificaciones/envio-masivo', [ControladorNotificaciones::class, 'envioMasivo']);
+    Route::get('/notificaciones/plantillas', [ControladorNotificaciones::class, 'plantillas']);
+    Route::post('/notificaciones/test-envio', [ControladorNotificaciones::class, 'testEnvio']);
+
     // Rutas específicas para áreas
     Route::get('/areas/servicio/{servicioId}', [AreaController::class, 'porServicio']);
     Route::get('/areas/estadisticas', [AreaController::class, 'estadisticas']);
@@ -278,6 +422,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/contingencias/abiertas', [ContingenciaController::class, 'abiertas']);
     Route::get('/contingencias/criticas', [ContingenciaController::class, 'criticas']);
     Route::get('/contingencias/estadisticas', [ContingenciaController::class, 'estadisticas']);
+
+    // NUEVOS ENDPOINTS COMPLETOS PARA CONTINGENCIAS
+    Route::get('/contingencias/dashboard', [ControladorContingencias::class, 'dashboardContingencias']);
+    Route::post('/contingencias/{id}/resolver-completo', [ControladorContingencias::class, 'resolver']);
+    Route::post('/contingencias/asignacion-masiva', [ControladorContingencias::class, 'asignacionMasiva']);
+    Route::get('/contingencias/reporte-sla', [ControladorContingencias::class, 'reporteSLA']);
+    Route::post('/contingencias/escalar', [ControladorContingencias::class, 'escalar']);
+    Route::get('/contingencias/metricas-usuario/{usuarioId}', [ControladorContingencias::class, 'metricasUsuario']);
+    Route::post('/contingencias/notificar-vencidas', [ControladorContingencias::class, 'notificarVencidas']);
+    Route::get('/contingencias/analisis-tendencias', [ControladorContingencias::class, 'analisisTendencias']);
+    Route::post('/contingencias/importar-masivo', [ControladorContingencias::class, 'importarMasivo']);
+    Route::get('/contingencias/export/completo', [ControladorContingencias::class, 'exportarCompleto']);
 
     // Rutas específicas para tickets
     Route::post('/tickets/{id}/asignar', [TicketController::class, 'asignar']);
@@ -306,6 +462,48 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/correctivos/equipo/{equipoId}', [CorrectivoController::class, 'porEquipo']);
     Route::get('/correctivos/pendientes', [CorrectivoController::class, 'pendientes']);
     Route::get('/correctivos/estadisticas', [CorrectivoController::class, 'estadisticas']);
+
+    // Sistema de filtros avanzados
+    Route::post('/filtros/equipos', [FiltrosController::class, 'filtrosEquipos']);
+    Route::post('/filtros/mantenimientos', [FiltrosController::class, 'filtrosMantenimientos']);
+    Route::get('/filtros/opciones', [FiltrosController::class, 'opcionesFiltros']);
+    Route::post('/filtros/busqueda-global', [FiltrosController::class, 'busquedaGlobal']);
+
+    // Rutas para Propietarios
+    Route::apiResource('propietarios', PropietarioController::class);
+    Route::get('/propietarios-activos', [PropietarioController::class, 'getActivos']);
+    Route::post('/propietarios/{id}/toggle-status', [PropietarioController::class, 'toggleStatus']);
+    Route::get('/propietarios/{id}/equipos', [PropietarioController::class, 'equipos']);
+    Route::get('/propietarios/estadisticas', [PropietarioController::class, 'estadisticas']);
+
+    // Rutas para Contactos
+    Route::apiResource('contactos', ContactoController::class);
+    Route::get('/contactos/tipo/{tipo}', [ContactoController::class, 'porTipo']);
+    Route::get('/contactos/equipo/{equipoId}', [ContactoController::class, 'porEquipo']);
+    Route::post('/contactos/{id}/toggle-status', [ContactoController::class, 'toggleStatus']);
+    Route::get('/contactos/estadisticas', [ContactoController::class, 'estadisticas']);
+    Route::post('/contactos/buscar', [ContactoController::class, 'buscar']);
+
+    // Rutas para Guías Rápidas
+    Route::apiResource('guias-rapidas', GuiaRapidaController::class);
+    Route::get('/guias-rapidas/categoria/{categoria}', [GuiaRapidaController::class, 'porCategoria']);
+    Route::get('/guias-rapidas/equipo/{equipoId}', [GuiaRapidaController::class, 'porEquipo']);
+    Route::post('/guias-rapidas/{id}/toggle-status', [GuiaRapidaController::class, 'toggleStatus']);
+    Route::get('/guias-rapidas/{id}/descargar', [GuiaRapidaController::class, 'descargarArchivo']);
+    Route::get('/guias-rapidas/estadisticas', [GuiaRapidaController::class, 'estadisticas']);
+
+    // Rutas para Observaciones
+    Route::apiResource('observaciones', ObservacionController::class);
+    Route::get('/observaciones/equipo/{equipoId}', [ObservacionController::class, 'porEquipo']);
+    Route::get('/observaciones/mantenimiento/{mantenimientoId}', [ObservacionController::class, 'porMantenimiento']);
+    Route::post('/observaciones/{id}/cerrar', [ObservacionController::class, 'cerrar']);
+    Route::get('/observaciones/estadisticas', [ObservacionController::class, 'estadisticas']);
+
+    // Rutas para Planes de Mantenimiento
+    Route::apiResource('planes-mantenimiento', PlanMantenimientoController::class);
+    Route::get('/planes-mantenimiento/equipo/{equipoId}', [PlanMantenimientoController::class, 'porEquipo']);
+    Route::post('/planes-mantenimiento/{id}/toggle-status', [PlanMantenimientoController::class, 'toggleStatus']);
+    Route::get('/planes-mantenimiento/estadisticas', [PlanMantenimientoController::class, 'estadisticas']);
 
 });
 

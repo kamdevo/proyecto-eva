@@ -22,7 +22,14 @@ use Carbon\Carbon;
 class MantenimientoController extends ApiController
 {
     /**
-     * Obtener lista de mantenimientos con filtros
+     * Obtener lista paginada de mantenimientos con filtros avanzados
+     *
+     * Este método devuelve una lista completa de mantenimientos con sus relaciones
+     * incluyendo equipo, técnico asignado y observaciones. Soporta múltiples filtros:
+     * búsqueda por texto, equipo específico, técnico, estado, tipo y rangos de fechas.
+     *
+     * @param Request $request Solicitud HTTP con parámetros de filtro opcionales
+     * @return JsonResponse Lista paginada de mantenimientos con metadatos
      */
     public function index(Request $request)
     {
@@ -88,7 +95,14 @@ class MantenimientoController extends ApiController
     }
 
     /**
-     * Crear nuevo mantenimiento
+     * Crear un nuevo mantenimiento preventivo o correctivo
+     *
+     * Este método valida los datos de entrada, crea un nuevo registro de mantenimiento
+     * en la base de datos y maneja la subida de archivos adjuntos. Actualiza automáticamente
+     * la fecha de próximo mantenimiento en el equipo asociado si es preventivo.
+     *
+     * @param Request $request Datos del mantenimiento (equipo, descripción, fecha, técnico, etc.)
+     * @return JsonResponse Mantenimiento creado con sus relaciones cargadas
      */
     public function store(Request $request)
     {
@@ -264,7 +278,15 @@ class MantenimientoController extends ApiController
     }
 
     /**
-     * Completar mantenimiento
+     * Completar un mantenimiento programado o en proceso
+     *
+     * Este método marca un mantenimiento como completado, registra las observaciones finales,
+     * repuestos utilizados, costos reales y tiempo invertido. Actualiza automáticamente
+     * el estado del equipo y calcula la próxima fecha de mantenimiento si es preventivo.
+     *
+     * @param Request $request Datos de finalización (observaciones, repuestos, costos, etc.)
+     * @param int $id Identificador único del mantenimiento a completar
+     * @return JsonResponse Mantenimiento completado con información actualizada
      */
     public function completar(Request $request, $id)
     {

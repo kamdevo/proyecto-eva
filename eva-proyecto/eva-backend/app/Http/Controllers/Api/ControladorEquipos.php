@@ -30,21 +30,28 @@ use Carbon\Carbon;
 class ControladorEquipos extends ApiController
 {
     /**
-     * Obtener lista de equipos con filtros y paginación
+     * Obtener lista paginada de equipos médicos e industriales
+     *
+     * Este método devuelve una lista completa de equipos con sus relaciones
+     * incluyendo servicio, área, clasificación de riesgo y tecnología.
+     * Soporta filtros por búsqueda, servicio, área, estado y rangos de fechas/costos.
+     *
+     * @param Request $request Solicitud HTTP con parámetros de filtro opcionales
+     * @return JsonResponse Lista paginada de equipos con metadatos de paginación
      */
     public function index(Request $request)
     {
         try {
             $query = Equipo::with([
-                'servicio:id,name',
-                'area:id,name', 
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name'
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre'
             ]);
 
             // Aplicar filtros
@@ -122,7 +129,14 @@ class ControladorEquipos extends ApiController
     }
 
     /**
-     * Crear nuevo equipo
+     * Crear un nuevo equipo médico o industrial en el sistema
+     *
+     * Este método valida los datos de entrada, crea un nuevo registro de equipo
+     * en la base de datos y maneja la subida de imagen opcional.
+     * Incluye validación de código único y relaciones con otras entidades.
+     *
+     * @param Request $request Datos del equipo a crear (nombre, código, servicio, etc.)
+     * @return JsonResponse Equipo creado con sus relaciones cargadas
      */
     public function store(Request $request)
     {
@@ -173,15 +187,15 @@ class ControladorEquipos extends ApiController
 
             // Cargar relaciones para la respuesta
             $equipo->load([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name'
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre'
             ]);
 
             if ($equipo->image) {
@@ -199,21 +213,28 @@ class ControladorEquipos extends ApiController
     }
 
     /**
-     * Mostrar equipo específico
+     * Obtener información detallada de un equipo específico
+     *
+     * Este método devuelve toda la información de un equipo incluyendo
+     * sus relaciones, historial de mantenimientos, contingencias activas,
+     * calibraciones recientes, observaciones y archivos asociados.
+     *
+     * @param int $id Identificador único del equipo
+     * @return JsonResponse Información completa del equipo con todas sus relaciones
      */
     public function show($id)
     {
         try {
             $equipo = Equipo::with([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name',
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre',
                 'mantenimientos' => function($query) {
                     $query->orderBy('fecha', 'desc')->limit(10);
                 },
@@ -296,15 +317,15 @@ class ControladorEquipos extends ApiController
 
             // Cargar relaciones para la respuesta
             $equipo->load([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name'
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre'
             ]);
 
             if ($equipo->image) {
@@ -418,9 +439,9 @@ class ControladorEquipos extends ApiController
 
             // Cargar relaciones
             $equipoDuplicado->load([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name'
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre'
             ]);
 
             return ResponseFormatter::success($equipoDuplicado, 'Equipo duplicado exitosamente');
@@ -436,7 +457,7 @@ class ControladorEquipos extends ApiController
     public function porServicio($servicioId)
     {
         try {
-            $equipos = Equipo::with(['area:id,name', 'estadoEquipo:id,name'])
+            $equipos = Equipo::with(['area:id,nombre', 'estadoEquipo:id,nombre'])
                 ->where('servicio_id', $servicioId)
                 ->where('status', true)
                 ->orderBy('name')
@@ -455,7 +476,7 @@ class ControladorEquipos extends ApiController
     public function porArea($areaId)
     {
         try {
-            $equipos = Equipo::with(['servicio:id,name', 'estadoEquipo:id,name'])
+            $equipos = Equipo::with(['servicio:id,nombre', 'estadoEquipo:id,nombre'])
                 ->where('area_id', $areaId)
                 ->where('status', true)
                 ->orderBy('name')
@@ -475,9 +496,9 @@ class ControladorEquipos extends ApiController
     {
         try {
             $equipos = Equipo::with([
-                'servicio:id,name',
-                'area:id,name',
-                'clasificacionRiesgo:id,name',
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'clasificacionRiesgo:id,nombre',
                 'contingencias' => function($query) {
                     $query->where('estado', '!=', 'Cerrado');
                 }
@@ -501,5 +522,238 @@ class ControladorEquipos extends ApiController
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener equipos críticos: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * ENDPOINT COMPLETO: Gestión avanzada de equipos
+     */
+    public function gestionAvanzada(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'accion' => 'required|string|in:activar,desactivar,mantenimiento,baja,transferir',
+                'equipos' => 'required|array|min:1',
+                'equipos.*' => 'required|integer|exists:equipos,id',
+                'motivo' => 'nullable|string|max:500',
+                'area_destino' => 'nullable|integer|exists:areas,id',
+                'fecha_programada' => 'nullable|date|after:today'
+            ]);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::validation($validator->errors());
+            }
+
+            $accion = $request->get('accion');
+            $equiposIds = $request->get('equipos');
+            $motivo = $request->get('motivo');
+            $resultados = [];
+
+            DB::beginTransaction();
+
+            foreach ($equiposIds as $equipoId) {
+                $equipo = Equipo::find($equipoId);
+
+                if (!$equipo) {
+                    $resultados[] = ['id' => $equipoId, 'status' => 'error', 'mensaje' => 'Equipo no encontrado'];
+                    continue;
+                }
+
+                switch ($accion) {
+                    case 'activar':
+                        $equipo->update(['status' => true, 'estadoequipo_id' => 1]);
+                        $this->registrarAccion($equipo, 'activacion', $motivo);
+                        break;
+
+                    case 'desactivar':
+                        $equipo->update(['status' => false, 'estadoequipo_id' => 3]);
+                        $this->registrarAccion($equipo, 'desactivacion', $motivo);
+                        break;
+
+                    case 'mantenimiento':
+                        $equipo->update(['estadoequipo_id' => 2]);
+                        $this->programarMantenimiento($equipo, $request->get('fecha_programada'));
+                        $this->registrarAccion($equipo, 'mantenimiento_programado', $motivo);
+                        break;
+
+                    case 'baja':
+                        $equipo->update(['status' => false, 'estadoequipo_id' => 4]);
+                        $this->registrarAccion($equipo, 'baja', $motivo);
+                        break;
+
+                    case 'transferir':
+                        if ($request->has('area_destino')) {
+                            $areaAnterior = $equipo->area_id;
+                            $equipo->update(['area_id' => $request->get('area_destino')]);
+                            $this->registrarTransferencia($equipo, $areaAnterior, $request->get('area_destino'), $motivo);
+                        }
+                        break;
+                }
+
+                $resultados[] = ['id' => $equipoId, 'status' => 'success', 'mensaje' => 'Acción ejecutada correctamente'];
+            }
+
+            DB::commit();
+
+            return ResponseFormatter::success($resultados, "Acción '{$accion}' ejecutada en " . count($equiposIds) . " equipos");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error('Error en gestión avanzada: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * ENDPOINT COMPLETO: Historial completo del equipo
+     */
+    public function historial($id)
+    {
+        try {
+            $equipo = Equipo::with([
+                'mantenimientos' => function($query) {
+                    $query->orderBy('fecha_programada', 'desc')->limit(10);
+                },
+                'contingencias' => function($query) {
+                    $query->orderBy('fecha_reporte', 'desc')->limit(10);
+                },
+                'archivos' => function($query) {
+                    $query->orderBy('created_at', 'desc');
+                }
+            ])->find($id);
+
+            if (!$equipo) {
+                return ResponseFormatter::notFound('Equipo no encontrado');
+            }
+
+            // Obtener historial de acciones
+            $acciones = DB::table('observaciones')
+                ->where('equipo_id', $id)
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+
+            $historial = [
+                'equipo' => $equipo,
+                'mantenimientos' => $equipo->mantenimientos,
+                'contingencias' => $equipo->contingencias,
+                'archivos' => $equipo->archivos,
+                'acciones' => $acciones,
+                'estadisticas' => [
+                    'total_mantenimientos' => $equipo->mantenimientos()->count(),
+                    'total_contingencias' => $equipo->contingencias()->count(),
+                    'ultimo_mantenimiento' => $equipo->mantenimientos()->latest('fecha_programada')->first()?->fecha_programada,
+                    'tiempo_operacion' => $this->calcularTiempoOperacion($equipo),
+                    'costo_mantenimientos' => $equipo->mantenimientos()->sum('costo')
+                ]
+            ];
+
+            return ResponseFormatter::success($historial, 'Historial del equipo obtenido exitosamente');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al obtener historial: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * ENDPOINT COMPLETO: Programar mantenimiento masivo
+     */
+    public function programarMantenimientoMasivo(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipos' => 'required|array|min:1',
+                'equipos.*' => 'required|integer|exists:equipos,id',
+                'tipo' => 'required|string|in:preventivo,correctivo,calibracion',
+                'fecha_programada' => 'required|date|after:today',
+                'descripcion' => 'required|string|max:500',
+                'tecnico_id' => 'nullable|integer|exists:usuarios,id',
+                'prioridad' => 'required|string|in:baja,media,alta,urgente'
+            ]);
+
+            if ($validator->fails()) {
+                return ResponseFormatter::validation($validator->errors());
+            }
+
+            $equiposIds = $request->get('equipos');
+            $mantenimientos = [];
+
+            DB::beginTransaction();
+
+            foreach ($equiposIds as $equipoId) {
+                $mantenimiento = Mantenimiento::create([
+                    'equipo_id' => $equipoId,
+                    'tipo' => $request->get('tipo'),
+                    'descripcion' => $request->get('descripcion'),
+                    'fecha_programada' => $request->get('fecha_programada'),
+                    'estado' => 'programado',
+                    'tecnico_id' => $request->get('tecnico_id'),
+                    'prioridad' => $request->get('prioridad'),
+                    'status' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                $mantenimientos[] = $mantenimiento;
+
+                // Actualizar estado del equipo
+                Equipo::where('id', $equipoId)->update(['estadoequipo_id' => 2]);
+            }
+
+            DB::commit();
+
+            return ResponseFormatter::success($mantenimientos, 'Mantenimientos programados exitosamente para ' . count($equiposIds) . ' equipos');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error('Error al programar mantenimientos: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Métodos auxiliares
+    private function registrarAccion($equipo, $accion, $motivo)
+    {
+        DB::table('observaciones')->insert([
+            'equipo_id' => $equipo->id,
+            'usuario_id' => auth()->id(),
+            'observacion' => "Acción: {$accion}. Motivo: {$motivo}",
+            'tipo' => $accion,
+            'fecha' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+    }
+
+    private function programarMantenimiento($equipo, $fecha)
+    {
+        if ($fecha) {
+            Mantenimiento::create([
+                'equipo_id' => $equipo->id,
+                'tipo' => 'preventivo',
+                'descripcion' => 'Mantenimiento programado automáticamente',
+                'fecha_programada' => $fecha,
+                'estado' => 'programado',
+                'status' => 1,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+    }
+
+    private function registrarTransferencia($equipo, $areaAnterior, $areaNueva, $motivo)
+    {
+        DB::table('observaciones')->insert([
+            'equipo_id' => $equipo->id,
+            'usuario_id' => auth()->id(),
+            'observacion' => "Transferencia de área {$areaAnterior} a área {$areaNueva}. Motivo: {$motivo}",
+            'tipo' => 'transferencia',
+            'fecha' => now(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+    }
+
+    private function calcularTiempoOperacion($equipo)
+    {
+        $fechaInstalacion = Carbon::parse($equipo->fecha_instalacion);
+        return $fechaInstalacion->diffInDays(now()) . ' días';
     }
 }

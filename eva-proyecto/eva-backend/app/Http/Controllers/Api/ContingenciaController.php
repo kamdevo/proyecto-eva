@@ -51,8 +51,8 @@ class ContingenciaController extends ApiController
                 $query->where('equipo_id', $request->equipo_id);
             }
 
-            if ($request->has('estado')) {
-                $query->where('estado', $request->estado);
+            if ($request->has('estado_id')) {
+                $query->where('estado_id', $request->estado_id);
             }
 
             if ($request->has('severidad')) {
@@ -75,9 +75,9 @@ class ContingenciaController extends ApiController
                 $query->where('fecha', '<=', $request->fecha_hasta);
             }
 
-            // Filtro por contingencias abiertas
+            // Filtro por contingencias abiertas (assuming 1=Abierto, 2=Cerrado)
             if ($request->has('solo_abiertas') && $request->solo_abiertas) {
-                $query->where('estado', '!=', 'Cerrado');
+                $query->where('estado_id', '!=', 2);
             }
 
             // Ordenamiento

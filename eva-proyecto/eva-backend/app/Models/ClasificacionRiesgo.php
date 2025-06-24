@@ -15,8 +15,8 @@ class ClasificacionRiesgo extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'name',
-        'description',
+        'nombre',
+        'descripcion',
         'nivel',
         'color',
         'activo'

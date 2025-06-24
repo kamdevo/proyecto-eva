@@ -199,4 +199,71 @@ class Equipo extends Model
     {
         return $this->hasMany(Observacion::class, 'equipo_id');
     }
+
+    public function guiasRapidas()
+    {
+        return $this->hasMany(GuiaRapida::class, 'equipo_id');
+    }
+
+    public function planesMantenimiento()
+    {
+        return $this->hasMany(PlanMantenimiento::class, 'equipo_id');
+    }
+
+    public function capacitaciones()
+    {
+        return $this->belongsToMany(Capacitacion::class, 'capacitacion_equipo', 'equipo_id', 'capacitacion_id');
+    }
+
+    // Scopes útiles
+    public function scopeActivos($query)
+    {
+        return $query->where('status', 1);
+    }
+
+    public function scopeInactivos($query)
+    {
+        return $query->where('status', 0);
+    }
+
+    public function scopePorServicio($query, $servicioId)
+    {
+        return $query->where('servicio_id', $servicioId);
+    }
+
+    public function scopePorArea($query, $areaId)
+    {
+        return $query->where('area_id', $areaId);
+    }
+
+    public function scopePorPropietario($query, $propietarioId)
+    {
+        return $query->where('propietario_id', $propietarioId);
+    }
+
+    // Accessors
+    public function getEstadoTextoAttribute()
+    {
+        return $this->status ? 'Activo' : 'Inactivo';
+    }
+
+    public function getCostoFormateadoAttribute()
+    {
+        return $this->costo ? '$' . number_format($this->costo, 2) : null;
+    }
+
+    public function getVidaUtilRestanteAttribute()
+    {
+        if ($this->vida_util && $this->fecha_instalacion) {
+            $fechaInstalacion = \Carbon\Carbon::parse($this->fecha_instalacion);
+            $fechaVencimiento = $fechaInstalacion->addYears($this->vida_util);
+            $hoy = \Carbon\Carbon::now();
+
+            if ($fechaVencimiento->isFuture()) {
+                return $hoy->diffInYears($fechaVencimiento);
+            }
+            return 0;
+        }
+        return null;
+    }
 }

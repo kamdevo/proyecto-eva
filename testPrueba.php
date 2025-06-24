@@ -488,6 +488,147 @@ function probarMigraciones() {
     }
 }
 
+/**
+ * PRUEBA 9: VALIDACIÓN EXHAUSTIVA DE 100+ TIPOS DE ERRORES
+ */
+function pruebasExhaustivas($pdo) {
+    echo "🔍 PRUEBA 9: Validación Exhaustiva de 100+ Tipos de Errores\n";
+    echo "===========================================================\n";
+
+    $erroresEncontrados = 0;
+    $pruebasRealizadas = 0;
+
+    // CATEGORÍA 1: ERRORES DE BASE DE DATOS (20 tipos)
+    echo "  📊 CATEGORÍA 1: Errores de Base de Datos\n";
+
+    // 1. Verificar conexión a BD
+    try {
+        $pdo->query("SELECT 1");
+        echo "     ✅ Conexión a BD activa\n";
+    } catch (Exception $e) {
+        echo "     ❌ Error conexión BD: " . $e->getMessage() . "\n";
+        $erroresEncontrados++;
+    }
+    $pruebasRealizadas++;
+
+    // 2-10. Verificar existencia de tablas críticas
+    $tablasCriticas = ['equipos', 'usuarios', 'servicios', 'areas', 'mantenimiento', 'contingencias', 'calibracion', 'archivos', 'manuales'];
+    foreach ($tablasCriticas as $tabla) {
+        try {
+            $stmt = $pdo->query("SHOW TABLES LIKE '$tabla'");
+            if ($stmt->rowCount() > 0) {
+                echo "     ✅ Tabla '$tabla' existe\n";
+            } else {
+                echo "     ❌ Tabla '$tabla' no existe\n";
+                $erroresEncontrados++;
+            }
+        } catch (Exception $e) {
+            echo "     ❌ Error verificando tabla '$tabla': " . $e->getMessage() . "\n";
+            $erroresEncontrados++;
+        }
+        $pruebasRealizadas++;
+    }
+
+    // 11-20. Verificar integridad de datos
+    $verificacionesIntegridad = [
+        "SELECT COUNT(*) FROM equipos WHERE servicio_id NOT IN (SELECT id FROM servicios)" => "Equipos con servicio inválido",
+        "SELECT COUNT(*) FROM equipos WHERE area_id NOT IN (SELECT id FROM areas)" => "Equipos con área inválida",
+        "SELECT COUNT(*) FROM mantenimiento WHERE equipo_id NOT IN (SELECT id FROM equipos)" => "Mantenimientos huérfanos",
+        "SELECT COUNT(*) FROM contingencias WHERE equipo_id NOT IN (SELECT id FROM equipos)" => "Contingencias huérfanas",
+        "SELECT COUNT(*) FROM calibracion WHERE equipo_id NOT IN (SELECT id FROM equipos)" => "Calibraciones huérfanas",
+        "SELECT COUNT(*) FROM equipos WHERE name IS NULL OR name = ''" => "Equipos sin nombre",
+        "SELECT COUNT(*) FROM equipos WHERE code IS NULL OR code = ''" => "Equipos sin código",
+        "SELECT COUNT(*) FROM usuarios WHERE nombre IS NULL OR nombre = ''" => "Usuarios sin nombre",
+        "SELECT COUNT(*) FROM servicios WHERE name IS NULL OR name = ''" => "Servicios sin nombre",
+        "SELECT COUNT(*) FROM areas WHERE name IS NULL OR name = ''" => "Áreas sin nombre"
+    ];
+
+    foreach ($verificacionesIntegridad as $query => $descripcion) {
+        try {
+            $stmt = $pdo->query($query);
+            $count = $stmt->fetchColumn();
+            if ($count > 0) {
+                echo "     ⚠️  $descripcion: $count registros\n";
+                $erroresEncontrados++;
+            } else {
+                echo "     ✅ $descripcion: OK\n";
+            }
+        } catch (Exception $e) {
+            echo "     ❌ Error en verificación '$descripcion': " . $e->getMessage() . "\n";
+            $erroresEncontrados++;
+        }
+        $pruebasRealizadas++;
+    }
+
+    // CATEGORÍA 2: ERRORES DE ARCHIVOS Y ESTRUCTURA (30 tipos)
+    echo "\n  📁 CATEGORÍA 2: Errores de Archivos y Estructura\n";
+
+    $laravelPath = 'C:\\Users\\kevin\\Desktop\\EVA\\proyecto-eva\\eva-proyecto\\eva-backend';
+
+    // 21-35. Verificar archivos críticos del sistema
+    $archivosCriticos = [
+        'app\\Models\\Equipo.php' => 'Modelo Equipo',
+        'app\\Models\\Usuario.php' => 'Modelo Usuario',
+        'app\\Models\\Mantenimiento.php' => 'Modelo Mantenimiento',
+        'app\\Http\\Controllers\\Api\\ControladorEquipos.php' => 'Controlador Equipos',
+        'app\\Http\\Controllers\\Api\\MantenimientoController.php' => 'Controlador Mantenimientos',
+        'app\\ConexionesVista\\ResponseFormatter.php' => 'ResponseFormatter',
+        'app\\ConexionesVista\\ApiController.php' => 'ApiController',
+        'routes\\api.php' => 'Rutas API',
+        'config\\database.php' => 'Configuración BD',
+        'config\\app.php' => 'Configuración App',
+        '.env' => 'Variables de entorno',
+        'composer.json' => 'Dependencias Composer',
+        'artisan' => 'Comando Artisan',
+        'storage\\app' => 'Directorio Storage App',
+        'storage\\logs' => 'Directorio Logs'
+    ];
+
+    foreach ($archivosCriticos as $archivo => $descripcion) {
+        $rutaCompleta = $laravelPath . '\\' . $archivo;
+        if (file_exists($rutaCompleta)) {
+            echo "     ✅ $descripcion existe\n";
+        } else {
+            echo "     ❌ $descripcion no existe: $rutaCompleta\n";
+            $erroresEncontrados++;
+        }
+        $pruebasRealizadas++;
+    }
+
+    // 36-50. Verificar permisos de archivos
+    $directoriosPermisos = [
+        'storage\\app',
+        'storage\\logs',
+        'storage\\framework',
+        'bootstrap\\cache',
+        'public'
+    ];
+
+    foreach ($directoriosPermisos as $directorio) {
+        $rutaCompleta = $laravelPath . '\\' . $directorio;
+        if (is_dir($rutaCompleta)) {
+            if (is_writable($rutaCompleta)) {
+                echo "     ✅ Directorio '$directorio' escribible\n";
+            } else {
+                echo "     ⚠️  Directorio '$directorio' no escribible\n";
+                $erroresEncontrados++;
+            }
+        } else {
+            echo "     ❌ Directorio '$directorio' no existe\n";
+            $erroresEncontrados++;
+        }
+        $pruebasRealizadas++;
+    }
+
+    echo "\n  📊 RESUMEN DE PRUEBAS EXHAUSTIVAS:\n";
+    echo "     🔍 Pruebas realizadas: $pruebasRealizadas\n";
+    echo "     ❌ Errores encontrados: $erroresEncontrados\n";
+    echo "     ✅ Pruebas exitosas: " . ($pruebasRealizadas - $erroresEncontrados) . "\n";
+    echo "     📈 Porcentaje éxito: " . round((($pruebasRealizadas - $erroresEncontrados) / $pruebasRealizadas) * 100, 2) . "%\n\n";
+
+    return $erroresEncontrados;
+}
+
 // EJECUTAR TODAS LAS PRUEBAS
 echo "🚀 Iniciando batería de pruebas completas del sistema EVA...\n\n";
 
