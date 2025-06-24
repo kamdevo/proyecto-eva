@@ -1,0 +1,202 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Equipo extends Model
+{
+    protected $table = 'equipos';
+    protected $primaryKey = 'id';
+    public $timestamps = true;
+
+    protected $fillable = [
+        'image',
+        'code',
+        'name',
+        'descripcion',
+        'status',
+        'marca',
+        'modelo',
+        'serial',
+        'invima',
+        'fecha_ad',
+        'servicio_id',
+        'fuente_id',
+        'tecnologia_id',
+        'frecuencia_id',
+        'cbiomedica_id',
+        'criesgo_id',
+        'tadquisicion_id',
+        'invima_id',
+        'orden_compra_id',
+        'baja_id',
+        'file',
+        'fecha_instalacion',
+        'vida_util',
+        'observacion',
+        'fecha',
+        'v1',
+        'v2',
+        'v3',
+        'fecha_mantenimiento',
+        'estado_mantenimiento',
+        'costo',
+        'plan',
+        'garantia',
+        'estadoequipo_id',
+        'archivo_invima',
+        'manual',
+        'plano',
+        'necesidad_id',
+        'fecha_vencimiento_garantia',
+        'fecha_acta_recibo',
+        'fecha_inicio_operacion',
+        'fecha_fabricacion',
+        'accesorios',
+        'verificacion_inventario',
+        'propiedad',
+        'propietario_id',
+        'otros',
+        'fecha_recepcion_almacen',
+        'activo_comodato',
+        'movilidad',
+        'codigo_antiguo',
+        'evaluacion_desempenio',
+        'periodicidad',
+        'calibracion',
+        'repuesto_pendiente',
+        'area_id',
+        'tipo_id',
+        'guia_id',
+        'manual_id',
+        'localizacion_actual',
+        'disponibilidad_id'
+    ];
+
+    protected $casts = [
+        'fecha_ad' => 'date',
+        'fecha_instalacion' => 'date',
+        'fecha_vencimiento_garantia' => 'date',
+        'fecha_acta_recibo' => 'date',
+        'fecha_inicio_operacion' => 'date',
+        'fecha_fabricacion' => 'date',
+        'fecha_recepcion_almacen' => 'date',
+        'status' => 'boolean',
+        'verificacion_inventario' => 'boolean',
+        'repuesto_pendiente' => 'boolean',
+        'created_at' => 'datetime',
+        'fecha_cambio' => 'datetime',
+    ];
+
+    // Relaciones
+    public function servicio()
+    {
+        return $this->belongsTo(Servicio::class, 'servicio_id');
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(Area::class, 'area_id');
+    }
+
+    public function propietario()
+    {
+        return $this->belongsTo(Propietario::class, 'propietario_id');
+    }
+
+    public function fuenteAlimentacion()
+    {
+        return $this->belongsTo(FuenteAlimentacion::class, 'fuente_id');
+    }
+
+    public function tecnologia()
+    {
+        return $this->belongsTo(Tecnologia::class, 'tecnologia_id');
+    }
+
+    public function frecuenciaMantenimiento()
+    {
+        return $this->belongsTo(FrecuenciaMantenimiento::class, 'frecuencia_id');
+    }
+
+    public function clasificacionBiomedica()
+    {
+        return $this->belongsTo(ClasificacionBiomedica::class, 'cbiomedica_id');
+    }
+
+    public function clasificacionRiesgo()
+    {
+        return $this->belongsTo(ClasificacionRiesgo::class, 'criesgo_id');
+    }
+
+    public function tipoAdquisicion()
+    {
+        return $this->belongsTo(TipoAdquisicion::class, 'tadquisicion_id');
+    }
+
+    public function estadoEquipo()
+    {
+        return $this->belongsTo(EstadoEquipo::class, 'estadoequipo_id');
+    }
+
+    public function tipo()
+    {
+        return $this->belongsTo(Tipo::class, 'tipo_id');
+    }
+
+    public function disponibilidad()
+    {
+        return $this->belongsTo(Disponibilidad::class, 'disponibilidad_id');
+    }
+
+    public function mantenimientos()
+    {
+        return $this->hasMany(Mantenimiento::class, 'equipo_id');
+    }
+
+    public function contingencias()
+    {
+        return $this->hasMany(Contingencia::class, 'equipo_id');
+    }
+
+    public function manuales()
+    {
+        return $this->hasMany(EquipoManual::class, 'equipo_id');
+    }
+
+    public function archivos()
+    {
+        return $this->hasMany(EquipoArchivo::class, 'equipo_id');
+    }
+
+    public function contactos()
+    {
+        return $this->hasMany(EquipoContacto::class, 'equipo_id');
+    }
+
+    public function especificaciones()
+    {
+        return $this->hasMany(EquipoEspecificacion::class, 'equipo_id');
+    }
+
+    public function repuestos()
+    {
+        return $this->hasMany(EquipoRepuesto::class, 'equipo_id');
+    }
+
+    public function calibraciones()
+    {
+        return $this->hasMany(Calibracion::class, 'equipo_id');
+    }
+
+    public function correctivos()
+    {
+        return $this->hasMany(CorrectivoGeneral::class, 'equipo_id');
+    }
+
+    public function observaciones()
+    {
+        return $this->hasMany(Observacion::class, 'equipo_id');
+    }
+}
