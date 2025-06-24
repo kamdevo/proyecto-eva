@@ -25,15 +25,7 @@ use App\Http\Controllers\Api\ContactoController;
 use App\Http\Controllers\Api\GuiaRapidaController;
 use App\Http\Controllers\Api\ObservacionController;
 use App\Http\Controllers\Api\PlanMantenimientoController;
-use App\Http\Controllers\Api\ControladorEquipos;
-use App\Http\Controllers\Api\ControladorMantenimiento;
-use App\Http\Controllers\Api\ControladorContingencias;
-use App\Http\Controllers\Api\ControladorUsuarios;
-use App\Http\Controllers\Api\ControladorArchivos;
-use App\Http\Controllers\Api\ControladorReportes;
-use App\Http\Controllers\Api\ControladorConfiguracion;
-use App\Http\Controllers\Api\ControladorAuditoria;
-use App\Http\Controllers\Api\ControladorNotificaciones;
+// Controladores duplicados eliminados - usando versiones principales
 
 /*
 |--------------------------------------------------------------------------
@@ -61,24 +53,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
 
-    // NUEVOS ENDPOINTS COMPLETOS PARA USUARIOS Y ROLES
-    Route::get('/usuarios/dashboard', [ControladorUsuarios::class, 'dashboardUsuarios']);
-    Route::post('/usuarios/{id}/cambiar-contrasena', [ControladorUsuarios::class, 'cambiarContrasena']);
-    Route::post('/usuarios/activar-masivo', [ControladorUsuarios::class, 'activarMasivo']);
-    Route::post('/usuarios/desactivar-masivo', [ControladorUsuarios::class, 'desactivarMasivo']);
-    Route::get('/usuarios/export/completo', [ControladorUsuarios::class, 'exportarCompleto']);
-    Route::post('/usuarios/importar-excel', [ControladorUsuarios::class, 'importarExcel']);
-    Route::get('/usuarios/actividad/{usuarioId}', [ControladorUsuarios::class, 'actividadUsuario']);
-    Route::post('/usuarios/{id}/resetear-password', [ControladorUsuarios::class, 'resetearPassword']);
-    Route::get('/usuarios/permisos/{usuarioId}', [ControladorUsuarios::class, 'permisosUsuario']);
-    Route::post('/usuarios/asignar-permisos', [ControladorUsuarios::class, 'asignarPermisos']);
-
-    // Gestión de roles
-    Route::match(['GET', 'POST'], '/roles/gestion', [ControladorUsuarios::class, 'gestionRoles']);
-    Route::put('/roles/{id}', [ControladorUsuarios::class, 'actualizarRol']);
-    Route::delete('/roles/{id}', [ControladorUsuarios::class, 'eliminarRol']);
-    Route::get('/roles/{id}/usuarios', [ControladorUsuarios::class, 'usuariosPorRol']);
-    Route::post('/roles/{id}/permisos', [ControladorUsuarios::class, 'asignarPermisosRol']);
+    // Gestión de usuarios (usando AdministradorController existente)
+    // Las funcionalidades de usuarios están en AdministradorController
 
     // Dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
@@ -107,17 +83,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/equipos/marcas', [EquipmentController::class, 'getMarcas']);
     Route::get('/equipos/modelos/{marca}', [EquipmentController::class, 'getModelosPorMarca']);
 
-    // NUEVOS ENDPOINTS COMPLETOS PARA EQUIPOS MÉDICOS
-    Route::post('/equipos/gestion-avanzada', [ControladorEquipos::class, 'gestionAvanzada']);
-    Route::get('/equipos/{id}/historial', [ControladorEquipos::class, 'historial']);
-    Route::post('/equipos/programar-mantenimiento-masivo', [ControladorEquipos::class, 'programarMantenimientoMasivo']);
-    Route::get('/equipos/criticos-avanzado', [ControladorEquipos::class, 'equiposCriticos']);
-    Route::post('/equipos/transferir-masivo', [ControladorEquipos::class, 'transferirMasivo']);
-    Route::get('/equipos/{id}/qr-code', [ControladorEquipos::class, 'generarQR']);
-    Route::post('/equipos/importar-excel', [ControladorEquipos::class, 'importarExcel']);
-    Route::get('/equipos/export/completo', [ControladorEquipos::class, 'exportarCompleto']);
-    Route::post('/equipos/validar-codigos', [ControladorEquipos::class, 'validarCodigos']);
-    Route::get('/equipos/dashboard-metricas', [ControladorEquipos::class, 'dashboardMetricas']);
+    // Funcionalidades avanzadas de equipos están en EquipmentController principal
 
     // Equipos industriales (usa el mismo controlador con filtros)
     Route::get('/equipos-industriales', [EquipmentController::class, 'index'])->defaults('tipo', 'industrial');
@@ -147,17 +113,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::put('/mantenimientos/{id}', [EquipmentController::class, 'updateMaintenance']);
     Route::delete('/mantenimientos/{id}', [EquipmentController::class, 'deleteMaintenance']);
 
-    // NUEVOS ENDPOINTS COMPLETOS PARA MANTENIMIENTOS
-    Route::post('/mantenimientos/planificacion-automatica', [ControladorMantenimiento::class, 'planificacionAutomatica']);
-    Route::get('/mantenimientos/dashboard', [ControladorMantenimiento::class, 'dashboardMantenimientos']);
-    Route::post('/mantenimientos/programar-masivo', [ControladorMantenimiento::class, 'programarMasivo']);
-    Route::get('/mantenimientos/calendario', [ControladorMantenimiento::class, 'calendario']);
-    Route::post('/mantenimientos/reasignar-tecnico', [ControladorMantenimiento::class, 'reasignarTecnico']);
-    Route::get('/mantenimientos/reporte-cumplimiento', [ControladorMantenimiento::class, 'reporteCumplimiento']);
-    Route::post('/mantenimientos/notificar-vencidos', [ControladorMantenimiento::class, 'notificarVencidos']);
-    Route::get('/mantenimientos/metricas-tecnico/{tecnicoId}', [ControladorMantenimiento::class, 'metricasTecnico']);
-    Route::post('/mantenimientos/importar-plan', [ControladorMantenimiento::class, 'importarPlan']);
-    Route::get('/mantenimientos/export/completo', [ControladorMantenimiento::class, 'exportarCompleto']);
+    // Funcionalidades avanzadas de mantenimientos están en MantenimientoController principal
 
     // Planes de mantenimiento
     Route::get('/planes-mantenimiento', [EquipmentController::class, 'getMaintenancePlans']);

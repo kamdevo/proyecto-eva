@@ -145,15 +145,26 @@ class EquipmentController extends ApiController
             $orderDirection = $request->get('order_direction', 'desc');
             $query->orderBy($orderBy, $orderDirection);
 
-            // Paginación
-            $perPage = $request->get('per_page', 15);
+            // Paginación con límite de seguridad
+            $perPage = min($request->get('per_page', 15), 100); // Máximo 100 por página
             $equipos = $query->paginate($perPage);
 
-            // Agregar URL de imagen a cada equipo
+            // Agregar URL de imagen y metadatos adicionales
             $equipos->getCollection()->transform(function ($equipo) {
                 if ($equipo->image) {
                     $equipo->image_url = Storage::disk('public')->url($equipo->image);
                 }
+
+                // Agregar información adicional útil
+                $equipo->mantenimientos_pendientes = $equipo->mantenimientos()
+                    ->where('status', 'programado')
+                    ->where('fecha_programada', '<=', now()->addDays(30))
+                    ->count();
+
+                $equipo->contingencias_activas = $equipo->contingencias()
+                    ->where('estado_id', '!=', 3) // 3 = Cerrado
+                    ->count();
+
                 return $equipo;
             });
 

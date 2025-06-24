@@ -12,6 +12,7 @@ use App\Models\Contingencia;
 use App\Models\Usuario;
 use App\Models\Servicio;
 use App\Models\Area;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -23,58 +24,114 @@ use Carbon\Carbon;
  */
 class DashboardController extends ApiController
 {
+    protected $dashboardService;
+
+    public function __construct(DashboardService $dashboardService)
+    {
+        $this->dashboardService = $dashboardService;
+    }
+
     /**
      * Obtener estadísticas generales del dashboard
      */
     public function getStats()
     {
         try {
-            // Cache por 15 minutos
-            $stats = Cache::remember('dashboard_stats', 15, function () {
-                return [
-                    'equipos' => [
-                        'total' => Equipo::where('status', true)->count(),
-                        'activos' => Equipo::where('status', true)->count(),
-                        'criticos' => $this->getEquiposCriticos(),
-                        'con_mantenimiento_vencido' => $this->getEquiposMantenimientoVencido()
-                    ],
-                'mantenimientos' => [
-                    'programados_hoy' => Mantenimiento::whereDate('fecha_programada', today())
-                        ->where('status', 'programado')->count(),
-                    'vencidos' => Mantenimiento::where('status', 'programado')
-                        ->where('fecha_programada', '<', now())->count(),
-                    'completados_mes' => Mantenimiento::where('status', 'completado')
-                        ->whereMonth('fecha_fin', now()->month)
-                        ->whereYear('fecha_fin', now()->year)->count(),
-                    'cumplimiento' => $this->getCumplimientoMantenimiento()
-                ],
-                'calibraciones' => [
-                    'programadas_mes' => Calibracion::whereMonth('fecha', now()->month)
-                        ->whereYear('fecha', now()->year)
-                        ->where('estado', 'programada')->count(),
-                    'vencidas' => Calibracion::where('fecha_vencimiento', '<', now())
-                        ->where('estado', '!=', 'completada')->count(),
-                    'completadas_mes' => Calibracion::where('estado', 'completada')
-                        ->whereMonth('fecha', now()->month)
-                        ->whereYear('fecha', now()->year)->count()
-                ],
-                'contingencias' => [
-                    'activas' => Contingencia::where('estado', '!=', 'Cerrado')->count(),
-                    'criticas' => Contingencia::where('severidad', 'Alta')
-                        ->where('estado', '!=', 'Cerrado')->count(),
-                    'nuevas_semana' => Contingencia::where('fecha', '>=', now()->subWeek())->count()
-                ],
-                'usuarios' => [
-                    'total' => Usuario::where('estado', 1)->count(),
-                    'tecnicos' => Usuario::where('rol_id', 2)->where('estado', 1)->count()
-                ]
-                ];
-            });
+            $stats = $this->dashboardService->getMainStats();
 
             return ResponseFormatter::success($stats, 'Estadísticas del dashboard obtenidas');
 
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al obtener estadísticas: ' . $e->getMessage(), 500);
+            \Log::error('Error al obtener estadísticas del dashboard', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return ResponseFormatter::error('Error al obtener estadísticas del dashboard', 500);
+        }
+    }
+
+    /**
+     * Obtener gráfico de mantenimientos
+     */
+    public function getMaintenanceChart()
+    {
+        try {
+            $chart = $this->dashboardService->getMaintenanceChart();
+            return ResponseFormatter::success($chart, 'Gráfico de mantenimientos obtenido');
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener gráfico de mantenimientos', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return ResponseFormatter::error('Error al obtener gráfico de mantenimientos', 500);
+        }
+    }
+
+    /**
+     * Obtener equipos por servicio
+     */
+    public function getEquipmentByService()
+    {
+        try {
+            $data = $this->dashboardService->getEquipmentByService();
+            return ResponseFormatter::success($data, 'Equipos por servicio obtenidos');
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener equipos por servicio', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return ResponseFormatter::error('Error al obtener equipos por servicio', 500);
+        }
+    }
+
+    /**
+     * Obtener alertas del dashboard
+     */
+    public function getAlerts()
+    {
+        try {
+            $alerts = $this->dashboardService->getDashboardAlerts();
+            return ResponseFormatter::success($alerts, 'Alertas del dashboard obtenidas');
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener alertas del dashboard', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return ResponseFormatter::error('Error al obtener alertas del dashboard', 500);
+        }
+    }
+
+    /**
+     * Obtener actividad reciente
+     */
+    public function getRecentActivity()
+    {
+        try {
+            $activity = $this->dashboardService->getRecentActivity();
+            return ResponseFormatter::success($activity, 'Actividad reciente obtenida');
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener actividad reciente', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return ResponseFormatter::error('Error al obtener actividad reciente', 500);
+        }
+    }
+
+    /**
+     * Limpiar cache del dashboard
+     */
+    public function clearCache()
+    {
+        try {
+            $this->dashboardService->clearCache();
+            return ResponseFormatter::success(null, 'Cache del dashboard limpiado exitosamente');
+        } catch (\Exception $e) {
+            \Log::error('Error al limpiar cache del dashboard', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return ResponseFormatter::error('Error al limpiar cache del dashboard', 500);
         }
     }
 

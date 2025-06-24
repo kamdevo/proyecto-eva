@@ -1,0 +1,1505 @@
+# ESTRUCTURAS DE LAS 86 TABLAS ORIGINALES
+
+*Proyecto:* EVA - Sistema de Gestión de Equipos Médicos
+*Fecha:* 2025-06-24 07:14:21
+*Total de tablas:* 86
+
+## Tabla: acciones
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| usuario_id | int(11) | YES | MUL |  |  |
+| modulo_id | int(11) | YES | MUL |  |  |
+| leer | tinyint(1) | YES |  | 1 |  |
+| insertar | tinyint(1) | YES |  | 1 |  |
+| editar | tinyint(1) | YES |  | 1 |  |
+| eliminar | tinyint(1) | YES |  | 1 |  |
+
+---
+
+## Tabla: archivos
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(250) | YES | UNI |  |  |
+| description | text | YES |  |  |  |
+| file_name | varchar(191) | YES |  |  |  |
+| file_path | varchar(191) | YES |  |  |  |
+| file_size | bigint(20) | YES |  |  |  |
+| extension | varchar(10) | YES |  |  |  |
+| mime_type | varchar(191) | YES |  |  |  |
+| tipo | enum('manual','imagen','documento','certificado','reporte','otro') | NO | MUL | documento |  |
+| categoria | varchar(100) | YES |  |  |  |
+| equipo_id | bigint(20) unsigned | YES | MUL |  |  |
+| usuario_id | bigint(20) unsigned | YES | MUL |  |  |
+| publico | tinyint(1) | NO |  | 0 |  |
+| activo | tinyint(1) | NO | MUL | 1 |  |
+| descargas | int(11) | NO |  | 0 |  |
+
+---
+
+## Tabla: areas
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES |  |  |  |
+| servicio_id | int(11) | YES | MUL |  |  |
+| centro_id | int(11) | YES | MUL |  |  |
+| piso_id | int(11) | NO | MUL |  |  |
+| status | tinyint(1) | NO |  | 1 |  |
+| responsable_id | bigint(20) unsigned | YES |  |  |  |
+| telefono | varchar(20) | YES |  |  |  |
+| email | varchar(191) | YES |  |  |  |
+| ubicacion | varchar(191) | YES |  |  |  |
+
+---
+
+## Tabla: avances_correctivos
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | text | YES |  |  |  |
+| date | date | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+| title | varchar(100) | YES |  |  |  |
+| correctivo_general_id | int(11) | YES | MUL |  |  |
+| usuario_id | int(11) | YES |  |  |  |
+| orden_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: bajas
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| fecha_baja | date | YES |  |  |  |
+| archivo | text | YES |  |  |  |
+| descripcion | text | YES |  |  |  |
+
+---
+
+## Tabla: calibracion
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | varchar(100) | YES |  |  |  |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| status | int(11) | NO |  | 1 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| fecha_calibracion | date | YES |  |  |  |
+| fecha_programada | date | YES |  |  |  |
+
+---
+
+## Tabla: calibracion_ind
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | varchar(100) | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| fecha_calibracion | date | YES |  |  |  |
+| fecha_programada | date | YES |  |  |  |
+
+---
+
+## Tabla: cambios_cronograma
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| usuario_id | int(11) | YES | MUL |  |  |
+| cambio | text | YES |  |  |  |
+| planes_mantenimientos_id | int(11) | YES | MUL |  |  |
+
+---
+
+## Tabla: cambios_hdv
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| descripcion | text | NO |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+| usuario_id | int(11) | NO | MUL |  |  |
+| equipo_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: cambios_ubicaciones
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| servicio_origen_id | int(11) | YES | MUL | 0 |  |
+| servicio_destino_id | int(11) | YES | MUL | 0 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| area_origen_id | int(11) | YES | MUL | 0 |  |
+| area_destino_id | int(11) | YES | MUL | 0 |  |
+| usuario_id | int(11) | YES | MUL |  |  |
+| sede_origen_id | int(11) | NO | MUL |  |  |
+| sede_destino_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: cbiomedica
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES | UNI |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: centros
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| code | varchar(100) | YES |  |  |  |
+| name | varchar(250) | YES |  |  |  |
+| created_at | timestamp | NO |  | current_timestamp() |  |
+| status | int(11) | YES |  | 1 |  |
+
+---
+
+## Tabla: codificacion_cierres
+
+*Motor:* MyISAM
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(150) | YES |  |  |  |
+| code | varchar(10) | YES | UNI |  |  |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| status | int(11) | YES |  | 1 |  |
+
+---
+
+## Tabla: codificacion_diagnosticos
+
+*Motor:* MyISAM
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(150) | YES |  |  |  |
+| code | varchar(10) | YES |  |  |  |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| status | int(11) | YES |  | 1 |  |
+
+---
+
+## Tabla: consultas_guias_rapidas
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| guia_id | int(11) | NO |  |  |  |
+| date | datetime | NO |  | current_timestamp() |  |
+
+---
+
+## Tabla: contacto
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| name | varchar(100) | YES | UNI |  |  |
+| email | varchar(100) | YES |  |  |  |
+| telefono | varchar(100) | YES |  |  |  |
+| tcontacto_id | int(11) | NO | MUL |  |  |
+| created_at | datetime | NO |  |  |  |
+| id | int(11) | NO | PRI |  | auto_increment |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: contingencias
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| fecha | date | YES |  |  |  |
+| observacion | text | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+| equipo_id | int(11) | NO | MUL |  |  |
+| usuario_id | int(11) | NO | MUL |  |  |
+| estado_id | int(11) | NO |  | 1 |  |
+| fecha_cierre | date | YES |  |  |  |
+| estado | enum('Activa','En Proceso','Resuelta','Cancelada') | NO |  | Activa |  |
+| usuario_asignado | int(10) unsigned | YES |  |  |  |
+| fecha_asignacion | timestamp | YES |  |  |  |
+| fecha_resolucion | timestamp | YES |  |  |  |
+| tiempo_resolucion | int(11) | YES |  |  |  |
+| costo_estimado | decimal(10,2) | YES |  |  |  |
+| costo_real | decimal(10,2) | YES |  |  |  |
+| archivo_evidencia | varchar(191) | YES |  |  |  |
+| impacto | enum('Bajo','Medio','Alto','Crítico') | NO |  | Medio |  |
+| categoria | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: correctivos_generales
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| file_orden | varchar(100) | YES |  |  |  |
+| orden | text | YES |  |  |  |
+| fecha_inicio | text | YES |  |  |  |
+| code_orden | varchar(100) | YES |  |  |  |
+| diagnostico | text | YES |  |  |  |
+| code_diagnostico | varchar(100) | YES |  |  |  |
+| fecha_diagnostico | text | YES |  |  |  |
+| description | text | YES |  |  |  |
+| code | varchar(100) | YES |  |  |  |
+| fecha_mantenimiento | text | YES |  |  |  |
+| repuesto_pendiente | varchar(10) | YES |  | no |  |
+| repuesto_id | varchar(100) | YES |  |  |  |
+| cierre_id | int(11) | YES | MUL | 14 |  |
+| tipo_falla_id | int(11) | YES | MUL |  |  |
+
+---
+
+## Tabla: correctivos_generales_archivos
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| file | varchar(100) | YES |  |  |  |
+| correctivo_general_id | int(11) | YES |  |  |  |
+| titulo | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: correctivos_generales_archivos_ind
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| file | varchar(100) | YES |  |  |  |
+| correctivo_general_id | int(11) | YES |  |  |  |
+| titulo | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: correctivos_generales_ind
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | text | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| fecha_mantenimiento | date | YES |  |  |  |
+| code | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: criesgo
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES | UNI |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: empresas
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(200) | NO |  |  |  |
+| estado | varchar(200) | NO |  | true |  |
+| area | varchar(200) | NO |  |  |  |
+
+---
+
+## Tabla: equipos
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| image | text | YES |  |  |  |
+| code | varchar(100) | YES |  |  |  |
+| name | text | YES |  |  |  |
+| descripcion | text | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| marca | text | YES |  |  |  |
+| modelo | text | YES |  |  |  |
+| serial | text | YES |  |  |  |
+| invima | text | YES |  |  |  |
+| fecha_ad | date | YES |  |  |  |
+| servicio_id | int(11) | NO | MUL |  |  |
+| fuente_id | int(11) | NO | MUL |  |  |
+| tecnologia_id | int(11) | NO | MUL |  |  |
+| frecuencia_id | int(11) | NO | MUL |  |  |
+| cbiomedica_id | int(11) | NO | MUL |  |  |
+| criesgo_id | int(11) | NO | MUL |  |  |
+| tadquisicion_id | int(11) | NO | MUL |  |  |
+| invima_id | int(11) | NO | MUL |  |  |
+| orden_compra_id | int(11) | NO | MUL |  |  |
+| baja_id | int(11) | NO | MUL |  |  |
+| file | text | YES |  |  |  |
+| fecha_instalacion | date | YES |  |  |  |
+| vida_util | varchar(100) | YES |  |  |  |
+| observacion | text | YES |  |  |  |
+| fecha | varchar(100) | YES |  |  |  |
+| v1 | varchar(100) | YES |  |  |  |
+| v2 | varchar(100) | YES |  |  |  |
+| v3 | varchar(100) | YES |  |  |  |
+| fecha_cambio | timestamp | YES |  | current_timestamp() | on update current_timestamp() |
+| fecha_mantenimiento | text | YES |  |  |  |
+| estado_mantenimiento | int(11) | NO | MUL | 0 |  |
+| costo | varchar(100) | YES |  |  |  |
+| plan | varchar(100) | YES |  |  |  |
+| garantia | varchar(100) | YES |  |  |  |
+| estadoequipo_id | int(11) | NO | MUL |  |  |
+| archivo_invima | varchar(250) | YES |  |  |  |
+| manual | varchar(250) | YES |  |  |  |
+| plano | text | YES |  |  |  |
+| necesidad_id | int(11) | YES |  |  |  |
+| fecha_vencimiento_garantia | text | YES |  |  |  |
+| fecha_acta_recibo | text | YES |  |  |  |
+| fecha_inicio_operacion | text | YES |  |  |  |
+| fecha_fabricacion | text | YES |  |  |  |
+| accesorios | text | YES |  |  |  |
+| verificacion_inventario | varchar(10) | YES |  | NO |  |
+| propiedad | varchar(60) | YES |  |  |  |
+| propietario_id | int(11) | NO | MUL |  |  |
+| otros | text | YES |  |  |  |
+| fecha_recepcion_almacen | text | YES |  |  |  |
+| activo_comodato | varchar(100) | YES |  |  |  |
+| movilidad | varchar(100) | YES |  |  |  |
+| codigo_antiguo | varchar(100) | YES |  |  |  |
+| evaluacion_desempenio | varchar(100) | YES |  |  |  |
+| periodicidad | varchar(100) | YES |  | ANUAL |  |
+| calibracion | varchar(100) | YES |  |  |  |
+| repuesto_pendiente | varchar(10) | YES |  | no |  |
+| area_id | int(11) | NO | MUL |  |  |
+| tipo_id | int(11) | NO | MUL |  |  |
+| guia_id | int(11) | NO | MUL |  |  |
+| manual_id | int(11) | NO | MUL |  |  |
+| localizacion_actual | text | YES |  |  |  |
+| disponibilidad_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: equipos_bajas
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| equipo_id | int(11) | YES | MUL |  |  |
+| baja_id | int(11) | YES | MUL |  |  |
+| created_at | datetime | YES |  | current_timestamp() |  |
+
+---
+
+## Tabla: equipos_excluidos_guias
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(150) | YES |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+
+---
+
+## Tabla: equipos_indicador
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| cantidad | int(11) | NO |  |  |  |
+| fecha | datetime | NO |  | current_timestamp() |  |
+| cantidad_sede_norte | int(11) | YES |  |  |  |
+| cantidad_sede_principal | int(11) | YES |  |  |  |
+| cantidad_sede_principal_activos | int(11) | YES |  |  |  |
+| cantidad_sede_norte_activos | int(11) | YES |  |  |  |
+| cantidad_sede_principal_fuera_de_servicio | int(11) | YES |  |  |  |
+| cantidad_sede_norte_fuera_de_servicio | int(11) | YES |  |  |  |
+| cantidad_sede_principal_baja | int(11) | YES |  |  |  |
+| cantidad_sede_norte_baja | int(11) | YES |  |  |  |
+| cantidad_sede_principal_pendiente_baja | int(11) | YES |  |  |  |
+| cantidad_sede_norte_pendiente_baja | int(11) | YES |  |  |  |
+| cantidad_sede_principal_repuesto_pendiente_activos | int(11) | YES |  |  |  |
+| cantidad_sede_norte_repuesto_pendiente_activos | int(11) | YES |  |  |  |
+| cantidad_sede_principal_repuesto_pendiente_fuera_de_servicio | int(11) | YES |  |  |  |
+| cantidad_sede_norte_repuesto_pendiente_fuera_de_servicio | int(11) | YES |  |  |  |
+| cantidad_sede_principal_pendiente_entregar | int(11) | YES |  |  |  |
+| cantidad_sede_norte_pendiente_entregar | int(11) | YES |  |  |  |
+
+---
+
+## Tabla: equipos_industriales
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id_equipos | int(11) | NO | PRI |  | auto_increment |
+| imagen | text | NO |  |  |  |
+| nombre | text | NO |  |  |  |
+| marca | text | NO |  |  |  |
+| serial | text | NO |  |  |  |
+| modelo | text | NO |  |  |  |
+| codigo_inventario | varchar(100) | NO |  |  |  |
+| servicio_id | int(11) | NO |  |  |  |
+| periodicidad_id | varchar(100) | NO |  |  |  |
+| archivo | text | NO |  |  |  |
+| tension | text | NO |  |  |  |
+| corriente | text | NO |  |  |  |
+| potencia | text | NO |  |  |  |
+| piso_id | varchar(100) | NO |  |  |  |
+| temperatura | text | NO |  |  |  |
+| estado | int(11) | YES |  | 1 |  |
+| fecha_mantenimiento | date | NO |  |  |  |
+
+---
+
+## Tabla: equipos_manuales
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| equipo_id | int(11) | NO |  |  |  |
+| manual_id | int(11) | NO |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+
+---
+
+## Tabla: equipo_archivo
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| equipo_id | int(11) | YES | MUL |  |  |
+| archivo_id | int(11) | YES |  |  |  |
+| vinculo | varchar(100) | YES |  |  |  |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| otro | text | YES |  |  |  |
+
+---
+
+## Tabla: equipo_contacto
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| contacto_id | int(11) | YES | MUL |  |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: equipo_especificacion
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| especificacion_id | int(11) | YES | MUL |  |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| status | int(11) | NO |  | 1 |  |
+| valor | text | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: equipo_repuestos
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| equipo_id | int(11) | YES | MUL |  |  |
+| repuesto_id | int(11) | YES | MUL |  |  |
+| correctivo_general_id | int(11) | NO | MUL |  |  |
+| cantidad_entregada | int(11) | YES |  |  |  |
+| fecha | varchar(100) | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+| observacion | text | YES |  |  |  |
+| usuario_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: especificacion
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES | UNI |  |  |
+| created_at | datetime | NO |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: estadoequipos
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES |  |  |  |
+| status | int(11) | YES |  | 1 |  |
+| tipoestado_id | int(11) | NO | MUL |  |  |
+| color | varchar(30) | YES |  |  |  |
+
+---
+
+## Tabla: estados
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| descripcion | varchar(45) | NO |  |  |  |
+
+---
+
+## Tabla: estadosm
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| value | int(11) | YES |  |  |  |
+| name | varchar(100) | NO |  |  |  |
+
+---
+
+## Tabla: estados_excluidos_guias
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| estadoequipo_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: frecuenciam
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES | UNI |  |  |
+| created_at | datetime | NO |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: fuenteal
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES | UNI |  |  |
+| created_at | datetime | NO |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: guias_rapidas
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+| estado | int(11) | YES |  | 1 |  |
+
+---
+
+## Tabla: guias_rapidas_indicador
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| created_at | datetime | NO |  | current_timestamp() |  |
+| equipos_total | int(11) | NO |  |  |  |
+| eguipos_guia | int(11) | NO |  |  |  |
+
+---
+
+## Tabla: invimas
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| invima | varchar(100) | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+| description | text | YES |  |  |  |
+| status | int(11) | YES |  | 1 |  |
+| titulo | text | YES |  |  |  |
+| marcas | text | YES |  |  |  |
+
+---
+
+## Tabla: listado_industriales
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: mantenimiento
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | varchar(100) | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| fecha_mantenimiento | date | YES |  |  |  |
+| fecha_programada | date | YES |  |  |  |
+| repuesto_pendiente | varchar(10) | YES |  | no |  |
+| repuesto_id | varchar(100) | YES |  |  |  |
+| observacion | text | YES |  |  |  |
+| proveedor_mantenimiento_id | int(11) | NO | MUL |  |  |
+| tecnico_id | int(10) unsigned | YES | MUL |  |  |
+| prioridad | enum('baja','media','alta','urgente') | NO |  | media |  |
+| tiempo_estimado | int(11) | YES |  |  |  |
+| tiempo_real | int(11) | YES |  |  |  |
+| repuestos_utilizados | text | YES |  |  |  |
+| file_reporte | varchar(191) | YES |  |  |  |
+| motivo_cancelacion | text | YES |  |  |  |
+| fecha_cancelacion | timestamp | YES |  |  |  |
+
+---
+
+## Tabla: mantenimiento_ind
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | varchar(100) | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| fecha_mantenimiento | date | YES |  |  |  |
+| fecha_programada | date | YES |  |  |  |
+| fecha_ad | date | YES |  |  |  |
+
+---
+
+## Tabla: manuales
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+*Comentario:* Manuales, para relacionar con cuales se cuenta
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| status | int(11) | NO |  | 1 |  |
+| descripcion | text | YES |  |  |  |
+| fecha | datetime | NO |  | current_timestamp() |  |
+| url | text | YES |  |  |  |
+
+---
+
+## Tabla: menus
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| nombre | varchar(45) | NO |  |  |  |
+| link | varchar(100) | NO |  |  |  |
+
+---
+
+## Tabla: modulos
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: movimientos
+
+*Motor:* MyISAM
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | text | YES |  |  |  |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| accion | varchar(100) | YES |  |  |  |
+| cantidad | int(11) | YES |  |  |  |
+| usuario_id | int(11) | YES | MUL |  |  |
+| razon | text | YES |  |  |  |
+| repuesto_id | int(11) | YES |  |  |  |
+
+---
+
+## Tabla: observaciones
+
+*Motor:* InnoDB
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| description | text | YES |  |  |  |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| file | varchar(200) | YES |  |  |  |
+| usuario_id | int(11) | YES | MUL |  |  |
+| repuesto_id | text | YES |  |  |  |
+| repuesto_pendiente | varchar(20) | YES |  | no |  |
+| preventivo_id | int(11) | NO | MUL |  |  |
+| fecha_nota | date | YES |  |  |  |
+
+---
+
+## Tabla: observaciones_archivos
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| observacion_id | int(11) | NO |  |  |  |
+| titulo | varchar(100) | YES |  |  |  |
+| file | varchar(100) | YES |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+
+---
+
+## Tabla: ordenes
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| descripcion | longtext | YES |  |  |  |
+| asunto | text | YES |  |  |  |
+| servicio_id | int(11) | NO | MUL |  |  |
+| reportante_id | int(11) | NO | MUL |  |  |
+| empresa_id | int(11) | YES |  |  |  |
+| asignado_id | int(11) | YES | MUL |  |  |
+| asignador_id | int(11) | YES |  |  |  |
+| estado_id | int(11) | NO | MUL | 1 |  |
+| cierre_active | varchar(100) | YES |  |  |  |
+| code | varchar(100) | YES |  |  |  |
+| fecha_inicio | datetime | YES |  | current_timestamp() |  |
+| fecha_diagnostico | datetime | YES |  |  |  |
+| fecha_fin | datetime | YES |  |  |  |
+| reparacion | longtext | YES |  |  |  |
+| tecnico_id | int(11) | NO | MUL |  |  |
+| tecnico_otros | text | YES |  |  |  |
+| nombre_equipo | varchar(45) | YES |  |  |  |
+| modelo_equipo | varchar(45) | YES |  |  |  |
+| serie_equipo | varchar(45) | YES |  |  |  |
+| codigo_equipo | varchar(45) | YES |  |  |  |
+| diagnostico | longtext | YES |  |  |  |
+| campo_test | varchar(45) | YES |  |  |  |
+| subproceso_id | int(11) | YES | MUL |  |  |
+| fecha_asignacion_usuario | datetime | YES |  |  |  |
+| fecha_asignacion_cierre | datetime | YES |  |  |  |
+| fecha_asignacion | datetime | YES |  |  |  |
+| tecnico_cierre | int(11) | YES | MUL |  |  |
+| tecnico_diagnostico | int(11) | YES | MUL |  |  |
+| equipo_id | int(11) | YES | MUL |  |  |
+| image | varchar(200) | YES |  |  |  |
+| diagnostico_id | int(11) | YES | MUL |  |  |
+| cierre_id | int(11) | YES | MUL |  |  |
+| file_diagnostico | varchar(100) | YES |  |  |  |
+| file_cierre | varchar(100) | YES |  |  |  |
+| fecha_solicitud_repuesto | date | YES |  |  |  |
+| fecha_recepcion_repuesto | date | YES |  |  |  |
+| marca_equipo | varchar(250) | YES |  |  |  |
+| prioridad | varchar(20) | YES |  |  |  |
+| repuesto_pendiente | text | YES |  |  |  |
+| repuesto_pendiente_condicion | varchar(10) | YES |  |  |  |
+| repuestos_usados | text | YES |  |  |  |
+| centro_costo | int(11) | YES | MUL |  |  |
+| nombre_reportante | text | YES |  |  |  |
+| tecnico_cierre_text | varchar(250) | YES |  |  |  |
+| tecnico_diagnostico_text | varchar(250) | YES |  |  |  |
+| retro_diagnostico | varchar(250) | YES |  |  |  |
+| retro_cierre | varchar(250) | YES |  |  |  |
+| area_id | int(11) | YES | MUL |  |  |
+| electrico | varchar(20) | NO |  |  |  |
+| mecanico | varchar(20) | NO |  |  |  |
+| locativo | varchar(20) | NO |  |  |  |
+| usuario_final_id | int(11) | NO | MUL |  |  |
+| trabajo_id | int(11) | NO | MUL |  |  |
+| listado_industrial_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: ordenes_compra
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| orden | varchar(100) | NO |  | NULL |  |
+| file | varchar(100) | NO |  | NULL |  |
+| fecha | date | YES |  |  |  |
+| status | int(11) | YES |  | 1 |  |
+| proveedor_id | int(11) | YES | MUL |  |  |
+| tipo_compra_id | int(11) | YES |  |  |  |
+| secop_id | varchar(255) | YES |  |  |  |
+| url_secop | varchar(255) | YES |  |  |  |
+
+---
+
+## Tabla: paises
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| nombre | varchar(150) | YES |  |  |  |
+
+---
+
+## Tabla: periodos_garantias
+
+*Motor:* MyISAM
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: permisos
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| menu_id | int(11) | NO | MUL |  |  |
+| rol_id | int(11) | NO | MUL |  |  |
+| read | int(11) | NO |  |  |  |
+| insert | int(11) | NO |  |  |  |
+| update | int(11) | NO |  |  |  |
+| delete | int(11) | NO |  |  |  |
+| asignar | int(11) | NO |  |  |  |
+
+---
+
+## Tabla: pisos
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(200) | YES | UNI |  |  |
+| created_at | datetime | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: planes_mantenimientos
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| equipo_id | int(11) | NO | MUL |  |  |
+| anio | int(11) | NO |  |  |  |
+| mes1 | varchar(100) | YES |  |  |  |
+| mes2 | varchar(100) | YES |  |  |  |
+| mes3 | varchar(1000) | YES |  |  |  |
+| responsable | text | YES |  |  |  |
+| actividad | text | YES |  |  |  |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| usuario_id | int(11) | YES | MUL |  |  |
+| frecuencia_id | int(11) | NO | MUL | 4 |  |
+
+---
+
+## Tabla: procesos
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| nombre | varchar(45) | NO |  |  |  |
+
+---
+
+## Tabla: propietarios
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| nombre | text | NO |  |  |  |
+| logo | varchar(50) | NO |  |  |  |
+
+---
+
+## Tabla: proveedores_mantenimiento
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(100) | YES | UNI |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: pruebas
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| texto | text | YES |  |  |  |
+| fecha | date | YES |  |  |  |
+
+---
+
+## Tabla: repuestos
+
+*Motor:* MyISAM
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | varchar(250) | YES |  |  |  |
+| cantidad | int(11) | YES |  |  |  |
+| created_at | timestamp | YES |  | current_timestamp() |  |
+| code | varchar(100) | YES |  |  |  |
+| status | int(11) | YES |  | 1 |  |
+| precio | decimal(10,0) | YES |  |  |  |
+| grupo | varchar(10) | YES |  |  |  |
+
+---
+
+## Tabla: repuestos_pendientes
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | text | NO |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+| correctivo_general_id | int(11) | YES |  |  |  |
+| preventivo_id | int(11) | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| observacion_id | int(11) | YES |  |  |  |
+
+---
+
+## Tabla: repuestos_ti
+
+*Motor:* MyISAM
+*Collation:* utf32_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| name | text | YES |  |  |  |
+| fecha_solicitud_repuesto | date | YES |  |  |  |
+| fecha_recepcion | date | YES |  |  |  |
+| orden_id | int(11) | YES | MUL |  |  |
+| used | text | YES |  |  |  |
+
+---
+
+## Tabla: riesgos_incluidos_guias
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| criesgo_id | int(11) | NO |  |  |  |
+
+---
+
+## Tabla: roles
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| nombre | varchar(45) | YES | UNI |  |  |
+| descripcion | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: sedes
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: servicios
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| code | varchar(255) | YES |  |  |  |
+| name | varchar(255) | YES | UNI |  |  |
+| description | text | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| is_active | tinyint(1) | NO |  | 1 |  |
+| piso_id | int(11) | YES | MUL |  |  |
+| status | int(11) | NO |  | 1 |  |
+| zona_id | int(11) | YES | MUL | 1 |  |
+| centro_id | int(11) | YES | MUL |  |  |
+| sede_id | int(11) | YES | MUL | 1 |  |
+
+---
+
+## Tabla: servicios2
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| code | varchar(255) | YES |  |  |  |
+| name | varchar(255) | YES | UNI |  |  |
+| description | text | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| is_active | tinyint(1) | NO |  | 1 |  |
+| piso_id | int(11) | YES | MUL |  |  |
+| status | int(11) | NO |  | 1 |  |
+| zona_id | int(11) | YES | MUL | 1 |  |
+| centro_id | int(11) | YES | MUL |  |  |
+| sede_id | int(11) | YES | MUL | 1 |  |
+
+---
+
+## Tabla: servicios_industriales
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| code | varchar(255) | YES |  |  |  |
+| name | varchar(255) | YES |  |  |  |
+| description | text | YES |  |  |  |
+| created_at | datetime | YES |  |  |  |
+| is_active | tinyint(1) | NO |  | 1 |  |
+| piso_id | int(11) | YES |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+| zona_id | int(11) | YES |  |  |  |
+| centro_id | int(11) | YES |  |  |  |
+
+---
+
+## Tabla: subprocesos
+
+*Motor:* MyISAM
+*Collation:* utf8_general_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| nombre | varchar(45) | NO |  |  |  |
+| proceso_id | int(11) | YES | MUL |  |  |
+| status | int(11) | YES |  | 1 |  |
+
+---
+
+## Tabla: tadquisicion
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(100) | YES | UNI |  |  |
+| created_at | datetime | NO |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: tcontacto
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| description | varchar(100) | YES |  |  |  |
+| created_at | datetime | NO |  |  |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: tecnicos
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(150) | YES |  |  |  |
+| created_at | datetime | YES |  | current_timestamp() |  |
+| trabajo_id | int(11) | NO | MUL |  |  |
+
+---
+
+## Tabla: tecnologiap
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(100) | YES | UNI |  |  |
+| status | int(11) | NO |  | 1 |  |
+| created_at | datetime | NO |  |  |  |
+
+---
+
+## Tabla: tipos
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(100) | NO |  |  |  |
+
+---
+
+## Tabla: tipos_compra
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| tipo_compra | varchar(100) | YES |  |  |  |
+| status | int(11) | YES |  | 1 |  |
+
+---
+
+## Tabla: tipos_estados
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+*Comentario:* Cual es el tipo de estado actual de los equipos
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| nombre | varchar(100) | NO |  |  |  |
+
+---
+
+## Tabla: tipos_fallas
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(200) | YES |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+| status | int(11) | NO |  | 1 |  |
+
+---
+
+## Tabla: trabajos
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(100) | YES |  |  |  |
+
+---
+
+## Tabla: usuarios
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish_ci
+*Comentario:* This is the user entity
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  | auto_increment |
+| nombre | varchar(100) | YES |  |  |  |
+| apellido | varchar(100) | YES |  |  |  |
+| telefono | varchar(20) | YES |  |  |  |
+| email | varchar(100) | YES | UNI |  |  |
+| username | varchar(45) | YES | UNI |  |  |
+| password | varchar(100) | YES |  | 10470c3b4b1fed12c3baac014be15fac67c6e815 |  |
+| rol_id | int(11) | YES | MUL | 4 |  |
+| estado | tinyint(4) | YES |  | 1 |  |
+| servicio_id | int(11) | YES | MUL |  |  |
+| centro_id | varchar(100) | YES | MUL |  |  |
+| code | text | YES |  |  |  |
+| active | varchar(20) | YES |  |  |  |
+| fecha_registro | timestamp | YES |  | current_timestamp() |  |
+| id_empresa | int(11) | YES | MUL | 0 |  |
+| sede_id | varchar(10) | YES | MUL | 1 |  |
+| zona_id | int(11) | YES | MUL |  |  |
+| anio_plan | int(11) | YES |  | 2023 |  |
+
+---
+
+## Tabla: usuarios_zonas
+
+*Motor:* InnoDB
+*Collation:* utf8mb4_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| zona_id | int(11) | YES | MUL |  |  |
+| usuario_id | int(11) | YES | MUL |  |  |
+
+---
+
+## Tabla: vigencias_mantenimiento
+
+*Motor:* InnoDB
+*Collation:* utf8_spanish2_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| anio | int(11) | NO |  |  |  |
+| created_at | datetime | NO |  | current_timestamp() |  |
+
+---
+
+## Tabla: zonas
+
+*Motor:* MyISAM
+*Collation:* utf8_spanish_ci
+
+| Campo | Tipo | Nulo | Clave | Default | Extra |
+|-------|------|------|-------|---------|-------|
+| id | int(11) | NO | PRI |  |  |
+| name | varchar(100) | NO | UNI |  |  |
+| status | int(11) | NO |  | 1 |  |
+| created_at | datetime | NO |  |  |  |
+
+---

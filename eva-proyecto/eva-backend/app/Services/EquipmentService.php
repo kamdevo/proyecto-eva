@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\EquipmentServiceInterface;
 use App\Models\Equipo;
 use App\Models\Mantenimiento;
 use App\Models\Contingencia;
@@ -10,12 +11,12 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
-class EquipmentService
+class EquipmentService implements EquipmentServiceInterface
 {
     /**
      * Obtener equipos con filtros y paginación
      */
-    public function getEquipments($filters = [], $perPage = 15)
+    public function getEquipments(array $filters = [], int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $query = Equipo::with([
             'servicio:id,nombre',
@@ -60,7 +61,7 @@ class EquipmentService
     /**
      * Crear nuevo equipo
      */
-    public function createEquipment($data)
+    public function createEquipment(array $data): Equipo
     {
         return DB::transaction(function () use ($data) {
             $equipoData = collect($data)->except(['image'])->toArray();

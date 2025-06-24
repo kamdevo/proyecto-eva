@@ -1,15 +1,28 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🏥 EVA - Sistema de Gestión de Equipos Biomédicos
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2+-blue.svg)](https://php.net)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## About Laravel
+EVA es un sistema integral para la gestión de equipos biomédicos que permite el control, mantenimiento y seguimiento de equipos médicos en instituciones de salud.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 Características Principales
+
+- **Gestión de Equipos**: Registro, actualización y seguimiento completo de equipos biomédicos
+- **Mantenimientos**: Programación y seguimiento de mantenimientos preventivos y correctivos
+- **Contingencias**: Gestión de incidencias y problemas con los equipos
+- **Calibraciones**: Control de calibraciones y certificaciones
+- **Dashboard**: Estadísticas en tiempo real y alertas del sistema
+- **Auditoría**: Registro completo de todas las acciones del sistema
+- **API RESTful**: Interfaz completa para integración con otros sistemas
+- **Seguridad**: Autenticación, autorización y headers de seguridad
+- **Backup Automático**: Respaldos programados de la base de datos
+
+## 📋 Requisitos del Sistema
+
+- **PHP**: 8.2 o superior
+- **Composer**: 2.0 o superior
+- **Base de Datos**: SQLite, MySQL 8.0+ o PostgreSQL 13+
 
 - [Simple, fast routing engine](https://laravel.com/docs/routing).
 - [Powerful dependency injection container](https://laravel.com/docs/container).
