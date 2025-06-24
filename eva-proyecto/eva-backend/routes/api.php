@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\MantenimientoController;
 use App\Http\Controllers\Api\CalibracionController;
 use App\Http\Controllers\Api\CorrectivoController;
 use App\Http\Controllers\Api\ArchivosController;
+use App\Http\Controllers\Api\CapacitacionController;
+use App\Http\Controllers\Api\RepuestosController;
 
 /*
 |--------------------------------------------------------------------------
@@ -141,6 +143,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/equipment/{id}/documents', [FileController::class, 'getEquipmentDocuments']);
     Route::get('/file/{id}/info', [FileController::class, 'getFileInfo']);
     Route::post('/validate/file-type', [FileController::class, 'validateFileType']);
+    Route::post('/files/search', [FileController::class, 'searchFiles']);
+    Route::get('/files/statistics', [FileController::class, 'getFileStatistics']);
+    Route::post('/files/clean-orphans', [FileController::class, 'cleanOrphanFiles']);
+    Route::post('/files/compress', [FileController::class, 'compressFiles']);
 
     // Sistema de exportación
     Route::post('/export/equipos-consolidado', [ExportController::class, 'exportEquiposConsolidado']);
@@ -148,6 +154,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/export/contingencias', [ExportController::class, 'exportContingencias']);
     Route::post('/export/estadisticas-cumplimiento', [ExportController::class, 'exportEstadisticasCumplimiento']);
     Route::post('/export/equipos-criticos', [ExportController::class, 'exportEquiposCriticos']);
+    Route::post('/export/tickets', [ExportController::class, 'exportTickets']);
+    Route::post('/export/calibraciones', [ExportController::class, 'exportCalibraciones']);
+    Route::post('/export/inventario-repuestos', [ExportController::class, 'exportInventarioRepuestos']);
 
     // Interacciones de modales (usando ModalController)
     Route::get('/modal/add-equipment-data', [ModalController::class, 'getAddEquipmentData']);
@@ -216,6 +225,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('calibraciones', CalibracionController::class);
     Route::apiResource('correctivos', CorrectivoController::class);
     Route::apiResource('archivos', ArchivosController::class);
+    Route::apiResource('areas', AreaController::class);
+    Route::apiResource('servicios', ServicioController::class);
+    Route::apiResource('contingencias', ContingenciaController::class);
+    Route::apiResource('tickets', TicketController::class);
+    Route::apiResource('capacitaciones', CapacitacionController::class);
+    Route::apiResource('repuestos', RepuestosController::class);
 
     // Rutas específicas para mantenimientos
     Route::post('/mantenimientos/{id}/completar', [MantenimientoController::class, 'completar']);
@@ -233,16 +248,64 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/calibraciones/estadisticas', [CalibracionController::class, 'estadisticas']);
     Route::get('/calibraciones/equipos-requieren', [CalibracionController::class, 'equiposRequierenCalibracion']);
 
-    // Rutas específicas para correctivos
-    Route::post('/correctivos/{id}/cerrar', [CorrectivoController::class, 'cerrar']);
-    Route::get('/correctivos/equipo/{equipoId}', [CorrectivoController::class, 'porEquipo']);
-    Route::get('/correctivos/pendientes', [CorrectivoController::class, 'pendientes']);
-    Route::get('/correctivos/criticos', [CorrectivoController::class, 'criticos']);
+
 
     // Rutas específicas para archivos
-    Route::post('/archivos/asociar-equipo', [ArchivosController::class, 'asociarEquipo']);
-    Route::delete('/archivos/desasociar-equipo/{equipoId}/{archivoId}', [ArchivosController::class, 'desasociarEquipo']);
+    Route::post('/archivos/upload-multiple', [ArchivosController::class, 'uploadMultiple']);
+    Route::get('/archivos/download/{id}', [ArchivosController::class, 'download']);
     Route::get('/archivos/equipo/{equipoId}', [ArchivosController::class, 'porEquipo']);
+    Route::get('/archivos/tipo/{tipo}', [ArchivosController::class, 'porTipo']);
+    Route::get('/archivos/estadisticas', [ArchivosController::class, 'estadisticas']);
+    Route::post('/archivos/{id}/toggle-status', [ArchivosController::class, 'toggleStatus']);
+    Route::post('/archivos/buscar', [ArchivosController::class, 'buscar']);
+
+    // Rutas específicas para áreas
+    Route::get('/areas/servicio/{servicioId}', [AreaController::class, 'porServicio']);
+    Route::get('/areas/estadisticas', [AreaController::class, 'estadisticas']);
+    Route::post('/areas/{id}/toggle-status', [AreaController::class, 'toggleStatus']);
+    Route::get('/areas/activas', [AreaController::class, 'getActivas']);
+
+    // Rutas específicas para servicios
+    Route::get('/servicios/estadisticas', [ServicioController::class, 'estadisticas']);
+    Route::post('/servicios/{id}/toggle-status', [ServicioController::class, 'toggleStatus']);
+    Route::get('/servicios/activos', [ServicioController::class, 'getActivos']);
+    Route::get('/servicios/jerarquia', [ServicioController::class, 'getJerarquia']);
+
+    // Rutas específicas para contingencias
+    Route::post('/contingencias/{id}/cerrar', [ContingenciaController::class, 'cerrar']);
+    Route::post('/contingencias/{id}/asignar', [ContingenciaController::class, 'asignar']);
+    Route::get('/contingencias/equipo/{equipoId}', [ContingenciaController::class, 'porEquipo']);
+    Route::get('/contingencias/abiertas', [ContingenciaController::class, 'abiertas']);
+    Route::get('/contingencias/criticas', [ContingenciaController::class, 'criticas']);
+    Route::get('/contingencias/estadisticas', [ContingenciaController::class, 'estadisticas']);
+
+    // Rutas específicas para tickets
+    Route::post('/tickets/{id}/asignar', [TicketController::class, 'asignar']);
+    Route::post('/tickets/{id}/cerrar', [TicketController::class, 'cerrar']);
+    Route::get('/tickets/abiertos', [TicketController::class, 'abiertos']);
+    Route::get('/tickets/usuario/{usuarioId}', [TicketController::class, 'porUsuario']);
+    Route::get('/tickets/asignados/{usuarioId}', [TicketController::class, 'asignadosA']);
+    Route::get('/tickets/urgentes', [TicketController::class, 'urgentes']);
+    Route::get('/tickets/estadisticas', [TicketController::class, 'estadisticas']);
+
+    // Rutas específicas para capacitaciones
+    Route::post('/capacitaciones/{id}/inscribir', [CapacitacionController::class, 'inscribir']);
+    Route::post('/capacitaciones/{id}/completar', [CapacitacionController::class, 'completar']);
+    Route::get('/capacitaciones/programadas', [CapacitacionController::class, 'programadas']);
+    Route::get('/capacitaciones/estadisticas', [CapacitacionController::class, 'estadisticas']);
+
+    // Rutas específicas para repuestos
+    Route::post('/repuestos/{id}/entrada', [RepuestosController::class, 'entrada']);
+    Route::post('/repuestos/{id}/salida', [RepuestosController::class, 'salida']);
+    Route::get('/repuestos/bajo-stock', [RepuestosController::class, 'bajoStock']);
+    Route::get('/repuestos/criticos', [RepuestosController::class, 'criticos']);
+    Route::get('/repuestos/estadisticas', [RepuestosController::class, 'estadisticas']);
+
+    // Rutas específicas para correctivos
+    Route::post('/correctivos/{id}/completar', [CorrectivoController::class, 'completar']);
+    Route::get('/correctivos/equipo/{equipoId}', [CorrectivoController::class, 'porEquipo']);
+    Route::get('/correctivos/pendientes', [CorrectivoController::class, 'pendientes']);
+    Route::get('/correctivos/estadisticas', [CorrectivoController::class, 'estadisticas']);
 
 });
 

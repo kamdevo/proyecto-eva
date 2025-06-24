@@ -519,4 +519,259 @@ class ExportController extends ApiController
 
         return $data;
     }
+
+    /**
+     * Exportar reporte de tickets
+     */
+    public function exportTickets(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'fecha_desde' => 'required|date',
+            'fecha_hasta' => 'required|date|after_or_equal:fecha_desde',
+            'estado' => 'nullable|in:abierto,en_proceso,pendiente,resuelto,cerrado',
+            'categoria' => 'nullable|string',
+            'formato' => 'required|in:pdf,excel,csv'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::validation($validator->errors());
+        }
+
+        try {
+            $query = \App\Models\Ticket::with([
+                'equipo:id,name,code',
+                'usuarioCreador:id,nombre,apellido',
+                'usuarioAsignado:id,nombre,apellido'
+            ])->whereBetween('fecha_creacion', [$request->fecha_desde, $request->fecha_hasta]);
+
+            if ($request->estado) {
+                $query->where('estado', $request->estado);
+            }
+
+            if ($request->categoria) {
+                $query->where('categoria', $request->categoria);
+            }
+
+            $tickets = $query->orderBy('fecha_creacion', 'desc')->get();
+
+            $data = $this->prepareTicketsData($tickets);
+            $titulo = 'Reporte de Tickets ' . $request->fecha_desde . ' a ' . $request->fecha_hasta;
+
+            switch ($request->formato) {
+                case 'pdf':
+                    return $this->exportToPDF($data, $titulo);
+                case 'excel':
+                    return $this->exportToExcel($data, 'reporte_tickets');
+                case 'csv':
+                    return $this->exportToCSV($data, 'reporte_tickets');
+            }
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al exportar tickets: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Exportar reporte de calibraciones
+     */
+    public function exportCalibraciones(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'año' => 'required|integer|min:2020|max:2030',
+            'mes' => 'nullable|integer|min:1|max:12',
+            'estado' => 'nullable|in:programada,completada,vencida',
+            'formato' => 'required|in:pdf,excel,csv'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::validation($validator->errors());
+        }
+
+        try {
+            $query = \App\Models\Calibracion::with([
+                'equipo:id,name,code,servicio_id,area_id',
+                'equipo.servicio:id,name',
+                'equipo.area:id,name',
+                'tecnico:id,nombre,apellido'
+            ])->whereYear('fecha_programada', $request->año);
+
+            if ($request->mes) {
+                $query->whereMonth('fecha_programada', $request->mes);
+            }
+
+            if ($request->estado) {
+                $query->where('estado', $request->estado);
+            }
+
+            $calibraciones = $query->orderBy('fecha_programada')->get();
+
+            $data = $this->prepareCalibracionesData($calibraciones);
+            $titulo = 'Reporte de Calibraciones ' . $request->año;
+            if ($request->mes) {
+                $titulo .= ' - ' . Carbon::create($request->año, $request->mes, 1)->format('F');
+            }
+
+            switch ($request->formato) {
+                case 'pdf':
+                    return $this->exportToPDF($data, $titulo);
+                case 'excel':
+                    return $this->exportToExcel($data, 'reporte_calibraciones');
+                case 'csv':
+                    return $this->exportToCSV($data, 'reporte_calibraciones');
+            }
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al exportar calibraciones: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Exportar inventario de repuestos
+     */
+    public function exportInventarioRepuestos(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'categoria' => 'nullable|string',
+            'bajo_stock' => 'nullable|boolean',
+            'criticos' => 'nullable|boolean',
+            'formato' => 'required|in:pdf,excel,csv'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::validation($validator->errors());
+        }
+
+        try {
+            $query = \App\Models\Repuesto::with([
+                'equipo:id,name,code',
+                'proveedor:id,nombre'
+            ])->where('estado', 'activo');
+
+            if ($request->categoria) {
+                $query->where('categoria', $request->categoria);
+            }
+
+            if ($request->bajo_stock) {
+                $query->whereRaw('stock_actual <= stock_minimo');
+            }
+
+            if ($request->criticos) {
+                $query->where('critico', true);
+            }
+
+            $repuestos = $query->orderBy('nombre')->get();
+
+            $data = $this->prepareRepuestosData($repuestos);
+            $titulo = 'Inventario de Repuestos';
+
+            switch ($request->formato) {
+                case 'pdf':
+                    return $this->exportToPDF($data, $titulo);
+                case 'excel':
+                    return $this->exportToExcel($data, 'inventario_repuestos');
+                case 'csv':
+                    return $this->exportToCSV($data, 'inventario_repuestos');
+            }
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al exportar inventario: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Preparar datos de tickets
+     */
+    private function prepareTicketsData($tickets)
+    {
+        $data = [];
+        $headers = [
+            'Número Ticket', 'Título', 'Categoría', 'Prioridad', 'Estado',
+            'Equipo', 'Creado Por', 'Asignado A', 'Fecha Creación', 'Fecha Cierre'
+        ];
+        $data[] = $headers;
+
+        foreach ($tickets as $ticket) {
+            $data[] = [
+                $ticket->numero_ticket,
+                $ticket->titulo,
+                $ticket->categoria,
+                $ticket->prioridad,
+                $ticket->estado,
+                $ticket->equipo ? $ticket->equipo->name : 'N/A',
+                $ticket->usuarioCreador ? $ticket->usuarioCreador->nombre . ' ' . $ticket->usuarioCreador->apellido : '',
+                $ticket->usuarioAsignado ? $ticket->usuarioAsignado->nombre . ' ' . $ticket->usuarioAsignado->apellido : '',
+                Carbon::parse($ticket->fecha_creacion)->format('d/m/Y H:i'),
+                $ticket->fecha_cierre ? Carbon::parse($ticket->fecha_cierre)->format('d/m/Y H:i') : ''
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Preparar datos de calibraciones
+     */
+    private function prepareCalibracionesData($calibraciones)
+    {
+        $data = [];
+        $headers = [
+            'Fecha Programada', 'Equipo', 'Código', 'Servicio', 'Área',
+            'Técnico', 'Estado', 'Resultado', 'Certificado', 'Próxima Calibración'
+        ];
+        $data[] = $headers;
+
+        foreach ($calibraciones as $calibracion) {
+            $data[] = [
+                Carbon::parse($calibracion->fecha_programada)->format('d/m/Y'),
+                $calibracion->equipo->name ?? '',
+                $calibracion->equipo->code ?? '',
+                $calibracion->equipo->servicio->name ?? '',
+                $calibracion->equipo->area->name ?? '',
+                $calibracion->tecnico ? $calibracion->tecnico->nombre . ' ' . $calibracion->tecnico->apellido : '',
+                $calibracion->estado,
+                $calibracion->resultado ?? '',
+                $calibracion->certificado ? 'Sí' : 'No',
+                $calibracion->proxima_calibracion ? Carbon::parse($calibracion->proxima_calibracion)->format('d/m/Y') : ''
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Preparar datos de repuestos
+     */
+    private function prepareRepuestosData($repuestos)
+    {
+        $data = [];
+        $headers = [
+            'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Stock Mínimo',
+            'Stock Máximo', 'Precio Unitario', 'Valor Total', 'Ubicación',
+            'Proveedor', 'Crítico', 'Estado Stock'
+        ];
+        $data[] = $headers;
+
+        foreach ($repuestos as $repuesto) {
+            $valorTotal = $repuesto->stock_actual * $repuesto->precio_unitario;
+            $estadoStock = $repuesto->stock_actual <= 0 ? 'Agotado' :
+                          ($repuesto->stock_actual <= $repuesto->stock_minimo ? 'Bajo' : 'Normal');
+
+            $data[] = [
+                $repuesto->codigo,
+                $repuesto->nombre,
+                $repuesto->categoria,
+                $repuesto->stock_actual,
+                $repuesto->stock_minimo,
+                $repuesto->stock_maximo ?? '',
+                '$' . number_format($repuesto->precio_unitario, 2),
+                '$' . number_format($valorTotal, 2),
+                $repuesto->ubicacion ?? '',
+                $repuesto->proveedor->nombre ?? '',
+                $repuesto->critico ? 'Sí' : 'No',
+                $estadoStock
+            ];
+        }
+
+        return $data;
+    }
 }

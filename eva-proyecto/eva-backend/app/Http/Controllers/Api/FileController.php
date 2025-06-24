@@ -285,4 +285,174 @@ class FileController extends ApiController
             return ResponseFormatter::error('Error al validar archivo: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Buscar archivos por criterios
+     */
+    public function searchFiles(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'query' => 'required|string|min:3',
+            'tipo' => 'nullable|string',
+            'equipo_id' => 'nullable|exists:equipos,id'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::validation($validator->errors());
+        }
+
+        try {
+            $query = Manual::with(['equipo:id,name,code', 'usuario:id,nombre,apellido'])
+                ->where('status', true);
+
+            // Búsqueda por texto
+            $searchTerm = $request->query;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('description', 'like', "%{$searchTerm}%")
+                  ->orWhere('file_name', 'like', "%{$searchTerm}%");
+            });
+
+            // Filtros adicionales
+            if ($request->has('tipo')) {
+                $query->where('tipo', $request->tipo);
+            }
+
+            if ($request->has('equipo_id')) {
+                $query->where('equipo_id', $request->equipo_id);
+            }
+
+            $archivos = $query->orderBy('created_at', 'desc')
+                             ->limit(50)
+                             ->get();
+
+            // Agregar URLs
+            $archivos->each(function ($archivo) {
+                $archivo->file_url = Storage::disk('public')->url($archivo->file);
+                $archivo->file_size_formatted = $this->formatFileSize($archivo->file_size);
+            });
+
+            return ResponseFormatter::success($archivos, 'Búsqueda completada');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error en la búsqueda: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Obtener estadísticas de archivos
+     */
+    public function getFileStatistics()
+    {
+        try {
+            $stats = [
+                'total_archivos' => Manual::where('status', true)->count(),
+                'tamaño_total' => $this->formatFileSize(Manual::where('status', true)->sum('file_size')),
+                'por_tipo' => Manual::where('status', true)
+                    ->groupBy('tipo')
+                    ->selectRaw('tipo, count(*) as total, sum(file_size) as tamaño')
+                    ->get()
+                    ->map(function ($item) {
+                        $item->tamaño_formateado = $this->formatFileSize($item->tamaño);
+                        return $item;
+                    }),
+                'por_extension' => Manual::where('status', true)
+                    ->groupBy('file_type')
+                    ->selectRaw('file_type, count(*) as total')
+                    ->orderBy('total', 'desc')
+                    ->get(),
+                'archivos_recientes' => Manual::where('status', true)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get(['id', 'name', 'tipo', 'created_at']),
+                'equipos_con_mas_archivos' => Manual::join('equipos', 'manuales.equipo_id', '=', 'equipos.id')
+                    ->where('manuales.status', true)
+                    ->groupBy('equipos.id', 'equipos.name')
+                    ->selectRaw('equipos.name as equipo, count(*) as total_archivos')
+                    ->orderBy('total_archivos', 'desc')
+                    ->limit(10)
+                    ->get()
+            ];
+
+            return ResponseFormatter::success($stats, 'Estadísticas obtenidas');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al obtener estadísticas: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Limpiar archivos huérfanos
+     */
+    public function cleanOrphanFiles()
+    {
+        try {
+            $archivosHuerfanos = Manual::whereDoesntHave('equipo')->get();
+            $eliminados = 0;
+
+            foreach ($archivosHuerfanos as $archivo) {
+                if (Storage::disk('public')->exists($archivo->file)) {
+                    Storage::disk('public')->delete($archivo->file);
+                }
+                $archivo->delete();
+                $eliminados++;
+            }
+
+            return ResponseFormatter::success([
+                'archivos_eliminados' => $eliminados
+            ], 'Limpieza completada');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error en la limpieza: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Comprimir archivos para descarga
+     */
+    public function compressFiles(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'file_ids' => 'required|array',
+            'file_ids.*' => 'exists:manuales,id'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::validation($validator->errors());
+        }
+
+        try {
+            $archivos = Manual::whereIn('id', $request->file_ids)->get();
+
+            if ($archivos->isEmpty()) {
+                return ResponseFormatter::error('No se encontraron archivos', 404);
+            }
+
+            $zip = new \ZipArchive();
+            $zipFileName = 'archivos_' . date('Y-m-d_H-i-s') . '.zip';
+            $zipPath = storage_path('app/temp/' . $zipFileName);
+
+            // Crear directorio temporal si no existe
+            if (!file_exists(dirname($zipPath))) {
+                mkdir(dirname($zipPath), 0755, true);
+            }
+
+            if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
+                foreach ($archivos as $archivo) {
+                    $filePath = Storage::disk('public')->path($archivo->file);
+                    if (file_exists($filePath)) {
+                        $zip->addFile($filePath, $archivo->file_name);
+                    }
+                }
+                $zip->close();
+
+                return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+            } else {
+                return ResponseFormatter::error('Error al crear archivo ZIP', 500);
+            }
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al comprimir archivos: ' . $e->getMessage(), 500);
+        }
+    }
 }

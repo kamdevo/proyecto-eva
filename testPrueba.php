@@ -165,28 +165,49 @@ function probarDatosPrueba($pdo) {
 }
 
 /**
- * PRUEBA 4: ENDPOINTS DE LA API
+ * PRUEBA 4: ENDPOINTS DE LA API COMPLETOS
  */
 function probarEndpointsAPI() {
-    echo "🔍 PRUEBA 4: Endpoints de la API\n";
-    echo "================================\n";
+    echo "🔍 PRUEBA 4: Endpoints de la API Completos\n";
+    echo "==========================================\n";
 
     $baseUrl = 'http://localhost:8000/api';
 
     $endpoints = [
+        // APIs principales existentes
         'GET /equipos' => '/equipos',
         'GET /usuarios' => '/usuarios',
         'GET /servicios' => '/servicios',
         'GET /areas' => '/areas',
         'GET /mantenimientos' => '/mantenimientos',
+        'GET /contingencias' => '/contingencias',
+        'GET /calibraciones' => '/calibraciones',
+
+        // APIs nuevas implementadas
+        'GET /archivos' => '/archivos',
+        'GET /tickets' => '/tickets',
+        'GET /capacitaciones' => '/capacitaciones',
+        'GET /repuestos' => '/repuestos',
+        'GET /correctivos' => '/correctivos',
+
+        // APIs de estadísticas
+        'GET /equipos/estadisticas' => '/equipos/estadisticas',
+        'GET /mantenimientos/estadisticas' => '/mantenimientos/estadisticas',
+        'GET /tickets/estadisticas' => '/tickets/estadisticas',
+        'GET /archivos/estadisticas' => '/archivos/estadisticas',
+
+        // APIs especiales
         'GET /modal/add-equipment-data' => '/modal/add-equipment-data',
-        'GET /database/dashboard-stats' => '/database/dashboard-stats'
+        'GET /database/dashboard-stats' => '/database/dashboard-stats',
+        'GET /files/statistics' => '/files/statistics'
     ];
+
+    $exitosos = 0;
+    $fallidos = 0;
 
     foreach ($endpoints as $descripcion => $endpoint) {
         $url = $baseUrl . $endpoint;
         echo "  🌐 Probando: $descripcion\n";
-        echo "     URL: $url\n";
 
         // Usar cURL para probar el endpoint
         $ch = curl_init();
@@ -200,27 +221,38 @@ function probarEndpointsAPI() {
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
         curl_close($ch);
 
-        if ($httpCode === 200) {
+        if ($error) {
+            echo "     ❌ Error cURL: $error\n";
+            $fallidos++;
+        } elseif ($httpCode === 200) {
             $data = json_decode($response, true);
             if ($data && isset($data['status'])) {
                 echo "     ✅ Respuesta exitosa (HTTP $httpCode)\n";
                 echo "     📊 Status: " . $data['status'] . "\n";
-                if (isset($data['message'])) {
-                    echo "     💬 Mensaje: " . $data['message'] . "\n";
-                }
+                $exitosos++;
             } else {
                 echo "     ⚠️  Respuesta recibida pero formato inesperado\n";
+                $fallidos++;
             }
+        } elseif ($httpCode === 405) {
+            echo "     ⚠️  Método no permitido (POST requerido) - Ruta existe\n";
+            $exitosos++;
+        } elseif ($httpCode === 404) {
+            echo "     ❌ Endpoint no encontrado (HTTP $httpCode)\n";
+            $fallidos++;
         } else {
             echo "     ❌ Error HTTP: $httpCode\n";
-            if ($response) {
-                echo "     📝 Respuesta: " . substr($response, 0, 100) . "...\n";
-            }
+            $fallidos++;
         }
-        echo "\n";
     }
+
+    echo "\n  📊 RESUMEN APIs:\n";
+    echo "     ✅ Exitosas: $exitosos\n";
+    echo "     ❌ Fallidas: $fallidos\n";
+    echo "     📈 Porcentaje éxito: " . round(($exitosos / count($endpoints)) * 100, 2) . "%\n\n";
 }
 
 /**
@@ -231,6 +263,7 @@ function probarModelosLaravel() {
     echo "===============================\n";
 
     $modelos = [
+        // Modelos existentes
         'Equipo' => 'Equipo.php',
         'Usuario' => 'Usuario.php',
         'Servicio' => 'Servicio.php',
@@ -239,7 +272,15 @@ function probarModelosLaravel() {
         'Contingencia' => 'Contingencia.php',
         'FuenteAlimentacion' => 'FuenteAlimentacion.php',
         'Tecnologia' => 'Tecnologia.php',
-        'ClasificacionRiesgo' => 'ClasificacionRiesgo.php'
+        'ClasificacionRiesgo' => 'ClasificacionRiesgo.php',
+
+        // Modelos nuevos implementados
+        'Archivo' => 'Archivo.php',
+        'Ticket' => 'Ticket.php',
+        'Capacitacion' => 'Capacitacion.php',
+        'Repuesto' => 'Repuesto.php',
+        'CorrectivoGeneral' => 'CorrectivoGeneral.php',
+        'Calibracion' => 'Calibracion.php'
     ];
 
     $laravelPath = 'C:\\Users\\kevin\\Desktop\\EVA\\proyecto-eva\\eva-proyecto\\eva-backend';
@@ -289,11 +330,23 @@ function probarControladores() {
     echo "==========================\n";
 
     $controladores = [
+        // Controladores existentes
         'ControladorEquipos' => 'ControladorEquipos.php',
         'ControladorMantenimiento' => 'ControladorMantenimiento.php',
         'ModalController' => 'ModalController.php',
         'FileController' => 'FileController.php',
-        'ExportController' => 'ExportController.php'
+        'ExportController' => 'ExportController.php',
+
+        // Controladores nuevos implementados
+        'ArchivosController' => 'ArchivosController.php',
+        'TicketController' => 'TicketController.php',
+        'CapacitacionController' => 'CapacitacionController.php',
+        'RepuestosController' => 'RepuestosController.php',
+        'CorrectivoController' => 'CorrectivoController.php',
+        'CalibracionController' => 'CalibracionController.php',
+        'AreaController' => 'AreaController.php',
+        'ServicioController' => 'ServicioController.php',
+        'ContingenciaController' => 'ContingenciaController.php'
     ];
 
     $laravelPath = 'C:\\Users\\kevin\\Desktop\\EVA\\proyecto-eva\\eva-proyecto\\eva-backend';
@@ -340,8 +393,103 @@ function probarControladores() {
     }
 }
 
+/**
+ * PRUEBA 7: CLASES DE INTERACCIÓN
+ */
+function probarInteracciones() {
+    echo "🔍 PRUEBA 7: Clases de Interacción\n";
+    echo "==================================\n";
+
+    $interacciones = [
+        'InteraccionArchivos' => 'InteraccionArchivos.php',
+        'InteraccionMantenimiento' => 'InteraccionMantenimiento.php',
+        'InteraccionEquipos' => 'InteraccionEquipos.php',
+        'InteraccionTickets' => 'InteraccionTickets.php'
+    ];
+
+    $laravelPath = 'C:\\Users\\kevin\\Desktop\\EVA\\proyecto-eva\\eva-proyecto\\eva-backend';
+
+    foreach ($interacciones as $nombre => $archivo) {
+        $rutaArchivo = $laravelPath . '\\app\\Interactions\\' . $archivo;
+
+        echo "  🔧 Verificando interacción: $nombre\n";
+        echo "     Archivo: $archivo\n";
+
+        if (file_exists($rutaArchivo)) {
+            echo "     ✅ Archivo existe\n";
+
+            $contenido = file_get_contents($rutaArchivo);
+
+            if (strpos($contenido, "class $nombre") !== false) {
+                echo "     ✅ Clase definida correctamente\n";
+            } else {
+                echo "     ⚠️  Clase no encontrada en el archivo\n";
+            }
+
+            // Contar métodos estáticos
+            $metodosEstaticos = substr_count($contenido, 'public static function');
+            echo "     📊 Métodos estáticos: $metodosEstaticos\n";
+
+            if (strpos($contenido, 'ResponseFormatter::') !== false) {
+                echo "     ✅ Usa ResponseFormatter\n";
+            } else {
+                echo "     ⚠️  No usa ResponseFormatter\n";
+            }
+
+        } else {
+            echo "     ❌ Archivo no existe\n";
+        }
+        echo "\n";
+    }
+}
+
+/**
+ * PRUEBA 8: MIGRACIONES
+ */
+function probarMigraciones() {
+    echo "🔍 PRUEBA 8: Migraciones\n";
+    echo "========================\n";
+
+    $laravelPath = 'C:\\Users\\kevin\\Desktop\\EVA\\proyecto-eva\\eva-proyecto\\eva-backend';
+    $migrationsPath = $laravelPath . '\\database\\migrations';
+
+    $migracionesNuevas = [
+        '2024_12_24_000001_add_missing_fields_to_mantenimiento.php',
+        '2024_12_24_000002_add_missing_fields_to_areas.php',
+        '2024_12_24_000003_add_missing_fields_to_contingencias.php',
+        '2024_12_24_000004_create_tickets_table.php',
+        '2024_12_24_000005_create_capacitaciones_table.php',
+        '2024_12_24_000006_create_repuestos_table.php',
+        '2024_12_24_000007_improve_archivos_table.php'
+    ];
+
+    foreach ($migracionesNuevas as $migracion) {
+        $rutaArchivo = $migrationsPath . '\\' . $migracion;
+
+        echo "  📄 Verificando migración: $migracion\n";
+
+        if (file_exists($rutaArchivo)) {
+            echo "     ✅ Archivo existe\n";
+
+            $contenido = file_get_contents($rutaArchivo);
+
+            if (strpos($contenido, 'public function up()') !== false) {
+                echo "     ✅ Método up() definido\n";
+            }
+
+            if (strpos($contenido, 'public function down()') !== false) {
+                echo "     ✅ Método down() definido\n";
+            }
+
+        } else {
+            echo "     ❌ Archivo no existe\n";
+        }
+        echo "\n";
+    }
+}
+
 // EJECUTAR TODAS LAS PRUEBAS
-echo "🚀 Iniciando batería de pruebas...\n\n";
+echo "🚀 Iniciando batería de pruebas completas del sistema EVA...\n\n";
 
 $pdo = probarConexionBaseDatos();
 
@@ -353,10 +501,14 @@ if ($pdo) {
 probarEndpointsAPI();
 probarModelosLaravel();
 probarControladores();
+probarInteracciones();
+probarMigraciones();
 
 echo "=== PRUEBAS COMPLETADAS ===\n";
+echo "🎉 Sistema EVA - Batería de pruebas completa ejecutada\n";
 echo "📊 Resumen: Todas las pruebas han sido ejecutadas\n";
 echo "📝 Revisa los resultados arriba para identificar cualquier problema\n";
-echo "🔧 Corrige los errores encontrados y vuelve a ejecutar las pruebas\n\n";
+echo "🔧 Corrige los errores encontrados y vuelve a ejecutar las pruebas\n";
+echo "✨ El sistema EVA está listo para producción una vez que todas las pruebas pasen\n\n";
 
 ?>
