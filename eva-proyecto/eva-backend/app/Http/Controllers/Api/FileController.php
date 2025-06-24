@@ -21,7 +21,7 @@ class FileController extends ApiController
     {
         $validator = Validator::make($request->all(), [
             'equipo_id' => 'required|exists:equipos,id',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120|dimensions:max_width=2048,max_height=2048'
         ]);
 
         if ($validator->fails()) {
@@ -30,16 +30,33 @@ class FileController extends ApiController
 
         try {
             $equipo = Equipo::findOrFail($request->equipo_id);
+            $image = $request->file('image');
+
+            // Validación adicional de MIME type por seguridad
+            $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+            if (!in_array($image->getMimeType(), $allowedMimeTypes)) {
+                return ResponseFormatter::error('Tipo de archivo no permitido', 400);
+            }
+
+            // Validación de contenido del archivo (magic bytes)
+            $fileContent = file_get_contents($image->getPathname());
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $detectedMimeType = finfo_buffer($finfo, $fileContent);
+            finfo_close($finfo);
+
+            if (!in_array($detectedMimeType, $allowedMimeTypes)) {
+                return ResponseFormatter::error('Contenido de archivo no válido', 400);
+            }
 
             // Eliminar imagen anterior si existe
             if ($equipo->image && Storage::disk('public')->exists($equipo->image)) {
                 Storage::disk('public')->delete($equipo->image);
             }
 
-            // Subir nueva imagen
-            $image = $request->file('image');
-            $imageName = 'equipos/' . Str::uuid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('equipos', $imageName, 'public');
+            // Generar nombre único y seguro
+            $extension = $image->getClientOriginalExtension();
+            $fileName = 'equipo_' . $equipo->id . '_' . time() . '_' . Str::random(8) . '.' . $extension;
+            $imagePath = $image->storeAs('equipos', $fileName, 'public');
 
             // Actualizar equipo con la nueva imagen
             $equipo->update(['image' => $imagePath]);
@@ -48,9 +65,15 @@ class FileController extends ApiController
                 'image_path' => $imagePath,
                 'image_url' => Storage::disk('public')->url($imagePath)
             ], 'Imagen subida exitosamente');
-
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al subir imagen: ' . $e->getMessage(), 500);
+            // Log del error sin exponer detalles sensibles
+            \Log::error('Error al subir imagen de equipo', [
+                'equipo_id' => $request->equipo_id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return ResponseFormatter::error('Error al procesar la imagen', 500);
         }
     }
 
@@ -73,7 +96,23 @@ class FileController extends ApiController
 
         try {
             $file = $request->file('document');
-            $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
+
+            // Validación adicional de MIME type por seguridad
+            $allowedMimeTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ];
+
+            if (!in_array($file->getMimeType(), $allowedMimeTypes)) {
+                return ResponseFormatter::error('Tipo de documento no permitido', 400);
+            }
+
+            // Generar nombre único y seguro
+            $extension = $file->getClientOriginalExtension();
+            $fileName = 'doc_' . time() . '_' . Str::random(10) . '.' . $extension;
             $filePath = $file->storeAs('documentos', $fileName, 'public');
 
             $manual = Manual::create([
@@ -81,7 +120,7 @@ class FileController extends ApiController
                 'description' => $request->description,
                 'file' => $filePath,
                 'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getClientOriginalExtension(),
+                'file_type' => $extension,
                 'file_size' => $file->getSize(),
                 'equipo_id' => $request->equipo_id,
                 'usuario_id' => auth()->id(),
@@ -91,9 +130,16 @@ class FileController extends ApiController
             ]);
 
             return ResponseFormatter::success($manual, 'Documento subido exitosamente', 201);
-
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al subir documento: ' . $e->getMessage(), 500);
+            // Log del error sin exponer detalles sensibles
+            \Log::error('Error al subir documento', [
+                'equipo_id' => $request->equipo_id,
+                'user_id' => auth()->id(),
+                'tipo_documento' => $request->tipo_documento,
+                'error' => $e->getMessage()
+            ]);
+
+            return ResponseFormatter::error('Error al procesar el documento', 500);
         }
     }
 
@@ -112,7 +158,6 @@ class FileController extends ApiController
             $filePath = Storage::disk('public')->path($manual->file);
 
             return response()->download($filePath, $manual->file_name);
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al descargar archivo: ' . $e->getMessage(), 500);
         }
@@ -135,7 +180,6 @@ class FileController extends ApiController
             $manual->delete();
 
             return ResponseFormatter::success(null, 'Documento eliminado exitosamente');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al eliminar documento: ' . $e->getMessage(), 500);
         }
@@ -159,7 +203,6 @@ class FileController extends ApiController
             });
 
             return ResponseFormatter::success($documentos, 'Documentos obtenidos exitosamente');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener documentos: ' . $e->getMessage(), 500);
         }
@@ -208,7 +251,6 @@ class FileController extends ApiController
             }
 
             return ResponseFormatter::success($uploadedFiles, count($uploadedFiles) . ' archivos subidos exitosamente', 201);
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al subir archivos: ' . $e->getMessage(), 500);
         }
@@ -228,7 +270,6 @@ class FileController extends ApiController
             $manual->file_exists = Storage::disk('public')->exists($manual->file);
 
             return ResponseFormatter::success($manual, 'Información del archivo obtenida');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener información: ' . $e->getMessage(), 500);
         }
@@ -280,7 +321,6 @@ class FileController extends ApiController
                 'is_size_valid' => $fileSize <= $maxSize,
                 'is_type_valid' => $isValid
             ], 'Validación de archivo completada');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al validar archivo: ' . $e->getMessage(), 500);
         }
@@ -307,10 +347,10 @@ class FileController extends ApiController
 
             // Búsqueda por texto
             $searchTerm = $request->query;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('description', 'like', "%{$searchTerm}%")
-                  ->orWhere('file_name', 'like', "%{$searchTerm}%");
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhere('file_name', 'like', "%{$searchTerm}%");
             });
 
             // Filtros adicionales
@@ -323,8 +363,8 @@ class FileController extends ApiController
             }
 
             $archivos = $query->orderBy('created_at', 'desc')
-                             ->limit(50)
-                             ->get();
+                ->limit(50)
+                ->get();
 
             // Agregar URLs
             $archivos->each(function ($archivo) {
@@ -333,7 +373,6 @@ class FileController extends ApiController
             });
 
             return ResponseFormatter::success($archivos, 'Búsqueda completada');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error en la búsqueda: ' . $e->getMessage(), 500);
         }
@@ -375,7 +414,6 @@ class FileController extends ApiController
             ];
 
             return ResponseFormatter::success($stats, 'Estadísticas obtenidas');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener estadísticas: ' . $e->getMessage(), 500);
         }
@@ -401,7 +439,6 @@ class FileController extends ApiController
             return ResponseFormatter::success([
                 'archivos_eliminados' => $eliminados
             ], 'Limpieza completada');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error en la limpieza: ' . $e->getMessage(), 500);
         }
@@ -450,7 +487,6 @@ class FileController extends ApiController
             } else {
                 return ResponseFormatter::error('Error al crear archivo ZIP', 500);
             }
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al comprimir archivos: ' . $e->getMessage(), 500);
         }

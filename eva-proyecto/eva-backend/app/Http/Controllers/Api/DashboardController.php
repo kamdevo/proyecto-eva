@@ -14,6 +14,7 @@ use App\Models\Servicio;
 use App\Models\Area;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 /**
@@ -28,13 +29,15 @@ class DashboardController extends ApiController
     public function getStats()
     {
         try {
-            $stats = [
-                'equipos' => [
-                    'total' => Equipo::where('status', true)->count(),
-                    'activos' => Equipo::where('status', true)->count(),
-                    'criticos' => $this->getEquiposCriticos(),
-                    'con_mantenimiento_vencido' => $this->getEquiposMantenimientoVencido()
-                ],
+            // Cache por 15 minutos
+            $stats = Cache::remember('dashboard_stats', 15, function () {
+                return [
+                    'equipos' => [
+                        'total' => Equipo::where('status', true)->count(),
+                        'activos' => Equipo::where('status', true)->count(),
+                        'criticos' => $this->getEquiposCriticos(),
+                        'con_mantenimiento_vencido' => $this->getEquiposMantenimientoVencido()
+                    ],
                 'mantenimientos' => [
                     'programados_hoy' => Mantenimiento::whereDate('fecha_programada', today())
                         ->where('status', 'programado')->count(),
@@ -65,7 +68,8 @@ class DashboardController extends ApiController
                     'total' => Usuario::where('estado', 1)->count(),
                     'tecnicos' => Usuario::where('rol_id', 2)->where('estado', 1)->count()
                 ]
-            ];
+                ];
+            });
 
             return ResponseFormatter::success($stats, 'Estadísticas del dashboard obtenidas');
 

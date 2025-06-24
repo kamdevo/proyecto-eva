@@ -145,10 +145,11 @@ class Equipo extends Model
         return $this->belongsTo(Tipo::class, 'tipo_id');
     }
 
-    public function disponibilidad()
-    {
-        return $this->belongsTo(Disponibilidad::class, 'disponibilidad_id');
-    }
+    // Nota: Disponibilidad no existe en la estructura real de BD
+    // public function disponibilidad()
+    // {
+    //     return $this->belongsTo(Disponibilidad::class, 'disponibilidad_id');
+    // }
 
     public function mantenimientos()
     {

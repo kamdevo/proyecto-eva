@@ -46,39 +46,17 @@ use App\Http\Controllers\Api\ControladorNotificaciones;
 |
 */
 
-// Rutas públicas (sin autenticación)
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
-
-// Test route for database connectivity
-Route::get('/test-db', function() {
-    try {
-        $areas = DB::table('areas')->count();
-        $contingencias = DB::table('contingencias')->count();
-        $equipos = DB::table('equipos')->count();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Database connection successful',
-            'data' => [
-                'areas_count' => $areas,
-                'contingencias_count' => $contingencias,
-                'equipos_count' => $equipos,
-                'timestamp' => now()
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Database connection failed',
-            'error' => $e->getMessage()
-        ], 500);
-    }
+// Rutas públicas (sin autenticación) con rate limiting
+Route::middleware(['throttle:5,1'])->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register']);
 });
 
-// Rutas protegidas (requieren autenticación)
-Route::middleware('auth:sanctum')->group(function () {
-    
+// Ruta de test de BD removida por seguridad - usar artisan tinker para debug
+
+// Rutas protegidas (requieren autenticación) con rate limiting
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+
     // Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
@@ -101,20 +79,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/roles/{id}', [ControladorUsuarios::class, 'eliminarRol']);
     Route::get('/roles/{id}/usuarios', [ControladorUsuarios::class, 'usuariosPorRol']);
     Route::post('/roles/{id}/permisos', [ControladorUsuarios::class, 'asignarPermisosRol']);
-    
+
     // Dashboard
     Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
     Route::get('/dashboard/charts', [DashboardController::class, 'getCharts']);
     Route::get('/dashboard/alertas', [DashboardController::class, 'getAlertas']);
     Route::get('/dashboard/actividad-reciente', [DashboardController::class, 'getActividadReciente']);
     Route::get('/dashboard/resumen-ejecutivo', [DashboardController::class, 'getResumenEjecutivo']);
-    
+
     // Administrador - Gestión de usuarios
     Route::apiResource('administrador/usuarios', AdministradorController::class);
     Route::get('/administrador/zone-relations', [AdministradorController::class, 'getZoneRelations']);
     Route::post('/administrador/zone-relations', [AdministradorController::class, 'createZoneRelation']);
     Route::delete('/administrador/zone-relations/{id}', [AdministradorController::class, 'deleteZoneRelation']);
-    
+
     // Equipos médicos
     Route::apiResource('equipos', EquipmentController::class);
     Route::get('/equipos-stats', [EquipmentController::class, 'getStats']);
@@ -143,26 +121,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Equipos industriales (usa el mismo controlador con filtros)
     Route::get('/equipos-industriales', [EquipmentController::class, 'index'])->defaults('tipo', 'industrial');
-    
+
     // Áreas
     Route::apiResource('areas', AreaController::class);
-    
+
     // Servicios
     Route::apiResource('servicios', ServicioController::class);
-    
+
     // Contingencias
     Route::apiResource('contingencias', ContingenciaController::class);
     Route::get('/contingencias-activas', [ContingenciaController::class, 'getActive']);
     Route::get('/contingencias-cerradas', [ContingenciaController::class, 'getClosed']);
     Route::post('/contingencias/{id}/close', [ContingenciaController::class, 'close']);
-    
+
     // Tickets
     Route::apiResource('tickets', TicketController::class);
     Route::get('/my-tickets', [TicketController::class, 'myTickets']);
     Route::get('/closed-tickets', [TicketController::class, 'closedTickets']);
     Route::post('/tickets/{id}/assign', [TicketController::class, 'assign']);
     Route::post('/tickets/{id}/close', [TicketController::class, 'close']);
-    
+
     // Mantenimientos
     Route::get('/mantenimientos', [EquipmentController::class, 'getMaintenances']);
     Route::post('/mantenimientos', [EquipmentController::class, 'createMaintenance']);
@@ -184,35 +162,35 @@ Route::middleware('auth:sanctum')->group(function () {
     // Planes de mantenimiento
     Route::get('/planes-mantenimiento', [EquipmentController::class, 'getMaintenancePlans']);
     Route::post('/planes-mantenimiento', [EquipmentController::class, 'createMaintenancePlan']);
-    
+
     // Órdenes de compra
     Route::get('/ordenes-compra', [EquipmentController::class, 'getPurchaseOrders']);
     Route::post('/ordenes-compra', [EquipmentController::class, 'createPurchaseOrder']);
     Route::put('/ordenes-compra/{id}', [EquipmentController::class, 'updatePurchaseOrder']);
     Route::delete('/ordenes-compra/{id}', [EquipmentController::class, 'deletePurchaseOrder']);
-    
+
     // Manuales
     Route::get('/manuales', [EquipmentController::class, 'getManuals']);
     Route::post('/manuales', [EquipmentController::class, 'uploadManual']);
     Route::delete('/manuales/{id}', [EquipmentController::class, 'deleteManual']);
-    
+
     // Contactos
     Route::get('/contactos', [EquipmentController::class, 'getContacts']);
     Route::post('/contactos', [EquipmentController::class, 'createContact']);
     Route::put('/contactos/{id}', [EquipmentController::class, 'updateContact']);
     Route::delete('/contactos/{id}', [EquipmentController::class, 'deleteContact']);
-    
+
     // Guías rápidas
     Route::get('/guias-rapidas', [EquipmentController::class, 'getQuickGuides']);
     Route::post('/guias-rapidas', [EquipmentController::class, 'createQuickGuide']);
-    
+
     // Equipos de baja
     Route::get('/equipos-bajas', [EquipmentController::class, 'getDecommissionedEquipment']);
     Route::post('/equipos/{id}/dar-baja', [EquipmentController::class, 'decommissionEquipment']);
-    
+
     // Panel de control
     Route::get('/control-panel/overview', [DashboardController::class, 'getControlPanelOverview']);
-    
+
     // Perfil de usuario
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
@@ -252,55 +230,55 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/modal/advanced-filters-data', [ModalController::class, 'getAdvancedFiltersData']);
 
     // Interacciones de botones
-    Route::post('/button/decommission-equipment/{id}', function($id, \Illuminate\Http\Request $request) {
+    Route::post('/button/decommission-equipment/{id}', function ($id, \Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::decommissionEquipment($id, $request->motivo, auth()->id());
     });
-    Route::post('/button/schedule-maintenance/{id}', function($id, \Illuminate\Http\Request $request) {
+    Route::post('/button/schedule-maintenance/{id}', function ($id, \Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::scheduleMaintenanceAction($id, $request->all());
     });
-    Route::post('/button/complete-maintenance/{id}', function($id, \Illuminate\Http\Request $request) {
+    Route::post('/button/complete-maintenance/{id}', function ($id, \Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::completeMaintenanceAction($id, $request->all());
     });
-    Route::post('/button/close-contingency/{id}', function($id, \Illuminate\Http\Request $request) {
+    Route::post('/button/close-contingency/{id}', function ($id, \Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::closeContingencyAction($id, $request->all());
     });
-    Route::post('/button/duplicate-equipment/{id}', function($id) {
+    Route::post('/button/duplicate-equipment/{id}', function ($id) {
         return \App\Interactions\ButtonInteraction::duplicateEquipmentAction($id);
     });
-    Route::post('/button/merge-equipments', function(\Illuminate\Http\Request $request) {
+    Route::post('/button/merge-equipments', function (\Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::mergeEquipmentsAction(
             $request->equipos_principales,
             $request->equipos_secundarios,
             $request->data ?? []
         );
     });
-    Route::post('/button/clean-names', function(\Illuminate\Http\Request $request) {
+    Route::post('/button/clean-names', function (\Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::cleanNamesAction($request->equipos_ids);
     });
-    Route::post('/button/generate-qr/{id}', function($id) {
+    Route::post('/button/generate-qr/{id}', function ($id) {
         return \App\Interactions\ButtonInteraction::generateQRCodeAction($id);
     });
-    Route::post('/button/export-selected', function(\Illuminate\Http\Request $request) {
+    Route::post('/button/export-selected', function (\Illuminate\Http\Request $request) {
         return \App\Interactions\ButtonInteraction::exportSelectedAction($request->equipos_ids, $request->formato ?? 'excel');
     });
 
     // Operaciones de base de datos avanzadas
-    Route::get('/database/dashboard-stats', function() {
+    Route::get('/database/dashboard-stats', function () {
         return \App\Interactions\DatabaseInteraction::getDashboardStats();
     });
-    Route::post('/database/advanced-search', function(\Illuminate\Http\Request $request) {
+    Route::post('/database/advanced-search', function (\Illuminate\Http\Request $request) {
         return \App\Interactions\DatabaseInteraction::advancedEquipmentSearch($request->all());
     });
-    Route::get('/database/overdue-maintenance', function() {
+    Route::get('/database/overdue-maintenance', function () {
         return \App\Interactions\DatabaseInteraction::getOverdueMaintenanceEquipments();
     });
-    Route::get('/database/maintenance-compliance/{year?}', function($year = null) {
+    Route::get('/database/maintenance-compliance/{year?}', function ($year = null) {
         return \App\Interactions\DatabaseInteraction::getMaintenanceComplianceSummary($year);
     });
-    Route::get('/database/critical-equipments', function() {
+    Route::get('/database/critical-equipments', function () {
         return \App\Interactions\DatabaseInteraction::getCriticalEquipments();
     });
-    Route::post('/database/consolidated-report', function(\Illuminate\Http\Request $request) {
+    Route::post('/database/consolidated-report', function (\Illuminate\Http\Request $request) {
         return \App\Interactions\DatabaseInteraction::getConsolidatedReportData($request->all());
     });
 
@@ -504,7 +482,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/planes-mantenimiento/equipo/{equipoId}', [PlanMantenimientoController::class, 'porEquipo']);
     Route::post('/planes-mantenimiento/{id}/toggle-status', [PlanMantenimientoController::class, 'toggleStatus']);
     Route::get('/planes-mantenimiento/estadisticas', [PlanMantenimientoController::class, 'estadisticas']);
-
 });
 
 // Rutas para archivos y descargas adicionales
