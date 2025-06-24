@@ -230,13 +230,14 @@ export default function ClosedTickets() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <button
-                        onClick={() => handleDocumentClick(doc)}
-                        className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                        title="Ver documento"
+                      <Button
+                        onClick={() => openDocumentModal(ticket)}
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        size="sm"
+                        title="Ver documento de trabajo"
                       >
-                        <FolderOpen className="h-5 w-5 text-blue-600" />
-                      </button>
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}

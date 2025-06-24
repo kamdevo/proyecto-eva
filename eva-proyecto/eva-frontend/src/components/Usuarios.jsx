@@ -42,7 +42,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function AministradorVista() {
+export default function Usuarios() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRelationModalOpen, setIsRelationModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
