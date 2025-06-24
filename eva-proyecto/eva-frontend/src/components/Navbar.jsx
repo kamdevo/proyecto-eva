@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Link, NavLink } from "react-router-dom";
+import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "./ui/dropdown-menu";
 import {
   Menu,
   Home,
@@ -44,14 +45,14 @@ const Navbar = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
   const navigationItems = [
-    { icon: Home, label: "Inicio", active: true, submenu: [] },
+    { icon: Home, label: "Inicio", active: true, submenu: [], href: "/" },
     {
       icon: Monitor,
       label: "EQUIPOS",
       submenu: [
         { label: "BIOMEDICOS", href: "/equipos/biomedicos" },
         { label: "INDUSTRIALES", href: "/equipos/industriales" },
-        { label: "QX", href: "/equipos/qx" },
+        { label: "O.C", href: "/equipos/ordenes-compra" },
         { label: "BAJAS", href: "/equipos/bajas" },
         { label: "CONTINGENCIAS", href: "/equipos/contingencias" },
         { label: "GUIAS RAPIDAS", href: "/equipos/guias-rapidas" },
@@ -136,28 +137,34 @@ const Navbar = () => {
             EVA APLICATIVO
           </h1>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
-              <User className="h-5 w-5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline text-lg ">Administrador</span>
-              <span className="sm:hidden">Admin</span>
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="mr-2.5">
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <p>Perfil</p>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <p>Salir</p>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>{" "}
+        <NavLink>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
+                <User className="h-5 w-5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline text-lg ">Administrador</span>
+                <span className="sm:hidden">Admin</span>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="mr-2.5">
+              <DropdownMenuGroup>
+                <DropdownMenuItem>
+                  <Link to="/perfil">
+                    <p>Perfil</p>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuGroup>
+                <DropdownMenuItem>
+                  <Link to="/salir">
+                    <p>Salir</p>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </NavLink>
+      </header>
       {/* Sidebar */}
       <aside
         className={`fixed top-16 left-0 h-full bg-slate-800 text-white transition-all duration-300 z-40 ${
@@ -167,42 +174,71 @@ const Navbar = () => {
         <div className="p-4">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
             NAVEGACIÓN PRINCIPAL
-          </h2>
+          </h2>{" "}
           <nav className="space-y-1">
             {navigationItems.map((item, index) => (
               <div key={index} className="group">
-                <Button
-                  variant="ghost"
-                  className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
-                    item.active ? "bg-slate-700 text-white" : "text-slate-300"
-                  }`}
-                  onClick={() => toggleSubmenu(item.label)}
-                >
-                  <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                  <ChevronRight
-                    className={`h-4 w-4 ml-auto transition-transform duration-200 ${
-                      openSubmenus.includes(item.label) ? "rotate-90" : ""
+                {item.href ? (
+                  <NavLink to={item.href}>
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
+                        item.active
+                          ? "bg-slate-700 text-white"
+                          : "text-slate-300"
+                      }`}
+                      onClick={() =>
+                        item.submenu.length > 0 && toggleSubmenu(item.label)
+                      }
+                    >
+                      <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                      {item.submenu.length > 0 && (
+                        <ChevronRight
+                          className={`h-4 w-4 ml-auto transition-transform duration-200 ${
+                            openSubmenus.includes(item.label) ? "rotate-90" : ""
+                          }`}
+                        />
+                      )}
+                    </Button>
+                  </NavLink>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
+                      item.active ? "bg-slate-700 text-white" : "text-slate-300"
                     }`}
-                  />
-                </Button>
+                    onClick={() => toggleSubmenu(item.label)}
+                  >
+                    <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                    {item.submenu.length > 0 && (
+                      <ChevronRight
+                        className={`h-4 w-4 ml-auto transition-transform duration-200 ${
+                          openSubmenus.includes(item.label) ? "rotate-90" : ""
+                        }`}
+                      />
+                    )}
+                  </Button>
+                )}
 
                 {/* Submenu */}
                 {openSubmenus.includes(item.label) && (
                   <div className="ml-4 mt-1 space-y-1 border-l border-slate-600 pl-4">
                     {item.submenu.map((subItem, subIndex) => (
-                      <Button
-                        key={subIndex}
-                        variant="ghost"
-                        className="w-full justify-start text-left h-auto py-2 px-3 text-slate-400 hover:bg-slate-700 hover:text-white text-sm"
-                      >
-                        <span>{subItem.label}</span>
-                      </Button>
+                      <NavLink key={subIndex} to={subItem.href}>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-left h-auto py-2 px-3 text-slate-400 hover:bg-slate-700 hover:text-white text-sm"
+                        >
+                          <span>{subItem.label}</span>
+                        </Button>
+                      </NavLink>
                     ))}
                   </div>
                 )}
               </div>
-            ))}{" "}
+            ))}
           </nav>
         </div>
       </aside>

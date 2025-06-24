@@ -19,149 +19,77 @@ import VistaAreasPrincipal from "./components/vista-areas";
 import VistaPropietariosPrincipal from "./components/vista-propietarios-principal";
 import VistaServiciosPrincipal from "./components/vista-servicios-principal";
 import AdministradorVista from "./components/AdministradorVista";
-
+import Navbar from "./components/Navbar";
+import IndustrialDevicesView from "./components/IndustrialDevices";
+import GestionTickets from "./components/GestionTickets";
+import Footer from "./components/Footer";
 export default function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6">
-        {/* Menú de navegación */}
-        <nav className="mb-6 flex flex-wrap gap-4">
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/"
-          >
-            Inicio
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/login"
-          >
-            Login
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/contingencias"
-          >
-            Contingencias
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/manuales"
-          >
-            Manuales
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/dispositivos-medicos"
-          >
-            Dispositivos Médicos
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/planes-mantenimiento"
-          >
-            Planes de Mantenimiento
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/ordenes-compra"
-          >
-            Órdenes de Compra
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/perfil"
-          >
-            Perfil
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/mis-tickets"
-          >
-            Mis Tickets
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/tickets-cerrados"
-          >
-            Tickets Cerrados
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/dashboard"
-          >
-            Dashboard
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/contacts"
-          >
-            Contactos
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/control-panel"
-          >
-            Panel de Control
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/areas"
-          >
-            Áreas
-          </Link>
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/propietarios"
-          >
-            Propietarios
-          </Link>
-
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/administrador"
-          >
-            Administrador
-          </Link>
-
-          <Link
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-            to="/servicios"
-          >
-            Servicios
-          </Link>
-        </nav>
-
-        {/* Rutas */}
+    <>
+      {" "}
+      <Router>
+        <Navbar />
+        {/* ProfilePage route without padding */}
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginForm />} />
-          <Route path="/contingencias" element={<ContingenciesView />} />
-          <Route path="/manuales" element={<ManualesView />} />
-          <Route
-            path="/dispositivos-medicos"
-            element={<MedicalDevicesView />}
-          />
-          <Route
-            path="/planes-mantenimiento"
-            element={<PlanesMantenimientoView />}
-          />
-          <Route path="/ordenes-compra" element={<PurchaseOrdersView />} />
           <Route path="/perfil" element={<ProfilePage />} />
-          <Route path="/mis-tickets" element={<MyTickets />} />
-          <Route path="/tickets-cerrados" element={<ClosedTickets />} />
-          <Route path="/dashboard" element={<DashboardView />} />
-          <Route path="/contacts" element={<ContactsView />} />
-          <Route path="/control-panel" element={<ControlPanel />} />
-          <Route path="/areas" element={<VistaAreasPrincipal />} />
-          <Route
-            path="/propietarios"
-            element={<VistaPropietariosPrincipal />}
-          />
-          <Route path="/administrador" element={<AdministradorVista />} />
-          <Route path="/servicios" element={<VistaServiciosPrincipal />} />
         </Routes>
-      </div>
-    </Router>
+
+        {/* Main content wrapper with top padding to avoid navbar overlap */}
+        <div className="pt-16">
+          {/* Other routes */}
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginForm />} />
+            <Route
+              path="/equipos/contingencias"
+              element={<ContingenciesView />}
+            />
+            <Route path="/equipos/manuales" element={<ManualesView />} />
+            <Route
+              path="/equipos/biomedicos"
+              element={<MedicalDevicesView />}
+            />
+            <Route
+              path="/planes/preventivo"
+              element={<PlanesMantenimientoView />}
+            />
+            <Route
+              path="/equipos/industriales"
+              element={<IndustrialDevicesView />}
+            />
+            <Route
+              path="/equipos/ordenes-compra"
+              element={<PurchaseOrdersView />}
+            />
+
+            <Route path="/ordenes/mis-tickets" element={<MyTickets />} />
+            <Route
+              path="/ordenes/tickets-cerrados"
+              element={<ClosedTickets />}
+            />
+            <Route
+              path="/ordenes/gestion-tickets"
+              element={<GestionTickets />}
+            />
+            <Route path="/dashboard" element={<DashboardView />} />
+            <Route path="/dashboard/reportes" element={<DashboardView />} />
+            <Route path="/config/contactos" element={<ContactsView />} />
+            <Route path="/dashboard/graficas" element={<ControlPanel />} />
+            <Route path="/config/areas" element={<VistaAreasPrincipal />} />
+            <Route
+              path="propietarios"
+              element={<VistaPropietariosPrincipal />}
+            />
+            <Route path="/admin/usuarios" element={<AdministradorVista />} />
+            <Route
+              path="/config/servicios"
+              element={<VistaServiciosPrincipal />}
+            />
+          </Routes>
+
+          <Footer />
+        </div>
+      </Router>
+    </>
   );
 }

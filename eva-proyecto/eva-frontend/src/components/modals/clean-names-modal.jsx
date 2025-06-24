@@ -1,10 +1,21 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 const equipmentNames = [
   { name: "ACELERADOR LINEAL", quantity: 11 },
@@ -12,15 +23,14 @@ const equipmentNames = [
   { name: "AGITADOR", quantity: 1 },
   { name: "AGITADOR CON CALENTAMIENTO", quantity: 1 },
   { name: "ANALIZADOR DE MAZZINI", quantity: 4 },
-]
+];
 
 export function CleanNamesModal({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="min-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle
-            className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
+          <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
             Depuración nombre de equipos
           </DialogTitle>
         </DialogHeader>
@@ -35,7 +45,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
             </Button>
           </div>
 
-          <div className="text-sm text-gray-600">Mostrando registros de 1 al 5 de un total de 5 de 5 registros</div>
+          <div className="text-sm text-gray-600">
+            Mostrando registros de 1 al 5 de un total de 5 de 5 registros
+          </div>
 
           <div className="flex items-center gap-2 text-sm">
             <span>Mostrar</span>
@@ -62,7 +74,8 @@ export function CleanNamesModal({ open, onOpenChange }) {
             {equipmentNames.map((equipment, index) => (
               <div
                 key={index}
-                className="grid grid-cols-3 gap-4 p-4 border-b hover:bg-gray-50">
+                className="grid grid-cols-3 gap-4 p-4 border-b hover:bg-gray-50"
+              >
                 <div>{equipment.name}</div>
                 <div>{equipment.quantity}</div>
                 <div>
@@ -72,7 +85,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
             ))}
           </div>
 
-          <div className="text-sm text-gray-600">Mostrando registros de 1 al 5 de un total de 5 de 5 registros</div>
+          <div className="text-sm text-gray-600">
+            Mostrando registros de 1 al 5 de un total de 5 de 5 registros
+          </div>
 
           <div className="flex items-center gap-2 text-sm">
             <span>Mostrar</span>
@@ -93,7 +108,11 @@ export function CleanNamesModal({ open, onOpenChange }) {
             <Button variant="outline" size="sm">
               Anterior
             </Button>
-            <Button variant="outline" size="sm" className="bg-blue-600 text-white">
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-blue-600 text-white"
+            >
               1
             </Button>
             <Button variant="outline" size="sm">
@@ -127,7 +146,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
         </div>
 
         <div className="flex justify-between p-4 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">ENVIAR</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+            ENVIAR
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
