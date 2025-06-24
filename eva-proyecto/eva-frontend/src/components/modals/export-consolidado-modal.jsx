@@ -1,58 +1,77 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, X, FileText, CheckSquare, FileSpreadsheet } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Download,
+  X,
+  FileText,
+  CheckSquare,
+  FileSpreadsheet,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
-  const [selectedEquipos, setSelectedEquipos] = useState([])
-  const [exportFormat, setExportFormat] = useState("pdf")
+  const [selectedEquipos, setSelectedEquipos] = useState([]);
+  const [exportFormat, setExportFormat] = useState("pdf");
   const [includeOptions, setIncludeOptions] = useState({
     detallesEquipo: true,
     cronograma: true,
     cumplimiento: true,
     responsables: true,
     estadisticas: false,
-  })
+  });
 
   const handleSelectAll = () => {
     if (selectedEquipos.length === equipos.length) {
-      setSelectedEquipos([])
+      setSelectedEquipos([]);
     } else {
-      setSelectedEquipos(equipos.map((equipo) => equipo.id))
+      setSelectedEquipos(equipos.map((equipo) => equipo.id));
     }
-  }
+  };
 
   const handleSelectEquipo = (equipoId) => {
     setSelectedEquipos((prev) =>
       prev.includes(equipoId)
         ? prev.filter((id) => id !== equipoId)
         : [...prev, equipoId]
-    )
-  }
+    );
+  };
 
   const handleExport = () => {
-    console.log("Exportando equipos:", selectedEquipos)
-    console.log("Formato:", exportFormat)
-    console.log("Opciones:", includeOptions)
-    onOpenChange(false)
-  }
+    console.log("Exportando equipos:", selectedEquipos);
+    console.log("Formato:", exportFormat);
+    console.log("Opciones:", includeOptions);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-8X1 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-8X1 min-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="border-b border-green-200 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                 <Download className="w-5 h-5 text-green-600" />
               </div>
-              <DialogTitle className="text-xl font-semibold text-slate-800">Exportar Consolidado</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-slate-800">
+                Exportar Consolidado
+              </DialogTitle>
             </div>
             <Button
               variant="ghost"
@@ -70,21 +89,29 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
           <div className="space-y-6">
             {/* Opciones de exportación */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-slate-800">Opciones de Exportación</h3>
+              <h3 className="text-lg font-medium text-slate-800">
+                Opciones de Exportación
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50">
                     <FileText className="w-5 h-5 text-green-600 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="font-medium text-slate-900">Exportar todos los equipos</div>
-                      <div className="text-sm text-slate-600">Generar reporte con todos los equipos</div>
+                      <div className="font-medium text-slate-900">
+                        Exportar todos los equipos
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        Generar reporte con todos los equipos
+                      </div>
                     </div>
                     <Button
                       size="sm"
                       onClick={handleSelectAll}
                       className="bg-green-600 hover:bg-green-700 text-white"
                     >
-                      {selectedEquipos.length === equipos.length ? "Deseleccionar" : "Seleccionar"}
+                      {selectedEquipos.length === equipos.length
+                        ? "Deseleccionar"
+                        : "Seleccionar"}
                     </Button>
                   </div>
                 </div>
@@ -92,10 +119,17 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                   <div className="flex items-center gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50">
                     <CheckSquare className="w-5 h-5 text-blue-600 flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="font-medium text-slate-900">Selección personalizada</div>
-                      <div className="text-sm text-slate-600">Elegir equipos específicos</div>
+                      <div className="font-medium text-slate-900">
+                        Selección personalizada
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        Elegir equipos específicos
+                      </div>
                     </div>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-50 text-blue-700"
+                    >
                       {selectedEquipos.length} seleccionados
                     </Badge>
                   </div>
@@ -106,9 +140,12 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
             {/* Lista de equipos */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-base font-medium text-slate-800">Seleccionar Equipos</h4>
+                <h4 className="text-base font-medium text-slate-800">
+                  Seleccionar Equipos
+                </h4>
                 <div className="text-sm text-slate-600">
-                  {selectedEquipos.length} de {equipos.length} equipos seleccionados
+                  {selectedEquipos.length} de {equipos.length} equipos
+                  seleccionados
                 </div>
               </div>
               <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg">
@@ -124,7 +161,9 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-slate-900 text-sm">#{equipo.id}</span>
+                        <span className="font-medium text-slate-900 text-sm">
+                          #{equipo.id}
+                        </span>
                         <Badge
                           className={
                             equipo.cumplimientoGlobal === "Si cumple"
@@ -135,14 +174,20 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                           {equipo.cumplimientoGlobal}
                         </Badge>
                       </div>
-                      <div className="text-sm font-medium text-slate-900 truncate">{equipo.equipo}</div>
+                      <div className="text-sm font-medium text-slate-900 truncate">
+                        {equipo.equipo}
+                      </div>
                       <div className="text-xs text-slate-600">
                         {equipo.marca} - {equipo.modelo} | {equipo.responsable}
                       </div>
                     </div>
                     <div className="text-right text-xs">
-                      <div className="text-slate-600">Ejecutados: {equipo.cantidadEjecutados}</div>
-                      <div className="text-slate-600">Programados: {equipo.cantidadProgramados}</div>
+                      <div className="text-slate-600">
+                        Ejecutados: {equipo.cantidadEjecutados}
+                      </div>
+                      <div className="text-slate-600">
+                        Programados: {equipo.cantidadProgramados}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -151,7 +196,9 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
 
             {/* Formato de exportación */}
             <div className="space-y-3">
-              <Label className="text-base font-medium text-slate-800">Formato de Exportación</Label>
+              <Label className="text-base font-medium text-slate-800">
+                Formato de Exportación
+              </Label>
               <Select value={exportFormat} onValueChange={setExportFormat}>
                 <SelectTrigger className="h-10">
                   <SelectValue />
@@ -181,7 +228,9 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
 
             {/* Incluir en el reporte */}
             <div className="space-y-3">
-              <Label className="text-base font-medium text-slate-800">Incluir en el Reporte</Label>
+              <Label className="text-base font-medium text-slate-800">
+                Incluir en el Reporte
+              </Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
@@ -189,10 +238,16 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                       id="detalles-equipo"
                       checked={includeOptions.detallesEquipo}
                       onCheckedChange={(checked) =>
-                        setIncludeOptions((prev) => ({ ...prev, detallesEquipo: checked }))
+                        setIncludeOptions((prev) => ({
+                          ...prev,
+                          detallesEquipo: checked,
+                        }))
                       }
                     />
-                    <Label htmlFor="detalles-equipo" className="text-sm text-slate-700">
+                    <Label
+                      htmlFor="detalles-equipo"
+                      className="text-sm text-slate-700"
+                    >
                       Detalles del equipo (código, serie, marca, modelo)
                     </Label>
                   </div>
@@ -201,10 +256,16 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                       id="cronograma"
                       checked={includeOptions.cronograma}
                       onCheckedChange={(checked) =>
-                        setIncludeOptions((prev) => ({ ...prev, cronograma: checked }))
+                        setIncludeOptions((prev) => ({
+                          ...prev,
+                          cronograma: checked,
+                        }))
                       }
                     />
-                    <Label htmlFor="cronograma" className="text-sm text-slate-700">
+                    <Label
+                      htmlFor="cronograma"
+                      className="text-sm text-slate-700"
+                    >
                       Cronograma de mantenimiento programado
                     </Label>
                   </div>
@@ -213,10 +274,16 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                       id="cumplimiento"
                       checked={includeOptions.cumplimiento}
                       onCheckedChange={(checked) =>
-                        setIncludeOptions((prev) => ({ ...prev, cumplimiento: checked }))
+                        setIncludeOptions((prev) => ({
+                          ...prev,
+                          cumplimiento: checked,
+                        }))
                       }
                     />
-                    <Label htmlFor="cumplimiento" className="text-sm text-slate-700">
+                    <Label
+                      htmlFor="cumplimiento"
+                      className="text-sm text-slate-700"
+                    >
                       Estado de cumplimiento global
                     </Label>
                   </div>
@@ -227,10 +294,16 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                       id="responsables"
                       checked={includeOptions.responsables}
                       onCheckedChange={(checked) =>
-                        setIncludeOptions((prev) => ({ ...prev, responsables: checked }))
+                        setIncludeOptions((prev) => ({
+                          ...prev,
+                          responsables: checked,
+                        }))
                       }
                     />
-                    <Label htmlFor="responsables" className="text-sm text-slate-700">
+                    <Label
+                      htmlFor="responsables"
+                      className="text-sm text-slate-700"
+                    >
                       Responsables de mantenimiento
                     </Label>
                   </div>
@@ -239,10 +312,16 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                       id="estadisticas"
                       checked={includeOptions.estadisticas}
                       onCheckedChange={(checked) =>
-                        setIncludeOptions((prev) => ({ ...prev, estadisticas: checked }))
+                        setIncludeOptions((prev) => ({
+                          ...prev,
+                          estadisticas: checked,
+                        }))
                       }
                     />
-                    <Label htmlFor="estadisticas" className="text-sm text-slate-700">
+                    <Label
+                      htmlFor="estadisticas"
+                      className="text-sm text-slate-700"
+                    >
                       Estadísticas y resumen ejecutivo
                     </Label>
                   </div>
@@ -254,8 +333,8 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
               <div className="flex items-start gap-2 text-sm text-slate-600">
                 <FileText className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>
-                  El archivo se generará con los equipos seleccionados y se descargará automáticamente en el formato
-                  elegido.
+                  El archivo se generará con los equipos seleccionados y se
+                  descargará automáticamente en el formato elegido.
                 </span>
               </div>
             </div>
@@ -281,5 +360,5 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
