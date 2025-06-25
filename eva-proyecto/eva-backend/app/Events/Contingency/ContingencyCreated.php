@@ -188,8 +188,74 @@ class ContingencyCreated extends BaseEvent
      */
     public function requiresImmediateAttention(): bool
     {
-        return $this->contingency->prioridad === 'Urgente' || 
+        return $this->contingency->prioridad === 'Urgente' ||
                $this->contingency->impacto === 'Alto' ||
                $this->affectsCriticalEquipment();
     }
+
+    /**
+     * Check if contingency requires emergency response.
+     */
+    public function requiresEmergencyResponse(): bool
+    {
+        // Emergency response required for critical contingencies or specific categories
+        if ($this->isCritical()) {
+            return true;
+        }
+
+        $emergencyCategories = ['Incendio', 'Explosión', 'Fuga Peligrosa', 'Falla Total'];
+        return in_array($this->contingency->categoria, $emergencyCategories);
+    }
+
+    /**
+     * Get impact level.
+     */
+    public function getImpactLevel(): string
+    {
+        // Determine impact level based on equipment criticality and service
+        if ($this->contingency->equipo?->es_critico) {
+            return 'critical';
+        }
+
+        if ($this->contingency->impacto === 'Alto') {
+            return 'high';
+        }
+
+        if ($this->contingency->impacto === 'Medio') {
+            return 'medium';
+        }
+
+        return 'low';
+    }
+
+    /**
+     * Get equipment information.
+     */
+    public function getEquipmentInfo(): array
+    {
+        if (!$this->contingency->equipo) {
+            return [
+                'id' => null,
+                'name' => 'Equipo no encontrado',
+                'code' => 'N/A',
+                'service_id' => null,
+                'service_name' => 'N/A',
+                'area_id' => null,
+                'area_name' => 'N/A',
+                'is_critical' => false
+            ];
+        }
+
+        return [
+            'id' => $this->contingency->equipo->id,
+            'name' => $this->contingency->equipo->name,
+            'code' => $this->contingency->equipo->code,
+            'service_id' => $this->contingency->equipo->servicio_id,
+            'service_name' => $this->contingency->equipo->servicio?->name ?? 'N/A',
+            'area_id' => $this->contingency->equipo->area_id,
+            'area_name' => $this->contingency->equipo->area?->name ?? 'N/A',
+            'is_critical' => $this->contingency->equipo->es_critico ?? false
+        ];
+    }
+
 }
