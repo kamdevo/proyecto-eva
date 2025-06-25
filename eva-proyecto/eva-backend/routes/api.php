@@ -38,16 +38,28 @@ use App\Http\Controllers\Api\PlanMantenimientoController;
 |
 */
 
-// Rutas públicas (sin autenticación) con rate limiting
-Route::middleware(['throttle:5,1'])->group(function () {
+// Health check endpoint
+Route::get('health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'version' => config('app.version', '1.0.0'),
+        'environment' => app()->environment(),
+    ]);
+});
+
+// Rutas públicas (sin autenticación) con rate limiting avanzado
+Route::middleware(['advanced.throttle:10,1'])->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
 
 // Ruta de test de BD removida por seguridad - usar artisan tinker para debug
 
-// Rutas protegidas (requieren autenticación) con rate limiting
-Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+// Rutas protegidas (requieren autenticación) con rate limiting avanzado y auditoría
+Route::middleware(['auth:sanctum', 'advanced.throttle:120,1', 'audit'])->group(function () {
 
     // Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
