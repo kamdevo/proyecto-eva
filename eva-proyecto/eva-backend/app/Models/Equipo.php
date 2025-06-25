@@ -2,19 +2,10 @@
 
 namespace App\Models;
 
-use App\Traits\Auditable;
-use App\Traits\Cacheable;
-use App\Traits\ValidatesData;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-// SoftDeletes removido porque la tabla no tiene columna deleted_at
 
 class Equipo extends Model
 {
-    use HasFactory, Auditable, Cacheable, ValidatesData;
     protected $table = 'equipos';
     protected $primaryKey = 'id';
     public $timestamps = true;
@@ -335,92 +326,5 @@ class Equipo extends Model
             return 0;
         }
         return null;
-    }
-
-    /**
-     * Generate unique equipment code.
-     */
-    public static function generateCode(): string
-    {
-        do {
-            $code = 'EQ-' . strtoupper(uniqid());
-        } while (static::where('code', $code)->exists());
-
-        return $code;
-    }
-
-    /**
-     * Check if equipment is active.
-     */
-    public function isActive(): bool
-    {
-        return $this->status === 1;
-    }
-
-    /**
-     * Check if equipment needs maintenance.
-     */
-    public function needsMaintenance(): bool
-    {
-        return $this->estado_mantenimiento === 1;
-    }
-
-    /**
-     * Scope for equipment needing maintenance.
-     */
-    public function scopeNeedsMaintenance($query)
-    {
-        return $query->where('estado_mantenimiento', 1);
-    }
-
-    /**
-     * Scope for equipment by risk.
-     */
-    public function scopeByRisk($query, $riskId)
-    {
-        return $query->where('criesgo_id', $riskId);
-    }
-
-    /**
-     * Scope for equipment by technology.
-     */
-    public function scopeByTechnology($query, $technologyId)
-    {
-        return $query->where('tecnologia_id', $technologyId);
-    }
-
-    /**
-     * Scope for equipment by status.
-     */
-    public function scopeByStatus($query, $statusId)
-    {
-        return $query->where('estadoequipo_id', $statusId);
-    }
-
-    /**
-     * Scope for equipment by type.
-     */
-    public function scopeByType($query, $typeId)
-    {
-        return $query->where('tipo_id', $typeId);
-    }
-
-    /**
-     * Clear related cache when equipment is updated.
-     */
-    protected function clearRelatedCache(): void
-    {
-        // Clear service-related cache
-        if ($this->servicio_id) {
-            cache()->forget("servicio:{$this->servicio_id}:equipos");
-        }
-
-        // Clear area-related cache
-        if ($this->area_id) {
-            cache()->forget("area:{$this->area_id}:equipos");
-        }
-
-        // Clear maintenance cache
-        cache()->forget("equipos:mantenimiento");
     }
 }

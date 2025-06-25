@@ -44,7 +44,7 @@ class TicketManagedNotification extends Notification implements ShouldQueue
 
         switch ($this->event->action) {
             case 'created':
-                $mail->line("Prioridad: {$this->event->ticketData['priority'] ?? 'Normal'}")
+                $mail->line("Prioridad: {$this->event->ticketData['priority'] ?? 'Normal'}");
                      ->line("Asignado a: {$this->event->getCurrentAssignee() ?? 'Sin asignar'}");
                 break;
             case 'assigned':

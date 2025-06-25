@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\AdvancedRateLimit::class . ':120,1',
         ]);
 
+        // Middleware CORS para API
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
         // Middleware con alias
         $middleware->alias([
             'audit' => \App\Http\Middleware\AuditMiddleware::class,
