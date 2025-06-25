@@ -50,6 +50,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Nombre del equipo:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       placeholder="NOMBRE"
@@ -58,7 +59,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">Serie:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Serie:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       placeholder="SERIE"
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -66,7 +69,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">INV/Activo:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      INV/Activo:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       placeholder=""
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -74,7 +79,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">Marca:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Marca:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       placeholder="MARCA"
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -82,7 +89,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">Modelo:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Modelo:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       placeholder="MODELO"
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -90,7 +99,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">R.Invima:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      R.Invima:<span className="text-destructive">*</span>
+                    </Label>
                     <div className="flex gap-2 mt-1">
                       <Select>
                         <SelectTrigger className="flex-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -126,6 +137,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Archivo excel hoja de vida:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <div className="flex gap-2 mt-1">
                       <Button variant="outline" size="sm">
@@ -139,14 +151,18 @@ export function AddEquipmentModal({ open, onOpenChange }) {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs sm:text-sm">Antiguo:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Antiguo:<span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         placeholder="CÓDIGO ANTIGUO"
                         className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs sm:text-sm">Nuevo:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Nuevo:<span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         placeholder="CÓDIGO INVENTARIO"
                         className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -156,7 +172,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
 
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-xs sm:text-sm">Ubicación:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Ubicación:<span className="text-destructive">*</span>
+                      </Label>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div>
                           <Label className="text-xs sm:text-sm">
@@ -168,7 +186,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs sm:text-sm">Área ★</Label>
+                          <Label className="text-xs sm:text-sm">
+                            Área ★<span className="text-destructive">*</span>
+                          </Label>
                           <Input
                             placeholder=""
                             className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -178,7 +198,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </div>
 
                     <div>
-                      <Label className="text-xs sm:text-sm">Sede:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Sede:<span className="text-destructive">*</span>
+                      </Label>
                       <Select>
                         <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
                           <SelectValue placeholder="SEDE HUV" />
@@ -196,6 +218,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       <div>
                         <Label className="text-xs sm:text-sm">
                           Centro de costo:
+                          <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder=""
@@ -205,6 +228,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       <div>
                         <Label className="text-xs sm:text-sm">
                           País de origen:
+                          <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder=""
@@ -257,6 +281,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Forma de adquisición:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -270,7 +295,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs sm:text-sm">Garantía:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Garantía:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="----------"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -278,7 +305,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs sm:text-sm">Activo comodato:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Activo comodato:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="CÓDIGO DE COMODATO"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -288,6 +317,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de adquisición:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -299,6 +329,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de instalación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -310,6 +341,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha recepción almacén:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -321,6 +353,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha acta de recibo:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -332,6 +365,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de inicio operación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -343,6 +377,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de fabricación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -356,14 +391,18 @@ export function AddEquipmentModal({ open, onOpenChange }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs sm:text-sm">Costo:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Costo:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="COSTO"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs sm:text-sm">Vida útil:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Vida útil:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="VIDA ÚTIL AÑOS"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -385,6 +424,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fuente de alimentación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -401,6 +441,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Tecnología predominante:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -417,6 +458,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Evaluación de desempeño:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -433,6 +475,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     ¿Se realiza calibración?
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -446,7 +489,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs sm:text-sm">Periodicidad:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Periodicidad:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="Periodicidad"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -456,6 +501,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Frecuencia de mantenimiento:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -476,6 +522,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
               <div>
                 <Label className="text-base font-semibold text-xs sm:text-sm">
                   Estado actual del equipo:
+                  <span className="text-destructive">*</span>
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                   <div>
@@ -494,7 +541,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Disponibilidad:
+                      Disponibilidad:<span className="text-destructive">*</span>
                     </Label>
                     <Select>
                       <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -512,6 +559,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Localización actual:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       placeholder="LOCALIZACIÓN ACTUAL"
@@ -531,7 +579,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
                   <div>
                     <Label className="font-medium text-xs sm:text-sm">
-                      Manuales:
+                      Manuales:<span className="text-destructive">*</span>
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
@@ -575,7 +623,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
 
                   <div>
                     <Label className="font-medium text-xs sm:text-sm">
-                      Planos:
+                      Planos:<span className="text-destructive">*</span>
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
@@ -622,6 +670,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Clasificación biomédica:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Select>
                       <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -639,6 +688,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Clasificación de acuerdo al riesgo:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Select>
                       <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
@@ -683,7 +733,9 @@ export function AddEquipmentModal({ open, onOpenChange }) {
             <CardContent className="p-3 sm:p-4 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                 <div>
-                  <Label className="text-xs sm:text-sm">Propietario:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Propietario:<span className="text-destructive">*</span>
+                  </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
                       <SelectValue placeholder="SELECCIONE UN ELEMENTO DE LA LISTA" />
@@ -703,6 +755,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Verificación física:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">

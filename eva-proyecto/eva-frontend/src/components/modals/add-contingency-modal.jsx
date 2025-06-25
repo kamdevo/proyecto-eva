@@ -61,7 +61,7 @@ export function AddContingencyModal({ open, onOpenChange }) {
                 htmlFor="fecha"
                 className="text-xs sm:text-sm font-medium text-slate-700"
               >
-                Fecha
+                Fecha<span className="text-destructive">*</span>
               </Label>
               <Input
                 id="fecha"
@@ -76,7 +76,7 @@ export function AddContingencyModal({ open, onOpenChange }) {
                 htmlFor="observacion"
                 className="text-xs sm:text-sm font-medium text-slate-700"
               >
-                Observación
+                Observación<span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="observacion"
@@ -89,7 +89,7 @@ export function AddContingencyModal({ open, onOpenChange }) {
 
           <div className="space-y-2">
             <Label className="text-xs sm:text-sm font-medium text-slate-700">
-              Archivo asociado
+              Archivo asociado<span className="text-destructive">*</span>
             </Label>
             <div
               className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${

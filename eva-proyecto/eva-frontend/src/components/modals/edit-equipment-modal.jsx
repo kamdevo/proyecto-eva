@@ -50,32 +50,43 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Nombre del equipo:
+                      Nombre del equipo:Serie:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Input
+                      disabled
                       defaultValue={equipment.equipo.name}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">Serie:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Serie:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
+                      disabled
                       defaultValue={equipment.equipo.series}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">INV/Activo:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      INV/Activo:Serie:
+                      <span className="text-destructive">*</span>
+                    </Label>
                     <Input
+                      disabled
                       defaultValue={equipment.equipo.code}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                     />
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">Marca:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Marca:Serie:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       defaultValue={equipment.equipo.brand}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -83,7 +94,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">Modelo:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Modelo:Serie:<span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       defaultValue={equipment.equipo.model}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -91,7 +104,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                   </div>
 
                   <div>
-                    <Label className="text-xs sm:text-sm">R.Invima:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      R.Invima:<span className="text-destructive">*</span>
+                    </Label>
                     <div className="flex gap-2 mt-1">
                       <Select defaultValue="si">
                         <SelectTrigger className="flex-1">
@@ -140,14 +155,18 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs sm:text-sm">Antiguo:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Antiguo:<span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         placeholder="CÓDIGO ANTIGUO"
                         className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs sm:text-sm">Nuevo:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Nuevo:<span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         defaultValue={equipment.equipo.code}
                         className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -157,11 +176,14 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
 
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-xs sm:text-sm">Ubicación:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Ubicación:<span className="text-destructive">*</span>
+                      </Label>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div>
                           <Label className="text-xs sm:text-sm">
-                            Servicio ★
+                            Servicio ★{" "}
+                            <span className="text-destructive">*</span>
                           </Label>
                           <Input
                             defaultValue={equipment.ubicacion.servicio}
@@ -169,7 +191,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs sm:text-sm">Área ★</Label>
+                          <Label className="text-xs sm:text-sm">
+                            Área ★ <span className="text-destructive">*</span>
+                          </Label>
                           <Input
                             defaultValue={equipment.ubicacion.area}
                             className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -179,7 +203,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                     </div>
 
                     <div>
-                      <Label className="text-xs sm:text-sm">Sede:</Label>
+                      <Label className="text-xs sm:text-sm">
+                        Sede: <span className="text-destructive">*</span>
+                      </Label>
                       <Select defaultValue="sede1">
                         <SelectTrigger className="mt-1">
                           <SelectValue />
@@ -197,6 +223,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                       <div>
                         <Label className="text-xs sm:text-sm">
                           Centro de costo:
+                          <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder=""
@@ -206,6 +233,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                       <div>
                         <Label className="text-xs sm:text-sm">
                           País de origen:
+                          <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder=""
@@ -266,6 +294,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Forma de adquisición:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1">
@@ -279,7 +308,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs sm:text-sm">Garantía:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Garantía:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="----------"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -287,7 +318,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs sm:text-sm">Activo comodato:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Activo comodato:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="CÓDIGO DE COMODATO"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -297,6 +330,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de adquisición:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -308,6 +342,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de instalación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -319,6 +354,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha recepción almacén:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -330,6 +366,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha acta de recibo:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -341,6 +378,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de inicio operación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -352,6 +390,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de fabricación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -365,14 +404,18 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs sm:text-sm">Costo:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Costo:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="COSTO"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs sm:text-sm">Vida útil:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Vida útil:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="VIDA ÚTIL AÑOS"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -394,6 +437,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fuente de alimentación:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select defaultValue="electrica">
                     <SelectTrigger className="mt-1">
@@ -410,6 +454,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Tecnología predominante:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select defaultValue="electronica">
                     <SelectTrigger className="mt-1">
@@ -426,6 +471,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Evaluación de desempeño:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1">
@@ -442,6 +488,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     ¿Se realiza calibración?
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1">
@@ -455,7 +502,9 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 </div>
 
                 <div>
-                  <Label className="text-xs sm:text-sm">Periodicidad:</Label>
+                  <Label className="text-xs sm:text-sm">
+                    Periodicidad:<span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     placeholder="ANUAL"
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
@@ -465,6 +514,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Frecuencia de mantenimiento:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select defaultValue="anual">
                     <SelectTrigger className="mt-1">
@@ -485,10 +535,13 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
               <div>
                 <Label className="text-base font-semibold">
                   Estado actual del equipo:
+                  <span className="text-destructive">*</span>
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                   <div>
-                    <Label className="text-xs sm:text-sm">Funcionalidad:</Label>
+                    <Label className="text-xs sm:text-sm">
+                      Funcionalidad:<span className="text-destructive">*</span>
+                    </Label>
                     <Select>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Seleccionar" />
@@ -503,7 +556,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Disponibilidad:
+                      Disponibilidad:<span className="text-destructive">*</span>
                     </Label>
                     <Select>
                       <SelectTrigger className="mt-1">
@@ -521,6 +574,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Localización actual:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       defaultValue={equipment.ubicacion.localizacion}
@@ -540,7 +594,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
                   <div>
                     <Label className="font-medium text-xs sm:text-sm">
-                      Manuales:
+                      Manuales:<span className="text-destructive">*</span>
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
@@ -584,7 +638,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
 
                   <div>
                     <Label className="font-medium text-xs sm:text-sm">
-                      Planos:
+                      Planos:<span className="text-destructive">*</span>
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
@@ -631,6 +685,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Clasificación biomédica:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Select>
                       <SelectTrigger className="mt-1">
@@ -648,6 +703,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Clasificación de acuerdo al riesgo:
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Select>
                       <SelectTrigger className="mt-1">
@@ -713,6 +769,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Verificación física:
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger className="mt-1">

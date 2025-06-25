@@ -125,14 +125,6 @@ export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
                 Documentación Completa
               </DialogTitle>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8 p-0 hover:bg-slate-100"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <div className="h-1 bg-gradient-to-r from-orange-400 to-red-400 rounded-full mt-3"></div>
         </DialogHeader>

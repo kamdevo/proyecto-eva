@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import TicketsImg from "@/assets/Img/imagenes/mis-tickets-img.jpg";
+
 import {
   Select,
   SelectContent,
@@ -143,12 +145,14 @@ export default function MyTickets() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">EVA Ticket</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Sistema de gestión de tickets
-            </p>
+        <div className="flex flex-col lg:flex-col lg:items-center lg:justify-between gap-4">
+          <div className="flex w-full justify-center">
+            <img
+              src={TicketsImg}
+              class="img-fluid rounded-top"
+              alt="Mis tickets - eva"
+              width={350}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -158,8 +162,7 @@ export default function MyTickets() {
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-blue-600 text-white hover:bg-blue-700 py-6 px-6  hover:cursor-pointer hover:text-white"
                 >
                   <Building className="w-4 h-4 mr-2" />
                   Equipos licenciados
@@ -310,8 +313,7 @@ export default function MyTickets() {
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-blue-600 text-white hover:bg-blue-700 py-6 px-6  hover:cursor-pointer hover:text-white"
                 >
                   <Cog className="w-4 h-4 mr-2" />
                   Equipos industriales
@@ -506,7 +508,7 @@ export default function MyTickets() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-blue-600 text-white hover:bg-blue-700 hover:cursor-pointer hover:text-white py-6 px-6"
                 >
                   <Truck className="w-4 h-4 mr-2" />
                   Infraestructura y movilidad

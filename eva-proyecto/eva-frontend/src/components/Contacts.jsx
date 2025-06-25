@@ -270,7 +270,7 @@ export default function ContactsView() {
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="nombre" className="text-sm font-medium">
-                        Nombre
+                        Nombre<span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="nombre"
@@ -285,7 +285,7 @@ export default function ContactsView() {
 
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-sm font-medium">
-                        Email
+                        Email<span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="email"
@@ -301,7 +301,7 @@ export default function ContactsView() {
 
                     <div className="space-y-2">
                       <Label htmlFor="telefono" className="text-sm font-medium">
-                        Teléfono
+                        Teléfono<span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="telefono"
@@ -320,6 +320,7 @@ export default function ContactsView() {
                         className="text-sm font-medium"
                       >
                         Tipo de contacto
+                        <span className="text-destructive">*</span>
                       </Label>
                       <Select
                         value={formData.tipoContacto}
