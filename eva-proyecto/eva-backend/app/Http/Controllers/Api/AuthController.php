@@ -12,6 +12,8 @@ use App\Http\Requests\RegisterRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends ApiController
 {
@@ -62,35 +64,90 @@ class AuthController extends ApiController
         // Las validaciones ya están manejadas por el FormRequest
 
         try {
+            // Rate limiting key
+            $key = 'login:' . $request->ip();
+
+            // Check rate limit
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                $seconds = RateLimiter::availableIn($key);
+
+                Log::channel('security')->warning('Login rate limit exceeded', [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'attempts' => RateLimiter::attempts($key),
+                ]);
+
+                return ResponseFormatter::error(
+                    'Demasiados intentos de login. Intente nuevamente en ' . $seconds . ' segundos.',
+                    429
+                );
+            }
+
             // Buscar usuario por username o email
             $usuario = Usuario::where('username', $request->username)
                 ->orWhere('email', $request->username)
                 ->first();
 
             if (!$usuario || !Hash::check($request->password, $usuario->password)) {
+                RateLimiter::hit($key, 300); // 5 minutes lockout
+
+                Log::channel('security')->warning('Failed login attempt', [
+                    'username' => $request->username,
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+
                 return ResponseFormatter::unauthorized('Credenciales incorrectas');
             }
 
-            if (!$usuario->estado) {
+            if (!$usuario->estado || $usuario->active !== 'true') {
+                Log::channel('security')->warning('Inactive user login attempt', [
+                    'user_id' => $usuario->id,
+                    'username' => $usuario->username,
+                    'ip' => $request->ip(),
+                ]);
+
                 return ResponseFormatter::unauthorized('Usuario inactivo');
             }
 
-            // Crear token
-            $token = $usuario->createToken('eva-token')->plainTextToken;
+            // Clear rate limit on successful login
+            RateLimiter::clear($key);
+
+            // Crear token con expiración
+            $tokenName = 'eva-token-' . now()->timestamp;
+            $token = $usuario->createToken($tokenName, ['*'], now()->addHours(24))->plainTextToken;
+
+            // Log successful login
+            Log::channel('audit')->info('User logged in', [
+                'user_id' => $usuario->id,
+                'username' => $usuario->username,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
 
             $response = [
-                'user' => $usuario,
+                'user' => [
+                    'id' => $usuario->id,
+                    'nombre' => $usuario->nombre,
+                    'apellido' => $usuario->apellido,
+                    'email' => $usuario->email,
+                    'username' => $usuario->username,
+                    'rol' => $usuario->rol?->nombre,
+                    'servicio' => $usuario->servicio?->name,
+                ],
                 'token' => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'expires_at' => now()->addHours(24)->toISOString(),
             ];
 
             return ResponseFormatter::success($response, 'Login exitoso');
         } catch (\Exception $e) {
             // Log del error sin exponer información sensible
-            \Log::warning('Intento de login fallido', [
+            Log::error('Login error', [
                 'username' => $request->username,
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+                'error' => $e->getMessage(),
                 'timestamp' => now()
             ]);
 
@@ -149,9 +206,26 @@ class AuthController extends ApiController
     public function logout(Request $request)
     {
         try {
+            $user = $request->user();
+
+            // Revoke current token
             $request->user()->currentAccessToken()->delete();
+
+            // Log logout
+            Log::channel('audit')->info('User logged out', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'ip' => $request->ip(),
+            ]);
+
             return ResponseFormatter::success(null, 'Logout exitoso');
         } catch (\Exception $e) {
+            Log::error('Logout error', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+                'ip' => $request->ip(),
+            ]);
+
             return ResponseFormatter::error('Error en el logout: ' . $e->getMessage(), 500);
         }
     }

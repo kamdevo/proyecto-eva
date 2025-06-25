@@ -14,20 +14,25 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Middleware global
         $middleware->append([
-            \App\Http\Middleware\SecurityHeadersMiddleware::class,
-            \App\Http\Middleware\CompressionMiddleware::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\AuditMiddleware::class,
         ]);
 
         // Middleware de API
         $middleware->api(append: [
-            \App\Http\Middleware\AuditMiddleware::class,
+            \App\Http\Middleware\AdvancedRateLimit::class . ':120,1',
+        ]);
+
+        // Middleware CORS para API
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
         // Middleware con alias
         $middleware->alias([
             'audit' => \App\Http\Middleware\AuditMiddleware::class,
-            'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,
-            'compression' => \App\Http\Middleware\CompressionMiddleware::class,
+            'security.headers' => \App\Http\Middleware\SecurityHeaders::class,
+            'advanced.throttle' => \App\Http\Middleware\AdvancedRateLimit::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
