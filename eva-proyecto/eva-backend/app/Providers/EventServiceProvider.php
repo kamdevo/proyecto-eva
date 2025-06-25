@@ -69,6 +69,10 @@ class EventServiceProvider extends ServiceProvider
             \App\Listeners\FileListener::class . '@handleFileUploaded',
             \App\Listeners\SystemEventListener::class,
         ],
+        \App\Events\File\FileProcessed::class => [
+            \App\Listeners\FileListener::class . '@handleFileProcessed',
+            \App\Listeners\SystemEventListener::class,
+        ],
 
         // User Events
         \App\Events\User\UserLoggedIn::class => [
@@ -76,9 +80,37 @@ class EventServiceProvider extends ServiceProvider
             \App\Listeners\SystemEventListener::class,
         ],
 
+        // Administrator Events
+        \App\Events\Administrator\AdminActionPerformed::class => [
+            \App\Listeners\AdministratorListener::class . '@handleAdminActionPerformed',
+            \App\Listeners\SystemEventListener::class,
+        ],
+
+        // Area Events
+        \App\Events\Area\AreaManaged::class => [
+            \App\Listeners\AreaListener::class . '@handleAreaManaged',
+            \App\Listeners\SystemEventListener::class,
+        ],
+
+        // Export Events
+        \App\Events\Export\DataExported::class => [
+            \App\Listeners\ExportListener::class . '@handleDataExported',
+            \App\Listeners\SystemEventListener::class,
+        ],
+
+        // Ticket Events
+        \App\Events\Ticket\TicketManaged::class => [
+            \App\Listeners\TicketListener::class . '@handleTicketManaged',
+            \App\Listeners\SystemEventListener::class,
+        ],
+
         // Dashboard Events
         \App\Events\Dashboard\DashboardDataUpdated::class => [
             \App\Listeners\DashboardListener::class . '@handleDashboardDataUpdated',
+        ],
+        \App\Events\Dashboard\DashboardMetricsUpdated::class => [
+            \App\Listeners\DashboardListener::class . '@handleDashboardMetricsUpdated',
+            \App\Listeners\SystemEventListener::class,
         ],
 
         // System Events
@@ -105,6 +137,15 @@ class EventServiceProvider extends ServiceProvider
         ],
         'eloquent.created: App\Models\Capacitacion' => [
             \App\Listeners\ModelEventListener::class . '@handleTrainingCreated',
+        ],
+        'eloquent.created: App\Models\Area' => [
+            \App\Listeners\ModelEventListener::class . '@handleAreaCreated',
+        ],
+        'eloquent.updated: App\Models\Area' => [
+            \App\Listeners\ModelEventListener::class . '@handleAreaUpdated',
+        ],
+        'eloquent.deleted: App\Models\Area' => [
+            \App\Listeners\ModelEventListener::class . '@handleAreaDeleted',
         ],
     ];
 
