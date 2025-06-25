@@ -1,67 +1,76 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Upload, ImageIcon, X } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Upload, ImageIcon, X } from "lucide-react";
 
-export default function UIModalEditarPropietario({ isOpen, onClose, propietario }) {
+export default function UIModalEditarPropietario({
+  isOpen,
+  onClose,
+  propietario,
+}) {
   const [formData, setFormData] = useState({
     nombre: "",
     logo: null,
-  })
+  });
 
-  const [dragActive, setDragActive] = useState(false)
+  const [dragActive, setDragActive] = useState(false);
 
   const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Actualizando propietario:", formData)
-    onClose()
-  }
+    e.preventDefault();
+    console.log("Actualizando propietario:", formData);
+    onClose();
+  };
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
-    }))
-  }
+    }));
+  };
 
   const handleDrag = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
+      setDragActive(true);
     } else if (e.type === "dragleave") {
-      setDragActive(false)
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleInputChange("logo", e.dataTransfer.files[0])
+      handleInputChange("logo", e.dataTransfer.files[0]);
     }
-  }
+  };
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
-      handleInputChange("logo", e.target.files[0])
+      handleInputChange("logo", e.target.files[0]);
     }
-  }
+  };
 
   useEffect(() => {
     if (propietario && isOpen) {
       setFormData({
         nombre: propietario.nombre || "",
         logo: null,
-      })
+      });
     }
-  }, [propietario, isOpen])
+  }, [propietario, isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -71,9 +80,6 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
             <DialogTitle className="text-2xl font-bold text-gray-800 border-b-2 border-blue-500 pb-3 flex-1">
               Editar Propietario
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose} className="rounded-full h-8 w-8 p-0 hover:bg-gray-100">
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
@@ -81,7 +87,10 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Nombre del propietario */}
             <div className="space-y-3">
-              <Label htmlFor="nombre" className="text-base font-semibold text-gray-700">
+              <Label
+                htmlFor="nombre"
+                className="text-base font-semibold text-gray-700"
+              >
                 Nombre del propietario
               </Label>
               <Input
@@ -96,7 +105,9 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
 
             {/* Logo */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold text-gray-700">Logo</Label>
+              <Label className="text-base font-semibold text-gray-700">
+                Logo
+              </Label>
               <div
                 className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 ${
                   dragActive
@@ -113,8 +124,12 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
                     <ImageIcon className="w-8 h-8 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-lg font-medium text-gray-700 mb-2">Arrastra y suelta archivos aquí</p>
-                    <p className="text-sm text-gray-500 mb-4">(o haz clic para seleccionar archivo)</p>
+                    <p className="text-lg font-medium text-gray-700 mb-2">
+                      Arrastra y suelta archivos aquí
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      (o haz clic para seleccionar archivo)
+                    </p>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -128,7 +143,9 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => document.getElementById("logo-upload-edit").click()}
+                      onClick={() =>
+                        document.getElementById("logo-upload-edit").click()
+                      }
                       className="rounded-xl border-gray-300 hover:bg-gray-50 px-6 py-2"
                     >
                       <Upload className="w-4 h-4 mr-2" />
@@ -137,7 +154,9 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
                     <Button
                       type="button"
                       className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-6 py-2"
-                      onClick={() => document.getElementById("logo-upload-edit").click()}
+                      onClick={() =>
+                        document.getElementById("logo-upload-edit").click()
+                      }
                     >
                       <Upload className="w-4 h-4 mr-2" />
                       Explorar...
@@ -146,7 +165,9 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
 
                   {formData.logo && (
                     <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-                      <p className="text-sm text-green-700 font-medium">✓ Archivo seleccionado: {formData.logo.name}</p>
+                      <p className="text-sm text-green-700 font-medium">
+                        ✓ Archivo seleccionado: {formData.logo.name}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -174,5 +195,5 @@ export default function UIModalEditarPropietario({ isOpen, onClose, propietario 
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

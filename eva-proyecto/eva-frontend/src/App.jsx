@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 
 // Importa tus vistas
 import ContingenciesView from "./components/contingencies-view";
@@ -27,23 +28,29 @@ import EquiposBajas from "./components/EquiposBajas";
 import GuiasRapidas from "./components/GuiasRapidas";
 import RepuestosView from "./components/RepuestosView";
 import CapacitacionesView from "./components/CapacitacionesView";
-export default function App() {
+import { useLocation } from "react-router-dom";
+
+// Componente interno que usa useLocation
+function AppContent() {
+  const location = useLocation();
+  const isLoginPage = location.pathname === "/";
+
   return (
-    <>
-      {" "}
-      <Router>
-        <Navbar />
+    <SidebarProvider>
+      {!isLoginPage && <Navbar />}
+
+      <SidebarInset>
         {/* ProfilePage route without padding */}
         <Routes>
           <Route path="/perfil" element={<ProfilePage />} />
         </Routes>
 
-        {/* Main content wrapper with top padding to avoid navbar overlap */}
-        <div className="pt-16">
+        {/* Main content wrapper with conditional padding */}
+        <div className={isLoginPage ? "" : "pt-16"}>
           {/* Other routes */}
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginForm />} />
+            <Route path="/" element={<LoginForm />} />
+            <Route path="/home" element={<HomePage />} />
             <Route
               path="/equipos/contingencias"
               element={<ContingenciesView />}
@@ -95,9 +102,18 @@ export default function App() {
             <Route path="/capacitaciones" element={<CapacitacionesView />} />
           </Routes>
 
-          <Footer />
+          {!isLoginPage && <Footer />}
         </div>
-      </Router>
-    </>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
+
+// Componente principal que envuelve todo en Router
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }

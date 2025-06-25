@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Button } from "./ui/button";
 import {
@@ -6,15 +6,23 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarTrigger,
+} from "./ui/sidebar";
 import {
   Menu,
   Home,
@@ -30,22 +38,51 @@ import {
   Search,
 } from "lucide-react";
 
-const Navbar = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+const Header = () => {
+  return (
+    <header className="fixed top-0 left-0 w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-50">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <SidebarTrigger className="p-2" />
+        <h1 className="text-base sm:text-lg font-bold text-gray-800">
+          EVA APLICATIVO
+        </h1>
+      </div>
+      <NavLink>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
+              <User className="h-5 w-5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline text-lg ">Administrador</span>
+              <span className="sm:hidden">Admin</span>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="mr-2.5">
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <Link to="/perfil">
+                  <p>Perfil</p>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuGroup>
+              <DropdownMenuItem>
+                <Link to="/salir">
+                  <p>Salir</p>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </NavLink>
+    </header>
+  );
+};
+
+const AppSidebar = () => {
   const [openSubmenus, setOpenSubmenus] = useState([]);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth >= 1024) setSidebarOpen(true);
-      else setSidebarOpen(false);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
   const navigationItems = [
-    { icon: Home, label: "Inicio", active: true, submenu: [], href: "/" },
+    { icon: Home, label: "Inicio", active: true, submenu: [], href: "/home" },
     {
       icon: Monitor,
       label: "EQUIPOS",
@@ -121,125 +158,96 @@ const Navbar = () => {
   };
 
   return (
-    <>
-      <header className="fixed top-0 left-0 w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-50">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen((prev) => !prev)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <h1 className="text-base sm:text-lg font-bold text-gray-800">
-            EVA APLICATIVO
-          </h1>
-        </div>
-        <NavLink>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
-                <User className="h-5 w-5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline text-lg ">Administrador</span>
-                <span className="sm:hidden">Admin</span>
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="mr-2.5">
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Link to="/perfil">
-                    <p>Perfil</p>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Link to="/salir">
-                    <p>Salir</p>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </NavLink>
-      </header>
-      {/* Sidebar */}
-      <aside
-        className={`fixed top-16 left-0 h-full bg-slate-800 text-white transition-all duration-300 z-40 ${
-          sidebarOpen ? "w-64" : "w-0 overflow-hidden"
-        }`}
-      >
-        <div className="p-4">
-          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-            NAVEGACIÓN PRINCIPAL
-          </h2>{" "}
-          <nav className="space-y-1">
-            {navigationItems.map((item, index) => (
-              <div key={index} className="group">
-                {item.href ? (
-                  <NavLink to={item.href}>
-                    <Button
-                      variant="ghost"
-                      className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
-                        item.active
-                          ? "bg-slate-700 text-white"
-                          : "text-slate-300"
-                      }`}
-                      onClick={() =>
-                        item.submenu.length > 0 && toggleSubmenu(item.label)
-                      }
-                    >
-                      <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {item.submenu.length > 0 && (
-                        <ChevronRight
-                          className={`h-4 w-4 ml-auto transition-transform duration-200 ${
-                            openSubmenus.includes(item.label) ? "rotate-90" : ""
-                          }`}
-                        />
-                      )}
-                    </Button>
-                  </NavLink>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    className={`w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 ${
-                      item.active ? "bg-slate-700 text-white" : "text-slate-300"
-                    }`}
-                    onClick={() => toggleSubmenu(item.label)}
-                  >
-                    <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {item.submenu.length > 0 && (
-                      <ChevronRight
-                        className={`h-4 w-4 ml-auto transition-transform duration-200 ${
-                          openSubmenus.includes(item.label) ? "rotate-90" : ""
-                        }`}
-                      />
-                    )}
-                  </Button>
-                )}
+    <Sidebar
+      variant="sidebar"
+      side="left"
+      className="bg-slate-800 text-white border-none"
+    >
+      <SidebarHeader className="bg-slate-800 border-none">
+        <SidebarGroupLabel className="text-xs font-semibold text-white uppercase tracking-wider mb-4">
+          NAVEGACIÓN PRINCIPAL
+        </SidebarGroupLabel>
+      </SidebarHeader>
 
-                {/* Submenu */}
-                {openSubmenus.includes(item.label) && (
-                  <div className="ml-4 mt-1 space-y-1 border-l border-slate-600 pl-4">
-                    {item.submenu.map((subItem, subIndex) => (
-                      <NavLink key={subIndex} to={subItem.href}>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-left h-auto py-2 px-3 text-slate-400 hover:bg-slate-700 hover:text-white text-sm"
-                        >
-                          <span>{subItem.label}</span>
-                        </Button>
+      <SidebarContent className="bg-slate-800">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {navigationItems.map((item, index) => (
+                <SidebarMenuItem key={index}>
+                  {item.href ? (
+                    // Item with direct link
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.href}
+                        className={({ isActive }) =>
+                          `w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 transition-colors text-white ${
+                            isActive ? "bg-slate-700 text-white" : ""
+                          }`
+                        }
+                      >
+                        <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                        <span className="flex-1">{item.label}</span>
                       </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-        </div>
-      </aside>
+                    </SidebarMenuButton>
+                  ) : (
+                    // Item with submenu
+                    <>
+                      <SidebarMenuButton
+                        onClick={() => toggleSubmenu(item.label)}
+                        className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 text-white transition-colors"
+                      >
+                        <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                        <span className="flex-1">{item.label}</span>
+                        {item.submenu.length > 0 && (
+                          <ChevronRight
+                            className={`h-4 w-4 ml-auto transition-transform duration-200 ${
+                              openSubmenus.includes(item.label)
+                                ? "rotate-90"
+                                : ""
+                            }`}
+                          />
+                        )}
+                      </SidebarMenuButton>
+
+                      {/* Submenu */}
+                      {openSubmenus.includes(item.label) && (
+                        <SidebarMenuSub className="ml-4 mt-1 space-y-1 border-l border-slate-600 pl-4">
+                          {item.submenu.map((subItem, subIndex) => (
+                            <SidebarMenuSubItem key={subIndex}>
+                              <SidebarMenuSubButton asChild>
+                                <NavLink
+                                  to={subItem.href}
+                                  className={({ isActive }) =>
+                                    `w-full justify-start text-left h-auto py-2 px-3 hover:bg-slate-700 text-sm transition-colors text-white ${
+                                      isActive ? "bg-slate-700" : ""
+                                    }`
+                                  }
+                                >
+                                  <span>{subItem.label}</span>
+                                </NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      )}
+                    </>
+                  )}
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+};
+
+const Navbar = () => {
+  return (
+    <>
+      <Header />
+      <AppSidebar />
     </>
   );
 };

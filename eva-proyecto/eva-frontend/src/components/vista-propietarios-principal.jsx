@@ -177,7 +177,7 @@ export default function VistaPropietariosPrincipal() {
         </div>
 
         {/* Botón agregar flotante mejorado */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-25">
           <Button
             onClick={() => setIsAddModalOpen(true)}
             className="group relative w-14 h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"

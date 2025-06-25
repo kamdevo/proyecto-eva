@@ -94,8 +94,38 @@ dialog.modal-login {
   box-sizing: border-box;
   animation: slideUp 0.3s ease-in-out;
   overflow-y: auto; /* por si se desborda el contenido */
+  position: relative; /* Para posicionar el botón de cerrar */
 }
-  /* Contenedor con grid para organizar inputs en 2 columnas */
+
+/* Estilo específico para el botón de cerrar del modal */
+.modal-close-btn {
+  position: absolute !important;
+  top: 15px !important;
+  right: 15px !important;
+  z-index: 20;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 50% !important;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: #f3f4f6 !important;
+  transform: scale(1.05);
+}
+
+.modal-close-btn:active {
+  transform: scale(0.95);
+}
+
+/* Contenedor con grid para organizar inputs en 2 columnas */
 .input-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -112,12 +142,6 @@ dialog.modal-login {
   font-weight: 600;
 }
 /* Inputs más compactos */
-.input-group input {
-  padding: 8px 10px;
-  font-size: 14px;
-  border-radius: 10px;
-}
-
 
 /* Animación de entrada vertical tipo deslizamiento */
 @keyframes slideUp {
@@ -143,44 +167,14 @@ dialog.modal-login {
 
 /* Contenedor de campo con ícono a la izquierda */
 .form-group {
-  position: relative;
   margin-bottom: 35px;
 }
 
 /* Ícono dentro del input */
-.form-group i {
-  position: absolute;
-  top: 60%;
-  left: 14px;
-  transform: translateY(-50%);
-  font-size: 18px;
-  color: #888;
-}
 
 /* Estilo de input moderno con padding para ícono */
-.form-group input,
-.modal-box input,
-.modal-box select {
-  width: 95%;
-  text-align: justify;
-  padding: 10px;
-  margin: 4px;
-  border: 3px solid #ccc;
-  border-radius: 15px;
-  font-size: 15px;
-  transition: border-color 0.3s, box-shadow 0.3s;
-  outline: none;
-  background-color: #fdfdfd;
-  box-sizing: border-box;
-}
 
 /* Efecto visual al enfocar input o select */
-.form-group input:focus,
-.modal-box input:focus,
-.modal-box select:focus {
-  border-color: #2b3d5e;
-  box-shadow: 0 0 0 3px rgba(43, 61, 94, 0.2);
-}
 
 /* Estilo para select dentro de modal */
 .modal-box select {
@@ -240,7 +234,7 @@ input.is-warning {
   transition: background-color 0.3s, transform 0.2s;
 }
 
-.btn-login-modal{
+.btn-login-modal {
   display: block;
   width: 60%;
   margin: auto;
@@ -258,10 +252,10 @@ input.is-warning {
 /* Botón de login adicional para otros modales */
 .btn-login {
   display: block;
-  width: 70%;
+  width: 300px;
   margin: auto;
-  padding: 15px;
-  font-size: 20px;
+  padding: 10px;
+  font-size: 14px;
   background-color: #2b3d5e;
   color: #fff;
   font-weight: bold;
@@ -302,20 +296,16 @@ input.is-warning {
 /* Botón para cerrar el modal */
 .close-modal {
   margin-top: 20px;
-  background-color: crimson;
+  background: rgba(121, 85, 85, 0.438);
   border: none;
-  color: white;
-  padding: 12px 22px;
-  border-radius: 10px;
+  color: black;
+  padding: 10px;
+  border-radius: 50px;
   cursor: pointer;
   font-weight: bold;
   display: block;
   transition: background-color 0.3s ease;
-}
-
-/* Hover para el botón de cerrar modal */
-.close-modal:hover {
-  background-color: darkred;
+  position: absolute;
 }
 
 /* Enlace para crear cuenta u otra acción */
