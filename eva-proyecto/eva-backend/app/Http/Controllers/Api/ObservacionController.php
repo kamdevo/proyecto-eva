@@ -23,6 +23,17 @@ class ObservacionController extends ApiController
     /**
      * Obtener lista paginada de observaciones
      */
+        /**
+     * @OA\GET(
+     *     path="/api/observaciones",
+     *     tags={"Observaciones"},
+     *     summary="Listar observaciones",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -85,6 +96,17 @@ class ObservacionController extends ApiController
     /**
      * Crear nueva observación
      */
+        /**
+     * @OA\POST(
+     *     path="/api/observaciones",
+     *     tags={"Observaciones"},
+     *     summary="Crear nueva observación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         try {
@@ -144,6 +166,23 @@ class ObservacionController extends ApiController
     /**
      * Mostrar observación específica
      */
+        /**
+     * @OA\GET(
+     *     path="/api/observaciones/{id}",
+     *     tags={"Observaciones"},
+     *     summary="Obtener observación específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -162,6 +201,23 @@ class ObservacionController extends ApiController
 
     /**
      * Actualizar observación
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/observaciones/{id}",
+     *     tags={"Observaciones"},
+     *     summary="Actualizar observación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -225,6 +281,23 @@ class ObservacionController extends ApiController
 
     /**
      * Eliminar observación
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/observaciones/{id}",
+     *     tags={"Observaciones"},
+     *     summary="Eliminar observación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

@@ -31,6 +31,28 @@ class MantenimientoController extends ApiController
      * @param Request $request Solicitud HTTP con parámetros de filtro opcionales
      * @return JsonResponse Lista paginada de mantenimientos con metadatos
      */
+        /**
+     * @OA\GET(
+     *     path="/api/mantenimientos",
+     *     tags={"Mantenimientos"},
+     *     summary="Listar mantenimientos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/mantenimientos",
+     *     tags={"Mantenimientos"},
+     *     summary="Listar mantenimientos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -104,6 +126,28 @@ class MantenimientoController extends ApiController
      * @param Request $request Datos del mantenimiento (equipo, descripción, fecha, técnico, etc.)
      * @return JsonResponse Mantenimiento creado con sus relaciones cargadas
      */
+        /**
+     * @OA\POST(
+     *     path="/api/mantenimientos",
+     *     tags={"Mantenimientos"},
+     *     summary="Crear nuevo mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/mantenimientos",
+     *     tags={"Mantenimientos"},
+     *     summary="Crear nuevo mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -163,6 +207,40 @@ class MantenimientoController extends ApiController
     /**
      * Mostrar mantenimiento específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/mantenimientos/{id}",
+     *     tags={"Mantenimientos"},
+     *     summary="Obtener mantenimiento específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/mantenimientos/{id}",
+     *     tags={"Mantenimientos"},
+     *     summary="Obtener mantenimiento específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -188,6 +266,40 @@ class MantenimientoController extends ApiController
 
     /**
      * Actualizar mantenimiento
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/mantenimientos/{id}",
+     *     tags={"Mantenimientos"},
+     *     summary="Actualizar mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/mantenimientos/{id}",
+     *     tags={"Mantenimientos"},
+     *     summary="Actualizar mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -250,6 +362,40 @@ class MantenimientoController extends ApiController
     /**
      * Eliminar mantenimiento
      */
+        /**
+     * @OA\DELETE(
+     *     path="/api/mantenimientos/{id}",
+     *     tags={"Mantenimientos"},
+     *     summary="Eliminar mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/mantenimientos/{id}",
+     *     tags={"Mantenimientos"},
+     *     summary="Eliminar mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function destroy($id)
     {
         try {
@@ -287,6 +433,40 @@ class MantenimientoController extends ApiController
      * @param Request $request Datos de finalización (observaciones, repuestos, costos, etc.)
      * @param int $id Identificador único del mantenimiento a completar
      * @return JsonResponse Mantenimiento completado con información actualizada
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/mantenimientos/{id}/completar",
+     *     tags={"Mantenimientos"},
+     *     summary="Completar mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/mantenimientos/{id}/completar",
+     *     tags={"Mantenimientos"},
+     *     summary="Completar mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function completar(Request $request, $id)
     {

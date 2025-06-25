@@ -26,6 +26,12 @@ use App\Models\Manual;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @OA\Tag(
+ *     name="Modales",
+ *     description="Gestión de datos para ventanas modales del sistema"
+ * )
+ */
 class ModalController extends ApiController
 {
     /**

@@ -23,6 +23,17 @@ class CapacitacionController extends ApiController
     /**
      * Obtener lista de capacitaciones con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/capacitaciones",
+     *     tags={"Capacitaciones"},
+     *     summary="Listar capacitaciones",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -85,6 +96,17 @@ class CapacitacionController extends ApiController
     /**
      * Crear nueva capacitación
      */
+        /**
+     * @OA\POST(
+     *     path="/api/capacitaciones",
+     *     tags={"Capacitaciones"},
+     *     summary="Crear nueva capacitación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -142,6 +164,23 @@ class CapacitacionController extends ApiController
     /**
      * Mostrar capacitación específica
      */
+        /**
+     * @OA\GET(
+     *     path="/api/capacitaciones/{id}",
+     *     tags={"Capacitaciones"},
+     *     summary="Obtener capacitación específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -176,6 +215,23 @@ class CapacitacionController extends ApiController
 
     /**
      * Actualizar capacitación
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/capacitaciones/{id}",
+     *     tags={"Capacitaciones"},
+     *     summary="Actualizar capacitación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -243,6 +299,23 @@ class CapacitacionController extends ApiController
     /**
      * Eliminar capacitación
      */
+        /**
+     * @OA\DELETE(
+     *     path="/api/capacitaciones/{id}",
+     *     tags={"Capacitaciones"},
+     *     summary="Eliminar capacitación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function destroy($id)
     {
         try {
@@ -272,6 +345,23 @@ class CapacitacionController extends ApiController
 
     /**
      * Inscribir participante
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/capacitaciones/{id}/inscribir",
+     *     tags={"Capacitaciones"},
+     *     summary="Inscribir usuario a capacitación",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function inscribir(Request $request, $id)
     {
@@ -310,6 +400,23 @@ class CapacitacionController extends ApiController
 
     /**
      * Completar capacitación
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/capacitaciones/{id}/completar",
+     *     tags={"Capacitaciones"},
+     *     summary="Marcar capacitación como completada",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function completar(Request $request, $id)
     {

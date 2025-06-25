@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 /**
+ * @OA\Tag(
+ *     name="Filtros",
+ *     description="Sistema de filtros avanzados para todas las entidades"
+ * )
+ *
  * Controlador para sistema de filtros avanzados
  * Maneja filtros complejos para todas las entidades del sistema EVA
  */

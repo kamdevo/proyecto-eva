@@ -19,8 +19,13 @@ use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 /**
+ * @OA\Tag(
+ *     name="Dashboard",
+ *     description="Endpoints para estadísticas y datos del dashboard principal"
+ * )
+ *
  * Controlador para el Dashboard principal
- * Proporciona estadísticas y datos en tiempo real
+ * Proporciona estadísticas y datos en tiempo real del sistema EVA
  */
 class DashboardController extends ApiController
 {
@@ -32,6 +37,32 @@ class DashboardController extends ApiController
     }
 
     /**
+     * @OA\Get(
+     *     path="/api/dashboard/stats",
+     *     tags={"Dashboard"},
+     *     summary="Obtener estadísticas generales del dashboard",
+     *     description="Retorna estadísticas principales del sistema: equipos, mantenimientos, contingencias, etc.",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Estadísticas obtenidas exitosamente",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="message", type="string", example="Estadísticas del dashboard obtenidas"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="total_equipos", type="integer", example=150),
+     *                 @OA\Property(property="equipos_operativos", type="integer", example=142),
+     *                 @OA\Property(property="mantenimientos_pendientes", type="integer", example=8),
+     *                 @OA\Property(property="contingencias_activas", type="integer", example=3),
+     *                 @OA\Property(property="calibraciones_vencidas", type="integer", example=5)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     *
      * Obtener estadísticas generales del dashboard
      */
     public function getStats()

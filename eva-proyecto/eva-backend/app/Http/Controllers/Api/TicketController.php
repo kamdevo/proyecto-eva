@@ -23,6 +23,28 @@ class TicketController extends ApiController
     /**
      * Obtener lista de tickets con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/tickets",
+     *     tags={"Tickets"},
+     *     summary="Listar tickets",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/tickets",
+     *     tags={"Tickets"},
+     *     summary="Listar tickets",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -114,6 +136,28 @@ class TicketController extends ApiController
     /**
      * Crear nuevo ticket
      */
+        /**
+     * @OA\POST(
+     *     path="/api/tickets",
+     *     tags={"Tickets"},
+     *     summary="Crear nuevo ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/tickets",
+     *     tags={"Tickets"},
+     *     summary="Crear nuevo ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -178,6 +222,40 @@ class TicketController extends ApiController
     /**
      * Mostrar ticket específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/tickets/{id}",
+     *     tags={"Tickets"},
+     *     summary="Obtener ticket específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/tickets/{id}",
+     *     tags={"Tickets"},
+     *     summary="Obtener ticket específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -212,6 +290,40 @@ class TicketController extends ApiController
 
     /**
      * Actualizar ticket
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/tickets/{id}",
+     *     tags={"Tickets"},
+     *     summary="Actualizar ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/tickets/{id}",
+     *     tags={"Tickets"},
+     *     summary="Actualizar ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -281,6 +393,40 @@ class TicketController extends ApiController
     /**
      * Eliminar ticket
      */
+        /**
+     * @OA\DELETE(
+     *     path="/api/tickets/{id}",
+     *     tags={"Tickets"},
+     *     summary="Eliminar ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/tickets/{id}",
+     *     tags={"Tickets"},
+     *     summary="Eliminar ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function destroy($id)
     {
         try {
@@ -310,6 +456,40 @@ class TicketController extends ApiController
 
     /**
      * Asignar ticket a usuario
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/tickets/{id}/asignar",
+     *     tags={"Tickets"},
+     *     summary="Asignar ticket a técnico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/tickets/{id}/asignar",
+     *     tags={"Tickets"},
+     *     summary="Asignar ticket a técnico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function asignar(Request $request, $id)
     {
@@ -345,6 +525,40 @@ class TicketController extends ApiController
 
     /**
      * Cerrar ticket
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/tickets/{id}/cerrar",
+     *     tags={"Tickets"},
+     *     summary="Cerrar ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/tickets/{id}/cerrar",
+     *     tags={"Tickets"},
+     *     summary="Cerrar ticket",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function cerrar(Request $request, $id)
     {

@@ -23,6 +23,28 @@ class ArchivosController extends ApiController
     /**
      * Obtener lista de archivos con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/archivos",
+     *     tags={"Archivos"},
+     *     summary="Listar archivos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/archivos",
+     *     tags={"Archivos"},
+     *     summary="Listar archivos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -89,6 +111,28 @@ class ArchivosController extends ApiController
 
     /**
      * Subir nuevo archivo
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/archivos",
+     *     tags={"Archivos"},
+     *     summary="Subir nuevo archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/archivos",
+     *     tags={"Archivos"},
+     *     summary="Subir nuevo archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request)
     {
@@ -179,6 +223,40 @@ class ArchivosController extends ApiController
     /**
      * Mostrar archivo específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/archivos/{id}",
+     *     tags={"Archivos"},
+     *     summary="Obtener archivo específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/archivos/{id}",
+     *     tags={"Archivos"},
+     *     summary="Obtener archivo específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -205,6 +283,40 @@ class ArchivosController extends ApiController
 
     /**
      * Actualizar información del archivo
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/archivos/{id}",
+     *     tags={"Archivos"},
+     *     summary="Actualizar información del archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/archivos/{id}",
+     *     tags={"Archivos"},
+     *     summary="Actualizar información del archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -246,6 +358,40 @@ class ArchivosController extends ApiController
     /**
      * Eliminar archivo
      */
+        /**
+     * @OA\DELETE(
+     *     path="/api/archivos/{id}",
+     *     tags={"Archivos"},
+     *     summary="Eliminar archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/archivos/{id}",
+     *     tags={"Archivos"},
+     *     summary="Eliminar archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function destroy($id)
     {
         try {
@@ -267,6 +413,40 @@ class ArchivosController extends ApiController
 
     /**
      * Descargar archivo
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/archivos/{id}/download",
+     *     tags={"Archivos"},
+     *     summary="Descargar archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/archivos/{id}/download",
+     *     tags={"Archivos"},
+     *     summary="Descargar archivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function download($id)
     {
@@ -389,6 +569,28 @@ class ArchivosController extends ApiController
 
     /**
      * Subir múltiples archivos
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/archivos/multiple",
+     *     tags={"Archivos"},
+     *     summary="Subir múltiples archivos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/archivos/multiple",
+     *     tags={"Archivos"},
+     *     summary="Subir múltiples archivos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function uploadMultiple(Request $request)
     {

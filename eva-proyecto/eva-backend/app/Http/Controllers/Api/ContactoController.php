@@ -21,6 +21,17 @@ class ContactoController extends ApiController
     /**
      * Obtener lista paginada de contactos
      */
+        /**
+     * @OA\GET(
+     *     path="/api/contactos",
+     *     tags={"Contactos"},
+     *     summary="Listar contactos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -67,6 +78,17 @@ class ContactoController extends ApiController
 
     /**
      * Crear nuevo contacto
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/contactos",
+     *     tags={"Contactos"},
+     *     summary="Crear nuevo contacto",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request)
     {
@@ -118,6 +140,23 @@ class ContactoController extends ApiController
     /**
      * Mostrar contacto específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/contactos/{id}",
+     *     tags={"Contactos"},
+     *     summary="Obtener contacto específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -136,6 +175,23 @@ class ContactoController extends ApiController
 
     /**
      * Actualizar contacto
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/contactos/{id}",
+     *     tags={"Contactos"},
+     *     summary="Actualizar contacto",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -192,6 +248,23 @@ class ContactoController extends ApiController
 
     /**
      * Eliminar contacto
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/contactos/{id}",
+     *     tags={"Contactos"},
+     *     summary="Eliminar contacto",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

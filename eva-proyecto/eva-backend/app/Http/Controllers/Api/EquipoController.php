@@ -26,6 +26,17 @@ class EquipoController extends BaseController
     /**
      * Display a listing of equipment.
      */
+        /**
+     * @OA\GET(
+     *     path="/api/equipos-basic",
+     *     tags={"Equipos"},
+     *     summary="Listar equipos básico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request): JsonResponse
     {
         try {
@@ -59,6 +70,17 @@ class EquipoController extends BaseController
 
     /**
      * Store a newly created equipment.
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/equipos-basic",
+     *     tags={"Equipos"},
+     *     summary="Crear equipo básico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request): JsonResponse
     {
@@ -140,6 +162,23 @@ class EquipoController extends BaseController
     /**
      * Display the specified equipment.
      */
+        /**
+     * @OA\GET(
+     *     path="/api/equipos-basic/{id}",
+     *     tags={"Equipos"},
+     *     summary="Obtener equipo básico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show(int $id): JsonResponse
     {
         try {
@@ -175,6 +214,23 @@ class EquipoController extends BaseController
 
     /**
      * Update the specified equipment.
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/equipos-basic/{id}",
+     *     tags={"Equipos"},
+     *     summary="Actualizar equipo básico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -257,6 +313,23 @@ class EquipoController extends BaseController
 
     /**
      * Remove the specified equipment.
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/equipos-basic/{id}",
+     *     tags={"Equipos"},
+     *     summary="Eliminar equipo básico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy(int $id): JsonResponse
     {

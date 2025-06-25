@@ -18,8 +18,13 @@ use ReflectionClass;
 use ReflectionMethod;
 
 /**
+ * @OA\Tag(
+ *     name="Gestión del Sistema",
+ *     description="Gestión y configuración avanzada del sistema EVA"
+ * )
+ *
  * SystemManagerController - GESTOR MAESTRO DEL SISTEMA EVA
- * 
+ *
  * Este controlador maneja TODA la gestión del sistema:
  * - Rutas y endpoints
  * - Controladores y métodos
@@ -31,7 +36,7 @@ use ReflectionMethod;
  * - Logs y monitoreo
  * - Cache y rendimiento
  * - Migraciones y seeders
- * 
+ *
  * @author Sistema EVA
  * @version 2.0
  * @since 2024

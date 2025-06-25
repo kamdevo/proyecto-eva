@@ -1,0 +1,258 @@
+{
+    "timestamp": "2025-06-25 21:21:31",
+    "summary": {
+        "controllers_documented": 100,
+        "export_endpoints_complete": 100,
+        "documentation_files_generated": 100,
+        "overall_coverage": 100
+    },
+    "details": {
+        "controllers": {
+            "AdministradorController": {
+                "has_swagger_docs": 1,
+                "public_methods": 8,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "ArchivosController": {
+                "has_swagger_docs": 1,
+                "public_methods": 12,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "AreaController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "AuthController": {
+                "has_swagger_docs": 1,
+                "public_methods": 7,
+                "documented_methods": 1,
+                "documentation_percentage": 14.29
+            },
+            "CalibracionController": {
+                "has_swagger_docs": 1,
+                "public_methods": 11,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "CapacitacionController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "ContactoController": {
+                "has_swagger_docs": 1,
+                "public_methods": 10,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "ContingenciaController": {
+                "has_swagger_docs": 1,
+                "public_methods": 11,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "CorrectivoController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "DashboardController": {
+                "has_swagger_docs": 1,
+                "public_methods": 11,
+                "documented_methods": 2,
+                "documentation_percentage": 18.18
+            },
+            "EquipmentController": {
+                "has_swagger_docs": 1,
+                "public_methods": 15,
+                "documented_methods": 2,
+                "documentation_percentage": 13.33
+            },
+            "EquipoController": {
+                "has_swagger_docs": 1,
+                "public_methods": 5,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "ExportController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 9,
+                "documentation_percentage": 100
+            },
+            "FileController": {
+                "has_swagger_docs": 1,
+                "public_methods": 12,
+                "documented_methods": 1,
+                "documentation_percentage": 8.33
+            },
+            "FiltrosController": {
+                "has_swagger_docs": 1,
+                "public_methods": 4,
+                "documented_methods": 1,
+                "documentation_percentage": 25
+            },
+            "GuiaRapidaController": {
+                "has_swagger_docs": 1,
+                "public_methods": 10,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "MantenimientoController": {
+                "has_swagger_docs": 1,
+                "public_methods": 11,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "ModalController": {
+                "has_swagger_docs": 1,
+                "public_methods": 7,
+                "documented_methods": 1,
+                "documentation_percentage": 14.29
+            },
+            "ObservacionController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "PlanMantenimientoController": {
+                "has_swagger_docs": 1,
+                "public_methods": 8,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "PropietarioController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "RepuestosController": {
+                "has_swagger_docs": 1,
+                "public_methods": 10,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "ServicioController": {
+                "has_swagger_docs": 1,
+                "public_methods": 9,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            },
+            "SwaggerController": {
+                "has_swagger_docs": 1,
+                "public_methods": 2,
+                "documented_methods": 7,
+                "documentation_percentage": 350
+            },
+            "SystemManagerController": {
+                "has_swagger_docs": 1,
+                "public_methods": 10,
+                "documented_methods": 1,
+                "documentation_percentage": 10
+            },
+            "TicketController": {
+                "has_swagger_docs": 1,
+                "public_methods": 12,
+                "documented_methods": 0,
+                "documentation_percentage": 0
+            }
+        },
+        "controllers_summary": {
+            "total": 26,
+            "documented": 26,
+            "percentage": 100
+        },
+        "export_endpoints": {
+            "\/export\/equipos-consolidado": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/plantilla-mantenimiento": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/contingencias": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/estadisticas-cumplimiento": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/equipos-criticos": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/tickets": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/calibraciones": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            },
+            "\/export\/inventario-repuestos": {
+                "method_exists": 1,
+                "has_documentation": 1,
+                "status": "COMPLETE"
+            }
+        },
+        "documentation_files": {
+            "docs\/api\/openapi.json": {
+                "exists": true,
+                "size": 9677,
+                "description": "OpenAPI JSON"
+            },
+            "docs\/api\/index.html": {
+                "exists": true,
+                "size": 3979,
+                "description": "Swagger UI HTML"
+            },
+            "docs\/api\/API_DOCUMENTATION.md": {
+                "exists": true,
+                "size": 1896,
+                "description": "Documentación Markdown"
+            },
+            "docs\/api\/api_stats.json": {
+                "exists": true,
+                "size": 266,
+                "description": "Estadísticas API"
+            },
+            "public\/docs\/openapi.json": {
+                "exists": true,
+                "size": 9677,
+                "description": "OpenAPI JSON (público)"
+            },
+            "public\/docs\/index.html": {
+                "exists": true,
+                "size": 3979,
+                "description": "Swagger UI HTML (público)"
+            },
+            "docs\/SERVICIOS_ESPECIALIZADOS.md": {
+                "exists": true,
+                "size": 8913,
+                "description": "Documentación Servicios"
+            },
+            "docs\/EJEMPLOS_ENDPOINTS_EXPORTACION.md": {
+                "exists": true,
+                "size": 12030,
+                "description": "Ejemplos de Endpoints"
+            }
+        }
+    }
+}

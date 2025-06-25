@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
+/**
+ * @OA\Tag(
+ *     name="Archivos",
+ *     description="Gestión avanzada de archivos del sistema"
+ * )
+ */
 class FileController extends ApiController
 {
     /**
