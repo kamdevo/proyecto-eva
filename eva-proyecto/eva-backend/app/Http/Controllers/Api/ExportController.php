@@ -51,9 +51,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, 'Reporte Consolidado de Equipos');
+                    return $this->exportDataToPDF($data, 'Reporte Consolidado de Equipos');
                 case 'excel':
-                    return $this->exportToExcel($data, 'reporte_consolidado_equipos');
+                    return $this->exportDataToExcel($data, 'reporte_consolidado_equipos');
                 case 'csv':
                     return $this->exportToCSV($data, 'reporte_consolidado_equipos');
             }
@@ -103,9 +103,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, $titulo);
+                    return $this->exportDataToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'plantilla_mantenimiento_' . $request->año);
+                    return $this->exportDataToExcel($data, 'plantilla_mantenimiento_' . $request->año);
             }
 
         } catch (\Exception $e) {
@@ -149,9 +149,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, $titulo);
+                    return $this->exportDataToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'reporte_contingencias');
+                    return $this->exportDataToExcel($data, 'reporte_contingencias');
                 case 'csv':
                     return $this->exportToCSV($data, 'reporte_contingencias');
             }
@@ -164,7 +164,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos consolidados
      */
-    private function prepareConsolidatedData($equipos, $incluir)
+    protected function prepareConsolidatedData($equipos, $incluir)
     {
         $data = [];
         $headers = ['ID', 'Código', 'Nombre'];
@@ -238,7 +238,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de plantilla
      */
-    private function preparePlantillaData($mantenimientos)
+    protected function preparePlantillaData($mantenimientos)
     {
         $data = [];
         $headers = [
@@ -267,7 +267,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de contingencias
      */
-    private function prepareContingenciasData($contingencias)
+    protected function prepareContingenciasData($contingencias)
     {
         $data = [];
         $headers = [
@@ -297,7 +297,7 @@ class ExportController extends ApiController
     /**
      * Exportar a PDF
      */
-    private function exportToPDF($data, $titulo)
+    protected function exportDataToPDF($data, $titulo)
     {
         // Aquí se integraría con una librería como DomPDF o TCPDF
         // Por ahora retornamos los datos preparados para PDF
@@ -315,7 +315,7 @@ class ExportController extends ApiController
     /**
      * Exportar a Excel
      */
-    private function exportToExcel($data, $filename)
+    protected function exportDataToExcel($data, $filename)
     {
         // Aquí se integraría con Laravel Excel
         // Por ahora retornamos los datos preparados para Excel
@@ -331,7 +331,7 @@ class ExportController extends ApiController
     /**
      * Exportar a CSV
      */
-    private function exportToCSV($data, $filename)
+    protected function exportToCSV($data, $filename)
     {
         $csvContent = '';
         foreach ($data as $row) {
@@ -348,7 +348,7 @@ class ExportController extends ApiController
     /**
      * Generar tabla HTML para PDF
      */
-    private function generateHTMLTable($data, $titulo)
+    protected function generateHTMLTable($data, $titulo)
     {
         $html = '<h1>' . $titulo . '</h1>';
         $html .= '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse;">';
@@ -398,9 +398,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, $titulo);
+                    return $this->exportDataToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'estadisticas_cumplimiento_' . $request->año);
+                    return $this->exportDataToExcel($data, 'estadisticas_cumplimiento_' . $request->año);
             }
 
         } catch (\Exception $e) {
@@ -411,7 +411,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de estadísticas
      */
-    private function prepareEstadisticasData($resumen)
+    protected function prepareEstadisticasData($resumen)
     {
         $data = [];
 
@@ -475,9 +475,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, $titulo);
+                    return $this->exportDataToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'equipos_criticos');
+                    return $this->exportDataToExcel($data, 'equipos_criticos');
                 case 'csv':
                     return $this->exportToCSV($data, 'equipos_criticos');
             }
@@ -490,7 +490,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de equipos críticos
      */
-    private function prepareEquiposCriticosData($equipos)
+    protected function prepareEquiposCriticosData($equipos)
     {
         $data = [];
         $headers = [
@@ -559,9 +559,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, $titulo);
+                    return $this->exportDataToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'reporte_tickets');
+                    return $this->exportDataToExcel($data, 'reporte_tickets');
                 case 'csv':
                     return $this->exportToCSV($data, 'reporte_tickets');
             }
@@ -613,9 +613,9 @@ class ExportController extends ApiController
 
             switch ($request->formato) {
                 case 'pdf':
-                    return $this->exportToPDF($data, $titulo);
+                    return $this->exportDataToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'reporte_calibraciones');
+                    return $this->exportDataToExcel($data, 'reporte_calibraciones');
                 case 'csv':
                     return $this->exportToCSV($data, 'reporte_calibraciones');
             }
@@ -668,7 +668,7 @@ class ExportController extends ApiController
                 case 'pdf':
                     return $this->exportToPDF($data, $titulo);
                 case 'excel':
-                    return $this->exportToExcel($data, 'inventario_repuestos');
+                    return $this->exportDataToExcel($data, 'inventario_repuestos');
                 case 'csv':
                     return $this->exportToCSV($data, 'inventario_repuestos');
             }
@@ -681,7 +681,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de tickets
      */
-    private function prepareTicketsData($tickets)
+    protected function prepareTicketsData($tickets)
     {
         $data = [];
         $headers = [
@@ -711,7 +711,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de calibraciones
      */
-    private function prepareCalibracionesData($calibraciones)
+    protected function prepareCalibracionesData($calibraciones)
     {
         $data = [];
         $headers = [
@@ -741,7 +741,7 @@ class ExportController extends ApiController
     /**
      * Preparar datos de repuestos
      */
-    private function prepareRepuestosData($repuestos)
+    protected function prepareRepuestosData($repuestos)
     {
         $data = [];
         $headers = [

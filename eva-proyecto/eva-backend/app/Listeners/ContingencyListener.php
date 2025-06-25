@@ -406,7 +406,7 @@ class ContingencyListener implements ShouldQueue
             DB::table('system_alerts')->insert([
                 'type' => 'critical_contingency',
                 'title' => 'Contingencia Crítica',
-                'message' => "Contingencia crítica creada para equipo {$event->getEquipmentInfo()['code'] ?? 'N/A'}",
+                'message' => "Contingencia crítica creada para equipo " . ($event->getEquipmentInfo()['code'] ?? 'N/A'),
                 'severity' => 'critical',
                 'status' => 'active',
                 'equipment_id' => $event->contingency->equipo_id,

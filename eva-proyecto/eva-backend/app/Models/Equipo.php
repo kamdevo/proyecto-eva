@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
+// SoftDeletes removido porque la tabla no tiene columna deleted_at
 
 class Equipo extends Model
 {
-    use HasFactory, Auditable, Cacheable, ValidatesData, SoftDeletes;
+    use HasFactory, Auditable, Cacheable, ValidatesData;
     protected $table = 'equipos';
     protected $primaryKey = 'id';
     public $timestamps = true;
