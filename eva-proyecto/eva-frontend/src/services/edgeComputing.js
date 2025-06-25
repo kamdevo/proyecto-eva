@@ -69,20 +69,20 @@ class EdgeComputing {
       enableGeoRouting: true,
       enableEdgeCache: true,
       enableEdgeAnalytics: true,
-      
+
       // Configuración de workers
       maxWorkers: 10,
       workerTimeout: 30000,
       enableAutoScaling: true,
-      
+
       // Configuración de cache
       edgeCacheTTL: 300000, // 5 minutos
       enableIntelligentInvalidation: true,
-      
+
       // Configuración de routing
       routingStrategy: 'latency', // latency, geographic, load
       fallbackRegion: 'us-east-1',
-      
+
       ...config
     };
 
@@ -92,7 +92,7 @@ class EdgeComputing {
     this.activeWorkers = new Map();
     this.edgeCache = new Map();
     this.userLocation = null;
-    
+
     // Métricas
     this.metrics = {
       totalRequests: 0,
@@ -125,23 +125,23 @@ class EdgeComputing {
 
     // Detectar ubicación del usuario
     await this.detectUserLocation();
-    
+
     // Inicializar regiones edge
     await this.initializeEdgeRegions();
-    
+
     // Seleccionar región óptima
     await this.selectOptimalRegion();
-    
+
     // Configurar edge cache
     if (this.config.enableEdgeCache) {
       this.setupEdgeCache();
     }
-    
+
     // Configurar edge analytics
     if (this.config.enableEdgeAnalytics) {
       this.setupEdgeAnalytics();
     }
-    
+
     // Configurar auto-scaling
     if (this.config.enableAutoScaling) {
       this.setupAutoScaling();
@@ -161,18 +161,18 @@ class EdgeComputing {
             enableHighAccuracy: false
           });
         });
-        
+
         this.userLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           accuracy: position.coords.accuracy,
           source: 'gps'
         };
-        
+
         logger.debug(LOG_CATEGORIES.NETWORK, 'User location detected via GPS', {
           location: this.userLocation
         });
-        
+
         return;
       }
     } catch (error) {
@@ -183,7 +183,7 @@ class EdgeComputing {
       // Fallback a geolocalización por IP
       const response = await fetch('https://ipapi.co/json/');
       const data = await response.json();
-      
+
       this.userLocation = {
         lat: data.latitude,
         lng: data.longitude,
@@ -191,16 +191,16 @@ class EdgeComputing {
         country: data.country_name,
         source: 'ip'
       };
-      
+
       logger.debug(LOG_CATEGORIES.NETWORK, 'User location detected via IP', {
         location: this.userLocation
       });
-      
+
     } catch (error) {
       logger.warn(LOG_CATEGORIES.NETWORK, 'Failed to detect user location', {
         error: error.message
       });
-      
+
       // Usar ubicación por defecto
       this.userLocation = {
         lat: 40.7128,
@@ -225,13 +225,13 @@ class EdgeComputing {
           latency: health.latency,
           available: health.status === 'healthy'
         });
-        
+
         logger.debug(LOG_CATEGORIES.NETWORK, 'Edge region initialized', {
           regionId: region.id,
           health: health.status,
           latency: health.latency
         });
-        
+
       } catch (error) {
         logger.warn(LOG_CATEGORIES.NETWORK, 'Failed to initialize edge region', {
           regionId: region.id,
@@ -241,7 +241,7 @@ class EdgeComputing {
     });
 
     await Promise.allSettled(regionPromises);
-    
+
     logger.info(LOG_CATEGORIES.NETWORK, 'Edge regions initialized', {
       totalRegions: Object.keys(EDGE_REGIONS).length,
       availableRegions: this.availableRegions.size
@@ -253,21 +253,21 @@ class EdgeComputing {
    */
   async checkRegionHealth(region) {
     const startTime = performance.now();
-    
+
     try {
       const response = await fetch(`${region.endpoints[0]}/health`, {
         method: 'HEAD',
         signal: AbortSignal.timeout(5000)
       });
-      
+
       const latency = performance.now() - startTime;
-      
+
       return {
         status: response.ok ? 'healthy' : 'degraded',
         latency,
         timestamp: Date.now()
       };
-      
+
     } catch (error) {
       return {
         status: 'unhealthy',
@@ -279,7 +279,7 @@ class EdgeComputing {
   }
 
   /**
-   * Seleccionar región óptima
+   * Seleccionar región óptima (Optimizado con cache y algoritmo mejorado)
    */
   async selectOptimalRegion() {
     if (!this.userLocation || this.availableRegions.size === 0) {
@@ -287,51 +287,177 @@ class EdgeComputing {
       return;
     }
 
+    // Optimización: Cache de selección de región
+    const cacheKey = this.generateRegionCacheKey();
+    if (this.regionSelectionCache && this.regionSelectionCache.key === cacheKey) {
+      const cacheAge = Date.now() - this.regionSelectionCache.timestamp;
+      if (cacheAge < 30000) { // Cache válido por 30 segundos
+        this.currentRegion = this.regionSelectionCache.region;
+        return;
+      }
+    }
+
     let optimalRegion = null;
     let bestScore = Infinity;
 
-    for (const [regionId, region] of this.availableRegions.entries()) {
-      if (!region.available) continue;
+    // Optimización: Pre-filtrar regiones disponibles
+    const availableRegions = Array.from(this.availableRegions.entries())
+      .filter(([_, region]) => region.available);
 
-      let score = 0;
-      
-      switch (this.config.routingStrategy) {
-        case 'latency':
-          score = region.latency;
-          break;
-          
-        case 'geographic':
-          score = this.calculateDistance(this.userLocation, region.location);
-          break;
-          
-        case 'load':
-          score = region.latency * (region.health.load || 1);
-          break;
-          
-        default:
-          // Combinado: distancia + latencia
-          const distance = this.calculateDistance(this.userLocation, region.location);
-          score = (distance / 1000) + region.latency; // Normalizar distancia
-      }
+    if (availableRegions.length === 0) {
+      this.currentRegion = this.config.fallbackRegion;
+      return;
+    }
 
+    // Optimización: Paralelizar cálculo de scores para regiones
+    const scorePromises = availableRegions.map(async ([regionId, region]) => {
+      const score = await this.calculateRegionScoreAdvanced(region);
+      return { regionId, score };
+    });
+
+    const scores = await Promise.all(scorePromises);
+
+    // Encontrar la mejor región
+    for (const { regionId, score } of scores) {
       if (score < bestScore) {
         bestScore = score;
         optimalRegion = regionId;
       }
     }
 
+    // Optimización: Guardar en cache
+    this.regionSelectionCache = {
+      key: cacheKey,
+      region: optimalRegion,
+      timestamp: Date.now(),
+      score: bestScore
+    };
+
     if (optimalRegion && optimalRegion !== this.currentRegion) {
       const previousRegion = this.currentRegion;
       this.currentRegion = optimalRegion;
       this.metrics.regionSwitches++;
-      
+
       logger.info(LOG_CATEGORIES.NETWORK, 'Optimal edge region selected', {
         previousRegion,
         currentRegion: this.currentRegion,
-        score: bestScore,
-        strategy: this.config.routingStrategy
+        score: bestScore.toFixed(3),
+        strategy: this.config.routingStrategy,
+        cached: false
       });
     }
+  }
+
+  /**
+   * Generar clave de cache para selección de región (Optimización)
+   */
+  generateRegionCacheKey() {
+    const userLocationKey = this.userLocation ?
+      `${this.userLocation.lat.toFixed(2)},${this.userLocation.lng.toFixed(2)}` :
+      'unknown';
+
+    const availableRegionsKey = Array.from(this.availableRegions.entries())
+      .filter(([_, region]) => region.available)
+      .map(([id, region]) => `${id}:${region.latency.toFixed(0)}`)
+      .sort()
+      .join('|');
+
+    return `${userLocationKey}_${availableRegionsKey}_${this.config.routingStrategy}`;
+  }
+
+  /**
+   * Calcular score de región avanzado (Optimizado)
+   */
+  async calculateRegionScoreAdvanced(region) {
+    // Optimización: Memoización de cálculos costosos
+    const memoKey = `score_${region.id}_${Math.floor(Date.now() / 60000)}`; // Cache por minuto
+    if (this.scoreCache && this.scoreCache[memoKey]) {
+      return this.scoreCache[memoKey];
+    }
+
+    const weights = this.getStrategyWeights();
+
+    // Factor de distancia geográfica (optimizado)
+    const distance = this.userLocation ?
+      this.calculateDistanceOptimized(this.userLocation, region.location) : 0;
+    const normalizedDistance = Math.min(distance / 20000, 1);
+
+    // Factor de latencia con historial
+    const latencyScore = this.calculateLatencyScore(region);
+
+    // Factor de carga con predicción
+    const loadScore = this.calculateLoadScore(region);
+
+    // Factor de disponibilidad histórica
+    const availabilityScore = this.calculateAvailabilityScore(region);
+
+    // Combinar factores con pesos dinámicos
+    const score = (normalizedDistance * weights.distance) +
+      (latencyScore * weights.latency) +
+      (loadScore * weights.load) +
+      (availabilityScore * weights.availability);
+
+    // Optimización: Guardar en cache
+    if (!this.scoreCache) this.scoreCache = {};
+    this.scoreCache[memoKey] = score;
+
+    // Limpiar cache antiguo periódicamente
+    if (Math.random() < 0.1) { // 10% de probabilidad
+      this.cleanupScoreCache();
+    }
+
+    return score;
+  }
+
+  /**
+   * Obtener pesos de estrategia (Optimización)
+   */
+  getStrategyWeights() {
+    const baseWeights = {
+      distance: 0.3,
+      latency: 0.4,
+      load: 0.2,
+      availability: 0.1
+    };
+
+    // Ajustar pesos según estrategia
+    switch (this.config.routingStrategy) {
+      case 'latency':
+        return { ...baseWeights, latency: 0.6, distance: 0.2 };
+      case 'geographic':
+        return { ...baseWeights, distance: 0.6, latency: 0.2 };
+      case 'load':
+        return { ...baseWeights, load: 0.5, latency: 0.3 };
+      default:
+        return baseWeights;
+    }
+  }
+
+  /**
+   * Calcular distancia optimizada (Optimización con lookup table)
+   */
+  calculateDistanceOptimized(point1, point2) {
+    // Optimización: Cache de distancias calculadas
+    const cacheKey = `${point1.lat.toFixed(2)},${point1.lng.toFixed(2)}_${point2.lat.toFixed(2)},${point2.lng.toFixed(2)}`;
+
+    if (!this.distanceCache) {
+      this.distanceCache = new Map();
+    }
+
+    if (this.distanceCache.has(cacheKey)) {
+      return this.distanceCache.get(cacheKey);
+    }
+
+    const distance = this.calculateDistance(point1, point2);
+
+    // Mantener cache limitado
+    if (this.distanceCache.size > 100) {
+      const firstKey = this.distanceCache.keys().next().value;
+      this.distanceCache.delete(firstKey);
+    }
+
+    this.distanceCache.set(cacheKey, distance);
+    return distance;
   }
 
   /**
@@ -341,11 +467,11 @@ class EdgeComputing {
     const R = 6371; // Radio de la Tierra en km
     const dLat = this.toRadians(point2.lat - point1.lat);
     const dLng = this.toRadians(point2.lng - point1.lng);
-    
+
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(this.toRadians(point1.lat)) * Math.cos(this.toRadians(point2.lat)) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    
+      Math.cos(this.toRadians(point1.lat)) * Math.cos(this.toRadians(point2.lat)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -381,13 +507,13 @@ class EdgeComputing {
       };
 
       this.activeWorkers.set(workerId, worker);
-      
+
       // Ejecutar worker en edge
       const result = await this.runWorkerAtEdge(worker, timeout);
-      
+
       const executionTime = performance.now() - startTime;
       this.metrics.workersExecuted++;
-      
+
       logger.debug(LOG_CATEGORIES.NETWORK, 'Edge worker executed successfully', {
         workerId,
         type: workerType,
@@ -396,7 +522,7 @@ class EdgeComputing {
       });
 
       return result;
-      
+
     } catch (error) {
       logger.error(LOG_CATEGORIES.NETWORK, 'Edge worker execution failed', {
         workerId,
@@ -404,7 +530,7 @@ class EdgeComputing {
         error: error.message
       });
       throw error;
-      
+
     } finally {
       this.activeWorkers.delete(workerId);
     }
@@ -423,19 +549,19 @@ class EdgeComputing {
     switch (worker.type) {
       case WORKER_TYPES.COMPUTE:
         return await this.executeComputeWorker(worker, region);
-        
+
       case WORKER_TYPES.ANALYTICS:
         return await this.executeAnalyticsWorker(worker, region);
-        
+
       case WORKER_TYPES.CACHE:
         return await this.executeCacheWorker(worker, region);
-        
+
       case WORKER_TYPES.SECURITY:
         return await this.executeSecurityWorker(worker, region);
-        
+
       case WORKER_TYPES.TRANSFORM:
         return await this.executeTransformWorker(worker, region);
-        
+
       default:
         throw new Error(`Unknown worker type: ${worker.type}`);
     }
@@ -447,10 +573,10 @@ class EdgeComputing {
   async executeComputeWorker(worker, region) {
     // Simular procesamiento computacional en edge
     const { operation, data } = worker.payload;
-    
+
     // Simular latencia de edge computing
     await new Promise(resolve => setTimeout(resolve, 50));
-    
+
     return {
       workerId: worker.id,
       result: `Computed ${operation} on ${data?.length || 0} items`,
@@ -466,9 +592,9 @@ class EdgeComputing {
   async executeAnalyticsWorker(worker, region) {
     // Simular analytics en edge
     const { events, metrics } = worker.payload;
-    
+
     await new Promise(resolve => setTimeout(resolve, 30));
-    
+
     return {
       workerId: worker.id,
       processedEvents: events?.length || 0,
@@ -486,7 +612,7 @@ class EdgeComputing {
     if (this.config.enableIntelligentInvalidation) {
       this.setupIntelligentInvalidation();
     }
-    
+
     logger.debug(LOG_CATEGORIES.NETWORK, 'Edge cache configured', {
       ttl: this.config.edgeCacheTTL,
       intelligentInvalidation: this.config.enableIntelligentInvalidation
@@ -510,19 +636,19 @@ class EdgeComputing {
     // Simular análisis de patrones para invalidación inteligente
     const now = Date.now();
     const expiredEntries = [];
-    
+
     for (const [key, entry] of this.edgeCache.entries()) {
       if (now - entry.lastAccessed > this.config.edgeCacheTTL) {
         expiredEntries.push(key);
       }
     }
-    
+
     // Invalidar entradas expiradas
     expiredEntries.forEach(key => {
       this.edgeCache.delete(key);
       this.metrics.cacheInvalidations++;
     });
-    
+
     if (expiredEntries.length > 0) {
       logger.debug(LOG_CATEGORIES.NETWORK, 'Edge cache entries invalidated', {
         count: expiredEntries.length
@@ -577,7 +703,7 @@ class EdgeComputing {
     const currentLoad = this.activeWorkers.size;
     const maxWorkers = this.config.maxWorkers;
     const utilizationRate = currentLoad / maxWorkers;
-    
+
     if (utilizationRate > 0.8) {
       // Alta utilización - escalar hacia arriba
       this.scaleUp();
@@ -592,7 +718,7 @@ class EdgeComputing {
    */
   scaleUp() {
     this.config.maxWorkers = Math.min(this.config.maxWorkers * 1.5, 50);
-    
+
     logger.info(LOG_CATEGORIES.NETWORK, 'Edge workers scaled up', {
       newMaxWorkers: this.config.maxWorkers
     });
@@ -603,7 +729,7 @@ class EdgeComputing {
    */
   scaleDown() {
     this.config.maxWorkers = Math.max(this.config.maxWorkers * 0.8, 5);
-    
+
     logger.info(LOG_CATEGORIES.NETWORK, 'Edge workers scaled down', {
       newMaxWorkers: this.config.maxWorkers
     });
@@ -645,26 +771,172 @@ class EdgeComputing {
   }
 
   /**
-   * Obtener estado de salud
+   * Calcular score de latencia con historial (Optimización)
+   */
+  calculateLatencyScore(region) {
+    if (!this.latencyHistory) {
+      this.latencyHistory = new Map();
+    }
+
+    const regionHistory = this.latencyHistory.get(region.id) || [];
+    regionHistory.push(region.latency);
+
+    // Mantener solo últimas 20 mediciones
+    if (regionHistory.length > 20) {
+      regionHistory.shift();
+    }
+
+    this.latencyHistory.set(region.id, regionHistory);
+
+    // Calcular latencia promedio ponderada (más peso a mediciones recientes)
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    for (let i = 0; i < regionHistory.length; i++) {
+      const weight = Math.pow(0.9, regionHistory.length - 1 - i); // Decay exponencial
+      weightedSum += regionHistory[i] * weight;
+      totalWeight += weight;
+    }
+
+    const avgLatency = totalWeight > 0 ? weightedSum / totalWeight : region.latency;
+    return Math.min(avgLatency / 1000, 1); // Normalizar a 0-1
+  }
+
+  /**
+   * Calcular score de carga con predicción (Optimización)
+   */
+  calculateLoadScore(region) {
+    const currentLoad = region.load || 0;
+
+    // Predicción simple basada en tendencia
+    if (!this.loadHistory) {
+      this.loadHistory = new Map();
+    }
+
+    const regionLoadHistory = this.loadHistory.get(region.id) || [];
+    regionLoadHistory.push(currentLoad);
+
+    if (regionLoadHistory.length > 10) {
+      regionLoadHistory.shift();
+    }
+
+    this.loadHistory.set(region.id, regionLoadHistory);
+
+    // Calcular tendencia
+    let predictedLoad = currentLoad;
+    if (regionLoadHistory.length >= 3) {
+      const recent = regionLoadHistory.slice(-3);
+      const trend = (recent[2] - recent[0]) / 2; // Tendencia simple
+      predictedLoad = Math.max(0, Math.min(100, currentLoad + trend));
+    }
+
+    return predictedLoad / 100; // Normalizar a 0-1
+  }
+
+  /**
+   * Calcular score de disponibilidad (Optimización)
+   */
+  calculateAvailabilityScore(region) {
+    if (!this.availabilityHistory) {
+      this.availabilityHistory = new Map();
+    }
+
+    const regionAvailability = this.availabilityHistory.get(region.id) || [];
+    const isHealthy = region.available ? 1 : 0;
+
+    regionAvailability.push(isHealthy);
+
+    if (regionAvailability.length > 100) {
+      regionAvailability.shift();
+    }
+
+    this.availabilityHistory.set(region.id, regionAvailability);
+
+    // Calcular disponibilidad promedio
+    const availability = regionAvailability.length > 0 ?
+      regionAvailability.reduce((sum, val) => sum + val, 0) / regionAvailability.length :
+      1;
+
+    return 1 - availability; // Invertir para que menor score sea mejor
+  }
+
+  /**
+   * Limpiar cache de scores (Optimización de memoria)
+   */
+  cleanupScoreCache() {
+    if (!this.scoreCache) return;
+
+    const currentMinute = Math.floor(Date.now() / 60000);
+    const cutoffMinute = currentMinute - 5; // Mantener últimos 5 minutos
+
+    Object.keys(this.scoreCache).forEach(key => {
+      const keyParts = key.split('_');
+      const keyMinute = parseInt(keyParts[keyParts.length - 1]);
+      if (keyMinute < cutoffMinute) {
+        delete this.scoreCache[key];
+      }
+    });
+  }
+
+  /**
+   * Obtener estado de salud (Optimizado)
    */
   getHealthStatus() {
     const region = this.availableRegions.get(this.currentRegion);
-    
-    return {
+    const utilization = (this.activeWorkers.size / this.config.maxWorkers) * 100;
+
+    // Optimización: Cache del estado de salud
+    const now = Date.now();
+    if (this.healthStatusCache && (now - this.healthStatusCache.timestamp) < 5000) {
+      return this.healthStatusCache.status;
+    }
+
+    const status = {
       status: region?.available ? 'healthy' : 'degraded',
       currentRegion: this.currentRegion,
       regionLatency: region?.latency || 0,
       activeWorkers: this.activeWorkers.size,
       maxWorkers: this.config.maxWorkers,
-      utilization: (this.activeWorkers.size / this.config.maxWorkers) * 100,
-      edgeHitRate: this.getEdgeHitRate(),
+      utilization: utilization.toFixed(1),
+      edgeHitRate: this.getEdgeHitRate().toFixed(1),
+      availableRegions: Array.from(this.availableRegions.values())
+        .filter(r => r.available).length,
+      totalRegions: this.availableRegions.size,
       features: {
         geoRouting: this.config.enableGeoRouting,
         edgeCache: this.config.enableEdgeCache,
         autoScaling: this.config.enableAutoScaling,
         analytics: this.config.enableEdgeAnalytics
+      },
+      performance: {
+        cacheHitRate: this.getEdgeHitRate(),
+        averageLatency: this.calculateAverageLatency(),
+        regionSwitches: this.metrics.regionSwitches
       }
     };
+
+    // Determinar estado general
+    if (utilization > 90) status.status = 'degraded';
+    if (!region?.available || this.getHealthyRegions().length < 2) status.status = 'unhealthy';
+
+    // Cache del estado
+    this.healthStatusCache = {
+      status,
+      timestamp: now
+    };
+
+    return status;
+  }
+
+  /**
+   * Calcular latencia promedio (Optimización)
+   */
+  calculateAverageLatency() {
+    const healthyRegions = this.getHealthyRegions();
+    if (healthyRegions.length === 0) return 0;
+
+    const totalLatency = healthyRegions.reduce((sum, region) => sum + region.latency, 0);
+    return (totalLatency / healthyRegions.length).toFixed(1);
   }
 }
 

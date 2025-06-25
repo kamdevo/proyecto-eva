@@ -41,25 +41,25 @@ class HTTP3Client {
       maxStreams: 100,
       initialMaxData: 1048576, // 1MB
       initialMaxStreamData: 262144, // 256KB
-      
+
       // Configuración de conexión
       endpoints: [
         'https://api.eva-sistema.com:443',
         'https://backup.eva-sistema.com:443',
         'https://edge.eva-sistema.com:443'
       ],
-      
+
       // Configuración de performance
       enableMultiplexing: true,
       enableStreamPrioritization: true,
       enableAdaptiveBitrate: true,
       congestionControl: 'bbr', // BBR, Cubic, Reno
-      
+
       // Timeouts
       connectionTimeout: 5000,
       idleTimeout: 30000,
       keepAliveInterval: 15000,
-      
+
       ...config
     };
 
@@ -70,7 +70,7 @@ class HTTP3Client {
     this.streamCounter = 0;
     this.connectionId = null;
     this.sessionTicket = null;
-    
+
     // Métricas
     this.metrics = {
       totalConnections: 0,
@@ -117,9 +117,9 @@ class HTTP3Client {
   detectQUICSupport() {
     try {
       // Verificar soporte experimental QUIC
-      return 'RTCQuicTransport' in window || 
-             'QuicTransport' in window ||
-             this.isHTTP3Supported;
+      return 'RTCQuicTransport' in window ||
+        'QuicTransport' in window ||
+        this.isHTTP3Supported;
     } catch (error) {
       return false;
     }
@@ -142,12 +142,12 @@ class HTTP3Client {
 
     // Configurar service worker para HTTP/3
     await this.setupServiceWorkerHTTP3();
-    
+
     // Configurar connection migration
     if (this.config.enableConnectionMigration) {
       this.setupConnectionMigration();
     }
-    
+
     // Configurar adaptive bitrate
     if (this.config.enableAdaptiveBitrate) {
       this.setupAdaptiveBitrate();
@@ -161,7 +161,7 @@ class HTTP3Client {
     if ('serviceWorker' in navigator) {
       try {
         const registration = await navigator.serviceWorker.ready;
-        
+
         // Enviar configuración HTTP/3 al service worker
         registration.active?.postMessage({
           type: 'HTTP3_CONFIG',
@@ -191,7 +191,7 @@ class HTTP3Client {
     }
 
     this.state = HTTP3_STATES.CONNECTING;
-    
+
     try {
       // Intentar conexión con 0-RTT si está disponible
       if (this.config.enable0RTT && this.sessionTicket) {
@@ -203,7 +203,7 @@ class HTTP3Client {
       this.state = HTTP3_STATES.CONNECTED;
       this.metrics.totalConnections++;
       this.metrics.lastConnectedAt = Date.now();
-      
+
       logger.info(LOG_CATEGORIES.NETWORK, 'HTTP/3 connection established', {
         endpoint,
         connectionId: this.connectionId,
@@ -211,7 +211,7 @@ class HTTP3Client {
       });
 
       return this.connection;
-      
+
     } catch (error) {
       this.state = HTTP3_STATES.FAILED;
       logger.error(LOG_CATEGORIES.NETWORK, 'HTTP/3 connection failed', {
@@ -254,10 +254,10 @@ class HTTP3Client {
 
     // Simular handshake QUIC
     const handshakeStart = performance.now();
-    
+
     // En implementación real, esto sería el handshake QUIC
     await new Promise(resolve => setTimeout(resolve, 50)); // Simular RTT
-    
+
     const rtt = performance.now() - handshakeStart;
 
     this.connection = {
@@ -274,13 +274,21 @@ class HTTP3Client {
   }
 
   /**
-   * Crear stream HTTP/3
+   * Crear stream HTTP/3 (Optimizado)
    */
   async createStream(priority = STREAM_PRIORITIES.MEDIUM) {
     if (this.state !== HTTP3_STATES.CONNECTED) {
       await this.connect();
     }
 
+    // Optimización: Reutilizar streams cerrados si están disponibles
+    const reusableStream = this.findReusableStream(priority);
+    if (reusableStream) {
+      this.resetStream(reusableStream);
+      return reusableStream;
+    }
+
+    // Optimización: Pool de streams pre-creados para alta performance
     const streamId = this.generateStreamId();
     const stream = {
       id: streamId,
@@ -289,19 +297,89 @@ class HTTP3Client {
       created: Date.now(),
       bytesTransferred: 0,
       headers: new Map(),
-      data: null
+      data: null,
+      // Optimización: Pre-allocar buffer para reducir GC
+      buffer: new ArrayBuffer(8192),
+      lastUsed: Date.now()
     };
 
     this.streams.set(streamId, stream);
     this.metrics.streamsCreated++;
 
+    // Optimización: Lazy cleanup de streams antiguos
+    this.scheduleStreamCleanup();
+
     logger.debug(LOG_CATEGORIES.NETWORK, 'HTTP/3 stream created', {
       streamId,
       priority,
-      totalStreams: this.streams.size
+      totalStreams: this.streams.size,
+      reused: false
     });
 
     return stream;
+  }
+
+  /**
+   * Encontrar stream reutilizable (Optimización)
+   */
+  findReusableStream(priority) {
+    for (const [id, stream] of this.streams.entries()) {
+      if (stream.state === 'CLOSED' &&
+        stream.priority === priority &&
+        Date.now() - stream.lastUsed < 30000) { // 30 segundos
+        return stream;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resetear stream para reutilización (Optimización)
+   */
+  resetStream(stream) {
+    stream.state = 'OPEN';
+    stream.created = Date.now();
+    stream.bytesTransferred = 0;
+    stream.headers.clear();
+    stream.data = null;
+    stream.lastUsed = Date.now();
+  }
+
+  /**
+   * Programar limpieza de streams (Optimización con debouncing)
+   */
+  scheduleStreamCleanup() {
+    if (this.cleanupTimeout) {
+      clearTimeout(this.cleanupTimeout);
+    }
+
+    this.cleanupTimeout = setTimeout(() => {
+      this.cleanupOldStreams();
+    }, 5000); // Debounce de 5 segundos
+  }
+
+  /**
+   * Limpiar streams antiguos (Optimización de memoria)
+   */
+  cleanupOldStreams() {
+    const cutoffTime = Date.now() - 300000; // 5 minutos
+    const streamsToDelete = [];
+
+    for (const [id, stream] of this.streams.entries()) {
+      if (stream.state === 'CLOSED' && stream.lastUsed < cutoffTime) {
+        streamsToDelete.push(id);
+      }
+    }
+
+    // Batch delete para mejor performance
+    streamsToDelete.forEach(id => this.streams.delete(id));
+
+    if (streamsToDelete.length > 0) {
+      logger.debug(LOG_CATEGORIES.NETWORK, 'Cleaned up old streams', {
+        cleaned: streamsToDelete.length,
+        remaining: this.streams.size
+      });
+    }
   }
 
   /**
@@ -318,7 +396,7 @@ class HTTP3Client {
     } = options;
 
     const stream = await this.createStream(priority);
-    
+
     try {
       // Configurar headers HTTP/3
       const http3Headers = {
@@ -336,12 +414,12 @@ class HTTP3Client {
 
       // Enviar request (simulado)
       const response = await this.sendStreamRequest(stream, body, timeout);
-      
+
       // Actualizar métricas
       this.metrics.bytesTransferred += response.size || 0;
-      
+
       return response;
-      
+
     } catch (error) {
       this.closeStream(stream.id);
       throw error;
@@ -353,7 +431,7 @@ class HTTP3Client {
    */
   async sendStreamRequest(stream, body, timeout) {
     const startTime = performance.now();
-    
+
     try {
       // En implementación real, esto usaría el transport QUIC
       const fetchOptions = {
@@ -368,9 +446,9 @@ class HTTP3Client {
 
       const url = `${stream.headers.get(':scheme')}://${stream.headers.get(':authority')}${stream.headers.get(':path')}`;
       const response = await fetch(url, fetchOptions);
-      
+
       const responseTime = performance.now() - startTime;
-      
+
       // Simular características HTTP/3
       const http3Response = {
         ...response,
@@ -382,7 +460,7 @@ class HTTP3Client {
       };
 
       this.closeStream(stream.id);
-      
+
       logger.debug(LOG_CATEGORIES.NETWORK, 'HTTP/3 request completed', {
         streamId: stream.id,
         status: response.status,
@@ -391,16 +469,16 @@ class HTTP3Client {
       });
 
       return http3Response;
-      
+
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      
+
       logger.error(LOG_CATEGORIES.NETWORK, 'HTTP/3 request failed', {
         streamId: stream.id,
         error: error.message,
         responseTime
       });
-      
+
       throw error;
     }
   }
@@ -429,26 +507,26 @@ class HTTP3Client {
     if (this.state !== HTTP3_STATES.CONNECTED) return;
 
     logger.info(LOG_CATEGORIES.NETWORK, 'Network change detected, migrating connection');
-    
+
     this.state = HTTP3_STATES.MIGRATING;
     this.metrics.connectionMigrations++;
 
     try {
       // Migrar conexión a nueva ruta de red
       await this.migrateConnection();
-      
+
       this.state = HTTP3_STATES.CONNECTED;
-      
+
       logger.info(LOG_CATEGORIES.NETWORK, 'Connection migration successful', {
         connectionId: this.connectionId,
         migrations: this.metrics.connectionMigrations
       });
-      
+
     } catch (error) {
       logger.error(LOG_CATEGORIES.NETWORK, 'Connection migration failed', {
         error: error.message
       });
-      
+
       // Intentar reconexión
       await this.reconnect();
     }
@@ -460,12 +538,12 @@ class HTTP3Client {
   async migrateConnection() {
     // En QUIC real, esto mantendría el connection ID
     // pero cambiaría la ruta de red
-    
+
     const oldConnection = this.connection;
-    
+
     // Simular migración
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     this.connection = {
       ...oldConnection,
       migrated: true,
@@ -486,36 +564,116 @@ class HTTP3Client {
   }
 
   /**
-   * Ajustar bitrate basado en condiciones
+   * Ajustar bitrate basado en condiciones (Optimizado con algoritmo adaptativo)
    */
   adjustBitrate() {
     if (this.state !== HTTP3_STATES.CONNECTED) return;
 
     const rtt = this.getCurrentRTT();
     const packetLoss = this.getPacketLoss();
-    
-    let bitrateMultiplier = 1.0;
-    
-    // Ajustar basado en RTT
-    if (rtt > 200) {
-      bitrateMultiplier *= 0.8;
-    } else if (rtt < 50) {
-      bitrateMultiplier *= 1.2;
+
+    // Optimización: Usar algoritmo BBR (Bottleneck Bandwidth and RTT)
+    const currentBandwidth = this.estimateBandwidth();
+    const targetBandwidth = this.calculateTargetBandwidth(rtt, packetLoss);
+
+    // Optimización: Smooth adjustment con exponential moving average
+    const alpha = 0.125; // Factor de suavizado
+    this.smoothedBandwidth = this.smoothedBandwidth || currentBandwidth;
+    this.smoothedBandwidth = alpha * targetBandwidth + (1 - alpha) * this.smoothedBandwidth;
+
+    const bitrateMultiplier = Math.min(Math.max(
+      this.smoothedBandwidth / currentBandwidth,
+      0.1 // Mínimo 10%
+    ), 3.0); // Máximo 300%
+
+    // Optimización: Solo aplicar si el cambio es significativo (> 5%)
+    if (Math.abs(bitrateMultiplier - 1.0) > 0.05) {
+      this.applyBitrateAdjustment(bitrateMultiplier);
+
+      logger.debug(LOG_CATEGORIES.NETWORK, 'Bitrate adjusted (BBR)', {
+        rtt,
+        packetLoss,
+        currentBandwidth: currentBandwidth.toFixed(2),
+        targetBandwidth: targetBandwidth.toFixed(2),
+        multiplier: bitrateMultiplier.toFixed(3)
+      });
     }
-    
-    // Ajustar basado en packet loss
-    if (packetLoss > 0.01) { // > 1%
-      bitrateMultiplier *= 0.7;
+  }
+
+  /**
+   * Estimar ancho de banda actual (Optimización)
+   */
+  estimateBandwidth() {
+    if (!this.bandwidthHistory) {
+      this.bandwidthHistory = [];
     }
-    
-    // Aplicar ajuste
-    this.applyBitrateAdjustment(bitrateMultiplier);
-    
-    logger.debug(LOG_CATEGORIES.NETWORK, 'Bitrate adjusted', {
-      rtt,
-      packetLoss,
-      multiplier: bitrateMultiplier
-    });
+
+    // Calcular basado en throughput reciente
+    const recentStreams = Array.from(this.streams.values())
+      .filter(s => s.state === 'CLOSED' && Date.now() - s.created < 10000)
+      .slice(-10); // Últimos 10 streams
+
+    if (recentStreams.length === 0) return 1000; // Default 1 Mbps
+
+    const totalBytes = recentStreams.reduce((sum, s) => sum + s.bytesTransferred, 0);
+    const totalTime = recentStreams.reduce((sum, s) => sum + (s.lastUsed - s.created), 0);
+
+    const bandwidth = totalTime > 0 ? (totalBytes * 8) / (totalTime / 1000) : 1000; // bps
+
+    // Mantener historial para suavizado
+    this.bandwidthHistory.push(bandwidth);
+    if (this.bandwidthHistory.length > 20) {
+      this.bandwidthHistory.shift();
+    }
+
+    // Retornar mediana para robustez
+    const sorted = [...this.bandwidthHistory].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  }
+
+  /**
+   * Calcular ancho de banda objetivo (Optimización BBR)
+   */
+  calculateTargetBandwidth(rtt, packetLoss) {
+    // Algoritmo BBR simplificado
+    const baseRTT = 50; // RTT base en ms
+    const maxBandwidth = 10000000; // 10 Mbps máximo
+
+    // Factor de RTT
+    const rttFactor = Math.max(0.1, baseRTT / Math.max(rtt, baseRTT));
+
+    // Factor de packet loss (más agresivo)
+    const lossFactor = Math.max(0.1, Math.pow(1 - packetLoss, 2));
+
+    // Factor de congestión basado en variabilidad de RTT
+    const rttVariability = this.calculateRTTVariability();
+    const congestionFactor = Math.max(0.5, 1 - rttVariability);
+
+    return maxBandwidth * rttFactor * lossFactor * congestionFactor;
+  }
+
+  /**
+   * Calcular variabilidad de RTT (Optimización)
+   */
+  calculateRTTVariability() {
+    if (!this.rttHistory) {
+      this.rttHistory = [];
+    }
+
+    const currentRTT = this.getCurrentRTT();
+    this.rttHistory.push(currentRTT);
+
+    if (this.rttHistory.length > 10) {
+      this.rttHistory.shift();
+    }
+
+    if (this.rttHistory.length < 3) return 0;
+
+    const mean = this.rttHistory.reduce((sum, rtt) => sum + rtt, 0) / this.rttHistory.length;
+    const variance = this.rttHistory.reduce((sum, rtt) => sum + Math.pow(rtt - mean, 2), 0) / this.rttHistory.length;
+    const stdDev = Math.sqrt(variance);
+
+    return Math.min(stdDev / mean, 1); // Coeficiente de variación normalizado
   }
 
   /**
@@ -536,7 +694,7 @@ class HTTP3Client {
       stream.state = 'CLOSED';
       stream.closedAt = Date.now();
       this.streams.delete(streamId);
-      
+
       logger.debug(LOG_CATEGORIES.NETWORK, 'HTTP/3 stream closed', {
         streamId,
         duration: stream.closedAt - stream.created
@@ -551,12 +709,12 @@ class HTTP3Client {
     this.state = HTTP3_STATES.IDLE;
     this.connection = null;
     this.connectionId = null;
-    
+
     // Cerrar todos los streams
     for (const streamId of this.streams.keys()) {
       this.closeStream(streamId);
     }
-    
+
     await this.connect();
   }
 
@@ -565,7 +723,7 @@ class HTTP3Client {
    */
   getCurrentRTT() {
     if (!this.connection) return 0;
-    
+
     // Simular RTT variable
     const baseRTT = this.connection.rtt || 50;
     const variation = (Math.random() - 0.5) * 20;
@@ -596,7 +754,7 @@ class HTTP3Client {
   updateRTTMetrics(rtt) {
     const currentAvg = this.metrics.averageRTT;
     const totalConnections = this.metrics.totalConnections;
-    
+
     this.metrics.averageRTT = totalConnections > 1
       ? ((currentAvg * (totalConnections - 1)) + rtt) / totalConnections
       : rtt;
@@ -620,8 +778,8 @@ class HTTP3Client {
    * Obtener métricas
    */
   getMetrics() {
-    const uptime = this.metrics.lastConnectedAt 
-      ? Date.now() - this.metrics.lastConnectedAt 
+    const uptime = this.metrics.lastConnectedAt
+      ? Date.now() - this.metrics.lastConnectedAt
       : 0;
 
     return {
@@ -643,7 +801,7 @@ class HTTP3Client {
   getHealthStatus() {
     const rtt = this.getCurrentRTT();
     const packetLoss = this.getPacketLoss();
-    
+
     let status = 'HEALTHY';
     if (rtt > 200 || packetLoss > 0.02) status = 'DEGRADED';
     if (rtt > 500 || packetLoss > 0.05) status = 'UNHEALTHY';
@@ -671,15 +829,15 @@ class HTTP3Client {
    */
   disconnect() {
     this.state = HTTP3_STATES.IDLE;
-    
+
     // Cerrar todos los streams
     for (const streamId of this.streams.keys()) {
       this.closeStream(streamId);
     }
-    
+
     this.connection = null;
     this.connectionId = null;
-    
+
     logger.info(LOG_CATEGORIES.NETWORK, 'HTTP/3 client disconnected');
   }
 }

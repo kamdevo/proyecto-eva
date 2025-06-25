@@ -38,21 +38,21 @@ class AIPerformanceOptimizer {
       enablePredictiveOptimization: true,
       enableAdaptiveOptimization: true,
       enableAnomalyDetection: true,
-      
+
       // Configuración de modelos
       modelUpdateInterval: 300000, // 5 minutos
       predictionHorizon: 3600000, // 1 hora
       confidenceThreshold: 0.8,
-      
+
       // Configuración de optimización
       optimizationStrategy: OPTIMIZATION_STRATEGIES.ADAPTIVE,
       maxOptimizationFrequency: 60000, // 1 minuto
       enableAutoScaling: true,
-      
+
       // Configuración de datos
       maxDataPoints: 10000,
       dataRetentionPeriod: 86400000, // 24 horas
-      
+
       ...config
     };
 
@@ -62,7 +62,7 @@ class AIPerformanceOptimizer {
     this.predictions = new Map();
     this.optimizations = new Map();
     this.userProfiles = new Map();
-    
+
     // Métricas de IA
     this.aiMetrics = {
       modelsLoaded: 0,
@@ -99,18 +99,18 @@ class AIPerformanceOptimizer {
 
     // Cargar modelos de ML
     await this.loadMLModels();
-    
+
     // Inicializar recolección de datos
     this.startDataCollection();
-    
+
     // Inicializar entrenamiento continuo
     this.startContinuousTraining();
-    
+
     // Inicializar optimización predictiva
     if (this.config.enablePredictiveOptimization) {
       this.startPredictiveOptimization();
     }
-    
+
     // Inicializar detección de anomalías
     if (this.config.enableAnomalyDetection) {
       this.startAnomalyDetection();
@@ -126,12 +126,12 @@ class AIPerformanceOptimizer {
         const model = await this.createMLModel(modelType);
         this.models.set(modelType, model);
         this.aiMetrics.modelsLoaded++;
-        
+
         logger.debug(LOG_CATEGORIES.PERFORMANCE, 'ML model loaded', {
           modelType,
           accuracy: model.accuracy
         });
-        
+
       } catch (error) {
         logger.error(LOG_CATEGORIES.PERFORMANCE, 'Failed to load ML model', {
           modelType,
@@ -141,7 +141,7 @@ class AIPerformanceOptimizer {
     });
 
     await Promise.allSettled(modelPromises);
-    
+
     logger.info(LOG_CATEGORIES.PERFORMANCE, 'ML models initialized', {
       loadedModels: this.models.size,
       totalModels: Object.keys(ML_MODELS).length
@@ -154,7 +154,7 @@ class AIPerformanceOptimizer {
   async createMLModel(modelType) {
     // Simular creación de modelo de ML
     // En implementación real, esto cargaría modelos TensorFlow.js o similares
-    
+
     const model = {
       type: modelType,
       accuracy: 0.85 + Math.random() * 0.1, // 85-95% accuracy
@@ -173,11 +173,11 @@ class AIPerformanceOptimizer {
   generateRandomWeights(modelType) {
     const weightCount = this.getWeightCount(modelType);
     const weights = [];
-    
+
     for (let i = 0; i < weightCount; i++) {
       weights.push(Math.random() * 2 - 1); // -1 a 1
     }
-    
+
     return weights;
   }
 
@@ -192,7 +192,7 @@ class AIPerformanceOptimizer {
       [ML_MODELS.PERFORMANCE_ANOMALY]: 60,
       [ML_MODELS.BUNDLE_OPTIMIZATION]: 80
     };
-    
+
     return weightCounts[modelType] || 50;
   }
 
@@ -232,7 +232,7 @@ class AIPerformanceOptimizer {
         hiddenLayers: [96, 48, 24]
       }
     };
-    
+
     return hyperparameters[modelType] || hyperparameters[ML_MODELS.LOAD_PREDICTION];
   }
 
@@ -265,13 +265,13 @@ class AIPerformanceOptimizer {
       metrics: this.getCurrentPerformanceMetrics(),
       userAgent: navigator.userAgent,
       connectionType: this.getConnectionType(),
-      pageLoadTime: performance.timing ? 
+      pageLoadTime: performance.timing ?
         performance.timing.loadEventEnd - performance.timing.navigationStart : 0
     };
 
     this.performanceHistory.push(performanceData);
     this.trimHistoryData(this.performanceHistory);
-    
+
     // Agregar a datos de entrenamiento
     this.addTrainingData(ML_MODELS.LOAD_PREDICTION, performanceData);
   }
@@ -291,7 +291,7 @@ class AIPerformanceOptimizer {
 
     this.userBehaviorHistory.push(behaviorData);
     this.trimHistoryData(this.userBehaviorHistory);
-    
+
     // Agregar a datos de entrenamiento
     this.addTrainingData(ML_MODELS.USER_BEHAVIOR, behaviorData);
   }
@@ -311,7 +311,7 @@ class AIPerformanceOptimizer {
 
     this.resourceUsageHistory.push(resourceData);
     this.trimHistoryData(this.resourceUsageHistory);
-    
+
     // Agregar a datos de entrenamiento
     this.addTrainingData(ML_MODELS.RESOURCE_OPTIMIZATION, resourceData);
   }
@@ -323,10 +323,10 @@ class AIPerformanceOptimizer {
     if (!this.trainingData.has(modelType)) {
       this.trainingData.set(modelType, []);
     }
-    
+
     const trainingSet = this.trainingData.get(modelType);
     trainingSet.push(data);
-    
+
     // Mantener solo los datos más recientes
     if (trainingSet.length > this.config.maxDataPoints) {
       trainingSet.shift();
@@ -367,23 +367,23 @@ class AIPerformanceOptimizer {
   async trainModel(modelType) {
     const model = this.models.get(modelType);
     const trainingData = this.trainingData.get(modelType);
-    
+
     if (!model || !trainingData || trainingData.length < 10) {
       return; // Datos insuficientes
     }
 
     // Simular entrenamiento de modelo
     // En implementación real, esto usaría TensorFlow.js o similar
-    
+
     const oldAccuracy = model.accuracy;
-    
+
     // Simular mejora de accuracy con más datos
     const dataQuality = Math.min(trainingData.length / 1000, 1);
     const improvementFactor = 0.001 * dataQuality;
     model.accuracy = Math.min(0.99, model.accuracy + improvementFactor);
-    
+
     model.lastTrained = Date.now();
-    
+
     logger.debug(LOG_CATEGORIES.PERFORMANCE, 'Model trained', {
       modelType,
       oldAccuracy: oldAccuracy.toFixed(4),
@@ -423,30 +423,246 @@ class AIPerformanceOptimizer {
   }
 
   /**
-   * Generar predicción específica
+   * Generar predicción específica (Optimizado con cache y validación)
    */
   async generatePrediction(modelType) {
     const model = this.models.get(modelType);
     if (!model) return null;
 
+    // Optimización: Cache de predicciones recientes
+    const cacheKey = `${modelType}_${Math.floor(Date.now() / 60000)}`; // Cache por minuto
+    if (this.predictionCache && this.predictionCache[cacheKey]) {
+      return this.predictionCache[cacheKey];
+    }
+
     const currentData = this.getCurrentDataForModel(modelType);
-    
-    // Simular predicción de ML
+
+    // Optimización: Validar calidad de datos antes de predicción
+    const dataQuality = this.assessDataQuality(currentData);
+    if (dataQuality < 0.5) {
+      logger.warn(LOG_CATEGORIES.PERFORMANCE, 'Low data quality for prediction', {
+        modelType,
+        dataQuality,
+        dataPoints: currentData.length
+      });
+      return null;
+    }
+
+    // Optimización: Predicción mejorada con múltiples algoritmos
     const prediction = {
       modelType,
-      confidence: model.accuracy * (0.8 + Math.random() * 0.2),
+      confidence: this.calculateDynamicConfidence(model, currentData, dataQuality),
       timestamp: Date.now(),
       horizon: this.config.predictionHorizon,
-      value: this.simulatePrediction(modelType, currentData),
+      value: await this.generateAdvancedPrediction(modelType, currentData, model),
       metadata: {
         dataPoints: currentData.length,
-        modelAccuracy: model.accuracy
+        modelAccuracy: model.accuracy,
+        dataQuality,
+        algorithm: model.algorithm || 'ensemble'
       }
     };
 
     model.predictions++;
-    
+
+    // Optimización: Guardar en cache
+    if (!this.predictionCache) this.predictionCache = {};
+    this.predictionCache[cacheKey] = prediction;
+
+    // Limpiar cache antiguo
+    this.cleanupPredictionCache();
+
     return prediction;
+  }
+
+  /**
+   * Evaluar calidad de datos (Optimización)
+   */
+  assessDataQuality(data) {
+    if (!data || data.length === 0) return 0;
+
+    // Factores de calidad
+    const completeness = Math.min(data.length / 100, 1); // Completitud
+    const recency = this.calculateRecency(data); // Recencia
+    const consistency = this.calculateConsistency(data); // Consistencia
+
+    return (completeness * 0.4) + (recency * 0.3) + (consistency * 0.3);
+  }
+
+  /**
+   * Calcular recencia de datos (Optimización)
+   */
+  calculateRecency(data) {
+    if (data.length === 0) return 0;
+
+    const now = Date.now();
+    const recentData = data.filter(item =>
+      now - item.timestamp < 3600000 // Últimas 1 hora
+    );
+
+    return recentData.length / data.length;
+  }
+
+  /**
+   * Calcular consistencia de datos (Optimización)
+   */
+  calculateConsistency(data) {
+    if (data.length < 2) return 1;
+
+    // Verificar intervalos de tiempo consistentes
+    const intervals = [];
+    for (let i = 1; i < data.length; i++) {
+      intervals.push(data[i].timestamp - data[i - 1].timestamp);
+    }
+
+    if (intervals.length === 0) return 1;
+
+    const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    const variance = intervals.reduce((sum, interval) =>
+      sum + Math.pow(interval - avgInterval, 2), 0) / intervals.length;
+
+    const stdDev = Math.sqrt(variance);
+    const coefficientOfVariation = avgInterval > 0 ? stdDev / avgInterval : 0;
+
+    return Math.max(0, 1 - coefficientOfVariation);
+  }
+
+  /**
+   * Calcular confianza dinámica (Optimización)
+   */
+  calculateDynamicConfidence(model, data, dataQuality) {
+    const baseConfidence = model.accuracy * (0.8 + Math.random() * 0.2);
+
+    // Ajustar por calidad de datos
+    const qualityAdjustment = dataQuality * 0.2;
+
+    // Ajustar por cantidad de datos
+    const dataVolumeAdjustment = Math.min(data.length / 1000, 0.1);
+
+    // Ajustar por edad del modelo
+    const modelAge = Date.now() - model.lastTrained;
+    const ageAdjustment = Math.max(0, 0.1 - (modelAge / 86400000) * 0.01); // Degradar 1% por día
+
+    return Math.min(0.99, Math.max(0.1,
+      baseConfidence + qualityAdjustment + dataVolumeAdjustment + ageAdjustment
+    ));
+  }
+
+  /**
+   * Generar predicción avanzada (Optimización con ensemble)
+   */
+  async generateAdvancedPrediction(modelType, data, model) {
+    // Optimización: Usar ensemble de algoritmos para mejor precisión
+    const predictions = [];
+
+    // Predicción base
+    const basePrediction = this.simulatePrediction(modelType, data);
+    predictions.push({ weight: 0.4, value: basePrediction });
+
+    // Predicción con tendencia
+    const trendPrediction = this.predictWithTrend(modelType, data);
+    predictions.push({ weight: 0.3, value: trendPrediction });
+
+    // Predicción estacional
+    const seasonalPrediction = this.predictWithSeasonality(modelType, data);
+    predictions.push({ weight: 0.3, value: seasonalPrediction });
+
+    // Combinar predicciones con pesos
+    return this.combineEnsemblePredictions(predictions);
+  }
+
+  /**
+   * Predicción con tendencia (Optimización)
+   */
+  predictWithTrend(modelType, data) {
+    const basePrediction = this.simulatePrediction(modelType, data);
+
+    if (data.length < 5) return basePrediction;
+
+    // Calcular tendencia simple
+    const recent = data.slice(-5);
+    let trend = 0;
+
+    if (modelType === ML_MODELS.LOAD_PREDICTION) {
+      const values = recent.map(d => d.value || Math.random() * 100);
+      trend = (values[values.length - 1] - values[0]) / values.length;
+
+      return {
+        ...basePrediction,
+        expectedLoad: Math.max(0, Math.min(100, basePrediction.expectedLoad + trend * 5))
+      };
+    }
+
+    return basePrediction;
+  }
+
+  /**
+   * Predicción estacional (Optimización)
+   */
+  predictWithSeasonality(modelType, data) {
+    const basePrediction = this.simulatePrediction(modelType, data);
+
+    // Aplicar factores estacionales simples
+    const hour = new Date().getHours();
+    let seasonalFactor = 1.0;
+
+    // Factores por hora del día
+    if (hour >= 9 && hour <= 17) {
+      seasonalFactor = 1.2; // Horas de trabajo
+    } else if (hour >= 22 || hour <= 6) {
+      seasonalFactor = 0.6; // Horas nocturnas
+    }
+
+    if (modelType === ML_MODELS.LOAD_PREDICTION) {
+      return {
+        ...basePrediction,
+        expectedLoad: Math.max(0, Math.min(100, basePrediction.expectedLoad * seasonalFactor))
+      };
+    }
+
+    return basePrediction;
+  }
+
+  /**
+   * Combinar predicciones ensemble (Optimización)
+   */
+  combineEnsemblePredictions(predictions) {
+    if (predictions.length === 0) return {};
+
+    const totalWeight = predictions.reduce((sum, p) => sum + p.weight, 0);
+
+    // Combinar valores según tipo
+    const combined = {};
+    const firstPrediction = predictions[0].value;
+
+    Object.keys(firstPrediction).forEach(key => {
+      if (typeof firstPrediction[key] === 'number') {
+        combined[key] = predictions.reduce((sum, p) =>
+          sum + (p.value[key] || 0) * (p.weight / totalWeight), 0
+        );
+      } else {
+        combined[key] = firstPrediction[key]; // Usar valor del primer modelo para no-numéricos
+      }
+    });
+
+    return combined;
+  }
+
+  /**
+   * Limpiar cache de predicciones (Optimización)
+   */
+  cleanupPredictionCache() {
+    if (!this.predictionCache) return;
+
+    const currentMinute = Math.floor(Date.now() / 60000);
+    const cutoffMinute = currentMinute - 10; // Mantener últimos 10 minutos
+
+    Object.keys(this.predictionCache).forEach(key => {
+      const keyMinute = parseInt(key.split('_').pop());
+      if (keyMinute < cutoffMinute) {
+        delete this.predictionCache[key];
+      }
+    });
   }
 
   /**
@@ -460,35 +676,35 @@ class AIPerformanceOptimizer {
           peakTime: Date.now() + Math.random() * 3600000,
           confidence: 0.85
         };
-        
+
       case ML_MODELS.RESOURCE_OPTIMIZATION:
         return {
           optimalBundleSize: 150 + Math.random() * 100,
           recommendedCacheSize: 50 + Math.random() * 50,
           memoryOptimization: Math.random() * 20
         };
-        
+
       case ML_MODELS.USER_BEHAVIOR:
         return {
           nextPageProbability: Math.random(),
           sessionDuration: 300 + Math.random() * 600,
           bounceRate: Math.random() * 0.3
         };
-        
+
       case ML_MODELS.PERFORMANCE_ANOMALY:
         return {
           anomalyScore: Math.random(),
           riskLevel: Math.random() < 0.1 ? 'high' : 'low',
           affectedMetrics: ['latency', 'memory']
         };
-        
+
       case ML_MODELS.BUNDLE_OPTIMIZATION:
         return {
           optimalChunks: Math.floor(5 + Math.random() * 10),
           lazyLoadCandidates: ['dashboard', 'reports'],
           priorityOrder: ['critical', 'high', 'medium']
         };
-        
+
       default:
         return { value: Math.random() };
     }
@@ -531,22 +747,22 @@ class AIPerformanceOptimizer {
       case ML_MODELS.LOAD_PREDICTION:
         await this.applyLoadOptimization(prediction, optimization);
         break;
-        
+
       case ML_MODELS.RESOURCE_OPTIMIZATION:
         await this.applyResourceOptimization(prediction, optimization);
         break;
-        
+
       case ML_MODELS.USER_BEHAVIOR:
         await this.applyBehaviorOptimization(prediction, optimization);
         break;
-        
+
       case ML_MODELS.BUNDLE_OPTIMIZATION:
         await this.applyBundleOptimization(prediction, optimization);
         break;
     }
 
     this.optimizations.set(optimization.id, optimization);
-    
+
     logger.info(LOG_CATEGORIES.PERFORMANCE, 'AI optimization applied', {
       optimizationId: optimization.id,
       modelType,
@@ -559,7 +775,7 @@ class AIPerformanceOptimizer {
    */
   async applyLoadOptimization(prediction, optimization) {
     const { expectedLoad, peakTime } = prediction.value;
-    
+
     if (expectedLoad > 80) {
       // Preparar para alta carga
       await this.prepareForHighLoad();
@@ -576,7 +792,7 @@ class AIPerformanceOptimizer {
    */
   async applyResourceOptimization(prediction, optimization) {
     const { optimalBundleSize, recommendedCacheSize } = prediction.value;
-    
+
     // Ajustar tamaño de cache
     if (recommendedCacheSize !== smartCache.maxSize) {
       smartCache.setMaxSize(recommendedCacheSize);
@@ -589,7 +805,7 @@ class AIPerformanceOptimizer {
    */
   async applyBehaviorOptimization(prediction, optimization) {
     const { nextPageProbability } = prediction.value;
-    
+
     if (nextPageProbability > 0.7) {
       // Precargar recursos de la siguiente página probable
       await this.preloadNextPageResources();
@@ -602,7 +818,7 @@ class AIPerformanceOptimizer {
    */
   async applyBundleOptimization(prediction, optimization) {
     const { optimalChunks, lazyLoadCandidates } = prediction.value;
-    
+
     // Configurar lazy loading dinámico
     await this.configureDynamicLazyLoading(lazyLoadCandidates);
     optimization.action = 'configure_lazy_loading';
@@ -626,7 +842,7 @@ class AIPerformanceOptimizer {
 
     const currentMetrics = this.getCurrentPerformanceMetrics();
     const anomalyScore = await this.calculateAnomalyScore(currentMetrics);
-    
+
     if (anomalyScore > 0.8) {
       this.handleAnomaly(anomalyScore, currentMetrics);
       this.aiMetrics.anomaliesDetected++;
@@ -640,20 +856,20 @@ class AIPerformanceOptimizer {
     // Simular cálculo de anomalía
     const baseline = this.getBaselineMetrics();
     let anomalyScore = 0;
-    
+
     // Comparar métricas actuales con baseline
     if (metrics.responseTime > baseline.responseTime * 2) {
       anomalyScore += 0.3;
     }
-    
+
     if (metrics.errorRate > baseline.errorRate * 3) {
       anomalyScore += 0.4;
     }
-    
+
     if (metrics.memoryUsage > baseline.memoryUsage * 1.5) {
       anomalyScore += 0.3;
     }
-    
+
     return Math.min(anomalyScore, 1.0);
   }
 
@@ -800,10 +1016,10 @@ class AIPerformanceOptimizer {
 
   getAverageModelAccuracy() {
     if (this.models.size === 0) return 0;
-    
+
     const totalAccuracy = Array.from(this.models.values())
       .reduce((sum, model) => sum + model.accuracy, 0);
-    
+
     return totalAccuracy / this.models.size;
   }
 
@@ -812,7 +1028,7 @@ class AIPerformanceOptimizer {
    */
   getAIHealthStatus() {
     const averageAccuracy = this.getAverageModelAccuracy();
-    
+
     let status = 'healthy';
     if (averageAccuracy < 0.7) status = 'degraded';
     if (averageAccuracy < 0.5) status = 'unhealthy';

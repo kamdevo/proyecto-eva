@@ -342,11 +342,22 @@ class AdvancedAnalytics {
     }
 
     /**
-     * Trackear evento de usuario
+     * Trackear evento de usuario (Optimizado con batching y deduplicación)
      */
     trackUserEvent(eventType, data) {
         if (Math.random() > this.config.samplingRate) {
             return; // Sampling
+        }
+
+        // Optimización: Deduplicación de eventos similares
+        const eventHash = this.generateEventHash(eventType, data);
+        const now = Date.now();
+
+        if (this.recentEventHashes && this.recentEventHashes.has(eventHash)) {
+            const lastTime = this.recentEventHashes.get(eventHash);
+            if (now - lastTime < 1000) { // Ignorar eventos duplicados en 1 segundo
+                return;
+            }
         }
 
         const event = {
@@ -355,19 +366,135 @@ class AdvancedAnalytics {
             sessionId: this.getSessionId(),
             userId: this.getUserId(),
             userAgent: navigator.userAgent,
-            timestamp: Date.now()
+            timestamp: now,
+            // Optimización: Agregar contexto adicional
+            viewport: {
+                width: window.innerWidth,
+                height: window.innerHeight
+            },
+            connection: this.getConnectionInfo()
         };
 
-        this.userBehaviorData.push(event);
+        // Optimización: Batching de eventos
+        if (!this.eventBatch) {
+            this.eventBatch = [];
+        }
+
+        this.eventBatch.push(event);
         this.analyticsMetrics.totalEvents++;
 
-        // Procesar evento en tiempo real
-        if (this.config.enableRealTimeInsights) {
-            this.processEventRealTime(event);
+        // Optimización: Procesar batch cuando alcance tamaño límite o timeout
+        if (this.eventBatch.length >= 10) {
+            this.processBatchedEvents();
+        } else {
+            this.scheduleBatchProcessing();
         }
+
+        // Actualizar cache de deduplicación
+        if (!this.recentEventHashes) {
+            this.recentEventHashes = new Map();
+        }
+        this.recentEventHashes.set(eventHash, now);
+
+        // Limpiar cache antiguo
+        this.cleanupEventHashCache();
+    }
+
+    /**
+     * Generar hash de evento para deduplicación (Optimización)
+     */
+    generateEventHash(eventType, data) {
+        const hashData = {
+            type: eventType,
+            element: data.element || '',
+            elementId: data.elementId || '',
+            url: data.url || window.location.href
+        };
+
+        return btoa(JSON.stringify(hashData)).slice(0, 16);
+    }
+
+    /**
+     * Obtener información de conexión (Optimización)
+     */
+    getConnectionInfo() {
+        if ('connection' in navigator) {
+            return {
+                effectiveType: navigator.connection.effectiveType,
+                downlink: navigator.connection.downlink,
+                rtt: navigator.connection.rtt,
+                saveData: navigator.connection.saveData
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Procesar eventos en lote (Optimización)
+     */
+    processBatchedEvents() {
+        if (!this.eventBatch || this.eventBatch.length === 0) return;
+
+        // Agregar eventos al array principal
+        this.userBehaviorData.push(...this.eventBatch);
+
+        // Procesar eventos en tiempo real si está habilitado
+        if (this.config.enableRealTimeInsights) {
+            this.eventBatch.forEach(event => {
+                this.processEventRealTime(event);
+            });
+        }
+
+        // Limpiar batch
+        this.eventBatch = [];
 
         // Mantener límite de datos
         this.trimDataArray(this.userBehaviorData);
+
+        // Cancelar timeout pendiente
+        if (this.batchTimeout) {
+            clearTimeout(this.batchTimeout);
+            this.batchTimeout = null;
+        }
+    }
+
+    /**
+     * Programar procesamiento de batch (Optimización con debouncing)
+     */
+    scheduleBatchProcessing() {
+        if (this.batchTimeout) {
+            return; // Ya hay un timeout programado
+        }
+
+        this.batchTimeout = setTimeout(() => {
+            this.processBatchedEvents();
+        }, 2000); // Procesar batch después de 2 segundos de inactividad
+    }
+
+    /**
+     * Limpiar cache de hashes de eventos (Optimización)
+     */
+    cleanupEventHashCache() {
+        if (!this.recentEventHashes) return;
+
+        const cutoffTime = Date.now() - 5000; // 5 segundos
+
+        for (const [hash, timestamp] of this.recentEventHashes.entries()) {
+            if (timestamp < cutoffTime) {
+                this.recentEventHashes.delete(hash);
+            }
+        }
+
+        // Limitar tamaño del cache
+        if (this.recentEventHashes.size > 1000) {
+            const entries = Array.from(this.recentEventHashes.entries());
+            entries.sort((a, b) => b[1] - a[1]); // Ordenar por timestamp descendente
+
+            this.recentEventHashes.clear();
+            entries.slice(0, 500).forEach(([hash, timestamp]) => {
+                this.recentEventHashes.set(hash, timestamp);
+            });
+        }
     }
 
     /**
