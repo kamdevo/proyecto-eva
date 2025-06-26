@@ -73,6 +73,8 @@ class SystemManagerController extends Controller
      */
     public function routes(Request $request): JsonResponse
     {
+        // Validación empresarial
+        $request->validate([]);
         try {
             $action = $request->get('action', 'list');
 

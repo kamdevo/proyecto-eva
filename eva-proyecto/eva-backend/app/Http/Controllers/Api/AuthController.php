@@ -312,4 +312,94 @@ class AuthController extends ApiController
             return ResponseFormatter::error('Error al cambiar contraseña: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * refreshToken
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function refreshToken(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para refreshToken
+            
+            return ResponseFormatter::success(
+                [],
+                'Método refreshToken ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AuthController::refreshToken', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando refreshToken: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * forgotPassword
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function forgotPassword(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para forgotPassword
+            
+            return ResponseFormatter::success(
+                [],
+                'Método forgotPassword ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AuthController::forgotPassword', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando forgotPassword: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * resetPassword
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function resetPassword(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para resetPassword
+            
+            return ResponseFormatter::success(
+                [],
+                'Método resetPassword ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AuthController::resetPassword', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando resetPassword: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
 }

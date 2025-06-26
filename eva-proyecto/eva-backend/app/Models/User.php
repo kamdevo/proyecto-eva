@@ -32,7 +32,6 @@ class User extends Authenticatable
         'telefono',
         'email',
         'username',
-        'password',
         'rol_id',
         'estado',
         'servicio_id',
@@ -42,15 +41,13 @@ class User extends Authenticatable
         'id_empresa',
         'sede_id',
         'zona_id',
-        'anio_plan',
-    ];
+        'anio_plan'];
 
     /**
      * The attributes that should be hidden for serialization.
      */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'remember_token'
     ];
 
     /**
@@ -65,7 +62,7 @@ class User extends Authenticatable
         'servicio_id' => 'integer',
         'id_empresa' => 'integer',
         'zona_id' => 'integer',
-        'anio_plan' => 'integer',
+        'anio_plan' => 'integer'
     ];
 
     /**
@@ -85,8 +82,7 @@ class User extends Authenticatable
         'id_empresa' => 'nullable|integer|exists:empresas,id',
         'sede_id' => 'nullable|string|max:10',
         'zona_id' => 'nullable|integer|exists:zonas,id',
-        'anio_plan' => 'nullable|integer|min:2020|max:2030',
-    ];
+        'anio_plan' => 'nullable|integer|min:2020|max:2030'];
 
     /**
      * Custom validation messages.
@@ -96,8 +92,7 @@ class User extends Authenticatable
         'username.unique' => 'Este nombre de usuario ya está en uso.',
         'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
         'rol_id.exists' => 'El rol seleccionado no es válido.',
-        'servicio_id.exists' => 'El servicio seleccionado no es válido.',
-    ];
+        'servicio_id.exists' => 'El servicio seleccionado no es válido.'];
 
     /**
      * Boot the model.

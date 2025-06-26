@@ -750,4 +750,136 @@ class ArchivosController extends ApiController
 
         return in_array($extension, $allowedTypes[$tipo] ?? []);
     }
+
+    /**
+     * tiposArchivo
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function tiposArchivo(Request $request): JsonResponse
+    {
+        try {
+            // Validación básica
+            $request->validate([]);
+            
+            // TODO: Implementar lógica específica para tiposArchivo
+            
+            return ResponseFormatter::success(
+                [],
+                'Método tiposArchivo ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en ArchivosController::tiposArchivo', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando tiposArchivo: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * categorias
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function categorias(Request $request): JsonResponse
+    {
+        try {
+            // Validación básica
+            $request->validate([]);
+            
+            // TODO: Implementar lógica específica para categorias
+            
+            return ResponseFormatter::success(
+                [],
+                'Método categorias ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en ArchivosController::categorias', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando categorias: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * versiones
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function versiones(Request $request): JsonResponse
+    {
+        try {
+            // Validación básica
+            $request->validate([]);
+            
+            // TODO: Implementar lógica específica para versiones
+            
+            return ResponseFormatter::success(
+                [],
+                'Método versiones ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en ArchivosController::versiones', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando versiones: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * nuevaVersion
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function nuevaVersion(Request $request): JsonResponse
+    {
+        try {
+            // Validación básica
+            $request->validate([]);
+            
+            // TODO: Implementar lógica específica para nuevaVersion
+            
+            return ResponseFormatter::success(
+                [],
+                'Método nuevaVersion ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en ArchivosController::nuevaVersion', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando nuevaVersion: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
 }

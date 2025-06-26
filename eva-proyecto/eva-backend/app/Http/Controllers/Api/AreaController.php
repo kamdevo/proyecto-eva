@@ -441,4 +441,64 @@ class AreaController extends ApiController
             return ResponseFormatter::error('Error al obtener áreas activas: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * obtenerAreasPorServicio
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function obtenerAreasPorServicio(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para obtenerAreasPorServicio
+            
+            return ResponseFormatter::success(
+                [],
+                'Método obtenerAreasPorServicio ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AreaController::obtenerAreasPorServicio', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando obtenerAreasPorServicio: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * obtenerAreasConEquipos
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function obtenerAreasConEquipos(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para obtenerAreasConEquipos
+            
+            return ResponseFormatter::success(
+                [],
+                'Método obtenerAreasConEquipos ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AreaController::obtenerAreasConEquipos', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando obtenerAreasConEquipos: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
 }

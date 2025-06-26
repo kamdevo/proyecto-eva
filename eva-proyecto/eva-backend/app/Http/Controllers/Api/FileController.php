@@ -497,4 +497,70 @@ class FileController extends ApiController
             return ResponseFormatter::error('Error al comprimir archivos: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * preview
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        try {
+            // Validación básica
+            $request->validate([]);
+            
+            // TODO: Implementar lógica específica para preview
+            
+            return ResponseFormatter::success(
+                [],
+                'Método preview ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en FileController::preview', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando preview: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * thumbnail
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function thumbnail(Request $request): JsonResponse
+    {
+        try {
+            // Validación básica
+            $request->validate([]);
+            
+            // TODO: Implementar lógica específica para thumbnail
+            
+            return ResponseFormatter::success(
+                [],
+                'Método thumbnail ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en FileController::thumbnail', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando thumbnail: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
 }

@@ -40,6 +40,7 @@ class ModalController extends ApiController
     public function getAddEquipmentData()
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'servicios' => Servicio::where('status', 1)->get(['id', 'name']),
                 'areas' => Area::where('status', 1)->get(['id', 'name']),
@@ -68,6 +69,7 @@ class ModalController extends ApiController
     public function getPreventiveMaintenanceData($equipoId = null)
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'tecnicos' => Usuario::where('status', 1)
                     ->whereIn('role', ['admin', 'tecnico'])
@@ -108,6 +110,7 @@ class ModalController extends ApiController
     public function getCalibrationData($equipoId = null)
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'tecnicos_calibracion' => Usuario::where('status', 1)
                     ->where('role', 'tecnico_calibracion')
@@ -147,6 +150,7 @@ class ModalController extends ApiController
     public function getCorrectiveMaintenanceData($equipoId = null)
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'tecnicos' => Usuario::where('status', 1)
                     ->whereIn('role', ['admin', 'tecnico'])
@@ -191,6 +195,7 @@ class ModalController extends ApiController
     public function getContingencyData($equipoId = null)
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'usuarios' => Usuario::where('status', 1)->get(['id', 'name', 'lastname']),
                 'severidades' => ['Baja', 'Media', 'Alta', 'Crítica'],
@@ -230,6 +235,7 @@ class ModalController extends ApiController
     public function getDocumentData($equipoId = null)
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'tipos_documento' => $this->getTiposDocumento(),
                 'formatos_permitidos' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png', 'gif', 'zip', 'rar'],
@@ -266,6 +272,7 @@ class ModalController extends ApiController
     public function getAdvancedFiltersData()
     {
         try {
+            \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
             $data = [
                 'servicios' => Servicio::where('status', 1)->get(['id', 'name']),
                 'areas' => Area::where('status', 1)->get(['id', 'name']),
