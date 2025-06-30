@@ -26,12 +26,84 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 /**
+ * @OA\Tag(
+ *     name="Equipos",
+ *     description="Gestión completa de equipos médicos e industriales"
+ * )
+ *
  * Controlador para gestión completa de equipos médicos e industriales
  * Basado en la estructura real de la base de datos gestionthuv
  */
 class EquipmentController extends ApiController
 {
     /**
+     * @OA\Get(
+     *     path="/api/equipos",
+     *     tags={"Equipos"},
+     *     summary="Listar equipos con filtros avanzados",
+     *     description="Obtiene lista paginada de equipos con filtros opcionales por servicio, área, estado, etc.",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="page",
+     *         in="query",
+     *         description="Número de página",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         description="Elementos por página",
+     *         @OA\Schema(type="integer", example=15)
+     *     ),
+     *     @OA\Parameter(
+     *         name="servicio_id",
+     *         in="query",
+     *         description="Filtrar por servicio",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="area_id",
+     *         in="query",
+     *         description="Filtrar por área",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="estado",
+     *         in="query",
+     *         description="Filtrar por estado",
+     *         @OA\Schema(type="string", enum={"Operativo", "Fuera de Servicio", "En Mantenimiento"})
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de equipos obtenida exitosamente",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="message", type="string", example="Equipos obtenidos exitosamente"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="current_page", type="integer", example=1),
+     *                 @OA\Property(property="total", type="integer", example=150),
+     *                 @OA\Property(property="per_page", type="integer", example=15),
+     *                 @OA\Property(
+     *                     property="data",
+     *                     type="array",
+     *                     @OA\Items(
+     *                         @OA\Property(property="id", type="integer", example=1),
+     *                         @OA\Property(property="nombre", type="string", example="Monitor de Signos Vitales"),
+     *                         @OA\Property(property="codigo", type="string", example="EQ-001"),
+     *                         @OA\Property(property="marca", type="string", example="Philips"),
+     *                         @OA\Property(property="modelo", type="string", example="IntelliVue MX40"),
+     *                         @OA\Property(property="serie", type="string", example="ABC123456"),
+     *                         @OA\Property(property="estado", type="string", example="Operativo")
+     *                     )
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     *
      * Obtener lista de equipos con filtros avanzados y paginación
      */
     public function index(Request $request)

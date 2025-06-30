@@ -1,0 +1,14 @@
+{
+    "total_endpoints": 7,
+    "endpoints_by_method": {
+        "POST": 5,
+        "GET": 2
+    },
+    "endpoints_by_tag": {
+        "Autenticaci\u00f3n": 1,
+        "Exportaci\u00f3n": 3,
+        "Equipos": 2,
+        "Dashboard": 1
+    },
+    "total_schemas": 0
+}

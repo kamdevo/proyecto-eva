@@ -23,6 +23,28 @@ class ContingenciaController extends ApiController
     /**
      * Obtener lista de contingencias con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/contingencias",
+     *     tags={"Contingencias"},
+     *     summary="Listar contingencias",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/contingencias",
+     *     tags={"Contingencias"},
+     *     summary="Listar contingencias",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -113,6 +135,28 @@ class ContingenciaController extends ApiController
     /**
      * Crear nueva contingencia
      */
+        /**
+     * @OA\POST(
+     *     path="/api/contingencias",
+     *     tags={"Contingencias"},
+     *     summary="Crear nueva contingencia",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/contingencias",
+     *     tags={"Contingencias"},
+     *     summary="Crear nueva contingencia",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -171,6 +215,40 @@ class ContingenciaController extends ApiController
     /**
      * Mostrar contingencia específica
      */
+        /**
+     * @OA\GET(
+     *     path="/api/contingencias/{id}",
+     *     tags={"Contingencias"},
+     *     summary="Obtener contingencia específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/contingencias/{id}",
+     *     tags={"Contingencias"},
+     *     summary="Obtener contingencia específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -205,6 +283,40 @@ class ContingenciaController extends ApiController
 
     /**
      * Actualizar contingencia
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/contingencias/{id}",
+     *     tags={"Contingencias"},
+     *     summary="Actualizar contingencia",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/contingencias/{id}",
+     *     tags={"Contingencias"},
+     *     summary="Actualizar contingencia",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -276,6 +388,40 @@ class ContingenciaController extends ApiController
 
     /**
      * Eliminar contingencia
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/contingencias/{id}",
+     *     tags={"Contingencias"},
+     *     summary="Eliminar contingencia",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/contingencias/{id}",
+     *     tags={"Contingencias"},
+     *     summary="Eliminar contingencia",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {
@@ -481,6 +627,40 @@ class ContingenciaController extends ApiController
 
     /**
      * Asignar contingencia a usuario
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/contingencias/{id}/asignar",
+     *     tags={"Contingencias"},
+     *     summary="Asignar responsable",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/contingencias/{id}/asignar",
+     *     tags={"Contingencias"},
+     *     summary="Asignar responsable",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function asignar(Request $request, $id)
     {

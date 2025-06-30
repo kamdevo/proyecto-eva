@@ -23,6 +23,17 @@ class CorrectivoController extends ApiController
     /**
      * Obtener lista de correctivos con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/correctivos",
+     *     tags={"Correctivos"},
+     *     summary="Listar mantenimientos correctivos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -89,6 +100,17 @@ class CorrectivoController extends ApiController
     /**
      * Crear nuevo correctivo
      */
+        /**
+     * @OA\POST(
+     *     path="/api/correctivos",
+     *     tags={"Correctivos"},
+     *     summary="Crear nuevo correctivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -146,6 +168,23 @@ class CorrectivoController extends ApiController
     /**
      * Mostrar correctivo específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/correctivos/{id}",
+     *     tags={"Correctivos"},
+     *     summary="Obtener correctivo específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -170,6 +209,23 @@ class CorrectivoController extends ApiController
 
     /**
      * Actualizar correctivo
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/correctivos/{id}",
+     *     tags={"Correctivos"},
+     *     summary="Actualizar correctivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -236,6 +292,23 @@ class CorrectivoController extends ApiController
     /**
      * Eliminar correctivo
      */
+        /**
+     * @OA\DELETE(
+     *     path="/api/correctivos/{id}",
+     *     tags={"Correctivos"},
+     *     summary="Eliminar correctivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function destroy($id)
     {
         try {
@@ -265,6 +338,23 @@ class CorrectivoController extends ApiController
 
     /**
      * Completar correctivo
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/correctivos/{id}/completar",
+     *     tags={"Correctivos"},
+     *     summary="Completar correctivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function completar(Request $request, $id)
     {

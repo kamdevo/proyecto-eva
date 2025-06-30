@@ -23,6 +23,28 @@ class CalibracionController extends ApiController
     /**
      * Obtener lista de calibraciones con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/calibraciones",
+     *     tags={"Calibraciones"},
+     *     summary="Listar calibraciones",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/calibraciones",
+     *     tags={"Calibraciones"},
+     *     summary="Listar calibraciones",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -93,6 +115,28 @@ class CalibracionController extends ApiController
     /**
      * Crear nueva calibración
      */
+        /**
+     * @OA\POST(
+     *     path="/api/calibraciones",
+     *     tags={"Calibraciones"},
+     *     summary="Crear nueva calibración",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/calibraciones",
+     *     tags={"Calibraciones"},
+     *     summary="Crear nueva calibración",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -161,6 +205,40 @@ class CalibracionController extends ApiController
     /**
      * Mostrar calibración específica
      */
+        /**
+     * @OA\GET(
+     *     path="/api/calibraciones/{id}",
+     *     tags={"Calibraciones"},
+     *     summary="Obtener calibración específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/calibraciones/{id}",
+     *     tags={"Calibraciones"},
+     *     summary="Obtener calibración específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -185,6 +263,40 @@ class CalibracionController extends ApiController
 
     /**
      * Actualizar calibración
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/calibraciones/{id}",
+     *     tags={"Calibraciones"},
+     *     summary="Actualizar calibración",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/calibraciones/{id}",
+     *     tags={"Calibraciones"},
+     *     summary="Actualizar calibración",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -252,6 +364,40 @@ class CalibracionController extends ApiController
 
     /**
      * Eliminar calibración
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/calibraciones/{id}",
+     *     tags={"Calibraciones"},
+     *     summary="Eliminar calibración",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/calibraciones/{id}",
+     *     tags={"Calibraciones"},
+     *     summary="Eliminar calibración",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

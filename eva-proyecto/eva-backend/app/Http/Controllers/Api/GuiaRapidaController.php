@@ -23,6 +23,17 @@ class GuiaRapidaController extends ApiController
     /**
      * Obtener lista paginada de guías rápidas
      */
+        /**
+     * @OA\GET(
+     *     path="/api/guias",
+     *     tags={"Guías Rápidas"},
+     *     summary="Listar guías rápidas",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -73,6 +84,17 @@ class GuiaRapidaController extends ApiController
 
     /**
      * Crear nueva guía rápida
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/guias",
+     *     tags={"Guías Rápidas"},
+     *     summary="Crear nueva guía",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request)
     {
@@ -136,6 +158,23 @@ class GuiaRapidaController extends ApiController
     /**
      * Mostrar guía rápida específica
      */
+        /**
+     * @OA\GET(
+     *     path="/api/guias/{id}",
+     *     tags={"Guías Rápidas"},
+     *     summary="Obtener guía específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -157,6 +196,23 @@ class GuiaRapidaController extends ApiController
 
     /**
      * Actualizar guía rápida
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/guias/{id}",
+     *     tags={"Guías Rápidas"},
+     *     summary="Actualizar guía",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -229,6 +285,23 @@ class GuiaRapidaController extends ApiController
 
     /**
      * Eliminar guía rápida
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/guias/{id}",
+     *     tags={"Guías Rápidas"},
+     *     summary="Eliminar guía",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

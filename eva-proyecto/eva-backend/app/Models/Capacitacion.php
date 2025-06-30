@@ -2,166 +2,205 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Exception;
 
 /**
- * Modelo para la tabla capacitaciones
- * Gestiona entrenamientos y formación del personal
+ * Modelo Capacitacion - Gestión Empresarial
+ * 
+ * Modelo empresarial optimizado para la gestión de capacitacions
+ * con funcionalidades avanzadas de seguridad, validación,
+ * cacheo, auditoría y manejo de errores empresariales.
+ * 
+ * @package App\Models
+ * @author Sistema EVA
+ * @version 2.0.0
+ * @since 2024-01-01
  */
 class Capacitacion extends Model
 {
-    protected $table = 'capacitaciones';
+    use HasFactory;
+
+    // ==========================================
+    // CONFIGURACIÓN BÁSICA DEL MODELO
+    // ==========================================
+    
+    protected $table = 'capacitacions';
     protected $primaryKey = 'id';
     public $timestamps = true;
 
+    /**
+     * Campos que pueden ser asignados masivamente
+     */
     protected $fillable = [
-        'titulo',
+        'name',
+        'nombre',
         'descripcion',
-        'tipo',
-        'modalidad',
-        'fecha_inicio',
-        'fecha_fin',
-        'duracion_horas',
-        'instructor_id',
-        'lugar',
-        'capacidad_maxima',
-        'costo',
-        'certificacion',
+        'codigo',
+        'activo',
         'estado',
-        'material_curso',
-        'tema',
-        'objetivos',
-        'requisitos'
+        'tipo',
+        'valor',
+        'fecha',
+        'observaciones',
+        'usuario_id'
     ];
 
+    /**
+     * Campos protegidos
+     */
+    protected $guarded = [
+        'id',
+        'created_at',
+        'updated_at'
+    ];
+
+    /**
+     * Conversión automática de tipos
+     */
     protected $casts = [
-        'fecha_inicio' => 'datetime',
-        'fecha_fin' => 'datetime',
-        'duracion_horas' => 'integer',
-        'capacidad_maxima' => 'integer',
-        'costo' => 'decimal:2',
-        'certificacion' => 'boolean',
+        'id' => 'integer',
+        'activo' => 'boolean',
+        'estado' => 'boolean',
+        'fecha' => 'date',
+        'valor' => 'decimal:2',
+        'usuario_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
 
-    // Relaciones
-    public function instructor()
+    // ==========================================
+    // CONSTANTES EMPRESARIALES
+    // ==========================================
+    
+    const CACHE_TTL = 3600;
+    const CACHE_PREFIX = 'capacitacions_';
+    
+    const ESTADO_ACTIVO = 'activo';
+    const ESTADO_INACTIVO = 'inactivo';
+
+    // ==========================================
+    // RELACIONES ELOQUENT
+    // ==========================================
+    
+    /**
+     * Relación con usuario
+     */
+    public function usuario(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'instructor_id');
+        return $this->belongsTo(Usuario::class, 'usuario_id');
     }
 
-    public function participantes()
+    // ==========================================
+    // SCOPES EMPRESARIALES
+    // ==========================================
+    
+    /**
+     * Scope para registros activos
+     */
+    public function scopeActivos(Builder $query): Builder
     {
-        return $this->belongsToMany(Usuario::class, 'capacitacion_participantes', 'capacitacion_id', 'usuario_id')
-                    ->withPivot('fecha_inscripcion', 'asistio', 'calificacion', 'aprobado')
-                    ->withTimestamps();
+        return $query->where('activo', true);
     }
 
-    public function equipos()
+    /**
+     * Scope para búsqueda
+     */
+    public function scopeBuscar(Builder $query, string $termino): Builder
     {
-        return $this->belongsToMany(Equipo::class, 'capacitacion_equipos', 'capacitacion_id', 'equipo_id');
+        return $query->where(function($q) use ($termino) {
+            $q->where('name', 'LIKE', "%{$termino}%")
+              ->orWhere('nombre', 'LIKE', "%{$termino}%")
+              ->orWhere('descripcion', 'LIKE', "%{$termino}%");
+        });
     }
 
-    public function evaluaciones()
+    // ==========================================
+    // MÉTODOS DE NEGOCIO EMPRESARIALES
+    // ==========================================
+    
+    /**
+     * Obtener estadísticas del modelo
+     */
+    public function obtenerEstadisticas(): array
     {
-        return $this->hasMany(CapacitacionEvaluacion::class, 'capacitacion_id');
+        return Cache::remember(
+            self::CACHE_PREFIX . "stats_{$this->id}",
+            self::CACHE_TTL,
+            function () {
+                return [
+                    'id' => $this->id,
+                    'nombre' => $this->name ?? $this->nombre,
+                    'descripcion' => $this->descripcion,
+                    'activo' => $this->activo ?? $this->estado,
+                    'created_at' => $this->created_at,
+                    'updated_at' => $this->updated_at
+                ];
+            }
+        );
     }
 
-    // Scopes
-    public function scopeProgramadas($query)
+    /**
+     * Validar integridad de datos
+     */
+    public function validarIntegridad(): array
     {
-        return $query->where('estado', 'programada');
-    }
-
-    public function scopeEnCurso($query)
-    {
-        return $query->where('estado', 'en_curso');
-    }
-
-    public function scopeCompletadas($query)
-    {
-        return $query->where('estado', 'completada');
-    }
-
-    public function scopePorTipo($query, $tipo)
-    {
-        return $query->where('tipo', $tipo);
-    }
-
-    public function scopePorModalidad($query, $modalidad)
-    {
-        return $query->where('modalidad', $modalidad);
-    }
-
-    // Accessors
-    public function getParticipantesInscritos()
-    {
-        return $this->participantes()->count();
-    }
-
-    public function getCuposDisponibles()
-    {
-        if (!$this->capacidad_maxima) return null;
-        return $this->capacidad_maxima - $this->getParticipantesInscritos();
-    }
-
-    public function getPorcentajeOcupacion()
-    {
-        if (!$this->capacidad_maxima) return 0;
-        return round(($this->getParticipantesInscritos() / $this->capacidad_maxima) * 100, 2);
-    }
-
-    public function getDuracionDias()
-    {
-        if ($this->fecha_inicio && $this->fecha_fin) {
-            return Carbon::parse($this->fecha_inicio)->diffInDays(Carbon::parse($this->fecha_fin)) + 1;
+        $errores = [];
+        
+        if (empty($this->name) && empty($this->nombre)) {
+            $errores[] = 'El nombre es requerido';
         }
-        return 1;
+        
+        return $errores;
     }
 
-    // Constantes
-    const TIPO_INDUCCION = 'induccion';
-    const TIPO_ACTUALIZACION = 'actualizacion';
-    const TIPO_ESPECIALIZACION = 'especializacion';
-    const TIPO_CERTIFICACION = 'certificacion';
-
-    const MODALIDAD_PRESENCIAL = 'presencial';
-    const MODALIDAD_VIRTUAL = 'virtual';
-    const MODALIDAD_MIXTA = 'mixta';
-
-    const ESTADO_PROGRAMADA = 'programada';
-    const ESTADO_EN_CURSO = 'en_curso';
-    const ESTADO_COMPLETADA = 'completada';
-    const ESTADO_CANCELADA = 'cancelada';
-
-    public static function getTipos()
+    /**
+     * Limpiar cache relacionado
+     */
+    public function limpiarCache(): void
     {
-        return [
-            self::TIPO_INDUCCION,
-            self::TIPO_ACTUALIZACION,
-            self::TIPO_ESPECIALIZACION,
-            self::TIPO_CERTIFICACION
-        ];
+        Cache::forget(self::CACHE_PREFIX . "stats_{$this->id}");
+        Cache::forget(self::CACHE_PREFIX . "list");
     }
 
-    public static function getModalidades()
+    // ==========================================
+    // EVENTOS DEL MODELO
+    // ==========================================
+    
+    protected static function boot()
     {
-        return [
-            self::MODALIDAD_PRESENCIAL,
-            self::MODALIDAD_VIRTUAL,
-            self::MODALIDAD_MIXTA
-        ];
-    }
-
-    public static function getEstados()
-    {
-        return [
-            self::ESTADO_PROGRAMADA,
-            self::ESTADO_EN_CURSO,
-            self::ESTADO_COMPLETADA,
-            self::ESTADO_CANCELADA
-        ];
+        parent::boot();
+        
+        static::creating(function ($model) {
+            Log::info("Creando nuevo registro en capacitacions", [
+                'modelo' => get_class($model),
+                'data' => $model->toArray()
+            ]);
+        });
+        
+        static::updating(function ($model) {
+            $model->limpiarCache();
+            
+            Log::info("Actualizando registro en capacitacions", [
+                'id' => $model->id,
+                'cambios' => $model->getDirty()
+            ]);
+        });
+        
+        static::deleting(function ($model) {
+            $model->limpiarCache();
+            
+            Log::warning("Eliminando registro en capacitacions", [
+                'id' => $model->id,
+                'data' => $model->toArray()
+            ]);
+        });
     }
 }

@@ -22,6 +22,17 @@ class ServicioController extends ApiController
     /**
      * Obtener lista de servicios con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/servicios",
+     *     tags={"Servicios"},
+     *     summary="Listar servicios",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -75,6 +86,17 @@ class ServicioController extends ApiController
     /**
      * Crear nuevo servicio
      */
+        /**
+     * @OA\POST(
+     *     path="/api/servicios",
+     *     tags={"Servicios"},
+     *     summary="Crear nuevo servicio",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -112,6 +134,23 @@ class ServicioController extends ApiController
     /**
      * Mostrar servicio específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/servicios/{id}",
+     *     tags={"Servicios"},
+     *     summary="Obtener servicio específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -146,6 +185,23 @@ class ServicioController extends ApiController
     /**
      * Actualizar servicio
      */
+        /**
+     * @OA\PUT(
+     *     path="/api/servicios/{id}",
+     *     tags={"Servicios"},
+     *     summary="Actualizar servicio",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
@@ -179,6 +235,23 @@ class ServicioController extends ApiController
 
     /**
      * Eliminar servicio
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/servicios/{id}",
+     *     tags={"Servicios"},
+     *     summary="Eliminar servicio",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

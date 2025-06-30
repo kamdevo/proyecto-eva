@@ -16,6 +16,28 @@ class AdministradorController extends ApiController
     /**
      * Obtener lista de usuarios
      */
+        /**
+     * @OA\GET(
+     *     path="/api/administradores",
+     *     tags={"Administradores"},
+     *     summary="Listar administradores",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/administradores",
+     *     tags={"Administradores"},
+     *     summary="Listar administradores",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -38,6 +60,28 @@ class AdministradorController extends ApiController
 
     /**
      * Crear nuevo usuario
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/administradores",
+     *     tags={"Administradores"},
+     *     summary="Crear nuevo administrador",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/administradores",
+     *     tags={"Administradores"},
+     *     summary="Crear nuevo administrador",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request)
     {
@@ -83,6 +127,40 @@ class AdministradorController extends ApiController
     /**
      * Obtener usuario específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/administradores/{id}",
+     *     tags={"Administradores"},
+     *     summary="Obtener administrador específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/administradores/{id}",
+     *     tags={"Administradores"},
+     *     summary="Obtener administrador específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show(string $id)
     {
         try {
@@ -95,6 +173,40 @@ class AdministradorController extends ApiController
 
     /**
      * Actualizar usuario
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/administradores/{id}",
+     *     tags={"Administradores"},
+     *     summary="Actualizar administrador",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/administradores/{id}",
+     *     tags={"Administradores"},
+     *     summary="Actualizar administrador",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, string $id)
     {
@@ -137,6 +249,40 @@ class AdministradorController extends ApiController
 
     /**
      * Eliminar usuario
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/administradores/{id}",
+     *     tags={"Administradores"},
+     *     summary="Eliminar administrador",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/administradores/{id}",
+     *     tags={"Administradores"},
+     *     summary="Eliminar administrador",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy(string $id)
     {

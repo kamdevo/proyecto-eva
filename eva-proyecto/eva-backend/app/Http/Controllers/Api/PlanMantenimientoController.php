@@ -22,6 +22,17 @@ class PlanMantenimientoController extends ApiController
     /**
      * Obtener lista paginada de planes de mantenimiento
      */
+        /**
+     * @OA\GET(
+     *     path="/api/planes-mantenimiento",
+     *     tags={"Planes de Mantenimiento"},
+     *     summary="Listar planes de mantenimiento",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -78,6 +89,17 @@ class PlanMantenimientoController extends ApiController
 
     /**
      * Crear nuevo plan de mantenimiento
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/planes-mantenimiento",
+     *     tags={"Planes de Mantenimiento"},
+     *     summary="Crear nuevo plan",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request)
     {
@@ -144,6 +166,23 @@ class PlanMantenimientoController extends ApiController
     /**
      * Mostrar plan de mantenimiento específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/planes-mantenimiento/{id}",
+     *     tags={"Planes de Mantenimiento"},
+     *     summary="Obtener plan específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -172,6 +211,23 @@ class PlanMantenimientoController extends ApiController
 
     /**
      * Actualizar plan de mantenimiento
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/planes-mantenimiento/{id}",
+     *     tags={"Planes de Mantenimiento"},
+     *     summary="Actualizar plan",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -237,6 +293,23 @@ class PlanMantenimientoController extends ApiController
 
     /**
      * Eliminar plan de mantenimiento
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/planes-mantenimiento/{id}",
+     *     tags={"Planes de Mantenimiento"},
+     *     summary="Eliminar plan",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

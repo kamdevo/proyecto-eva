@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => env('QUEUE_CONNECTION', 'database'),
+    'default' => env('QUEUE_CONNECTION', 'redis'),
 
     /*
     |--------------------------------------------------------------------------
@@ -68,6 +68,61 @@ return [
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        // Enterprise queue configurations
+        'critical-events' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'critical-events',
+            'retry_after' => 30,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'high-priority' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'high-priority',
+            'retry_after' => 60,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'notifications' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'notifications',
+            'retry_after' => 120,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'reports' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'reports',
+            'retry_after' => 300,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'maintenance' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'maintenance',
+            'retry_after' => 180,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
+        'file-processing' => [
+            'driver' => 'redis',
+            'connection' => 'default',
+            'queue' => 'file-processing',
+            'retry_after' => 600,
             'block_for' => null,
             'after_commit' => false,
         ],

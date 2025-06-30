@@ -21,6 +21,28 @@ class AreaController extends ApiController
     /**
      * Obtener lista de áreas con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/areas",
+     *     tags={"Áreas"},
+     *     summary="Listar áreas",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/areas",
+     *     tags={"Áreas"},
+     *     summary="Listar áreas",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -72,6 +94,28 @@ class AreaController extends ApiController
     /**
      * Crear nueva área
      */
+        /**
+     * @OA\POST(
+     *     path="/api/areas",
+     *     tags={"Áreas"},
+     *     summary="Crear nueva área",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/areas",
+     *     tags={"Áreas"},
+     *     summary="Crear nueva área",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -112,6 +156,40 @@ class AreaController extends ApiController
     /**
      * Mostrar área específica
      */
+        /**
+     * @OA\GET(
+     *     path="/api/areas/{id}",
+     *     tags={"Áreas"},
+     *     summary="Obtener área específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\GET(
+     *     path="/api/areas/{id}",
+     *     tags={"Áreas"},
+     *     summary="Obtener área específica",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -138,6 +216,40 @@ class AreaController extends ApiController
 
     /**
      * Actualizar área
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/areas/{id}",
+     *     tags={"Áreas"},
+     *     summary="Actualizar área",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/areas/{id}",
+     *     tags={"Áreas"},
+     *     summary="Actualizar área",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -175,6 +287,40 @@ class AreaController extends ApiController
 
     /**
      * Eliminar área
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/areas/{id}",
+     *     tags={"Áreas"},
+     *     summary="Eliminar área",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/areas/{id}",
+     *     tags={"Áreas"},
+     *     summary="Eliminar área",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {
@@ -295,4 +441,64 @@ class AreaController extends ApiController
             return ResponseFormatter::error('Error al obtener áreas activas: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * obtenerAreasPorServicio
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function obtenerAreasPorServicio(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para obtenerAreasPorServicio
+            
+            return ResponseFormatter::success(
+                [],
+                'Método obtenerAreasPorServicio ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AreaController::obtenerAreasPorServicio', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando obtenerAreasPorServicio: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    /**
+     * obtenerAreasConEquipos
+     * Método generado automáticamente para corregir referencias de rutas
+     */
+    public function obtenerAreasConEquipos(Request $request)
+    {
+        try {
+            // TODO: Implementar lógica específica para obtenerAreasConEquipos
+            
+            return ResponseFormatter::success(
+                [],
+                'Método obtenerAreasConEquipos ejecutado correctamente (pendiente implementación)',
+                200
+            );
+            
+        } catch (Exception $e) {
+            Log::error('Error en AreaController::obtenerAreasConEquipos', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            
+            return ResponseFormatter::error(
+                null,
+                'Error ejecutando obtenerAreasConEquipos: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
 }

@@ -21,6 +21,17 @@ class PropietarioController extends ApiController
     /**
      * Obtener lista paginada de propietarios
      */
+        /**
+     * @OA\GET(
+     *     path="/api/propietarios",
+     *     tags={"Propietarios"},
+     *     summary="Listar propietarios",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -58,6 +69,17 @@ class PropietarioController extends ApiController
 
     /**
      * Crear nuevo propietario
+     */
+        /**
+     * @OA\POST(
+     *     path="/api/propietarios",
+     *     tags={"Propietarios"},
+     *     summary="Crear nuevo propietario",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function store(Request $request)
     {
@@ -103,6 +125,23 @@ class PropietarioController extends ApiController
     /**
      * Mostrar propietario específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/propietarios/{id}",
+     *     tags={"Propietarios"},
+     *     summary="Obtener propietario específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -128,6 +167,23 @@ class PropietarioController extends ApiController
 
     /**
      * Actualizar propietario
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/propietarios/{id}",
+     *     tags={"Propietarios"},
+     *     summary="Actualizar propietario",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -178,6 +234,23 @@ class PropietarioController extends ApiController
 
     /**
      * Eliminar propietario
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/propietarios/{id}",
+     *     tags={"Propietarios"},
+     *     summary="Eliminar propietario",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {

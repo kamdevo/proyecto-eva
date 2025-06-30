@@ -22,6 +22,17 @@ class RepuestosController extends ApiController
     /**
      * Obtener lista de repuestos con filtros
      */
+        /**
+     * @OA\GET(
+     *     path="/api/repuestos",
+     *     tags={"Repuestos"},
+     *     summary="Listar repuestos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function index(Request $request)
     {
         try {
@@ -96,6 +107,17 @@ class RepuestosController extends ApiController
     /**
      * Crear nuevo repuesto
      */
+        /**
+     * @OA\POST(
+     *     path="/api/repuestos",
+     *     tags={"Repuestos"},
+     *     summary="Crear nuevo repuesto",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -161,6 +183,23 @@ class RepuestosController extends ApiController
     /**
      * Mostrar repuesto específico
      */
+        /**
+     * @OA\GET(
+     *     path="/api/repuestos/{id}",
+     *     tags={"Repuestos"},
+     *     summary="Obtener repuesto específico",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
+     */
     public function show($id)
     {
         try {
@@ -191,6 +230,23 @@ class RepuestosController extends ApiController
 
     /**
      * Actualizar repuesto
+     */
+        /**
+     * @OA\PUT(
+     *     path="/api/repuestos/{id}",
+     *     tags={"Repuestos"},
+     *     summary="Actualizar repuesto",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function update(Request $request, $id)
     {
@@ -260,6 +316,23 @@ class RepuestosController extends ApiController
 
     /**
      * Eliminar repuesto
+     */
+        /**
+     * @OA\DELETE(
+     *     path="/api/repuestos/{id}",
+     *     tags={"Repuestos"},
+     *     summary="Eliminar repuesto",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Operación exitosa"),
+     *     @OA\Response(response=401, description="No autorizado"),
+     *     @OA\Response(response=500, description="Error interno del servidor")
+     * )
      */
     public function destroy($id)
     {
