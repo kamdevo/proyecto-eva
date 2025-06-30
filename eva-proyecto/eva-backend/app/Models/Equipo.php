@@ -145,9 +145,70 @@ class Equipo extends Model
         return $this->belongsTo(Tipo::class, 'tipo_id');
     }
 
-    public function disponibilidad()
+    // Nota: Disponibilidad no existe en la estructura real de BD
+    // public function disponibilidad()
+    // {
+    //     return $this->belongsTo(Disponibilidad::class, 'disponibilidad_id');
+    // }
+
+    /**
+     * Scope para cargar relaciones optimizadas
+     */
+    public function scopeWithOptimizedRelations($query)
     {
-        return $this->belongsTo(Disponibilidad::class, 'disponibilidad_id');
+        return $query->with([
+            'servicio:id,nombre',
+            'area:id,nombre',
+            'propietario:id,nombre',
+            'fuenteAlimentacion:id,nombre',
+            'tecnologia:id,nombre',
+            'frecuenciaMantenimiento:id,nombre',
+            'clasificacionBiomedica:id,nombre',
+            'clasificacionRiesgo:id,nombre',
+            'estadoEquipo:id,nombre',
+            'tipo:id,nombre'
+        ]);
+    }
+
+    /**
+     * Scope para equipos activos con relaciones
+     */
+    public function scopeActiveWithRelations($query)
+    {
+        return $query->where('status', true)->withOptimizedRelations();
+    }
+
+    /**
+     * Scope para búsqueda optimizada
+     */
+    public function scopeSearch($query, $search)
+    {
+        return $query->where(function($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhere('code', 'like', "%{$search}%")
+              ->orWhere('marca', 'like', "%{$search}%")
+              ->orWhere('modelo', 'like', "%{$search}%")
+              ->orWhere('serial', 'like', "%{$search}%");
+        });
+    }
+
+    /**
+     * Obtener equipos con mantenimientos pendientes (optimizado)
+     */
+    public function scopeWithPendingMaintenance($query)
+    {
+        return $query->whereHas('mantenimientos', function($q) {
+            $q->where('status', 'programado')
+              ->where('fecha_programada', '<=', now()->addDays(30));
+        });
+    }
+
+    /**
+     * Obtener equipos críticos (optimizado)
+     */
+    public function scopeCritical($query)
+    {
+        return $query->where('criesgo_id', 1); // Asumiendo que 1 = Alto riesgo
     }
 
     public function mantenimientos()

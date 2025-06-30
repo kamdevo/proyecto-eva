@@ -18,6 +18,8 @@ use App\Models\TipoAdquisicion;
 use App\Models\EstadoEquipo;
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use App\Http\Requests\StoreEquipmentRequest;
+use App\Http\Requests\UpdateEquipmentRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -51,13 +53,13 @@ class EquipmentController extends ApiController
             // Aplicar filtros de búsqueda
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('code', 'like', "%{$search}%")
-                      ->orWhere('marca', 'like', "%{$search}%")
-                      ->orWhere('modelo', 'like', "%{$search}%")
-                      ->orWhere('serial', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
+                        ->orWhere('code', 'like', "%{$search}%")
+                        ->orWhere('marca', 'like', "%{$search}%")
+                        ->orWhere('modelo', 'like', "%{$search}%")
+                        ->orWhere('serial', 'like', "%{$search}%")
+                        ->orWhere('descripcion', 'like', "%{$search}%");
                 });
             }
 
@@ -143,20 +145,30 @@ class EquipmentController extends ApiController
             $orderDirection = $request->get('order_direction', 'desc');
             $query->orderBy($orderBy, $orderDirection);
 
-            // Paginación
-            $perPage = $request->get('per_page', 15);
+            // Paginación con límite de seguridad
+            $perPage = min($request->get('per_page', 15), 100); // Máximo 100 por página
             $equipos = $query->paginate($perPage);
 
-            // Agregar URL de imagen a cada equipo
+            // Agregar URL de imagen y metadatos adicionales
             $equipos->getCollection()->transform(function ($equipo) {
                 if ($equipo->image) {
                     $equipo->image_url = Storage::disk('public')->url($equipo->image);
                 }
+
+                // Agregar información adicional útil
+                $equipo->mantenimientos_pendientes = $equipo->mantenimientos()
+                    ->where('status', 'programado')
+                    ->where('fecha_programada', '<=', now()->addDays(30))
+                    ->count();
+
+                $equipo->contingencias_activas = $equipo->contingencias()
+                    ->where('estado_id', '!=', 3) // 3 = Cerrado
+                    ->count();
+
                 return $equipo;
             });
 
             return ResponseFormatter::success($equipos, 'Equipos obtenidos exitosamente');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener equipos: ' . $e->getMessage(), 500);
         }
@@ -165,50 +177,9 @@ class EquipmentController extends ApiController
     /**
      * Crear nuevo equipo con validaciones completas
      */
-    public function store(Request $request)
+    public function store(StoreEquipmentRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|unique:equipos,code|max:100',
-            'servicio_id' => 'required|exists:servicios,id',
-            'area_id' => 'required|exists:areas,id',
-            'marca' => 'nullable|string|max:100',
-            'modelo' => 'nullable|string|max:100',
-            'serial' => 'nullable|string|max:100',
-            'descripcion' => 'nullable|string',
-            'costo' => 'nullable|numeric|min:0',
-            'fecha_fabricacion' => 'nullable|date',
-            'fecha_instalacion' => 'nullable|date',
-            'fecha_inicio_operacion' => 'nullable|date',
-            'fecha_acta_recibo' => 'nullable|date',
-            'fecha_vencimiento_garantia' => 'nullable|date',
-            'vida_util' => 'nullable|integer|min:1',
-            'propietario_id' => 'nullable|exists:propietarios,id',
-            'fuente_id' => 'nullable|exists:fuenteal,id',
-            'tecnologia_id' => 'nullable|exists:tecnologiap,id',
-            'frecuencia_id' => 'nullable|exists:frecuenciam,id',
-            'cbiomedica_id' => 'nullable|exists:cbiomedica,id',
-            'criesgo_id' => 'nullable|exists:criesgo,id',
-            'tadquisicion_id' => 'nullable|exists:tadquisicion,id',
-            'estadoequipo_id' => 'nullable|exists:estadoequipos,id',
-            'tipo_id' => 'nullable|exists:tipos,id',
-            'invima' => 'nullable|string|max:100',
-            'garantia' => 'nullable|string|max:255',
-            'accesorios' => 'nullable|string',
-            'localizacion_actual' => 'nullable|string|max:255',
-            'verificacion_inventario' => 'nullable|boolean',
-            'calibracion' => 'nullable|boolean',
-            'repuesto_pendiente' => 'nullable|boolean',
-            'movilidad' => 'nullable|string|max:100',
-            'propiedad' => 'nullable|string|max:100',
-            'evaluacion_desempenio' => 'nullable|string|max:100',
-            'periodicidad' => 'nullable|string|max:100',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120'
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseFormatter::validation($validator->errors());
-        }
+        // Las validaciones ya están manejadas por el FormRequest
 
         try {
             DB::beginTransaction();
@@ -229,16 +200,16 @@ class EquipmentController extends ApiController
 
             // Cargar relaciones para la respuesta
             $equipo->load([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name',
-                'tipo:id,name'
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre',
+                'tipo:id,nombre'
             ]);
 
             if ($equipo->image) {
@@ -248,7 +219,6 @@ class EquipmentController extends ApiController
             DB::commit();
 
             return ResponseFormatter::success($equipo, 'Equipo creado exitosamente', 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseFormatter::error('Error al crear equipo: ' . $e->getMessage(), 500);
@@ -262,33 +232,33 @@ class EquipmentController extends ApiController
     {
         try {
             $equipo = Equipo::with([
-                'servicio:id,name',
-                'area:id,name',
-                'propietario:id,name',
-                'fuenteAlimentacion:id,name',
-                'tecnologia:id,name',
-                'frecuenciaMantenimiento:id,name',
-                'clasificacionBiomedica:id,name',
-                'clasificacionRiesgo:id,name',
-                'estadoEquipo:id,name',
-                'tipo:id,name',
-                'mantenimientos' => function($query) {
+                'servicio:id,nombre',
+                'area:id,nombre',
+                'propietario:id,nombre',
+                'fuenteAlimentacion:id,nombre',
+                'tecnologia:id,nombre',
+                'frecuenciaMantenimiento:id,nombre',
+                'clasificacionBiomedica:id,nombre',
+                'clasificacionRiesgo:id,nombre',
+                'estadoEquipo:id,nombre',
+                'tipo:id,nombre',
+                'mantenimientos' => function ($query) {
                     $query->with('tecnico:id,nombre,apellido')
-                          ->orderBy('fecha_programada', 'desc')
-                          ->limit(10);
+                        ->orderBy('fecha_programada', 'desc')
+                        ->limit(10);
                 },
-                'contingencias' => function($query) {
+                'contingencias' => function ($query) {
                     $query->with('usuarioReporta:id,nombre,apellido')
-                          ->where('estado', '!=', 'Cerrado')
-                          ->orderBy('fecha', 'desc');
+                        ->where('estado', '!=', 'Cerrado')
+                        ->orderBy('fecha', 'desc');
                 },
-                'calibraciones' => function($query) {
+                'calibraciones' => function ($query) {
                     $query->orderBy('fecha', 'desc')->limit(5);
                 },
-                'observaciones' => function($query) {
+                'observaciones' => function ($query) {
                     $query->with('usuario:id,nombre,apellido')
-                          ->orderBy('created_at', 'desc')
-                          ->limit(10);
+                        ->orderBy('created_at', 'desc')
+                        ->limit(10);
                 },
                 'archivos',
                 'contactos',
@@ -314,7 +284,6 @@ class EquipmentController extends ApiController
             ];
 
             return ResponseFormatter::success($equipo, 'Equipo obtenido exitosamente');
-
         } catch (\Exception $e) {
             return ResponseFormatter::notFound('Equipo no encontrado');
         }
@@ -410,7 +379,6 @@ class EquipmentController extends ApiController
             DB::commit();
 
             return ResponseFormatter::success($equipo, 'Equipo actualizado exitosamente');
-
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseFormatter::error('Error al actualizar equipo: ' . $e->getMessage(), 500);
@@ -453,7 +421,6 @@ class EquipmentController extends ApiController
             $equipo->update(['status' => false]);
 
             return ResponseFormatter::success(null, 'Equipo eliminado exitosamente');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al eliminar equipo: ' . $e->getMessage(), 500);
         }
@@ -503,7 +470,6 @@ class EquipmentController extends ApiController
             DB::commit();
 
             return ResponseFormatter::success($equipo, 'Equipo dado de baja exitosamente');
-
         } catch (\Exception $e) {
             DB::rollBack();
             return ResponseFormatter::error('Error al dar de baja equipo: ' . $e->getMessage(), 500);
@@ -532,7 +498,6 @@ class EquipmentController extends ApiController
             ]);
 
             return ResponseFormatter::success($equipoDuplicado, 'Equipo duplicado exitosamente');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al duplicar equipo: ' . $e->getMessage(), 500);
         }
@@ -551,7 +516,6 @@ class EquipmentController extends ApiController
                 ->get();
 
             return ResponseFormatter::success($equipos, 'Equipos del servicio obtenidos');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener equipos: ' . $e->getMessage(), 500);
         }
@@ -570,7 +534,6 @@ class EquipmentController extends ApiController
                 ->get();
 
             return ResponseFormatter::success($equipos, 'Equipos del área obtenidos');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener equipos: ' . $e->getMessage(), 500);
         }
@@ -586,26 +549,25 @@ class EquipmentController extends ApiController
                 'servicio:id,name',
                 'area:id,name',
                 'clasificacionRiesgo:id,name',
-                'contingencias' => function($query) {
+                'contingencias' => function ($query) {
                     $query->where('estado', '!=', 'Cerrado');
                 }
             ])
-            ->whereHas('clasificacionRiesgo', function($query) {
-                $query->whereIn('name', ['ALTO', 'MEDIO ALTO']);
-            })
-            ->where(function($query) {
-                $query->where('fecha_mantenimiento', '<', now()->subDays(30))
-                      ->orWhereHas('contingencias', function($q) {
-                          $q->where('estado', '!=', 'Cerrado')
-                            ->where('severidad', 'Alta');
-                      });
-            })
-            ->where('status', true)
-            ->orderBy('created_at', 'desc')
-            ->get();
+                ->whereHas('clasificacionRiesgo', function ($query) {
+                    $query->whereIn('name', ['ALTO', 'MEDIO ALTO']);
+                })
+                ->where(function ($query) {
+                    $query->where('fecha_mantenimiento', '<', now()->subDays(30))
+                        ->orWhereHas('contingencias', function ($q) {
+                            $q->where('estado', '!=', 'Cerrado')
+                                ->where('severidad', 'Alta');
+                        });
+                })
+                ->where('status', true)
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             return ResponseFormatter::success($equipos, 'Equipos críticos obtenidos');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener equipos críticos: ' . $e->getMessage(), 500);
         }
@@ -745,7 +707,6 @@ class EquipmentController extends ApiController
                 ->paginate($request->get('per_page', 15));
 
             return ResponseFormatter::success($equipos, 'Búsqueda avanzada completada');
-
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error en búsqueda avanzada: ' . $e->getMessage(), 500);
         }

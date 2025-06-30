@@ -22,3 +22,17 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Archivos adicionales a ignorar para evitar duplicaciones
+*.backup
+*.bak
+*.tmp
+*.sql
+/laravel-api/
+/api/
+*_BACKUP_*
+*_ORIGINAL_*
+REPORTE_*.md
+/backups/
+*.zip
+*.tar.gz

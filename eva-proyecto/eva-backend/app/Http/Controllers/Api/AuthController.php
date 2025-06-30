@@ -7,6 +7,8 @@ use App\ConexionesVista\ApiController;
 use App\ConexionesVista\ResponseFormatter;
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -14,18 +16,50 @@ use Illuminate\Support\Facades\Validator;
 class AuthController extends ApiController
 {
     /**
+     * @OA\Post(
+     *     path="/login",
+     *     tags={"Autenticación"},
+     *     summary="Iniciar sesión",
+     *     description="Autentica un usuario y devuelve un token de acceso",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"username","password"},
+     *             @OA\Property(property="username", type="string", example="admin@hospital.com"),
+     *             @OA\Property(property="password", type="string", example="password123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login exitoso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Login exitoso"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="user", ref="#/components/schemas/User"),
+     *                 @OA\Property(property="token", type="string", example="1|abc123def456...")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Credenciales inválidas",
+     *         @OA\JsonContent(ref="#/components/schemas/ApiResponse")
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Error de validación",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     )
+     * )
+     *
      * Login de usuario
      */
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'username' => 'required|string',
-            'password' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseFormatter::validation($validator->errors());
-        }
+        // Las validaciones ya están manejadas por el FormRequest
 
         try {
             // Buscar usuario por username o email
@@ -52,29 +86,24 @@ class AuthController extends ApiController
 
             return ResponseFormatter::success($response, 'Login exitoso');
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error en el login: ' . $e->getMessage(), 500);
+            // Log del error sin exponer información sensible
+            \Log::warning('Intento de login fallido', [
+                'username' => $request->username,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now()
+            ]);
+
+            return ResponseFormatter::error('Error en el proceso de autenticación', 500);
         }
     }
 
     /**
      * Registro de usuario
      */
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:100',
-            'apellido' => 'nullable|string|max:100',
-            'telefono' => 'nullable|string|max:20',
-            'email' => 'required|email|unique:usuarios,email',
-            'username' => 'required|string|unique:usuarios,username|max:45',
-            'password' => 'required|string|min:6|confirmed',
-            'centro_id' => 'nullable|string|max:100',
-            'id_empresa' => 'nullable|integer',
-        ]);
-
-        if ($validator->fails()) {
-            return ResponseFormatter::validation($validator->errors());
-        }
+        // Las validaciones ya están manejadas por el FormRequest
 
         try {
             $usuario = Usuario::create([
@@ -102,7 +131,15 @@ class AuthController extends ApiController
 
             return ResponseFormatter::success($response, 'Usuario registrado exitosamente', 201);
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error en el registro: ' . $e->getMessage(), 500);
+            // Log del error sin exponer información sensible
+            \Log::error('Error en registro de usuario', [
+                'email' => $request->email,
+                'username' => $request->username,
+                'ip' => $request->ip(),
+                'error' => $e->getMessage()
+            ]);
+
+            return ResponseFormatter::error('Error en el proceso de registro', 500);
         }
     }
 
