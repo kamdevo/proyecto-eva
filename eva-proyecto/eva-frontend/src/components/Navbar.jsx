@@ -36,6 +36,7 @@ import {
   User,
   ChevronRight,
   Search,
+  AlignJustify,
 } from "lucide-react";
 
 const Header = () => {

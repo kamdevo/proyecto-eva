@@ -23,8 +23,7 @@ use Illuminate\Support\Facades\Route;
 
 // Agrupación optimizada de rutas con middleware empresarial
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
-    Route::middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->Route::get('/', function () {
-    return view('welcome');
-});
-
+    Route::get('/', function () {
+        return view('welcome');
+    });
 });

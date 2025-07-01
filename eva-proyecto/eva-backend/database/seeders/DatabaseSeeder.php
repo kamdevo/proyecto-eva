@@ -79,11 +79,11 @@ class DatabaseSeeder extends Seeder
 
         // Roles del sistema
         $roles = [
-            ['id' => 1, 'name' => 'Administrador', 'description' => 'Acceso completo al sistema'],
-            ['id' => 2, 'name' => 'Ingeniero Biomédico', 'description' => 'Gestión de equipos y mantenimientos'],
-            ['id' => 3, 'name' => 'Técnico', 'description' => 'Ejecución de mantenimientos'],
-            ['id' => 4, 'name' => 'Usuario Final', 'description' => 'Consulta de información'],
-            ['id' => 5, 'name' => 'Supervisor', 'description' => 'Supervisión de actividades'],
+            ['id' => 1, 'nombre' => 'Administrador', 'descripcion' => 'Acceso completo al sistema'],
+            ['id' => 2, 'nombre' => 'Ingeniero Biomédico', 'descripcion' => 'Gestión de equipos y mantenimientos'],
+            ['id' => 3, 'nombre' => 'Técnico', 'descripcion' => 'Ejecución de mantenimientos'],
+            ['id' => 4, 'nombre' => 'Usuario Final', 'descripcion' => 'Consulta de información'],
+            ['id' => 5, 'nombre' => 'Supervisor', 'descripcion' => 'Supervisión de actividades'],
         ];
 
         foreach ($roles as $rol) {
@@ -92,9 +92,9 @@ class DatabaseSeeder extends Seeder
 
         // Empresas
         $empresas = [
-            ['id' => 1, 'name' => 'Hospital Universitario San Vicente Fundación', 'nit' => '890903407-1'],
-            ['id' => 2, 'name' => 'Clínica Las Vegas', 'nit' => '890903408-2'],
-            ['id' => 3, 'name' => 'IPS Universitaria', 'nit' => '890903409-3'],
+            ['id' => 1, 'name' => 'Hospital Universitario San Vicente Fundación', 'estado' => 1, 'area' => 'Salud'],
+            ['id' => 2, 'name' => 'Clínica Las Vegas', 'estado' => 1, 'area' => 'Salud'],
+            ['id' => 3, 'name' => 'IPS Universitaria', 'estado' => 1, 'area' => 'Salud'],
         ];
 
         foreach ($empresas as $empresa) {
@@ -103,9 +103,9 @@ class DatabaseSeeder extends Seeder
 
         // Sedes
         $sedes = [
-            ['id' => 1, 'name' => 'Sede Principal', 'direccion' => 'Calle 64 #51D-154', 'ciudad' => 'Medellín'],
-            ['id' => 2, 'name' => 'Sede Norte', 'direccion' => 'Carrera 80 #30-20', 'ciudad' => 'Medellín'],
-            ['id' => 3, 'name' => 'Sede Sur', 'direccion' => 'Carrera 48 #20-10', 'ciudad' => 'Medellín'],
+            ['id' => 1, 'name' => 'Sede Principal'],
+            ['id' => 2, 'name' => 'Sede Norte'],
+            ['id' => 3, 'name' => 'Sede Sur'],
         ];
 
         foreach ($sedes as $sede) {

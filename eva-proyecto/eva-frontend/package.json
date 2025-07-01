@@ -25,6 +25,7 @@
     "@tailwindcss/vite": "^4.1.10",
     "@tsparticles/all": "^3.8.1",
     "@tsparticles/react": "^3.0.0",
+    "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.517.0",
