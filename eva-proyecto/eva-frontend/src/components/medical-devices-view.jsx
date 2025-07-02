@@ -11,6 +11,7 @@ import {
   Merge,
   FileSpreadsheet,
   Files,
+  Link,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -699,8 +700,9 @@ export function MedicalDevicesView() {
                           Último Preventivo:
                         </span>
                       </div>
-                      <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
+                      <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center ">
                         {equipment.ejecucionPlan.ultimoMantenimiento}
+                        <Link size={15} />
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Search, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Link,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -201,10 +208,7 @@ export default function EquiposBajas() {
                     Descripción
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium">
-                    Archivo
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium">
-                    Usuario
+                    Acciones
                   </th>
                 </tr>
               </thead>
@@ -221,37 +225,39 @@ export default function EquiposBajas() {
                       <div className="line-clamp-2">{document.description}</div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDocumentClick(document)}
-                        className="p-2 hover:bg-blue-50 rounded-full"
-                      >
-                        <div className="relative">
-                          <FileText className="h-6 w-6 text-blue-600" />
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full flex items-center justify-center">
-                            <div className="w-1 h-1 bg-white rounded-full"></div>
+                      <div className="flex items-center justify-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDocumentClick(document)}
+                          className="p-2 hover:bg-blue-50 rounded-full"
+                          title="Ver documento"
+                        >
+                          <div className="relative">
+                            <FileText className="h-6 w-6 text-blue-600" />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full flex items-center justify-center">
+                              <div className="w-1 h-1 bg-white rounded-full"></div>
+                            </div>
                           </div>
-                        </div>
-                      </Button>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium text-gray-600">
-                            {document.user
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .slice(0, 2)}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-medium">{document.user}</div>
-                          <div className="text-xs text-gray-500">
-                            {document.time}
-                          </div>
-                        </div>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => console.log("Editar", document.id)}
+                          className="p-2 hover:bg-green-50 rounded-full"
+                          title="Editar"
+                        >
+                          <Edit className="h-6 w-6 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => console.log("Asociar", document.id)}
+                          className="p-2 hover:bg-purple-50 rounded-full"
+                          title="Asociar"
+                        >
+                          <Link className="h-6 w-6 text-purple-600" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -270,17 +276,38 @@ export default function EquiposBajas() {
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="font-medium text-gray-900">{document.id}</div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDocumentClick(document)}
-                  className="p-2 hover:bg-blue-50 rounded-full"
-                >
-                  <div className="relative">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full"></div>
-                  </div>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDocumentClick(document)}
+                    className="p-2 hover:bg-blue-50 rounded-full"
+                    title="Ver documento"
+                  >
+                    <div className="relative">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full"></div>
+                    </div>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => console.log("Editar", document.id)}
+                    className="p-2 hover:bg-green-50 rounded-full"
+                    title="Editar"
+                  >
+                    <Edit className="h-5 w-5 text-green-600" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => console.log("Asociar", document.id)}
+                    className="p-2 hover:bg-purple-50 rounded-full"
+                    title="Asociar"
+                  >
+                    <Link className="h-5 w-5 text-purple-600" />
+                  </Button>
+                </div>
               </div>
               <p className="text-sm text-gray-700 mb-3 line-clamp-3">
                 {document.description}
@@ -419,7 +446,7 @@ export default function EquiposBajas() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Usuario
+                  Accio
                 </label>
                 <div className="p-3 bg-gray-50 rounded-md text-sm">
                   {selectedDocument.user}
