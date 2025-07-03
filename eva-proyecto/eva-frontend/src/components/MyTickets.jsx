@@ -46,6 +46,7 @@ import {
   Building,
   Cog,
   Truck,
+  FolderOpen,
 } from "lucide-react";
 
 export default function MyTickets() {
@@ -817,27 +818,13 @@ export default function MyTickets() {
                       </TableCell>
                       <TableCell>{getStatusBadge(ticket.status)}</TableCell>
                       <TableCell>
-                        <div className="flex justify-center gap-1">
+                        <div className="flex justify-center">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                           >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
+                            <FolderOpen className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>

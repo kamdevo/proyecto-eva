@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Edit,
   Link,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +24,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ModalAgregarBaja from "@/components/modals/agregar-baja-modal";
+import ModalEditarDocumento from "@/components/modals/editar-baja-modal";
+import ModalTablaEquipos from "@/components/modals/tabla-equipos-asociar";
 
 export default function EquiposBajas() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [isAgregarBajaModalOpen, setIsAgregarBajaModalOpen] = useState(false);
+  const [isEditarBajaModalOpen, setIsEditarBajaModalOpen] = useState(false);
+  const [isAsociarEquiposModalOpen, setIsAsociarEquiposModalOpen] =
+    useState(false);
   const itemsPerPage = 10;
 
   const documents = [
@@ -195,6 +203,18 @@ export default function EquiposBajas() {
           </p>
         </div>
 
+        {/* Add Button */}
+        <div className="mb-6 flex justify-start">
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            onClick={() => setIsAgregarBajaModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Agregar baja</span>
+            <span className="sm:hidden">Agregar</span>
+          </Button>
+        </div>
+
         {/* Desktop Table */}
         <div className="hidden lg:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -243,7 +263,10 @@ export default function EquiposBajas() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => console.log("Editar", document.id)}
+                          onClick={() => {
+                            setSelectedDocument(document);
+                            setIsEditarBajaModalOpen(true);
+                          }}
                           className="p-2 hover:bg-green-50 rounded-full"
                           title="Editar"
                         >
@@ -252,7 +275,10 @@ export default function EquiposBajas() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => console.log("Asociar", document.id)}
+                          onClick={() => {
+                            setSelectedDocument(document);
+                            setIsAsociarEquiposModalOpen(true);
+                          }}
                           className="p-2 hover:bg-purple-50 rounded-full"
                           title="Asociar"
                         >
@@ -292,7 +318,10 @@ export default function EquiposBajas() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => console.log("Editar", document.id)}
+                    onClick={() => {
+                      setSelectedDocument(document);
+                      setIsEditarBajaModalOpen(true);
+                    }}
                     className="p-2 hover:bg-green-50 rounded-full"
                     title="Editar"
                   >
@@ -301,7 +330,10 @@ export default function EquiposBajas() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => console.log("Asociar", document.id)}
+                    onClick={() => {
+                      setSelectedDocument(document);
+                      setIsAsociarEquiposModalOpen(true);
+                    }}
                     className="p-2 hover:bg-purple-50 rounded-full"
                     title="Asociar"
                   >
@@ -469,6 +501,22 @@ export default function EquiposBajas() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modals */}
+      <ModalAgregarBaja
+        open={isAgregarBajaModalOpen}
+        onOpenChange={setIsAgregarBajaModalOpen}
+      />
+      <ModalEditarDocumento
+        open={isEditarBajaModalOpen}
+        onOpenChange={setIsEditarBajaModalOpen}
+        document={selectedDocument}
+      />
+      <ModalTablaEquipos
+        open={isAsociarEquiposModalOpen}
+        onOpenChange={setIsAsociarEquiposModalOpen}
+        document={selectedDocument}
+      />
     </div>
   );
 }
