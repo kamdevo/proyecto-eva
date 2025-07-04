@@ -94,6 +94,7 @@ const AppSidebar = () => {
         { label: "CONTINGENCIAS", href: "/equipos/contingencias" },
         { label: "GUIAS RAPIDAS", href: "/equipos/guias-rapidas" },
         { label: "MANUALES", href: "/equipos/manuales" },
+        { label: "CONSULTAS", href: "/equipos/consultas" },
       ],
     },
     {
