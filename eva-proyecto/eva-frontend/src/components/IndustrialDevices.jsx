@@ -10,6 +10,8 @@ import {
   Plus,
   Merge,
   FileSpreadsheet,
+  Files,
+  Link,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +38,8 @@ import { EditEquipmentModal } from "@/components/modals/edit-equipment-modal";
 import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import { LifeModal } from "@/components/modals/life-modal";
+import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
+import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
 const equipmentData = [
   {
     id: "001",
@@ -125,6 +129,7 @@ function IndustrialDevicesView() {
   const [viewEquipmentModalOpen, setViewEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
@@ -452,9 +457,7 @@ function IndustrialDevicesView() {
                 <th className="text-left p-4 text-sm font-semibold text-slate-800 border-r border-slate-200">
                   Identificación
                 </th>
-                <th className="text-left p-4 text-sm font-semibold text-slate-800 border-r border-slate-200">
-                  Datos Técnicos
-                </th>
+
                 <th className="text-left p-4 text-sm font-semibold text-slate-800 border-r border-slate-200">
                   Ubicación Hospitalaria
                 </th>
@@ -477,9 +480,9 @@ function IndustrialDevicesView() {
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
                         <img
-                          src={equipment.image || "/placeholder.svg"}
+                          src={notFoundImg}
                           alt={equipment.equipo.name}
-                          className="w-8 h-8 object-cover rounded opacity-70"
+                          className=" hover:scale-220 transition-all w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 object-cover rounded opacity-70"
                         />
                       </div>
                       <div className="min-w-0">
@@ -514,6 +517,12 @@ function IndustrialDevicesView() {
                         >
                           {equipment.equipo.code}
                         </Badge>
+                        <Files
+                          onClick={setCopyEquipmentModalOpen}
+                          size={20}
+                          color="#CD410E"
+                          className="cursor-pointer"
+                        />
                       </div>
                       <div className="text-xs text-slate-600">
                         <span className="font-medium">Registro Sanitario:</span>
@@ -521,41 +530,48 @@ function IndustrialDevicesView() {
                           {equipment.data.registroSanitario}
                         </div>
                       </div>
-                    </div>
-                  </td>
-
-                  {/* Data Column */}
-                  <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="text-xs space-y-2 max-w-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-700">
-                          Mantenimientos Preventivos:
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                        >
-                          {equipment.data.preventivos}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-700">
-                          Calibraciones:
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-green-50 text-green-700 border-green-200"
-                        >
-                          {equipment.data.calibraciones}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-700">
-                          Estado Operacional:
-                        </span>
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs border border-green-200">
-                          {equipment.data.status}
-                        </Badge>
+                      <div className="mt-4 xs:mt-2">
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Codigo:
+                          </span>
+                          <span className="font-medium text-slate-700">
+                            {equipment.equipo.code || "SIN CODIGO"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Marca:
+                          </span>
+                          <span className="font-medium text-slate-700">
+                            {equipment.equipo.brand || "SIN MARCA"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Serie:
+                          </span>
+                          <span className="font-medium text-slate-700">
+                            {equipment.equipo.series || "SIN SERIE"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 xs:gap-2">
+                          <span className="font-medium text-slate-700">
+                            Preventivos:
+                          </span>
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
+                            {equipment.data.preventivos || "SIN PREVENTIVOS"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 xs:gap-2">
+                          <span className="font-medium text-slate-700">
+                            Calibraciones:
+                          </span>
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
+                            {equipment.data.calibraciones ||
+                              "SIN CALIBRACIONES"}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -597,13 +613,24 @@ function IndustrialDevicesView() {
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">
-                          Localización:
+                          Localización actual:
                         </span>
                         <span className="ml-1 text-slate-900">
                           {equipment.ubicacion.localizacion}
                         </span>
                       </div>
+                      <div>
+                        <span className="font-medium text-slate-700">
+                          Estado del equipo:
+                        </span>
+                        <span className="ml-1 text-slate-900">
+                          {equipment.ubicacion.estado || "SIN ESTADO  "}
+                        </span>
+                      </div>
                       <div className="mt-3 pt-2 border-t border-slate-100">
+                        <span className="font-medium text-slate-700">
+                          Propietario:
+                        </span>
                         <div className="text-xs text-slate-600 leading-tight bg-slate-50 p-2 rounded border">
                           {equipment.ubicacion.hospital}
                         </div>
@@ -613,7 +640,7 @@ function IndustrialDevicesView() {
 
                   {/* Execution Plan Column */}
                   <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="text-xs space-y-2 max-w-xs">
+                    <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
                       <div className="flex items-center gap-1">
                         <span className="text-slate-900 font-medium">
                           {equipment.ejecucionPlan.frecuencia}
@@ -622,40 +649,41 @@ function IndustrialDevicesView() {
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">
-                          Último Mantenimiento:
+                          Último Preventivo:
                         </span>
                       </div>
-                      <div className="text-slate-600 bg-green-50 p-2 rounded text-xs border border-green-200">
+                      <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
                         {equipment.ejecucionPlan.ultimoMantenimiento}
+                        <Link size={15} />
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">
                           Próximo Mantenimiento:
                         </span>
                       </div>
-                      <div className="text-slate-600 bg-amber-50 p-2 rounded text-xs border border-amber-200">
+                      <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
                         {equipment.ejecucionPlan.proximoMantenimiento}
                       </div>
-                      <div className="mt-3 pt-2 border-t border-slate-100 space-y-2">
+                      <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
                         <div>
                           <span className="font-medium text-teal-700">
-                            Última Intervención
+                            Información de tickets
                           </span>
                         </div>
-                        <div className="space-y-1 text-slate-600 bg-teal-50 p-2 rounded border border-teal-200">
+                        <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
                           <div>
                             <div className="font-medium text-slate-700">
-                              Tipo de Intervención:
+                              Fecha de creación del ultimo ticket:
                             </div>
-                            <div className="text-xs">
+                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
                               {equipment.ultimaAccion.tipo}
                             </div>
                           </div>
                           <div>
                             <div className="font-medium text-slate-700">
-                              Fecha de Inicio:
+                              Fecha de ultimo cierre de tickets:
                             </div>
-                            <div className="text-xs">
+                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
                               {equipment.ultimaAccion.fechaCreacion}
                             </div>
                           </div>
@@ -663,7 +691,7 @@ function IndustrialDevicesView() {
                             <div className="font-medium text-slate-700">
                               Fecha de Finalización:
                             </div>
-                            <div className="text-xs">
+                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
                               {equipment.ultimaAccion.fechaCierre}
                             </div>
                           </div>
@@ -838,6 +866,12 @@ function IndustrialDevicesView() {
       <DeleteConfirmModal
         open={deleteConfirmModalOpen}
         onOpenChange={setDeleteConfirmModalOpen}
+        equipment={selectedEquipment}
+      />
+
+      <CopyEquipmentModal
+        open={copyEquipmentModalOpen}
+        onOpenChange={setCopyEquipmentModalOpen}
         equipment={selectedEquipment}
       />
     </div>

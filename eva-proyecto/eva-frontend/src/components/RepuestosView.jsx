@@ -150,10 +150,6 @@ const initialRepuestos = [
 
 function RepuestosView() {
   const [repuestos, setRepuestos] = useState(initialRepuestos);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterGroup, setFilterGroup] = useState("All");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [filterQuantity, setFilterQuantity] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentRepuesto, setCurrentRepuesto] = useState(null);
 
@@ -170,27 +166,8 @@ function RepuestosView() {
     ...new Set(initialRepuestos.map((r) => r.grupo)),
   ];
 
-  // Lógica de filtrado y búsqueda
-  const filteredRepuestos = repuestos.filter((repuesto) => {
-    const matchesSearch =
-      repuesto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      repuesto.code.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesGroup =
-      filterGroup === "All" || repuesto.grupo === filterGroup;
-
-    const matchesStatus =
-      filterStatus === "All" ||
-      (filterStatus === "Active" && repuesto.status === 1) ||
-      (filterStatus === "Inactive" && repuesto.status === 0);
-
-    const matchesQuantity =
-      filterQuantity === "All" ||
-      (filterQuantity === "LowStock" && repuesto.cantidad < 10) || // Ejemplo de umbral de stock bajo
-      (filterQuantity === "Available" && repuesto.cantidad >= 10);
-
-    return matchesSearch && matchesGroup && matchesStatus && matchesQuantity;
-  });
+  // Show all repuestos since filters are removed
+  const filteredRepuestos = repuestos;
 
   // Funciones de acción (simuladas)
   const handleAddRepuesto = () => {
@@ -530,146 +507,6 @@ function RepuestosView() {
               ></path>
             </svg>
             <span>Administrador</span>
-          </div>
-        </div>
-        {/* Grupo de botones tipo tabs simulado */}
-        <div className="mb-6 flex space-x-2 border-b border-gray-200 pb-4">
-          {" "}
-          {/* Border inferior a los botones de tabs */}
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 active-tab-button"
-          >
-            {" "}
-            + Registrar
-          </Button>{" "}
-          {/* Clase activa para el look */}
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-          >
-            Depurar
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-          >
-            Consolidar
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-          >
-            Preventivos
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-          >
-            Calibraciones
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-          >
-            Correctivos
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-md border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-          >
-            Reportes
-          </Button>
-        </div>
-        {/* Barra de Búsqueda y Filtros */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-          {" "}
-          {/* Fondo blanco y border */}
-          <div className="col-span-1">
-            <Label
-              htmlFor="search"
-              className="text-sm font-medium text-gray-700 mb-1"
-            >
-              Buscar (Nombre/Código)
-            </Label>
-            <Input
-              type="text"
-              id="search"
-              placeholder="Buscar repuesto..."
-              className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="col-span-1">
-            <Label
-              htmlFor="filterGroup"
-              className="text-sm font-medium text-gray-700 mb-1"
-            >
-              Filtrar por Grupo
-            </Label>
-            <Select
-              id="filterGroup"
-              value={filterGroup}
-              onValueChange={setFilterGroup}
-            >
-              <SelectTrigger className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                <SelectValue placeholder="Todos los Grupos" />
-              </SelectTrigger>
-              <SelectContent>
-                {uniqueGroups.map((group) => (
-                  <SelectItem key={group} value={group}>
-                    {group === "All" ? "Todos los Grupos" : group}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="col-span-1">
-            <Label
-              htmlFor="filterStatus"
-              className="text-sm font-medium text-gray-700 mb-1"
-            >
-              Filtrar por Estado
-            </Label>
-            <Select
-              id="filterStatus"
-              value={filterStatus}
-              onValueChange={setFilterStatus}
-            >
-              <SelectTrigger className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                <SelectValue placeholder="Todos los Estados" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">Todos los Estados</SelectItem>
-                <SelectItem value="Active">Activo</SelectItem>
-                <SelectItem value="Inactive">Inactivo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="col-span-1">
-            <Label
-              htmlFor="filterQuantity"
-              className="text-sm font-medium text-gray-700 mb-1"
-            >
-              Filtrar por Cantidad
-            </Label>
-            <Select
-              id="filterQuantity"
-              value={filterQuantity}
-              onValueChange={setFilterQuantity}
-            >
-              <SelectTrigger className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
-                <SelectValue placeholder="Todas las Cantidades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">Todas las Cantidades</SelectItem>
-                <SelectItem value="LowStock">
-                  Stock Bajo (menos de 10)
-                </SelectItem>
-                <SelectItem value="Available">En Stock (10 o más)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
         {/* Acciones Globales */}

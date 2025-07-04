@@ -28,6 +28,7 @@ import EquiposBajas from "./components/EquiposBajas";
 import GuiasRapidas from "./components/GuiasRapidas";
 import RepuestosView from "./components/RepuestosView";
 import CapacitacionesView from "./components/CapacitacionesView";
+import ConsultaIndustrialView from "./components/ConsultaIndustrialView";
 import { useLocation } from "react-router-dom";
 
 // Componente interno que usa useLocation
@@ -71,6 +72,10 @@ function AppContent() {
             />
             <Route path="/equipos/bajas" element={<EquiposBajas />} />
             <Route path="/equipos/guias-rapidas" element={<GuiasRapidas />} />
+            <Route
+              path="/equipos/consultas"
+              element={<ConsultaIndustrialView />}
+            />
             <Route
               path="/equipos/ordenes-compra"
               element={<PurchaseOrdersView />}

@@ -1,6 +1,13 @@
 "use client";
 import { useState } from "react";
-import { Edit, Trash2, Link } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  Link,
+  File,
+  ChevronDown,
+  AlignJustify,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -233,16 +240,20 @@ export default function GuidesPage() {
 
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge className="bg-green-500 text-white px-3 py-1">
-                  ✓ Cumplen criterios
+                  <File className="h-3 w-3 mr-1" />
+                  Cumplen criterios
                 </Badge>
                 <Badge className="bg-green-500 text-white px-3 py-1">
-                  ✓ Cumplen criterios con guía
+                  <File className="h-3 w-3 mr-1" />
+                  Cumplen criterios con guía
                 </Badge>
                 <Badge className="bg-green-500 text-white px-3 py-1">
-                  ✓ Guías Disponibles sin guía rápida
+                  <File className="h-3 w-3 mr-1" />
+                  Guías Disponibles sin guía rápida
                 </Badge>
                 <Badge className="bg-green-500 text-white px-3 py-1">
-                  ✓ Guías Disponibles por grupo
+                  <File className="h-3 w-3 mr-1" />
+                  Guías Disponibles por grupo
                 </Badge>
               </div>
 
@@ -356,6 +367,7 @@ export default function GuidesPage() {
                           <span className="font-medium text-gray-800">
                             {guide.name}
                           </span>
+                          <Link className="h-4 w-4 text-blue-500 ml-2" />
                         </div>
                       </TableCell>
                       <TableCell className="text-center font-medium">
@@ -507,8 +519,8 @@ export default function GuidesPage() {
                     >
                       <TableCell className="font-medium text-gray-800">
                         <div className="flex items-center gap-2">
-                          <span className="text-blue-500">📊</span>
                           {item.name}
+                          <AlignJustify className="h-4 w-4 text-blue-500 ml-2" />
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
