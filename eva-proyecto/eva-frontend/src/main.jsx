@@ -4,6 +4,10 @@ import LoginForm from "./components/LoginForm";
 import App from "./App";
 import Navbar from "./components/Navbar";
 import "./index.css";
+
+// Import debug config to check environment variables
+import "./debug-config.js";
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

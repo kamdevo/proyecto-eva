@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test Frontend Registration</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .test-section {
+                border: 1px solid #ddd;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 5px;
+            }
+            button {
+                background: #007cba;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                margin: 5px;
+            }
+            button:hover {
+                background: #005a8a;
+            }
+            .result {
+                background: #f5f5f5;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 10px 0;
+                white-space: pre-wrap;
+            }
+            .success {
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+            }
+            .error {
+                background: #f8d7da;
+                border: 1px solid #f5c6cb;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Test de Registro Frontend - Debugging</h1>
+
+        <div class="test-section">
+            <h3>1. Test Directo al Endpoint Correcto</h3>
+            <button onclick="testCorrectEndpoint()">
+                Probar /api/v1/register-working
+            </button>
+            <div id="result1" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Test al Endpoint Incorrecto (que aparece en logs)</h3>
+            <button onclick="testIncorrectEndpoint()">
+                Probar /api/auth/register
+            </button>
+            <div id="result2" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Verificar Variables de Entorno</h3>
+            <button onclick="checkEnvVars()">Verificar ENV</button>
+            <div id="result3" class="result"></div>
+        </div>
+
+        <script>
+            async function testCorrectEndpoint() {
+                const resultDiv = document.getElementById("result1");
+                resultDiv.innerHTML = "Enviando petición...";
+
+                try {
+                    const userData = {
+                        nombre: "Test",
+                        apellido: "Usuario",
+                        email: "test@correcto.com",
+                        username: "testcorrecto123",
+                        password: "Test1234!",
+                        password_confirmation: "Test1234!",
+                    };
+
+                    const response = await fetch(
+                        "http://localhost:8000/api/v1/register-working",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            credentials: "include",
+                            body: JSON.stringify(userData),
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    resultDiv.innerHTML = `
+Status: ${response.status}
+URL: ${response.url}
+Respuesta:
+${JSON.stringify(result, null, 2)}`;
+
+                    resultDiv.className = response.ok
+                        ? "result success"
+                        : "result error";
+                } catch (error) {
+                    resultDiv.innerHTML = `Error: ${error.message}`;
+                    resultDiv.className = "result error";
+                }
+            }
+
+            async function testIncorrectEndpoint() {
+                const resultDiv = document.getElementById("result2");
+                resultDiv.innerHTML = "Enviando petición...";
+
+                try {
+                    const userData = {
+                        nombre: "Test",
+                        apellido: "Usuario",
+                        email: "test@incorrecto.com",
+                        username: "testincorrecto123",
+                        password: "Test1234!",
+                        password_confirmation: "Test1234!",
+                    };
+
+                    const response = await fetch(
+                        "http://localhost:8000/api/auth/register",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            credentials: "include",
+                            body: JSON.stringify(userData),
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    resultDiv.innerHTML = `
+Status: ${response.status}
+URL: ${response.url}
+Respuesta:
+${JSON.stringify(result, null, 2)}`;
+
+                    resultDiv.className = response.ok
+                        ? "result success"
+                        : "result error";
+                } catch (error) {
+                    resultDiv.innerHTML = `Error: ${error.message}`;
+                    resultDiv.className = "result error";
+                }
+            }
+
+            function checkEnvVars() {
+                const resultDiv = document.getElementById("result3");
+
+                // Simular la configuración que debería tener el frontend
+                const expectedConfig = {
+                    VITE_API_BASE_URL: "http://localhost:8000",
+                    VITE_API_URL: "http://localhost:8000/api",
+                    VITE_AUTH_REGISTER_URL: "/v1/register-working",
+                };
+
+                resultDiv.innerHTML = `
+Variables de entorno esperadas:
+${JSON.stringify(expectedConfig, null, 2)}
+
+URL completa esperada: ${expectedConfig.VITE_API_URL}${
+                    expectedConfig.VITE_AUTH_REGISTER_URL
+                }`;
+
+                resultDiv.className = "result";
+            }
+        </script>
+    </body>
+</html>

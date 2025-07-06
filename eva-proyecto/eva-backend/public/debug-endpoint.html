@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test Debug Endpoint</title>
+    </head>
+    <body>
+        <h1>Test Debug - Verificar Endpoint de Registro</h1>
+        <button id="testEndpoint">Probar Endpoint de Registro</button>
+        <div id="result"></div>
+
+        <script>
+            document
+                .getElementById("testEndpoint")
+                .addEventListener("click", async function () {
+                    const resultDiv = document.getElementById("result");
+
+                    try {
+                        // Simular la configuración del frontend
+                        const API_CONFIG = {
+                            API_URL: "http://localhost:8000/api",
+                        };
+
+                        const AUTH_ENDPOINTS = {
+                            REGISTER: "/v1/register-working",
+                        };
+
+                        const fullUrl =
+                            API_CONFIG.API_URL + AUTH_ENDPOINTS.REGISTER;
+
+                        resultDiv.innerHTML = `
+                    <h3>Configuración Frontend:</h3>
+                    <p><strong>API_URL:</strong> ${API_CONFIG.API_URL}</p>
+                    <p><strong>REGISTER_ENDPOINT:</strong> ${AUTH_ENDPOINTS.REGISTER}</p>
+                    <p><strong>URL Completa:</strong> ${fullUrl}</p>
+                `;
+
+                        // Intentar hacer la petición para ver qué URL se está usando realmente
+                        const userData = {
+                            nombre: "Test",
+                            apellido: "User",
+                            email: "test@test.com",
+                            username: "testuser123",
+                            password: "Test1234!",
+                            password_confirmation: "Test1234!",
+                        };
+
+                        resultDiv.innerHTML +=
+                            "<p><strong>Enviando petición...</strong></p>";
+
+                        const response = await fetch(fullUrl, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                                "X-Requested-With": "XMLHttpRequest",
+                            },
+                            credentials: "include",
+                            body: JSON.stringify(userData),
+                        });
+
+                        const result = await response.json();
+
+                        resultDiv.innerHTML += `
+                    <h3>Respuesta del servidor:</h3>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>URL solicitada:</strong> ${response.url}</p>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+                    } catch (error) {
+                        resultDiv.innerHTML += `
+                    <h3>Error:</h3>
+                    <p>${error.message}</p>
+                `;
+                    }
+                });
+        </script>
+    </body>
+</html>

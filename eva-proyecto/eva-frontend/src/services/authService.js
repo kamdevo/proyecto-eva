@@ -2,12 +2,12 @@
  * ========================================
  * SERVICIO DE AUTENTICACIÓN - SISTEMA EVA
  * ========================================
- * 
+ *
  * Manejo completo de autenticación con Laravel Sanctum
  */
 
-import httpService, { setAuthToken, getCsrfToken } from './httpService.js';
-import { AUTH_ENDPOINTS } from '../config/api.js';
+import httpService, { setAuthToken, getCsrfToken } from "./httpService.js";
+import { AUTH_ENDPOINTS } from "../config/api.js";
 
 class AuthService {
   constructor() {
@@ -20,16 +20,16 @@ class AuthService {
    */
   async login(credentials) {
     try {
-      console.log('🔐 [AUTH] Iniciando sesión...');
-      
+      console.log("🔐 [AUTH] Iniciando sesión...");
+
       // Obtener CSRF token antes del login
       await getCsrfToken();
-      
-      // Realizar login
+
+      // Realizar login - el backend espera 'username' y 'password'
       const response = await httpService.post(AUTH_ENDPOINTS.LOGIN, {
-        email: credentials.email,
+        username: credentials.username || credentials.email,
         password: credentials.password,
-        remember: credentials.remember || false
+        remember: credentials.remember || false,
       });
 
       const { user, token } = response.data;
@@ -40,27 +40,27 @@ class AuthService {
       this.isAuthenticated = true;
 
       // Almacenar información del usuario
-      localStorage.setItem('eva_user', JSON.stringify(user));
+      localStorage.setItem("eva_user", JSON.stringify(user));
 
-      console.log('✅ [AUTH] Sesión iniciada correctamente:', user);
-      
+      console.log("✅ [AUTH] Sesión iniciada correctamente:", user);
+
       return {
         success: true,
         user,
         token,
-        message: 'Sesión iniciada correctamente'
+        message: "Sesión iniciada correctamente",
       };
-
     } catch (error) {
-      console.error('❌ [AUTH] Error al iniciar sesión:', error);
-      
-      const errorMessage = error.response?.data?.message || 'Error al iniciar sesión';
+      console.error("❌ [AUTH] Error al iniciar sesión:", error);
+
+      const errorMessage =
+        error.response?.data?.message || "Error al iniciar sesión";
       const errors = error.response?.data?.errors || {};
 
       return {
         success: false,
         message: errorMessage,
-        errors
+        errors,
       };
     }
   }
@@ -70,30 +70,29 @@ class AuthService {
    */
   async logout() {
     try {
-      console.log('🔐 [AUTH] Cerrando sesión...');
-      
+      console.log("🔐 [AUTH] Cerrando sesión...");
+
       // Llamar al endpoint de logout
       await httpService.post(AUTH_ENDPOINTS.LOGOUT);
-      
+
       // Limpiar datos locales
       this.clearAuthData();
-      
-      console.log('✅ [AUTH] Sesión cerrada correctamente');
-      
+
+      console.log("✅ [AUTH] Sesión cerrada correctamente");
+
       return {
         success: true,
-        message: 'Sesión cerrada correctamente'
+        message: "Sesión cerrada correctamente",
       };
-
     } catch (error) {
-      console.error('❌ [AUTH] Error al cerrar sesión:', error);
-      
+      console.error("❌ [AUTH] Error al cerrar sesión:", error);
+
       // Limpiar datos locales aunque falle la petición
       this.clearAuthData();
-      
+
       return {
         success: false,
-        message: 'Error al cerrar sesión'
+        message: "Error al cerrar sesión",
       };
     }
   }
@@ -103,41 +102,49 @@ class AuthService {
    */
   async register(userData) {
     try {
-      console.log('🔐 [AUTH] Registrando usuario...');
-      
+      console.log("🔐 [AUTH] Registrando usuario...");
+      console.log(
+        "🔍 [DEBUG] AUTH_ENDPOINTS.REGISTER:",
+        AUTH_ENDPOINTS.REGISTER
+      );
+      console.log("🔍 [DEBUG] Datos del usuario:", userData);
+
       // Obtener CSRF token
       await getCsrfToken();
-      
-      const response = await httpService.post(AUTH_ENDPOINTS.REGISTER, userData);
-      
+
+      const response = await httpService.post(
+        AUTH_ENDPOINTS.REGISTER,
+        userData
+      );
+
       const { user, token } = response.data;
-      
+
       // Establecer token y usuario
       setAuthToken(token);
       this.user = user;
       this.isAuthenticated = true;
-      
-      localStorage.setItem('eva_user', JSON.stringify(user));
-      
-      console.log('✅ [AUTH] Usuario registrado correctamente:', user);
-      
+
+      localStorage.setItem("eva_user", JSON.stringify(user));
+
+      console.log("✅ [AUTH] Usuario registrado correctamente:", user);
+
       return {
         success: true,
         user,
         token,
-        message: 'Usuario registrado correctamente'
+        message: "Usuario registrado correctamente",
       };
-
     } catch (error) {
-      console.error('❌ [AUTH] Error al registrar usuario:', error);
-      
-      const errorMessage = error.response?.data?.message || 'Error al registrar usuario';
+      console.error("❌ [AUTH] Error al registrar usuario:", error);
+
+      const errorMessage =
+        error.response?.data?.message || "Error al registrar usuario";
       const errors = error.response?.data?.errors || {};
 
       return {
         success: false,
         message: errorMessage,
-        errors
+        errors,
       };
     }
   }
@@ -148,25 +155,24 @@ class AuthService {
   async getCurrentUser() {
     try {
       const response = await httpService.get(AUTH_ENDPOINTS.USER);
-      
+
       this.user = response.data;
       this.isAuthenticated = true;
-      
-      localStorage.setItem('eva_user', JSON.stringify(this.user));
-      
+
+      localStorage.setItem("eva_user", JSON.stringify(this.user));
+
       return {
         success: true,
-        user: this.user
+        user: this.user,
       };
-
     } catch (error) {
-      console.error('❌ [AUTH] Error al obtener usuario:', error);
-      
+      console.error("❌ [AUTH] Error al obtener usuario:", error);
+
       this.clearAuthData();
-      
+
       return {
         success: false,
-        message: 'No se pudo obtener la información del usuario'
+        message: "No se pudo obtener la información del usuario",
       };
     }
   }
@@ -174,21 +180,21 @@ class AuthService {
   /**
    * Verificar si el usuario está autenticado
    */
-  isUserAuthenticated() {
-    const token = localStorage.getItem('eva_auth_token');
-    const user = localStorage.getItem('eva_user');
-    
+  isAuthenticated() {
+    const token = localStorage.getItem("eva_auth_token");
+    const user = localStorage.getItem("eva_user");
+
     if (token && user) {
       try {
         this.user = JSON.parse(user);
         this.isAuthenticated = true;
         return true;
       } catch (error) {
-        console.error('❌ [AUTH] Error al parsear usuario almacenado:', error);
+        console.error("❌ [AUTH] Error al parsear usuario almacenado:", error);
         this.clearAuthData();
       }
     }
-    
+
     return false;
   }
 
@@ -197,10 +203,10 @@ class AuthService {
    */
   getStoredUser() {
     try {
-      const user = localStorage.getItem('eva_user');
+      const user = localStorage.getItem("eva_user");
       return user ? JSON.parse(user) : null;
     } catch (error) {
-      console.error('❌ [AUTH] Error al obtener usuario almacenado:', error);
+      console.error("❌ [AUTH] Error al obtener usuario almacenado:", error);
       return null;
     }
   }
@@ -211,20 +217,25 @@ class AuthService {
   async forgotPassword(email) {
     try {
       await getCsrfToken();
-      
-      const response = await httpService.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, { email });
-      
+
+      const response = await httpService.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, {
+        email,
+      });
+
       return {
         success: true,
-        message: response.data.message || 'Se ha enviado un enlace de restablecimiento'
+        message:
+          response.data.message ||
+          "Se ha enviado un enlace de restablecimiento",
       };
-
     } catch (error) {
-      console.error('❌ [AUTH] Error al solicitar restablecimiento:', error);
-      
+      console.error("❌ [AUTH] Error al solicitar restablecimiento:", error);
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Error al solicitar restablecimiento'
+        message:
+          error.response?.data?.message ||
+          "Error al solicitar restablecimiento",
       };
     }
   }
@@ -235,21 +246,25 @@ class AuthService {
   async resetPassword(resetData) {
     try {
       await getCsrfToken();
-      
-      const response = await httpService.post(AUTH_ENDPOINTS.RESET_PASSWORD, resetData);
-      
+
+      const response = await httpService.post(
+        AUTH_ENDPOINTS.RESET_PASSWORD,
+        resetData
+      );
+
       return {
         success: true,
-        message: response.data.message || 'Contraseña restablecida correctamente'
+        message:
+          response.data.message || "Contraseña restablecida correctamente",
       };
-
     } catch (error) {
-      console.error('❌ [AUTH] Error al restablecer contraseña:', error);
-      
+      console.error("❌ [AUTH] Error al restablecer contraseña:", error);
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Error al restablecer contraseña',
-        errors: error.response?.data?.errors || {}
+        message:
+          error.response?.data?.message || "Error al restablecer contraseña",
+        errors: error.response?.data?.errors || {},
       };
     }
   }
@@ -261,8 +276,8 @@ class AuthService {
     setAuthToken(null);
     this.user = null;
     this.isAuthenticated = false;
-    localStorage.removeItem('eva_user');
-    localStorage.removeItem('eva_auth_token');
+    localStorage.removeItem("eva_user");
+    localStorage.removeItem("eva_auth_token");
   }
 
   /**
@@ -272,7 +287,7 @@ class AuthService {
     if (!this.user || !this.user.permissions) {
       return false;
     }
-    
+
     return this.user.permissions.includes(permission);
   }
 
@@ -283,8 +298,23 @@ class AuthService {
     if (!this.user || !this.user.roles) {
       return false;
     }
-    
-    return this.user.roles.some(userRole => userRole.name === role);
+
+    return this.user.roles.some((userRole) => userRole.name === role);
+  }
+
+  /**
+   * Obtener token almacenado
+   */
+  getToken() {
+    return localStorage.getItem("eva_auth_token");
+  }
+
+  /**
+   * Verificar si el token está próximo a expirar
+   */
+  isTokenExpiringSoon() {
+    // Implementar lógica según tu configuración de tokens
+    return false;
   }
 }
 

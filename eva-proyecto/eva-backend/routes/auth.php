@@ -32,17 +32,16 @@ use App\Http\Controllers\Api\UsuarioController;
 |
 */
 
-// Rutas públicas de autenticación
-
-// Agrupación optimizada de rutas con middleware empresarial
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
+// Rutas públicas de autenticación (sin middleware de autenticación)
+Route::prefix('v1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
+});
 
 // Rutas protegidas de autenticación
-Route::middleware('auth:sanctum')->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('user', [AuthController::class, 'user']);
         Route::put('user/profile', [AuthController::class, 'updateProfile']);
@@ -60,6 +59,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('administradores/{id}/permissions', [AdministradorController::class, 'getPermissions']);
         Route::put('administradores/{id}/permissions', [AdministradorController::class, 'updatePermissions']);
         Route::post('administradores/{id}/toggle-status', [AdministradorController::class, 'toggleStatus']);
-});
-
 });

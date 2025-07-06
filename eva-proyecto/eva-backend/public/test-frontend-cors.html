@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test Frontend Registration - CORS Fixed</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                background-color: #f0f0f0;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+            input,
+            select {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-sizing: border-box;
+            }
+            button {
+                width: 100%;
+                padding: 12px;
+                background: #28a745;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+            }
+            button:hover {
+                background: #218838;
+            }
+            button:disabled {
+                background: #6c757d;
+                cursor: not-allowed;
+            }
+            .result {
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 4px;
+                white-space: pre-wrap;
+            }
+            .success {
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                color: #155724;
+            }
+            .error {
+                background: #f8d7da;
+                border: 1px solid #f5c6cb;
+                color: #721c24;
+            }
+            .info {
+                background: #d1ecf1;
+                border: 1px solid #bee5eb;
+                color: #0c5460;
+            }
+            .log {
+                font-family: monospace;
+                font-size: 12px;
+                max-height: 200px;
+                overflow-y: auto;
+                background: #f8f9fa;
+                padding: 10px;
+                margin-top: 10px;
+                border-radius: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚀 Test Frontend Registration - CORS Fixed</h1>
+            <p><strong>URL Frontend:</strong> http://localhost:5175</p>
+            <p><strong>URL Backend:</strong> http://localhost:8000</p>
+            <p><strong>Endpoint:</strong> /api/v1/register-working</p>
+
+            <form id="registrationForm">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input
+                        type="text"
+                        id="nombre"
+                        value="Usuario Frontend"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Apellido:</label>
+                    <input type="text" id="apellido" value="CORS Fixed" />
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input
+                        type="email"
+                        id="email"
+                        value=""
+                        placeholder="usuario@frontend.com"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input
+                        type="text"
+                        id="username"
+                        value=""
+                        placeholder="usuariofrontend"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input
+                        type="password"
+                        id="password"
+                        value="Frontend2025!"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Centro ID:</label>
+                    <select id="centro_id">
+                        <option value="1">Centro 1</option>
+                        <option value="2">Centro 2</option>
+                    </select>
+                </div>
+                <button type="submit" id="submitBtn">Registrar Usuario</button>
+            </form>
+
+            <div id="result" style="display: none"></div>
+            <div id="log" class="log" style="display: none"></div>
+        </div>
+
+        <script>
+            const API_BASE = "http://localhost:8000/api";
+            let logMessages = [];
+
+            function log(message, type = "info") {
+                const timestamp = new Date().toLocaleTimeString();
+                logMessages.push(
+                    `[${timestamp}] ${type.toUpperCase()}: ${message}`
+                );
+                updateLogDisplay();
+            }
+
+            function updateLogDisplay() {
+                const logDiv = document.getElementById("log");
+                logDiv.style.display = "block";
+                logDiv.textContent = logMessages.join("\n");
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+
+            function showResult(success, message, data = null) {
+                const resultDiv = document.getElementById("result");
+                resultDiv.style.display = "block";
+                resultDiv.className = `result ${success ? "success" : "error"}`;
+
+                let content = `${
+                    success ? "✅ ÉXITO" : "❌ ERROR"
+                }: ${message}\n`;
+                if (data) {
+                    content += `\nDatos:\n${JSON.stringify(data, null, 2)}`;
+                }
+                resultDiv.textContent = content;
+            }
+
+            // Generar datos únicos
+            function generateUniqueData() {
+                const timestamp = Date.now();
+                const random = Math.floor(Math.random() * 1000);
+                document.getElementById(
+                    "email"
+                ).value = `frontend${timestamp}@test.com`;
+                document.getElementById(
+                    "username"
+                ).value = `frontend${timestamp}${random}`;
+            }
+
+            // Generar datos únicos al cargar
+            generateUniqueData();
+
+            document
+                .getElementById("registrationForm")
+                .addEventListener("submit", async (e) => {
+                    e.preventDefault();
+
+                    const submitBtn = document.getElementById("submitBtn");
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = "Registrando...";
+
+                    logMessages = []; // Limpiar log
+                    log("Iniciando registro de usuario...");
+
+                    const formData = {
+                        nombre: document.getElementById("nombre").value,
+                        apellido: document.getElementById("apellido").value,
+                        email: document.getElementById("email").value,
+                        username: document.getElementById("username").value,
+                        password: document.getElementById("password").value,
+                        centro_id: document.getElementById("centro_id").value,
+                    };
+
+                    log(`Datos a enviar: ${JSON.stringify(formData, null, 2)}`);
+                    log(`URL: ${API_BASE}/v1/register-working`);
+
+                    try {
+                        log("Enviando petición POST...");
+
+                        const response = await fetch(
+                            `${API_BASE}/v1/register-working`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Accept: "application/json",
+                                    Origin: "http://localhost:5175",
+                                },
+                                body: JSON.stringify(formData),
+                                credentials: "include",
+                            }
+                        );
+
+                        log(`Respuesta recibida: Status ${response.status}`);
+                        log(
+                            `Headers: ${JSON.stringify(
+                                [...response.headers.entries()],
+                                null,
+                                2
+                            )}`
+                        );
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            log("¡Registro exitoso!");
+                            showResult(true, result.message, result.user);
+                            generateUniqueData(); // Generar nuevos datos para el siguiente test
+                        } else {
+                            log(`Error del servidor: ${response.status}`);
+                            showResult(false, result.message, result.errors);
+                        }
+                    } catch (error) {
+                        log(`Error de conexión: ${error.message}`, "error");
+                        showResult(
+                            false,
+                            "Error de conexión: " + error.message
+                        );
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = "Registrar Usuario";
+                    }
+                });
+
+            // Test de conectividad al cargar
+            window.addEventListener("load", async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/v1/health`);
+                    if (response.ok) {
+                        log("✅ Conectividad con backend: OK");
+                    } else {
+                        log("⚠️ Problema de conectividad con backend", "warn");
+                    }
+                } catch (error) {
+                    log(
+                        `❌ No se puede conectar con backend: ${error.message}`,
+                        "error"
+                    );
+                }
+            });
+        </script>
+    </body>
+</html>

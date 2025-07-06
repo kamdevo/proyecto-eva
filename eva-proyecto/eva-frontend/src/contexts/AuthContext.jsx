@@ -3,8 +3,8 @@
  * Proporciona estado global de autenticación y métodos para toda la aplicación
  */
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import authService from '../services/authService.js';
+import React, { createContext, useContext, useReducer, useEffect } from "react";
+import authService from "../services/authService.js";
 
 // Estado inicial
 const initialState = {
@@ -16,14 +16,14 @@ const initialState = {
 
 // Tipos de acciones
 const AUTH_ACTIONS = {
-  LOGIN_START: 'LOGIN_START',
-  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
-  LOGIN_FAILURE: 'LOGIN_FAILURE',
-  LOGOUT: 'LOGOUT',
-  SET_USER: 'SET_USER',
-  SET_LOADING: 'SET_LOADING',
-  CLEAR_ERROR: 'CLEAR_ERROR',
-  UPDATE_USER: 'UPDATE_USER',
+  LOGIN_START: "LOGIN_START",
+  LOGIN_SUCCESS: "LOGIN_SUCCESS",
+  LOGIN_FAILURE: "LOGIN_FAILURE",
+  LOGOUT: "LOGOUT",
+  SET_USER: "SET_USER",
+  SET_LOADING: "SET_LOADING",
+  CLEAR_ERROR: "CLEAR_ERROR",
+  UPDATE_USER: "UPDATE_USER",
 };
 
 // Reducer para manejar el estado de autenticación
@@ -101,7 +101,7 @@ const AuthContext = createContext();
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+    throw new Error("useAuth debe ser usado dentro de un AuthProvider");
   }
   return context;
 };
@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }) => {
     const handleAuthLogin = (event) => {
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: { user: event.detail.user }
+        payload: { user: event.detail.user },
       });
     };
 
@@ -128,19 +128,22 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     };
 
-    window.addEventListener('auth:login', handleAuthLogin);
-    window.addEventListener('auth:logout', handleAuthLogout);
+    window.addEventListener("auth:login", handleAuthLogin);
+    window.addEventListener("auth:logout", handleAuthLogout);
 
     return () => {
-      window.removeEventListener('auth:login', handleAuthLogin);
-      window.removeEventListener('auth:logout', handleAuthLogout);
+      window.removeEventListener("auth:login", handleAuthLogin);
+      window.removeEventListener("auth:logout", handleAuthLogout);
     };
   }, []);
 
   // Inicializar autenticación
   const initializeAuth = async () => {
     try {
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isLoading: true } });
+      dispatch({
+        type: AUTH_ACTIONS.SET_LOADING,
+        payload: { isLoading: true },
+      });
 
       if (authService.isAuthenticated()) {
         // Verificar que el usuario actual esté disponible
@@ -148,19 +151,25 @@ export const AuthProvider = ({ children }) => {
           const result = await authService.getCurrentUser();
           dispatch({
             type: AUTH_ACTIONS.SET_USER,
-            payload: { user: result.user }
+            payload: { user: result.data || result.user },
           });
         } catch (error) {
-          console.error('Error getting current user:', error);
+          console.error("Error getting current user:", error);
           // Si falla, limpiar autenticación
           await logout();
         }
       } else {
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isLoading: false } });
+        dispatch({
+          type: AUTH_ACTIONS.SET_LOADING,
+          payload: { isLoading: false },
+        });
       }
     } catch (error) {
-      console.error('Error initializing auth:', error);
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isLoading: false } });
+      console.error("Error initializing auth:", error);
+      dispatch({
+        type: AUTH_ACTIONS.SET_LOADING,
+        payload: { isLoading: false },
+      });
     }
   };
 
@@ -173,14 +182,14 @@ export const AuthProvider = ({ children }) => {
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: { user: result.user }
+        payload: { user: result.user },
       });
 
       return result;
     } catch (error) {
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: { error: error.message }
+        payload: { error: error.message },
       });
       throw error;
     }
@@ -192,7 +201,7 @@ export const AuthProvider = ({ children }) => {
       await authService.logout();
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       // Forzar logout local incluso si falla el servidor
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
@@ -206,13 +215,16 @@ export const AuthProvider = ({ children }) => {
       const result = await authService.register(userData);
 
       // Después del registro exitoso, no loguear automáticamente
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isLoading: false } });
+      dispatch({
+        type: AUTH_ACTIONS.SET_LOADING,
+        payload: { isLoading: false },
+      });
 
       return result;
     } catch (error) {
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: { error: error.message }
+        payload: { error: error.message },
       });
       throw error;
     }
@@ -222,7 +234,7 @@ export const AuthProvider = ({ children }) => {
   const updateUser = (updates) => {
     dispatch({
       type: AUTH_ACTIONS.UPDATE_USER,
-      payload: { updates }
+      payload: { updates },
     });
   };
 
@@ -237,11 +249,11 @@ export const AuthProvider = ({ children }) => {
       const result = await authService.getCurrentUser();
       dispatch({
         type: AUTH_ACTIONS.SET_USER,
-        payload: { user: result.user }
+        payload: { user: result.user },
       });
       return result.user;
     } catch (error) {
-      console.error('Error refreshing user:', error);
+      console.error("Error refreshing user:", error);
       await logout();
       throw error;
     }
@@ -301,11 +313,7 @@ export const AuthProvider = ({ children }) => {
     isTokenExpiringSoon: () => authService.isTokenExpiringSoon(),
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export default AuthContext;

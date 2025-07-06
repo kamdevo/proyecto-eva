@@ -1,6 +1,9 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ToastProvider } from "./contexts/ToastContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Importa tus vistas
 import ContingenciesView from "./components/contingencies-view";
@@ -29,6 +32,8 @@ import GuiasRapidas from "./components/GuiasRapidas";
 import RepuestosView from "./components/RepuestosView";
 import CapacitacionesView from "./components/CapacitacionesView";
 import ConsultaIndustrialView from "./components/ConsultaIndustrialView";
+import DebugRegistration from "./components/DebugRegistration";
+import CompleteDebugTest from "./components/CompleteDebugTest";
 import { useLocation } from "react-router-dom";
 
 // Componente interno que usa useLocation
@@ -43,68 +48,229 @@ function AppContent() {
       <SidebarInset>
         {/* ProfilePage route without padding */}
         <Routes>
-          <Route path="/perfil" element={<ProfilePage />} />
+          <Route
+            path="/perfil"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
 
         {/* Main content wrapper with conditional padding */}
         <div className={isLoginPage ? "" : "pt-16"}>
           {/* Other routes */}
           <Routes>
-            <Route path="/" element={<LoginForm />} />
-            <Route path="/home" element={<HomePage />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <LoginForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <HomePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/equipos/contingencias"
-              element={<ContingenciesView />}
+              element={
+                <ProtectedRoute>
+                  <ContingenciesView />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/equipos/manuales" element={<ManualesView />} />
+            <Route
+              path="/equipos/manuales"
+              element={
+                <ProtectedRoute>
+                  <ManualesView />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/equipos/biomedicos"
-              element={<MedicalDevicesView />}
+              element={
+                <ProtectedRoute>
+                  <MedicalDevicesView />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/planes/preventivo"
-              element={<PlanesMantenimientoView />}
+              element={
+                <ProtectedRoute>
+                  <PlanesMantenimientoView />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/repuestos" element={<RepuestosView />} />
+            <Route
+              path="/repuestos"
+              element={
+                <ProtectedRoute>
+                  <RepuestosView />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/equipos/industriales"
-              element={<IndustrialDevicesView />}
+              element={
+                <ProtectedRoute>
+                  <IndustrialDevicesView />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/equipos/bajas" element={<EquiposBajas />} />
-            <Route path="/equipos/guias-rapidas" element={<GuiasRapidas />} />
+            <Route
+              path="/equipos/bajas"
+              element={
+                <ProtectedRoute>
+                  <EquiposBajas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/equipos/guias-rapidas"
+              element={
+                <ProtectedRoute>
+                  <GuiasRapidas />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/equipos/consultas"
-              element={<ConsultaIndustrialView />}
+              element={
+                <ProtectedRoute>
+                  <ConsultaIndustrialView />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/equipos/ordenes-compra"
-              element={<PurchaseOrdersView />}
+              element={
+                <ProtectedRoute>
+                  <PurchaseOrdersView />
+                </ProtectedRoute>
+              }
             />
 
-            <Route path="/ordenes/mis-tickets" element={<MyTickets />} />
+            <Route
+              path="/ordenes/mis-tickets"
+              element={
+                <ProtectedRoute>
+                  <MyTickets />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/ordenes/tickets-cerrados"
-              element={<ClosedTickets />}
+              element={
+                <ProtectedRoute>
+                  <ClosedTickets />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/ordenes/gestion-tickets"
-              element={<GestionTickets />}
+              element={
+                <ProtectedRoute>
+                  <GestionTickets />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/dashboard" element={<DashboardView />} />
-            <Route path="/dashboard/reportes" element={<DashboardView />} />
-            <Route path="/config/contactos" element={<ContactsView />} />
-            <Route path="/dashboard/graficas" element={<ControlPanel />} />
-            <Route path="/config/areas" element={<VistaAreasPrincipal />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/reportes"
+              element={
+                <ProtectedRoute>
+                  <DashboardView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/config/contactos"
+              element={
+                <ProtectedRoute>
+                  <ContactsView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/graficas"
+              element={
+                <ProtectedRoute>
+                  <ControlPanel />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/config/areas"
+              element={
+                <ProtectedRoute>
+                  <VistaAreasPrincipal />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/admin/propietarios"
-              element={<VistaPropietariosPrincipal />}
+              element={
+                <ProtectedRoute>
+                  <VistaPropietariosPrincipal />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/admin/usuarios" element={<Usuarios />} />
+            <Route
+              path="/admin/usuarios"
+              element={
+                <ProtectedRoute>
+                  <Usuarios />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/config/servicios"
-              element={<VistaServiciosPrincipal />}
+              element={
+                <ProtectedRoute>
+                  <VistaServiciosPrincipal />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/capacitaciones" element={<CapacitacionesView />} />
+            <Route
+              path="/capacitaciones"
+              element={
+                <ProtectedRoute>
+                  <CapacitacionesView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/debug/register"
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <DebugRegistration />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/debug/complete"
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <CompleteDebugTest />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
 
           {!isLoginPage && <Footer />}
@@ -118,7 +284,11 @@ function AppContent() {
 export default function App() {
   return (
     <Router>
-      <AppContent />
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
     </Router>
   );
 }

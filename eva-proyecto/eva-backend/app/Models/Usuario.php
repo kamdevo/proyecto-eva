@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Laravel\Sanctum\HasApiTokens;
 use Carbon\Carbon;
 use Exception;
 
@@ -27,9 +28,9 @@ use Exception;
  * @version 2.0.0
  * @since 2024-01-01
  */
-class Usuario extends Model
+class Usuario extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, HasApiTokens;
 
     // ==========================================
     // CONFIGURACIÓN BÁSICA DEL MODELO
@@ -49,6 +50,7 @@ class Usuario extends Model
         'telefono',
         'email',
         'username',
+        'password',
         'rol_id',
         'estado',
         'servicio_id',
@@ -63,6 +65,14 @@ class Usuario extends Model
     ];
 
     /**
+     * Campos ocultos para arrays/JSON
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
      * Campos protegidos que no pueden ser asignados masivamente
      */
     protected $guarded = [
@@ -73,6 +83,7 @@ class Usuario extends Model
      * Conversión automática de tipos (Type Casting)
      */
     protected $casts = [
+        'password' => 'hashed',
         'rol_id' => 'integer',
         'estado' => 'integer',
         'servicio_id' => 'integer',

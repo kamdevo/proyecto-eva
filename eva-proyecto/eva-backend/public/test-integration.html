@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Test Frontend Integration</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+            }
+            input {
+                width: 300px;
+                padding: 8px;
+                margin-bottom: 10px;
+            }
+            button {
+                padding: 10px 20px;
+                background: #007bff;
+                color: white;
+                border: none;
+                cursor: pointer;
+            }
+            .result {
+                margin-top: 20px;
+                padding: 10px;
+                border: 1px solid #ddd;
+                background: #f9f9f9;
+            }
+            .success {
+                border-color: green;
+                background: #e8f5e8;
+            }
+            .error {
+                border-color: red;
+                background: #ffe8e8;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Test de Integración Frontend - Backend</h1>
+
+        <div>
+            <h2>Registro de Usuario</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label>Nombre:</label>
+                    <input type="text" id="nombre" value="Test Web" required />
+                </div>
+                <div class="form-group">
+                    <label>Apellido:</label>
+                    <input type="text" id="apellido" value="Interface" />
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input
+                        type="email"
+                        id="email"
+                        value="web@interface.com"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input
+                        type="text"
+                        id="username"
+                        value="webinterface"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input
+                        type="password"
+                        id="password"
+                        value="WebInterface2025!"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Centro ID:</label>
+                    <input type="text" id="centro_id" value="1" />
+                </div>
+                <button type="submit">Registrar Usuario</button>
+            </form>
+
+            <div id="registerResult" class="result" style="display: none"></div>
+        </div>
+
+        <hr />
+
+        <div>
+            <h2>Login de Usuario</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email/Username:</label>
+                    <input
+                        type="text"
+                        id="loginEmail"
+                        value="web@interface.com"
+                        required
+                    />
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        value="WebInterface2025!"
+                        required
+                    />
+                </div>
+                <button type="submit">Iniciar Sesión</button>
+            </form>
+
+            <div id="loginResult" class="result" style="display: none"></div>
+        </div>
+
+        <script>
+            const API_BASE = "http://localhost:8000/api";
+
+            // Función para mostrar resultados
+            function showResult(elementId, success, message, data = null) {
+                const element = document.getElementById(elementId);
+                element.style.display = "block";
+                element.className = `result ${success ? "success" : "error"}`;
+                element.innerHTML = `
+                <strong>${success ? "Éxito" : "Error"}:</strong> ${message}
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ""}
+            `;
+            }
+
+            // Registro de usuario
+            document
+                .getElementById("registerForm")
+                .addEventListener("submit", async (e) => {
+                    e.preventDefault();
+
+                    const formData = {
+                        nombre: document.getElementById("nombre").value,
+                        apellido: document.getElementById("apellido").value,
+                        email: document.getElementById("email").value,
+                        username: document.getElementById("username").value,
+                        password: document.getElementById("password").value,
+                        centro_id: document.getElementById("centro_id").value,
+                    };
+
+                    try {
+                        const response = await fetch(
+                            `${API_BASE}/v1/register-working`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Accept: "application/json",
+                                },
+                                body: JSON.stringify(formData),
+                            }
+                        );
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            showResult(
+                                "registerResult",
+                                true,
+                                result.message,
+                                result.user
+                            );
+                            // Auto-llenar campos de login
+                            document.getElementById("loginEmail").value =
+                                formData.email;
+                            document.getElementById("loginPassword").value =
+                                formData.password;
+                        } else {
+                            showResult(
+                                "registerResult",
+                                false,
+                                result.message,
+                                result.errors
+                            );
+                        }
+                    } catch (error) {
+                        showResult(
+                            "registerResult",
+                            false,
+                            "Error de conexión: " + error.message
+                        );
+                    }
+                });
+
+            // Login de usuario
+            document
+                .getElementById("loginForm")
+                .addEventListener("submit", async (e) => {
+                    e.preventDefault();
+
+                    const loginData = {
+                        email: document.getElementById("loginEmail").value,
+                        password:
+                            document.getElementById("loginPassword").value,
+                    };
+
+                    try {
+                        const response = await fetch(`${API_BASE}/test-login`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                            },
+                            body: JSON.stringify(loginData),
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            showResult("loginResult", true, result.message, {
+                                user: result.user,
+                                token: result.token.substring(0, 50) + "...",
+                            });
+                        } else {
+                            showResult("loginResult", false, result.message);
+                        }
+                    } catch (error) {
+                        showResult(
+                            "loginResult",
+                            false,
+                            "Error de conexión: " + error.message
+                        );
+                    }
+                });
+        </script>
+    </body>
+</html>
