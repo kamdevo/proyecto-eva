@@ -34,6 +34,7 @@ import CapacitacionesView from "./components/CapacitacionesView";
 import ConsultaIndustrialView from "./components/ConsultaIndustrialView";
 import DebugRegistration from "./components/DebugRegistration";
 import CompleteDebugTest from "./components/CompleteDebugTest";
+import LogoutPage from "./components/LogoutPage";
 import { useLocation } from "react-router-dom";
 
 // Componente interno que usa useLocation
@@ -46,21 +47,9 @@ function AppContent() {
       {!isLoginPage && <Navbar />}
 
       <SidebarInset>
-        {/* ProfilePage route without padding */}
-        <Routes>
-          <Route
-            path="/perfil"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-
         {/* Main content wrapper with conditional padding */}
         <div className={isLoginPage ? "" : "pt-16"}>
-          {/* Other routes */}
+          {/* All routes */}
           <Routes>
             <Route
               path="/"
@@ -70,11 +59,36 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+            {/* Redirect /login to / for compatibility */}
+            <Route
+              path="/login"
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <LoginForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/perfil"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/home"
               element={
                 <ProtectedRoute>
                   <HomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/salir"
+              element={
+                <ProtectedRoute>
+                  <LogoutPage />
                 </ProtectedRoute>
               }
             />

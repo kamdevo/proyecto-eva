@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { Button } from "./ui/button";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +42,20 @@ import {
 } from "lucide-react";
 
 const Header = () => {
+  const { logout, user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      // Forzar navegación incluso si falla el logout
+      navigate("/", { replace: true });
+    }
+  };
+
   return (
     <header className="fixed top-0 left-0 w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-50">
       <div className="flex items-center gap-2 sm:gap-4">
@@ -53,8 +69,10 @@ const Header = () => {
           <DropdownMenuTrigger>
             <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
               <User className="h-5 w-5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline text-lg ">Administrador</span>
-              <span className="sm:hidden">Admin</span>
+              <span className="hidden sm:inline text-lg ">
+                {user?.nombre || "Usuario"}
+              </span>
+              <span className="sm:hidden">{user?.nombre || "User"}</span>
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="mr-2.5">
@@ -66,10 +84,8 @@ const Header = () => {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Link to="/salir">
-                  <p>Salir</p>
-                </Link>
+              <DropdownMenuItem onClick={handleLogout}>
+                <p className="cursor-pointer">Salir</p>
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

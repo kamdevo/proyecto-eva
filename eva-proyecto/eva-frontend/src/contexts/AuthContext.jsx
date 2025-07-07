@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useReducer, useEffect } from "react";
-import authService from "../services/authService.js";
+import authService from "../services/authService";
 
 // Estado inicial
 const initialState = {

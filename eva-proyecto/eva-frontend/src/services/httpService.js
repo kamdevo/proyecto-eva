@@ -8,7 +8,7 @@
  */
 
 import axios from "axios";
-import { API_CONFIG, AUTH_ENDPOINTS } from "../config/api.js";
+import { API_CONFIG, AUTH_ENDPOINTS } from "../config/api";
 
 // Crear instancia de Axios
 const httpService = axios.create({
@@ -156,8 +156,8 @@ const handleAuthenticationError = () => {
   setAuthToken(null);
 
   // Redirigir al login si no estamos ya ahí
-  if (window.location.pathname !== "/login") {
-    window.location.href = "/login";
+  if (window.location.pathname !== "/" && window.location.pathname !== "/login") {
+    window.location.href = "/";
   }
 };
 

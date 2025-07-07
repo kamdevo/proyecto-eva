@@ -491,6 +491,74 @@ Route::post('/test-login', function (Request $request) {
     }
 });
 
+// RUTA DE LOGIN ROBUSTA: /auth/login (reemplaza /v1/login)
+// Usa la misma lógica exitosa que /test-login para evitar problemas de token
+Route::post('/auth/login', function (Request $request) {
+    try {
+        $email = $request->input('email') ?? $request->input('username');
+        $password = $request->input('password');
+        
+        if (!$email || !$password) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email/username y contraseña son requeridos'
+            ], 422);
+        }
+        
+        // Find user
+        $usuario = \App\Models\Usuario::where('email', $email)
+            ->orWhere('username', $email)
+            ->first();
+            
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Credenciales incorrectas'
+            ], 401);
+        }
+        
+        // Check password
+        if (!\Illuminate\Support\Facades\Hash::check($password, $usuario->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Credenciales incorrectas'
+            ], 401);
+        }
+        
+        // Check if user is active (solo estado, no 'active')
+        if (!$usuario->estado || $usuario->estado != 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario inactivo'
+            ], 401);
+        }
+        
+        // Create token
+        $token = $usuario->createToken('eva-token')->plainTextToken;
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Login exitoso',
+            'user' => [
+                'id' => $usuario->id,
+                'nombre' => $usuario->nombre,
+                'apellido' => $usuario->apellido,
+                'email' => $usuario->email,
+                'username' => $usuario->username,
+                'rol_id' => $usuario->rol_id,
+                'centro_id' => $usuario->centro_id
+            ],
+            'token' => $token
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // TEMPORAL: Interceptar llamadas a auth/register y redirigir al endpoint correcto
 Route::post('auth/register', function (Request $request) {
     \Log::info('⚠️ [INTERCEPTED] Llamada a auth/register interceptada', [

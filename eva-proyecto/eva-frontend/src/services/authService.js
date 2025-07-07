@@ -6,13 +6,13 @@
  * Manejo completo de autenticación con Laravel Sanctum
  */
 
-import httpService, { setAuthToken, getCsrfToken } from "./httpService.js";
-import { AUTH_ENDPOINTS } from "../config/api.js";
+import httpService, { setAuthToken, getCsrfToken } from "./httpService";
+import { AUTH_ENDPOINTS } from "../config/api";
 
 class AuthService {
   constructor() {
     this.user = null;
-    this.isAuthenticated = false;
+    this._isAuthenticated = false;
   }
 
   /**
@@ -37,7 +37,7 @@ class AuthService {
       // Establecer token y usuario
       setAuthToken(token);
       this.user = user;
-      this.isAuthenticated = true;
+      this._isAuthenticated = true;
 
       // Almacenar información del usuario
       localStorage.setItem("eva_user", JSON.stringify(user));
@@ -122,7 +122,7 @@ class AuthService {
       // Establecer token y usuario
       setAuthToken(token);
       this.user = user;
-      this.isAuthenticated = true;
+      this._isAuthenticated = true;
 
       localStorage.setItem("eva_user", JSON.stringify(user));
 
@@ -157,7 +157,7 @@ class AuthService {
       const response = await httpService.get(AUTH_ENDPOINTS.USER);
 
       this.user = response.data;
-      this.isAuthenticated = true;
+      this._isAuthenticated = true;
 
       localStorage.setItem("eva_user", JSON.stringify(this.user));
 
@@ -187,7 +187,7 @@ class AuthService {
     if (token && user) {
       try {
         this.user = JSON.parse(user);
-        this.isAuthenticated = true;
+        this._isAuthenticated = true;
         return true;
       } catch (error) {
         console.error("❌ [AUTH] Error al parsear usuario almacenado:", error);
@@ -275,7 +275,7 @@ class AuthService {
   clearAuthData() {
     setAuthToken(null);
     this.user = null;
-    this.isAuthenticated = false;
+    this._isAuthenticated = false;
     localStorage.removeItem("eva_user");
     localStorage.removeItem("eva_auth_token");
   }

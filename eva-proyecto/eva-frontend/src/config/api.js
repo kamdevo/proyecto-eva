@@ -42,9 +42,9 @@ export const API_CONFIG = {
 
 // Endpoints de autenticación
 export const AUTH_ENDPOINTS = {
-  LOGIN: import.meta.env.VITE_AUTH_LOGIN_URL || "/test-login",
+  LOGIN: import.meta.env.VITE_AUTH_LOGIN_URL || "/auth/login",
   LOGOUT: import.meta.env.VITE_AUTH_LOGOUT_URL || "/v1/logout",
-  REGISTER: import.meta.env.VITE_AUTH_REGISTER_URL || "/v1/register-working",
+  REGISTER: import.meta.env.VITE_AUTH_REGISTER_URL || "/v1/register",
   USER: import.meta.env.VITE_AUTH_USER_URL || "/v1/user",
   REFRESH: "/v1/refresh-token",
   FORGOT_PASSWORD: "/v1/forgot-password",
