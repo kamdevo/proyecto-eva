@@ -40,8 +40,10 @@ import {
   Search,
   AlignJustify,
 } from "lucide-react";
+import { useToast } from "../contexts/ToastContext";
 
 const Header = () => {
+  const { toast } = useToast();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
@@ -49,6 +51,7 @@ const Header = () => {
     try {
       await logout();
       navigate("/", { replace: true });
+      toast.info("Sesión cerrada correctamente");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
       // Forzar navegación incluso si falla el logout

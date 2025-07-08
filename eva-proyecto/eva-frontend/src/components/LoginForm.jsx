@@ -136,9 +136,11 @@ const LoginForm = () => {
 
     const validation = loginValidation.validateForm(loginForm);
     if (!validation.isValid) {
+      const errorMessage = "Por favor, corrija los errores en el formulario.";
+      toast.error(errorMessage);
       setLoginAlert({
         type: "error",
-        message: "Por favor, corrija los errores en el formulario.",
+        message: errorMessage,
       });
       return;
     }
@@ -152,15 +154,19 @@ const LoginForm = () => {
           setModalLoginOpen(false);
         }, 1000);
       } else {
+        const errorMessage = result.error || "Error al iniciar sesión";
+        toast.error(errorMessage);
         setLoginAlert({
           type: "error",
-          message: result.error || "Error al iniciar sesión",
+          message: errorMessage,
         });
       }
     } catch (error) {
+      const errorMessage = error.message || "Error de conexión";
+      toast.error(errorMessage);
       setLoginAlert({
         type: "error",
-        message: error.message || "Error de conexión",
+        message: errorMessage,
       });
     }
   };
@@ -172,9 +178,11 @@ const LoginForm = () => {
 
     const validation = registerValidation.validateForm(registerForm);
     if (!validation.isValid) {
+      const errorMessage = "Por favor, corrija los errores en el formulario.";
+      toast.error(errorMessage);
       setRegisterAlert({
         type: "error",
-        message: "Por favor, corrija los errores en el formulario.",
+        message: errorMessage,
       });
       return;
     }
@@ -188,15 +196,19 @@ const LoginForm = () => {
           setModalRegisterOpen(false);
         }, 1000);
       } else {
+        const errorMessage = result.error || "Error al registrar usuario";
+        toast.error(errorMessage);
         setRegisterAlert({
           type: "error",
-          message: result.error || "Error al registrar usuario",
+          message: errorMessage,
         });
       }
     } catch (error) {
+      const errorMessage = error.message || "Error de conexión";
+      toast.error(errorMessage);
       setRegisterAlert({
         type: "error",
-        message: error.message || "Error de conexión",
+        message: errorMessage,
       });
     }
   };
