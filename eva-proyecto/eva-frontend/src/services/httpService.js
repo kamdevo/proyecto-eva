@@ -156,7 +156,10 @@ const handleAuthenticationError = () => {
   setAuthToken(null);
 
   // Redirigir al login si no estamos ya ahí
-  if (window.location.pathname !== "/" && window.location.pathname !== "/login") {
+  if (
+    window.location.pathname !== "/" &&
+    window.location.pathname !== "/login"
+  ) {
     window.location.href = "/";
   }
 };
