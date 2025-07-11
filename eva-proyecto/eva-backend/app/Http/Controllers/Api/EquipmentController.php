@@ -838,4 +838,325 @@ class EquipmentController extends ApiController
 
         return max(0, $equipo->costo - $depreciacionTotal);
     }
+
+    /**
+     * Obtener equipos médicos con información completa usando la consulta SQL especificada
+     * Esta función implementa la consulta SQL completa solicitada
+     */
+    public function getMedicalDevicesComplete(Request $request)
+    {
+        try {
+            $perPage = $request->get('per_page', 15);
+            $page = $request->get('page', 1);
+            $search = $request->get('search', '');
+            $sortBy = $request->get('sort_by', 'equipos.name');
+            $sortOrder = $request->get('sort_order', 'asc');
+
+            // Consulta SQL completa como se especificó
+            $query = DB::table('equipos')
+                ->select([
+                    'equipos.id',
+                    'equipos.name',
+                    'equipos.code',
+                    'equipos.serial',
+                    'equipos.marca',
+                    'equipos.modelo',
+                    'servicios.name as servicios',
+                    'areas.name as area',
+                    'sedes.name as sede',
+                    'estadoequipos.name as estadoequipo',
+                    'cbiomedica.name as clasificacion',
+                    'criesgo.name as riesgo',
+                    // Información adicional dinámica
+                    DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento'),
+                    DB::raw('(SELECT fecha_calibracion FROM calibracion 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_calibracion DESC LIMIT 1) AS ultima_calibracion'),
+                    DB::raw('(SELECT fecha_mantenimiento FROM correctivos_generales 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_correctivo'),
+                    DB::raw('(SELECT fecha_inicio FROM ordenes 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_inicio DESC LIMIT 1) AS fecha_inicio_ultimo_ticket'),
+                    DB::raw('(SELECT COUNT(*) FROM equipo_archivo 
+                             WHERE equipo_id = equipos.id AND archivo_id != 9) AS cuenta_archivos'),
+                    DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos 
+                             WHERE equipo_id = equipos.id AND anio = 2025) AS cuenta_planes_mantenimientos'),
+                    DB::raw('(SELECT description FROM observaciones 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
+                    'invimas.invima as registro_sanitario',
+                    'invimas.file as archivo_registro_sanitario',
+                    'pro.nombre as propietario',
+                    'pro.logo as propietario_logo',
+                    'ordenes_compra.orden as orden_compra',
+                    'tipos_compra.tipo_compra as tipo_compra'
+                ])
+                ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
+                ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
+                ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
+                ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
+                ->leftJoin('cbiomedica', 'cbiomedica.id', '=', 'equipos.cbiomedica_id')
+                ->leftJoin('criesgo', 'criesgo.id', '=', 'equipos.criesgo_id')
+                ->leftJoin('invimas', 'invimas.id', '=', 'equipos.invima_id')
+                ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
+                ->leftJoin('ordenes_compra', 'ordenes_compra.id', '=', 'equipos.orden_compra_id')
+                ->leftJoin('tipos_compra', 'tipos_compra.id', '=', 'ordenes_compra.tipo_compra_id')
+                ->where('equipos.status', '!=', 0)
+                ->where('equipos.tipo_id', 1); // Solo equipos médicos
+
+            // Aplicar filtros de búsqueda
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('equipos.name', 'like', "%{$search}%")
+                        ->orWhere('equipos.code', 'like', "%{$search}%")
+                        ->orWhere('equipos.marca', 'like', "%{$search}%")
+                        ->orWhere('equipos.modelo', 'like', "%{$search}%")
+                        ->orWhere('equipos.serial', 'like', "%{$search}%")
+                        ->orWhere('servicios.name', 'like', "%{$search}%")
+                        ->orWhere('areas.name', 'like', "%{$search}%");
+                });
+            }
+
+            // Filtros específicos
+            if ($request->has('servicio_id') && !empty($request->servicio_id)) {
+                $query->where('equipos.servicio_id', $request->servicio_id);
+            }
+
+            if ($request->has('area_id') && !empty($request->area_id)) {
+                $query->where('equipos.area_id', $request->area_id);
+            }
+
+            if ($request->has('sede_id') && !empty($request->sede_id)) {
+                $query->where('servicios.sede_id', $request->sede_id);
+            }
+
+            if ($request->has('estado_id') && !empty($request->estado_id)) {
+                $query->where('equipos.estadoequipo_id', $request->estado_id);
+            }
+
+            if ($request->has('clasificacion_id') && !empty($request->clasificacion_id)) {
+                $query->where('equipos.cbiomedica_id', $request->clasificacion_id);
+            }
+
+            if ($request->has('riesgo_id') && !empty($request->riesgo_id)) {
+                $query->where('equipos.criesgo_id', $request->riesgo_id);
+            }
+
+            if ($request->has('propietario_id') && !empty($request->propietario_id)) {
+                $query->where('equipos.propietario_id', $request->propietario_id);
+            }
+
+            // Ordenamiento
+            $query->orderBy($sortBy, $sortOrder);
+
+            // Obtener total de registros para paginación
+            $total = $query->count();
+
+            // Aplicar paginación
+            $offset = ($page - 1) * $perPage;
+            $equipos = $query->skip($offset)->take($perPage)->get();
+
+            // Formatear datos para respuesta
+            $formattedEquipos = $equipos->map(function ($equipo) {
+                return [
+                    'id' => $equipo->id,
+                    'equipo' => [
+                        'name' => $equipo->name,
+                        'code' => $equipo->code,
+                        'brand' => $equipo->marca,
+                        'model' => $equipo->modelo,
+                        'series' => $equipo->serial,
+                    ],
+                    'data' => [
+                        'status' => $equipo->estadoequipo,
+                        'registroSanitario' => $equipo->registro_sanitario,
+                        'clasificacion' => $equipo->clasificacion,
+                        'riesgo' => $equipo->riesgo,
+                        'archivos' => (int) $equipo->cuenta_archivos,
+                        'planesMantenimiento' => (int) $equipo->cuenta_planes_mantenimientos,
+                    ],
+                    'ubicacion' => [
+                        'servicio' => $equipo->servicios,
+                        'area' => $equipo->area,
+                        'sede' => $equipo->sede,
+                    ],
+                    'mantenimiento' => [
+                        'ultimoMantenimiento' => $equipo->ultimo_mantenimiento,
+                        'ultimaCalibración' => $equipo->ultima_calibracion,
+                        'ultimoCorrectivo' => $equipo->ultimo_correctivo,
+                    ],
+                    'propietario' => [
+                        'nombre' => $equipo->propietario,
+                        'logo' => $equipo->propietario_logo,
+                    ],
+                    'compra' => [
+                        'orden' => $equipo->orden_compra,
+                        'tipo' => $equipo->tipo_compra,
+                    ],
+                    'observaciones' => [
+                        'ultima' => $equipo->ultima_observacion,
+                    ],
+                    'tickets' => [
+                        'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket,
+                    ],
+                ];
+            });
+
+            $responseData = [
+                'current_page' => (int) $page,
+                'data' => $formattedEquipos,
+                'per_page' => (int) $perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage),
+                'from' => $offset + 1,
+                'to' => min($offset + $perPage, $total),
+            ];
+
+            return $this->successResponse($responseData, 'Equipos médicos obtenidos exitosamente');
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener equipos médicos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener información completa de un equipo específico
+     */
+    public function getCompleteInfo($id)
+    {
+        try {
+            $equipo = DB::table('equipos')
+                ->select([
+                    'equipos.*',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'sedes.name as sede_nombre',
+                    'estadoequipos.name as estado_nombre',
+                    'cbiomedica.name as clasificacion_nombre',
+                    'criesgo.name as riesgo_nombre',
+                    'invimas.invima as registro_sanitario',
+                    'invimas.file as archivo_registro_sanitario',
+                    'pro.nombre as propietario_nombre',
+                    'pro.logo as propietario_logo',
+                    'ordenes_compra.orden as orden_compra',
+                    'tipos_compra.tipo_compra as tipo_compra',
+                    // Subconsultas dinámicas
+                    DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento'),
+                    DB::raw('(SELECT fecha_calibracion FROM calibracion 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_calibracion DESC LIMIT 1) AS ultima_calibracion'),
+                    DB::raw('(SELECT COUNT(*) FROM equipo_archivo 
+                             WHERE equipo_id = equipos.id AND archivo_id != 9) AS cuenta_archivos'),
+                ])
+                ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
+                ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
+                ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
+                ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
+                ->leftJoin('cbiomedica', 'cbiomedica.id', '=', 'equipos.cbiomedica_id')
+                ->leftJoin('criesgo', 'criesgo.id', '=', 'equipos.criesgo_id')
+                ->leftJoin('invimas', 'invimas.id', '=', 'equipos.invima_id')
+                ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
+                ->leftJoin('ordenes_compra', 'ordenes_compra.id', '=', 'equipos.orden_compra_id')
+                ->leftJoin('tipos_compra', 'tipos_compra.id', '=', 'ordenes_compra.tipo_compra_id')
+                ->where('equipos.id', $id)
+                ->first();
+
+            if (!$equipo) {
+                return $this->error('Equipo no encontrado', 404);
+            }
+
+            return $this->success($equipo, 'Información del equipo obtenida exitosamente');
+
+        } catch (\Exception $e) {
+            return $this->error('Error al obtener información del equipo: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Obtener opciones para filtros
+     */
+    public function getFilterOptions()
+    {
+        try {
+            $options = [
+                'servicios' => DB::table('servicios')->select('id', 'name')->where('status', 1)->get(),
+                'areas' => DB::table('areas')->select('id', 'name')->where('status', 1)->get(),
+                'sedes' => DB::table('sedes')->select('id', 'name')->where('status', 1)->get(),
+                'estados' => DB::table('estadoequipos')->select('id', 'name')->get(),
+                'clasificaciones' => DB::table('cbiomedica')->select('id', 'name')->get(),
+                'riesgos' => DB::table('criesgo')->select('id', 'name')->get(),
+                'propietarios' => DB::table('propietarios')->select('id', 'nombre as name')->get(),
+            ];
+
+            return $this->success($options, 'Opciones de filtros obtenidas exitosamente');
+
+        } catch (\Exception $e) {
+            return $this->error('Error al obtener opciones de filtros: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Obtener estadísticas específicas para equipos médicos
+     */
+    public function getMedicalDevicesStats()
+    {
+        try {
+            $stats = [
+                'total_equipos' => DB::table('equipos')->where('tipo_id', 1)->where('status', '!=', 0)->count(),
+                'operativos' => DB::table('equipos')
+                    ->join('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
+                    ->where('equipos.tipo_id', 1)
+                    ->where('equipos.status', '!=', 0)
+                    ->where('estadoequipos.name', 'Operativo')
+                    ->count(),
+                'en_mantenimiento' => DB::table('equipos')
+                    ->join('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
+                    ->where('equipos.tipo_id', 1)
+                    ->where('equipos.status', '!=', 0)
+                    ->where('estadoequipos.name', 'En Mantenimiento')
+                    ->count(),
+                'fuera_servicio' => DB::table('equipos')
+                    ->join('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
+                    ->where('equipos.tipo_id', 1)
+                    ->where('equipos.status', '!=', 0)
+                    ->where('estadoequipos.name', 'Fuera de Servicio')
+                    ->count(),
+                'mantenimientos_mes' => DB::table('mantenimiento')
+                    ->whereMonth('fecha_mantenimiento', now()->month)
+                    ->whereYear('fecha_mantenimiento', now()->year)
+                    ->count(),
+                'calibraciones_mes' => DB::table('calibracion')
+                    ->whereMonth('fecha_calibracion', now()->month)
+                    ->whereYear('fecha_calibracion', now()->year)
+                    ->count(),
+                'por_clasificacion' => DB::table('equipos')
+                    ->join('cbiomedica', 'equipos.cbiomedica_id', '=', 'cbiomedica.id')
+                    ->where('equipos.tipo_id', 1)
+                    ->where('equipos.status', '!=', 0)
+                    ->groupBy('cbiomedica.name')
+                    ->select('cbiomedica.name', DB::raw('count(*) as total'))
+                    ->get(),
+                'por_riesgo' => DB::table('equipos')
+                    ->join('criesgo', 'equipos.criesgo_id', '=', 'criesgo.id')
+                    ->where('equipos.tipo_id', 1)
+                    ->where('equipos.status', '!=', 0)
+                    ->groupBy('criesgo.name')
+                    ->select('criesgo.name', DB::raw('count(*) as total'))
+                    ->get(),
+            ];
+
+            return $this->success($stats, 'Estadísticas de equipos médicos obtenidas exitosamente');
+
+        } catch (\Exception $e) {
+            return $this->error('Error al obtener estadísticas: ' . $e->getMessage(), 500);
+        }
+    }
 }

@@ -13,6 +13,8 @@ import {
   Files,
   Link,
 } from "lucide-react";
+import { useMedicalDevices } from "@/hooks/useMedicalDevices";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,80 +41,47 @@ import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
-const equipmentData = [
-  {
-    id: "001",
-    image: "/placeholder.svg?height=72&width=108",
-    equipo: {
-      name: "ACELERADOR LINEAL MÉDICO",
-      code: "EAC0001",
-      brand: "VARIAN MEDICAL SYSTEMS",
-      model: "CLINAC iX",
-      series: "12345",
-    },
-    data: {
-      preventivos: "25",
-      calibraciones: "5",
-      status: "Operativo",
-      registroSanitario: "INVIMA-2024-001",
-    },
-    ubicacion: {
-      servicio: "RADIOTERAPIA ONCOLÓGICA",
-      area: "UNIDAD DE RADIOTERAPIA",
-      zona: "ÁREA DE HOSPITALIZACIÓN",
-      sede: "SEDE PRINCIPAL",
-      localizacion: "SALA DE RADIOTERAPIA A",
-      hospital: "HOSPITAL UNIVERSITARIO DEL VALLE EVARISTO GARCÍA",
-    },
-    ejecucionPlan: {
-      frecuencia: "Mantenimiento Preventivo Anual",
-      ultimoMantenimiento: "2024-05-15",
-      proximoMantenimiento: "2025-05-15",
-    },
-    ultimaAccion: {
-      fechaCreacion: "2024-05-15 15:30:04",
-      fechaCierre: "2024-05-15 16:45:30",
-      tipo: "Mantenimiento Preventivo Programado",
-    },
-  },
-  {
-    id: "002",
-    image: "/placeholder.svg?height=72&width=108",
-    equipo: {
-      name: "ACELERADOR LINEAL MÉDICO",
-      code: "EAC0002",
-      brand: "VARIAN MEDICAL SYSTEMS",
-      model: "TRUE BEAM STx",
-      series: "67890",
-    },
-    data: {
-      preventivos: "30",
-      calibraciones: "8",
-      status: "Operativo",
-      registroSanitario: "INVIMA-2024-002",
-    },
-    ubicacion: {
-      servicio: "RADIOTERAPIA ONCOLÓGICA",
-      area: "UNIDAD DE RADIOTERAPIA",
-      zona: "ÁREA DE HOSPITALIZACIÓN",
-      sede: "SEDE PRINCIPAL",
-      localizacion: "SALA DE RADIOTERAPIA B",
-      hospital: "HOSPITAL UNIVERSITARIO DEL VALLE EVARISTO GARCÍA",
-    },
-    ejecucionPlan: {
-      frecuencia: "Mantenimiento Preventivo Semestral",
-      ultimoMantenimiento: "2024-05-14",
-      proximoMantenimiento: "2024-11-14",
-    },
-    ultimaAccion: {
-      fechaCreacion: "2024-05-14 10:20:15",
-      fechaCierre: "2024-05-14 11:35:45",
-      tipo: "Calibración de Precisión",
-    },
-  },
-];
+
+// Helper function to safely render nested object properties
+const safeRenderText = (value, fallback = 'Sin información') => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    // If it's an object with a nombre property, use that
+    if (value.nombre) return value.nombre;
+    // Otherwise return fallback to avoid rendering object
+    return fallback;
+  }
+  return String(value);
+};
 
 export function MedicalDevicesView() {
+  // Hook para manejar los datos de equipos médicos
+  const {
+    devices,
+    loading,
+    error,
+    pagination,
+    filters,
+    selectedDevices,
+    selectAll,
+    stats,
+    criticalDevices,
+    filterOptions,
+    updateFilters,
+    resetFilters,
+    changePage,
+    changePerPage,
+    searchDevices,
+    toggleDeviceSelection,
+    toggleSelectAll,
+    deleteDevice,
+    toggleDeviceStatus,
+    bulkUpdateDevices,
+    bulkDeleteDevices,
+    refreshData
+  } = useMedicalDevices();
+
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [cleanNamesModalOpen, setCleanNamesModalOpen] = useState(false);
@@ -513,303 +482,409 @@ export function MedicalDevicesView() {
               </tr>
             </thead>
             <tbody>
-              {equipmentData.map((equipment, index) => (
-                <tr
-                  key={equipment.id}
-                  className="border-b hover:bg-slate-50/50 transition-colors"
-                >
-                  {/* Equipment Column */}
-                  <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
-                    <div className="flex items-start gap-1 xs:gap-2 sm:gap-3">
-                      <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
-                        <img
-                          src={notFoundImg}
-                          alt={equipment.equipo.name}
-                          className=" hover:scale-220 transition-all w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 object-cover rounded opacity-70"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 text-[10px] xs:text-xs sm:text-sm md:text-base mb-0.5 sm:mb-1">
-                          {equipment.equipo.name}
-                        </div>
-                        <div className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-slate-600 space-y-0.5">
-                          <div>
-                            <span className="font-medium">Fabricante:</span>{" "}
-                            {equipment.equipo.brand}
-                          </div>
-                          <div>
-                            <span className="font-medium">Modelo:</span>{" "}
-                            {equipment.equipo.model}
-                          </div>
-                          <div>
-                            <span className="font-medium">Serie:</span>{" "}
-                            {equipment.equipo.series}
-                          </div>
+              {loading ? (
+                // Skeleton rows while loading
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="flex items-start gap-1 xs:gap-2 sm:gap-3">
+                        <Skeleton className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg" />
+                        <div className="min-w-0 flex-1">
+                          <Skeleton className="h-4 w-3/4 mb-2" />
+                          <Skeleton className="h-3 w-1/2 mb-1" />
+                          <Skeleton className="h-3 w-2/3 mb-1" />
+                          <Skeleton className="h-3 w-1/3" />
                         </div>
                       </div>
-                    </div>
-                  </td>
-
-                  {/* ID Column */}
-                  <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
-                    <div className="text-[10px] xs:text-xs sm:text-sm">
-                      <div className="flex items-center gap-1 mb-1 sm:mb-2">
-                        <Badge
-                          variant="outline"
-                          className="bg-orange-50 text-orange-700 border-orange-200 text-[8px] xs:text-[9px] sm:text-xs"
-                        >
-                          {equipment.equipo.code}
-                        </Badge>
-                        <Files
-                          onClick={() => {
-                            setCopyEquipmentModalOpen(true);
-                          }}
-                          size={20}
-                          color="#CD410E"
-                          className="cursor-pointer"
-                        />
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2">
+                        <Skeleton className="h-6 w-20" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
                       </div>
-                      <div className="text-[9px] xs:text-[10px] sm:text-xs text-slate-600">
-                        <span className="font-medium">Registro Sanitario:</span>
-                        <div className="text-[8px] xs:text-[9px] sm:text-xs bg-slate-100 px-1 xs:px-2 py-0.5 xs:py-1 rounded mt-0.5 xs:mt-1 border">
-                          {equipment.data.registroSanitario}
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4">
+                      <div className="flex flex-col gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Skeleton key={i} className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9" />
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : devices && devices.length > 0 ? (
+                devices.filter(device => device && typeof device === 'object' && device.id).map((device) => (
+                  <tr
+                    key={device.id}
+                    className="border-b hover:bg-slate-50/50 transition-colors"
+                  >
+                    {/* Equipment Column */}
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
+                      <div className="flex items-start gap-1 xs:gap-2 sm:gap-3">
+                        <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
+                          <img
+                            src={notFoundImg}
+                            alt={device.equipo?.name || 'Equipo médico'}
+                            className="hover:scale-220 transition-all w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 object-cover rounded opacity-70"
+                          />
                         </div>
-                        <div className="mt-4 xs:mt-2">
-                          <div>
-                            <span className="font-medium text-slate-700">
-                              Codigo:
-                            </span>
-                            <span className="font-medium text-slate-700">
-                              {equipment.equipo.code || "SIN CODIGO"}
-                            </span>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900 text-[10px] xs:text-xs sm:text-sm md:text-base mb-0.5 sm:mb-1">
+                            {safeRenderText(device.equipo?.name, 'Sin nombre')}
                           </div>
-                          <div>
-                            <span className="font-medium text-slate-700">
-                              Marca:
-                            </span>
-                            <span className="font-medium text-slate-700">
-                              {equipment.equipo.brand || "SIN MARCA"}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-slate-700">
-                              Serie:
-                            </span>
-                            <span className="font-medium text-slate-700">
-                              {equipment.equipo.series || "SIN SERIE"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 xs:gap-2">
-                            <span className="font-medium text-slate-700">
-                              Preventivos:
-                            </span>
-                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                              {equipment.data.preventivos || "SIN PREVENTIVOS"}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1 xs:gap-2">
-                            <span className="font-medium text-slate-700">
-                              Calibraciones:
-                            </span>
-                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                              {equipment.data.calibraciones ||
-                                "SIN CALIBRACIONES"}
-                            </Badge>
+                          <div className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-slate-600 space-y-0.5">
+                            <div>
+                              <span className="font-medium">Fabricante:</span>{" "}
+                              {safeRenderText(device.equipo?.brand, 'Sin marca')}
+                            </div>
+                            <div>
+                              <span className="font-medium">Modelo:</span>{" "}
+                              {safeRenderText(device.equipo?.model, 'Sin modelo')}
+                            </div>
+                            <div>
+                              <span className="font-medium">Serie:</span>{" "}
+                              {safeRenderText(device.equipo?.series, 'Sin serie')}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Data Column */}
-
-                  {/* Location Column */}
-                  <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
-                    <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Servicio:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.servicio}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Área:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.area}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Zona:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.zona}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Sede:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.sede}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Localización actual:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.localizacion}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Estado del equipo:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.estado || "SIN ESTADO  "}
-                        </span>
-                      </div>
-                      <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100">
-                        <span className="font-medium text-slate-700">
-                          Propietario:
-                        </span>
-
-                        <div className="text-[8px] xs:text-[9px] sm:text-xs text-slate-600 leading-tight bg-slate-50 p-1 xs:p-2 rounded border">
-                          {equipment.ubicacion.hospital}
+                    {/* ID Column */}
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
+                      <div className="text-[10px] xs:text-xs sm:text-sm">
+                        <div className="flex items-center gap-1 mb-1 sm:mb-2">
+                          <Badge
+                            variant="outline"
+                            className="bg-orange-50 text-orange-700 border-orange-200 text-[8px] xs:text-[9px] sm:text-xs"
+                          >
+                            {safeRenderText(device.equipo?.code, 'Sin código')}
+                          </Badge>
+                          <Files
+                            onClick={() => {
+                              setCopyEquipmentModalOpen(true);
+                            }}
+                            size={20}
+                            color="#CD410E"
+                            className="cursor-pointer"
+                          />
+                        </div>
+                        <div className="text-[9px] xs:text-[10px] sm:text-xs text-slate-600">
+                          <span className="font-medium">Registro Sanitario:</span>
+                          <div className="text-[8px] xs:text-[9px] sm:text-xs bg-slate-100 px-1 xs:px-2 py-0.5 xs:py-1 rounded mt-0.5 xs:mt-1 border">
+                            {safeRenderText(device.data?.registroSanitario, 'Sin registro')}
+                          </div>
+                          <div className="mt-4 xs:mt-2">
+                            <div>
+                              <span className="font-medium text-slate-700">
+                                Código:
+                              </span>
+                              <span className="font-medium text-slate-700">
+                                {safeRenderText(device.equipo?.code, "SIN CÓDIGO")}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-slate-700">
+                                Marca:
+                              </span>
+                              <span className="font-medium text-slate-700">
+                                {safeRenderText(device.equipo?.brand, "SIN MARCA")}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-slate-700">
+                                Serie:
+                              </span>
+                              <span className="font-medium text-slate-700">
+                                {safeRenderText(device.equipo?.series, "SIN SERIE")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 xs:gap-2">
+                              <span className="font-medium text-slate-700">
+                                Archivos:
+                              </span>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
+                                {safeRenderText(device.data?.archivos, "0")}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-1 xs:gap-2">
+                              <span className="font-medium text-slate-700">
+                                Planes Mant.:
+                              </span>
+                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
+                                {safeRenderText(device.data?.planesMantenimiento, "0")}
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Execution Plan Column */}
-                  <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
-                    <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-900 font-medium">
-                          {equipment.ejecucionPlan.frecuencia}
-                        </span>
-                        <span className="text-teal-500">🔄</span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Último Preventivo:
-                        </span>
-                      </div>
-                      <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center ">
-                        {equipment.ejecucionPlan.ultimoMantenimiento}
-                        <Link size={15} />
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Próximo Mantenimiento:
-                        </span>
-                      </div>
-                      <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
-                        {equipment.ejecucionPlan.proximoMantenimiento}
-                      </div>
-                      <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
+                    {/* Location Column */}
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
+                      <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
                         <div>
-                          <span className="font-medium text-teal-700">
-                            Información de tickets
+                          <span className="font-medium text-slate-700">
+                            Servicio:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.ubicacion?.servicio, 'Sin servicio')}
                           </span>
                         </div>
-                        <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
-                          <div>
-                            <div className="font-medium text-slate-700">
-                              Fecha de creación del ultimo ticket:
-                            </div>
-                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                              {equipment.ultimaAccion.tipo}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-slate-700">
-                              Fecha de ultimo cierre de tickets:
-                            </div>
-                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                              {equipment.ultimaAccion.fechaCreacion}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-slate-700">
-                              Fecha de Finalización:
-                            </div>
-                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                              {equipment.ultimaAccion.fechaCierre}
-                            </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Área:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.ubicacion?.area, 'Sin área')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Sede:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.ubicacion?.sede, 'Sin sede')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Estado:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            <Badge 
+                              className={`text-[8px] xs:text-[9px] sm:text-xs ${
+                                device.data?.status === 'Operativo' 
+                                  ? 'bg-green-100 text-green-800 border-green-200'
+                                  : device.data?.status === 'Fuera de Servicio'
+                                  ? 'bg-red-100 text-red-800 border-red-200'
+                                  : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                              }`}
+                            >
+                              {safeRenderText(device.data?.status, 'Sin estado')}
+                            </Badge>
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Clasificación:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.data?.clasificacion, 'Sin clasificación')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Riesgo:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            <Badge 
+                              className={`text-[8px] xs:text-[9px] sm:text-xs ${
+                                (device.data?.riesgo && typeof device.data.riesgo === 'string' && (device.data.riesgo.includes('Alto') || device.data.riesgo.includes('III')))
+                                  ? 'bg-red-100 text-red-800 border-red-200'
+                                  : (device.data?.riesgo && typeof device.data.riesgo === 'string' && (device.data.riesgo.includes('Medio') || device.data.riesgo.includes('II')))
+                                  ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                  : 'bg-green-100 text-green-800 border-green-200'
+                              }`}
+                            >
+                              {safeRenderText(device.data?.riesgo, 'Sin clasificar')}
+                            </Badge>
+                          </span>
+                        </div>
+                        <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100">
+                          <span className="font-medium text-slate-700">
+                            Propietario:
+                          </span>
+                          <div className="text-[8px] xs:text-[9px] sm:text-xs text-slate-600 leading-tight bg-slate-50 p-1 xs:p-2 rounded border">
+                            {safeRenderText(device.propietario, 'Sin propietario')}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Options Column */}
-                  <td className="p-1 xs:p-2 sm:p-3 md:p-4 align-top">
-                    <div className="flex flex-col gap-0.5 xs:gap-1">
-                      <Button
-                        size="sm"
-                        className="bg-cyan-500 hover:bg-cyan-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                        title="Consultar Equipo"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setViewEquipmentModalOpen(true);
-                        }}
-                      >
-                        <Eye className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-blue-500 hover:bg-blue-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                        title="Editar Información"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setEditEquipmentModalOpen(true);
-                        }}
-                      >
-                        <Edit className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-purple-500 hover:bg-purple-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                        title="Documentos Técnicos"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setDocumentListModalOpen(true);
-                        }}
-                      >
-                        <Paperclip className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-orange-500 hover:bg-orange-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                        title="Cargar Documentos"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setDocumentUploadModalOpen(true);
-                        }}
-                      >
-                        <FileText className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-red-500 hover:bg-red-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                        title="Eliminar Registro"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setDeleteConfirmModalOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                      </Button>
-                    </div>
+                    {/* Execution Plan Column */}
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
+                      <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Último Mantenimiento:
+                          </span>
+                        </div>
+                        <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
+                          {device.mantenimiento?.ultimoMantenimiento ? 
+                            new Date(device.mantenimiento.ultimoMantenimiento).toLocaleDateString() : 
+                            'Sin registros'
+                          }
+                          <Link size={15} />
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Última Calibración:
+                          </span>
+                        </div>
+                        <div className="text-slate-600 bg-blue-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
+                          {device.mantenimiento?.ultimaCalibración ? 
+                            new Date(device.mantenimiento.ultimaCalibración).toLocaleDateString() : 
+                            'Sin registros'
+                          }
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Último Correctivo:
+                          </span>
+                        </div>
+                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
+                          {device.mantenimiento?.ultimoCorrectivo ? 
+                            new Date(device.mantenimiento.ultimoCorrectivo).toLocaleDateString() : 
+                            'Sin registros'
+                          }
+                        </div>
+                        <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
+                          <div>
+                            <span className="font-medium text-teal-700">
+                              Información de tickets
+                            </span>
+                          </div>
+                          <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Último inicio de ticket:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {device.tickets?.fechaUltimoTicket ? 
+                                  new Date(device.tickets.fechaUltimoTicket).toLocaleDateString() : 
+                                  'Sin registros'
+                                }
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Orden de Compra:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {safeRenderText(device.compra?.orden, 'Sin orden')}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Tipo de Compra:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {safeRenderText(device.compra?.tipo, 'Sin especificar')}
+                              </div>
+                            </div>
+                            {device.observaciones?.ultima && (
+                              <div>
+                                <div className="font-medium text-slate-700">
+                                  Última Observación:
+                                </div>
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                  {safeRenderText(device.observaciones.ultima, 'Sin observaciones')}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Actions Column */}
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 align-top">
+                      <div className="flex flex-col gap-0.5 xs:gap-1">
+                        <Button
+                          size="sm"
+                          className="bg-cyan-500 hover:bg-cyan-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+                          title="Consultar Equipo"
+                          onClick={() => {
+                            setSelectedEquipment(device);
+                            setViewEquipmentModalOpen(true);
+                          }}
+                        >
+                          <Eye className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-blue-500 hover:bg-blue-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+                          title="Editar Información"
+                          onClick={() => {
+                            setSelectedEquipment(device);
+                            setEditEquipmentModalOpen(true);
+                          }}
+                        >
+                          <Edit className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-purple-500 hover:bg-purple-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+                          title="Documentos Técnicos"
+                          onClick={() => {
+                            setSelectedEquipment(device);
+                            setDocumentListModalOpen(true);
+                          }}
+                        >
+                          <Paperclip className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-orange-500 hover:bg-orange-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+                          title="Cargar Documentos"
+                          onClick={() => {
+                            setSelectedEquipment(device);
+                            setDocumentUploadModalOpen(true);
+                          }}
+                        >
+                          <FileText className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-red-500 hover:bg-red-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+                          title="Eliminar Registro"
+                          onClick={() => {
+                            setSelectedEquipment(device);
+                            setDeleteConfirmModalOpen(true);
+                          }}
+                        >
+                          <Trash2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                // No data message
+                <tr>
+                  <td colSpan="5" className="text-center py-8 text-slate-500">
+                    {error ? (
+                      <div className="text-red-500">
+                        <p>Error al cargar los equipos</p>
+                        <p className="text-sm">{error}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p>No hay equipos disponibles</p>
+                        <p className="text-sm">No se encontraron equipos médicos registrados</p>
+                      </div>
+                    )}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -817,7 +892,13 @@ export function MedicalDevicesView() {
         {/* Results Info Bottom */}
         <div className="p-2 sm:p-3 md:p-4 text-xs sm:text-sm text-slate-600 border-t bg-slate-50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span>Total de equipos médicos registrados: 2 equipos</span>
+            <span>
+              {loading ? (
+                <Skeleton className="h-4 w-48" />
+              ) : (
+                `Total de equipos médicos registrados: ${pagination.total || 0} equipos`
+              )}
+            </span>
             <span className="text-[10px] xs:text-xs sm:text-sm text-slate-500">
               Última actualización: {new Date().toLocaleString()}
             </span>
@@ -828,15 +909,19 @@ export function MedicalDevicesView() {
         <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-slate-50">
           <div className="flex items-center gap-1 sm:gap-2">
             <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
-            <Select defaultValue="2">
+            <Select 
+              value={pagination.per_page.toString()} 
+              onValueChange={(value) => changePerPage(parseInt(value))}
+            >
               <SelectTrigger className="w-12 sm:w-14 md:w-16 h-6 sm:h-7 md:h-8 text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2">2</SelectItem>
                 <SelectItem value="10">10</SelectItem>
+                <SelectItem value="15">15</SelectItem>
                 <SelectItem value="25">25</SelectItem>
                 <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
               </SelectContent>
             </Select>
             <span className="text-xs sm:text-sm text-slate-700">
@@ -849,40 +934,72 @@ export function MedicalDevicesView() {
               variant="outline"
               size="sm"
               className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+              onClick={() => changePage(pagination.current_page - 1)}
+              disabled={pagination.current_page <= 1 || loading}
             >
               Anterior
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-teal-600 hover:bg-teal-700 h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              1
-            </Button>
+            
+            {/* Page numbers */}
+            {[...Array(Math.min(5, pagination.last_page))].map((_, index) => {
+              const pageNumber = index + 1;
+              const isCurrentPage = pageNumber === pagination.current_page;
+              
+              return (
+                <Button
+                  key={pageNumber}
+                  variant={isCurrentPage ? "default" : "outline"}
+                  size="sm"
+                  className={`h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm ${
+                    isCurrentPage 
+                      ? 'bg-teal-600 hover:bg-teal-700' 
+                      : ''
+                  }`}
+                  onClick={() => changePage(pageNumber)}
+                  disabled={loading}
+                >
+                  {pageNumber}
+                </Button>
+              );
+            })}
+            
+            {pagination.last_page > 5 && (
+              <>
+                <span className="text-xs sm:text-sm text-slate-500 px-1">...</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                  onClick={() => changePage(pagination.last_page)}
+                  disabled={loading}
+                >
+                  {pagination.last_page}
+                </Button>
+              </>
+            )}
+            
             <Button
               variant="outline"
               size="sm"
               className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              2
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              3
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
+              onClick={() => changePage(pagination.current_page + 1)}
+              disabled={pagination.current_page >= pagination.last_page || loading}
             >
               Siguiente
             </Button>
           </div>
+
+          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-600">
+            <span>
+              Página {pagination.current_page} de {pagination.last_page}
+            </span>
+            <span className="hidden sm:inline">
+              ({((pagination.current_page - 1) * pagination.per_page) + 1}-{Math.min(pagination.current_page * pagination.per_page, pagination.total)} de {pagination.total})
+            </span>
+          </div>
         </div>
       </Card>
+
       {/* Modals */}
       <FilterModal open={filterModalOpen} onOpenChange={setFilterModalOpen} />
       <AddEquipmentModal open={addModalOpen} onOpenChange={setAddModalOpen} />

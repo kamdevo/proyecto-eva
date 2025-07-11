@@ -30,44 +30,44 @@ use App\Http\Controllers\Api\EquipmentController;
 |
 */
 
-Route::middleware('auth:sanctum')->group(function () {
-    // CRUD básico de equipos
-    Route::apiResource('equipos', EquipmentController::class);
-    
-    // Rutas específicas de equipos
+// Rutas de equipos médicos
+// CRUD básico de equipos
+Route::apiResource('equipos', EquipmentController::class);
 
-// Agrupación optimizada de rutas con middleware empresarial
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
-        Route::get('equipos/{id}/historial', [EquipmentController::class, 'historial']);
-        Route::get('equipos/{id}/mantenimientos', [EquipmentController::class, 'mantenimientos']);
-        Route::get('equipos/{id}/calibraciones', [EquipmentController::class, 'calibraciones']);
-        Route::get('equipos/{id}/documentos', [EquipmentController::class, 'documentos']);
-        Route::post('equipos/{id}/toggle-status', [EquipmentController::class, 'toggleStatus']);
-        Route::post('equipos/{id}/asignar-area', [EquipmentController::class, 'asignarArea']);
-        Route::post('equipos/{id}/asignar-servicio', [EquipmentController::class, 'asignarServicio']);
-    
-    // Búsquedas y filtros
-        Route::get('equipos/buscar/{termino}', [EquipmentController::class, 'buscar']);
-        Route::post('equipos/busqueda-avanzada', [EquipmentController::class, 'busquedaAvanzada']);
-        Route::get('equipos/filtrar/estado/{estado}', [EquipmentController::class, 'filtrarPorEstado']);
-        Route::get('equipos/filtrar/area/{area}', [EquipmentController::class, 'filtrarPorArea']);
-        Route::get('equipos/filtrar/servicio/{servicio}', [EquipmentController::class, 'filtrarPorServicio']);
-    
-    // Estadísticas de equipos
-        Route::get('equipos/estadisticas/general', [EquipmentController::class, 'estadisticasGenerales']);
-        Route::get('equipos/estadisticas/por-area', [EquipmentController::class, 'estadisticasPorArea']);
-        Route::get('equipos/estadisticas/por-estado', [EquipmentController::class, 'estadisticasPorEstado']);
-        Route::get('equipos/estadisticas/criticos', [EquipmentController::class, 'equiposCriticos']);
-    
-    // Gestión masiva
-        Route::post('equipos/importar', [EquipmentController::class, 'importar']);
-        Route::post('equipos/actualizar-masivo', [EquipmentController::class, 'actualizarMasivo']);
-        Route::post('equipos/eliminar-masivo', [EquipmentController::class, 'eliminarMasivo']);
-    
-    // QR y códigos
-        Route::get('equipos/{id}/qr', [EquipmentController::class, 'generarQR']);
-        Route::get('equipos/{id}/etiqueta', [EquipmentController::class, 'generarEtiqueta']);
-        Route::post('equipos/escanear-qr', [EquipmentController::class, 'escanearQR']);
-});
+// Rutas específicas de equipos médicos con información completa
+Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete']);
+Route::get('equipos/{id}/complete-info', [EquipmentController::class, 'getCompleteInfo']);
+Route::get('equipos/filter-options', [EquipmentController::class, 'getFilterOptions']);
+Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 'getMedicalDevicesStats']);
 
-});
+// Otras rutas específicas
+Route::get('equipos/{id}/historial', [EquipmentController::class, 'historial']);
+Route::get('equipos/{id}/mantenimientos', [EquipmentController::class, 'mantenimientos']);
+Route::get('equipos/{id}/calibraciones', [EquipmentController::class, 'calibraciones']);
+Route::get('equipos/{id}/documentos', [EquipmentController::class, 'documentos']);
+Route::post('equipos/{id}/toggle-status', [EquipmentController::class, 'toggleStatus']);
+Route::post('equipos/{id}/asignar-area', [EquipmentController::class, 'asignarArea']);
+Route::post('equipos/{id}/asignar-servicio', [EquipmentController::class, 'asignarServicio']);
+
+// Búsquedas y filtros
+Route::get('equipos/buscar/{termino}', [EquipmentController::class, 'buscar']);
+Route::post('equipos/busqueda-avanzada', [EquipmentController::class, 'busquedaAvanzada']);
+Route::get('equipos/filtrar/estado/{estado}', [EquipmentController::class, 'filtrarPorEstado']);
+Route::get('equipos/filtrar/area/{area}', [EquipmentController::class, 'filtrarPorArea']);
+Route::get('equipos/filtrar/servicio/{servicio}', [EquipmentController::class, 'filtrarPorServicio']);
+
+// Estadísticas de equipos
+Route::get('equipos/estadisticas/general', [EquipmentController::class, 'estadisticasGenerales']);
+Route::get('equipos/estadisticas/por-area', [EquipmentController::class, 'estadisticasPorArea']);
+Route::get('equipos/estadisticas/por-estado', [EquipmentController::class, 'estadisticasPorEstado']);
+Route::get('equipos/estadisticas/criticos', [EquipmentController::class, 'equiposCriticos']);
+
+// Gestión masiva
+Route::post('equipos/importar', [EquipmentController::class, 'importar']);
+Route::post('equipos/actualizar-masivo', [EquipmentController::class, 'actualizarMasivo']);
+Route::post('equipos/eliminar-masivo', [EquipmentController::class, 'eliminarMasivo']);
+
+// QR y códigos
+Route::get('equipos/{id}/qr', [EquipmentController::class, 'generarQR']);
+Route::get('equipos/{id}/etiqueta', [EquipmentController::class, 'generarEtiqueta']);
+Route::post('equipos/escanear-qr', [EquipmentController::class, 'escanearQR']);

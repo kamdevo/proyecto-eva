@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useMedicalDevices } from "@/hooks/useMedicalDevices"
 import { FilterModal } from "@/components/modals/filter-modal"
 import { AddEquipmentModal } from "@/components/modals/add-equipment-modal"
 import { CleanNamesModal } from "@/components/modals/clean-names-modal"
@@ -19,80 +20,12 @@ import { EditEquipmentModal } from "@/components/modals/edit-equipment-modal"
 import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal"
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal"
 
-const equipmentData = [
-  {
-    id: "001",
-    image: "/placeholder.svg?height=72&width=108",
-    equipo: {
-      name: "ACELERADOR LINEAL MÉDICO",
-      code: "EAC0001",
-      brand: "VARIAN MEDICAL SYSTEMS",
-      model: "CLINAC iX",
-      series: "12345",
-    },
-    data: {
-      preventivos: "25",
-      calibraciones: "5",
-      status: "Operativo",
-      registroSanitario: "INVIMA-2024-001",
-    },
-    ubicacion: {
-      servicio: "RADIOTERAPIA ONCOLÓGICA",
-      area: "UNIDAD DE RADIOTERAPIA",
-      zona: "ÁREA DE HOSPITALIZACIÓN",
-      sede: "SEDE PRINCIPAL",
-      localizacion: "SALA DE RADIOTERAPIA A",
-      hospital: "HOSPITAL UNIVERSITARIO DEL VALLE EVARISTO GARCÍA",
-    },
-    ejecucionPlan: {
-      frecuencia: "Mantenimiento Preventivo Anual",
-      ultimoMantenimiento: "2024-05-15",
-      proximoMantenimiento: "2025-05-15",
-    },
-    ultimaAccion: {
-      fechaCreacion: "2024-05-15 15:30:04",
-      fechaCierre: "2024-05-15 16:45:30",
-      tipo: "Mantenimiento Preventivo Programado",
-    },
-  },
-  {
-    id: "002",
-    image: "/placeholder.svg?height=72&width=108",
-    equipo: {
-      name: "ACELERADOR LINEAL MÉDICO",
-      code: "EAC0002",
-      brand: "VARIAN MEDICAL SYSTEMS",
-      model: "TRUE BEAM STx",
-      series: "67890",
-    },
-    data: {
-      preventivos: "30",
-      calibraciones: "8",
-      status: "Operativo",
-      registroSanitario: "INVIMA-2024-002",
-    },
-    ubicacion: {
-      servicio: "RADIOTERAPIA ONCOLÓGICA",
-      area: "UNIDAD DE RADIOTERAPIA",
-      zona: "ÁREA DE HOSPITALIZACIÓN",
-      sede: "SEDE PRINCIPAL",
-      localizacion: "SALA DE RADIOTERAPIA B",
-      hospital: "HOSPITAL UNIVERSITARIO DEL VALLE EVARISTO GARCÍA",
-    },
-    ejecucionPlan: {
-      frecuencia: "Mantenimiento Preventivo Semestral",
-      ultimoMantenimiento: "2024-05-14",
-      proximoMantenimiento: "2024-11-14",
-    },
-    ultimaAccion: {
-      fechaCreacion: "2024-05-14 10:20:15",
-      fechaCierre: "2024-05-14 11:35:45",
-      tipo: "Calibración de Precisión",
-    },
-  },
-]
+// Datos mock eliminados - ahora usa datos reales de la base de datos
 
 export function MedicalDevicesView() {
+  // Hook para manejar los datos de equipos médicos
+  const { devices, loading, error } = useMedicalDevices();
+  
   const [filterModalOpen, setFilterModalOpen] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [cleanNamesModalOpen, setCleanNamesModalOpen] = useState(false)
@@ -409,7 +342,20 @@ export function MedicalDevicesView() {
               </tr>
             </thead>
             <tbody>
-              {equipmentData.map((equipment, index) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8">
+                    <div>Cargando equipos médicos...</div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8 text-red-500">
+                    <div>Error al cargar equipos: {error}</div>
+                  </td>
+                </tr>
+              ) : devices && devices.length > 0 ? (
+                devices.map((equipment) => (
                 <tr
                   key={equipment.id}
                   className="border-b hover:bg-slate-50/50 transition-colors">
@@ -420,20 +366,20 @@ export function MedicalDevicesView() {
                         className="w-12 h-12 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
                         <img
                           src={equipment.image || "/placeholder.svg"}
-                          alt={equipment.equipo.name}
+                          alt={equipment.equipo?.name || 'Equipo médico'}
                           className="w-8 h-8 object-cover rounded opacity-70" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 text-sm mb-1">{equipment.equipo.name}</div>
+                        <div className="font-semibold text-slate-900 text-sm mb-1">{equipment.equipo?.name || 'Sin nombre'}</div>
                         <div className="text-xs text-slate-600 space-y-0.5">
                           <div>
-                            <span className="font-medium">Fabricante:</span> {equipment.equipo.brand}
+                            <span className="font-medium">Fabricante:</span> {equipment.equipo?.brand || 'Sin marca'}
                           </div>
                           <div>
-                            <span className="font-medium">Modelo:</span> {equipment.equipo.model}
+                            <span className="font-medium">Modelo:</span> {equipment.equipo?.model || 'Sin modelo'}
                           </div>
                           <div>
-                            <span className="font-medium">Serie:</span> {equipment.equipo.series}
+                            <span className="font-medium">Serie:</span> {equipment.equipo?.series || 'Sin serie'}
                           </div>
                         </div>
                       </div>
@@ -447,13 +393,13 @@ export function MedicalDevicesView() {
                         <Badge
                           variant="outline"
                           className="bg-orange-50 text-orange-700 border-orange-200">
-                          {equipment.equipo.code}
+                          {equipment.equipo?.code || 'Sin código'}
                         </Badge>
                       </div>
                       <div className="text-xs text-slate-600">
                         <span className="font-medium">Registro Sanitario:</span>
                         <div className="text-xs bg-slate-100 px-2 py-1 rounded mt-1 border">
-                          {equipment.data.registroSanitario}
+                          {equipment.data?.registroSanitario || 'Sin registro'}
                         </div>
                       </div>
                     </div>
@@ -467,7 +413,7 @@ export function MedicalDevicesView() {
                         <Badge
                           variant="outline"
                           className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                          {equipment.data.preventivos}
+                          {equipment.data?.preventivos || '0'}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
@@ -475,14 +421,14 @@ export function MedicalDevicesView() {
                         <Badge
                           variant="outline"
                           className="text-xs bg-green-50 text-green-700 border-green-200">
-                          {equipment.data.calibraciones}
+                          {equipment.data?.calibraciones || '0'}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-slate-700">Estado Operacional:</span>
                         <Badge
                           className="bg-green-100 text-green-800 hover:bg-green-100 text-xs border border-green-200">
-                          {equipment.data.status}
+                          {equipment.data?.status || 'Sin estado'}
                         </Badge>
                       </div>
                     </div>
@@ -493,23 +439,23 @@ export function MedicalDevicesView() {
                     <div className="text-xs space-y-2 max-w-xs">
                       <div>
                         <span className="font-medium text-slate-700">Servicio:</span>
-                        <span className="ml-1 text-slate-900">{equipment.ubicacion.servicio}</span>
+                        <span className="ml-1 text-slate-900">{equipment.ubicacion?.servicio || 'Sin servicio'}</span>
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">Área:</span>
-                        <span className="ml-1 text-slate-900">{equipment.ubicacion.area}</span>
+                        <span className="ml-1 text-slate-900">{equipment.ubicacion?.area || 'Sin área'}</span>
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">Zona:</span>
-                        <span className="ml-1 text-slate-900">{equipment.ubicacion.zona}</span>
+                        <span className="ml-1 text-slate-900">{equipment.ubicacion?.zona || 'Sin zona'}</span>
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">Sede:</span>
-                        <span className="ml-1 text-slate-900">{equipment.ubicacion.sede}</span>
+                        <span className="ml-1 text-slate-900">{equipment.ubicacion?.sede || 'Sin sede'}</span>
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">Localización:</span>
-                        <span className="ml-1 text-slate-900">{equipment.ubicacion.localizacion}</span>
+                        <span className="ml-1 text-slate-900">{equipment.ubicacion?.localizacion || 'Sin localización'}</span>
                       </div>
                       <div className="mt-3 pt-2 border-t border-slate-100">
                         <div
@@ -524,7 +470,7 @@ export function MedicalDevicesView() {
                   <td className="p-4 border-r border-slate-200 align-top">
                     <div className="text-xs space-y-2 max-w-xs">
                       <div className="flex items-center gap-1">
-                        <span className="text-slate-900 font-medium">{equipment.ejecucionPlan.frecuencia}</span>
+                        <span className="text-slate-900 font-medium">{equipment.ejecucionPlan?.frecuencia || 'Sin programación'}</span>
                         <span className="text-teal-500">🔄</span>
                       </div>
                       <div>
@@ -532,14 +478,14 @@ export function MedicalDevicesView() {
                       </div>
                       <div
                         className="text-slate-600 bg-green-50 p-2 rounded text-xs border border-green-200">
-                        {equipment.ejecucionPlan.ultimoMantenimiento}
+                        {equipment.ejecucionPlan?.ultimoMantenimiento || 'Sin registros'}
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">Próximo Mantenimiento:</span>
                       </div>
                       <div
                         className="text-slate-600 bg-amber-50 p-2 rounded text-xs border border-amber-200">
-                        {equipment.ejecucionPlan.proximoMantenimiento}
+                        {equipment.ejecucionPlan?.proximoMantenimiento || 'Sin programación'}
                       </div>
                       <div className="mt-3 pt-2 border-t border-slate-100 space-y-2">
                         <div>
@@ -549,15 +495,15 @@ export function MedicalDevicesView() {
                           className="space-y-1 text-slate-600 bg-teal-50 p-2 rounded border border-teal-200">
                           <div>
                             <div className="font-medium text-slate-700">Tipo de Intervención:</div>
-                            <div className="text-xs">{equipment.ultimaAccion.tipo}</div>
+                            <div className="text-xs">{equipment.ultimaAccion?.tipo || 'Sin tipo'}</div>
                           </div>
                           <div>
                             <div className="font-medium text-slate-700">Fecha de Inicio:</div>
-                            <div className="text-xs">{equipment.ultimaAccion.fechaCreacion}</div>
+                            <div className="text-xs">{equipment.ultimaAccion?.fechaCreacion || 'Sin fecha'}</div>
                           </div>
                           <div>
                             <div className="font-medium text-slate-700">Fecha de Finalización:</div>
-                            <div className="text-xs">{equipment.ultimaAccion.fechaCierre}</div>
+                            <div className="text-xs">{equipment.ultimaAccion?.fechaCierre || 'Sin fecha'}</div>
                           </div>
                         </div>
                       </div>
@@ -618,9 +564,18 @@ export function MedicalDevicesView() {
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
+                  </td>                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="text-center py-8 text-slate-500">
+                    <div>
+                      <p>No hay equipos disponibles</p>
+                      <p className="text-sm">No se encontraron equipos médicos registrados</p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -628,7 +583,7 @@ export function MedicalDevicesView() {
         {/* Results Info Bottom */}
         <div className="p-4 text-sm text-slate-600 border-t bg-slate-50">
           <div className="flex items-center justify-between">
-            <span>Total de equipos médicos registrados: 2 equipos</span>
+            <span>Total de equipos médicos registrados: {devices ? devices.length : 0} equipos</span>
             <span className="text-xs text-slate-500">Última actualización: {new Date().toLocaleString()}</span>
           </div>
         </div>

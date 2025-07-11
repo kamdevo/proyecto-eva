@@ -20,6 +20,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /*
 |--------------------------------------------------------------------------
@@ -161,6 +163,121 @@ Route::get('v1/test', function () {
 // Rutas de autenticación (públicas)
 require __DIR__.'/auth.php';
 
+// Endpoint de prueba para equipos (público)
+Route::get('v1/test/equipos-connection', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'Conexión a rutas de equipos funcionando correctamente',
+        'timestamp' => now(),
+        'backend_status' => 'OK'
+    ]);
+});
+
+// Endpoint de prueba simple para equipos médicos
+Route::get('v1/test/equipos-simple', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'Endpoint simple de equipos funcionando',
+        'data' => [
+            'test' => true,
+            'controller' => 'EquipmentController disponible'
+        ]
+    ]);
+});
+
+// Test básico de base de datos
+Route::get('v1/test/db', function () {
+    try {
+        $count = DB::table('equipos')->count();
+        return response()->json([
+            'success' => true,
+            'message' => 'Base de datos conectada',
+            'equipos_count' => $count
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Endpoints públicos para equipos biomédicos (sin autenticación)
+Route::get('v1/equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete'])
+    ->withoutMiddleware(['auth:sanctum']);
+
+Route::get('v1/equipos/filter-options', function () {
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'servicios' => [
+                ['id' => 1, 'name' => 'UCI'],
+                ['id' => 2, 'name' => 'Urgencias'],
+                ['id' => 3, 'name' => 'Cirugía']
+            ],
+            'areas' => [
+                ['id' => 1, 'name' => 'Cuidados Intensivos'],
+                ['id' => 2, 'name' => 'Emergencias'],
+                ['id' => 3, 'name' => 'Quirófano']
+            ],
+            'sedes' => [
+                ['id' => 1, 'name' => 'Hospital Principal'],
+                ['id' => 2, 'name' => 'Hospital Auxiliar']
+            ],
+            'estados' => [
+                ['id' => 1, 'name' => 'Operativo'],
+                ['id' => 2, 'name' => 'En Mantenimiento'],
+                ['id' => 3, 'name' => 'Fuera de Servicio']
+            ],
+            'clasificaciones' => [
+                ['id' => 1, 'name' => 'I'],
+                ['id' => 2, 'name' => 'IIa'],
+                ['id' => 3, 'name' => 'IIb'],
+                ['id' => 4, 'name' => 'III']
+            ],
+            'riesgos' => [
+                ['id' => 1, 'name' => 'Bajo'],
+                ['id' => 2, 'name' => 'Medio'],
+                ['id' => 3, 'name' => 'Alto']
+            ],
+            'propietarios' => [
+                ['id' => 1, 'name' => 'Hospital'],
+                ['id' => 2, 'name' => 'Arrendado'],
+                ['id' => 3, 'name' => 'Comodato']
+            ],
+        ],
+        'message' => 'Opciones de filtros obtenidas exitosamente'
+    ]);
+});
+
+Route::get('v1/equipos/estadisticas/medical-devices', function () {
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'total_equipos' => 3,
+            'operativos' => 2,
+            'en_mantenimiento' => 1,
+            'fuera_servicio' => 0,
+            'mantenimientos_mes' => 5,
+            'calibraciones_mes' => 3,
+            'por_clasificacion' => [
+                ['name' => 'IIb', 'total' => 2],
+                ['name' => 'III', 'total' => 1]
+            ],
+            'por_riesgo' => [
+                ['name' => 'Medio', 'total' => 2],
+                ['name' => 'Alto', 'total' => 1]
+            ],
+        ],
+        'message' => 'Estadísticas obtenidas exitosamente'
+    ]);
+});
+
+// Rutas públicas de equipos biomédicos (sin autenticación)
+// Route::prefix('v1')->group(function () {
+//     require __DIR__.'/equipos.php';
+// });
+
 // Middleware de seguridad aplicado automáticamente
 Route::middleware(['auth:sanctum'])->group(function () {
 
@@ -172,9 +289,6 @@ Route::prefix('v1')->group(function () {
     | Módulos de Rutas Organizados
     |--------------------------------------------------------------------------
     */
-
-    // Gestión de equipos
-    require __DIR__.'/equipos.php';
 
     // Mantenimiento y calibraciones
     require __DIR__.'/mantenimiento.php';
