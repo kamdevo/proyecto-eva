@@ -9,14 +9,16 @@ Se ha implementado exitosamente la consulta SQL completa y la integración backe
 ### 🚀 Backend (Laravel)
 
 #### ✅ Controlador: `EquipmentController.php`
+
 - **Método**: `getMedicalDevicesComplete()`
 - **Ruta**: `GET /api/equipos/medical-devices-complete`
 - **Funcionalidad**: Consulta SQL completa con todas las relaciones dinámicas
 
 #### 📊 Consulta SQL Implementada
+
 ```sql
-SELECT 
-    equipos.id, equipos.name, equipos.code, equipos.serial, 
+SELECT
+    equipos.id, equipos.name, equipos.code, equipos.serial,
     equipos.marca, equipos.modelo,
     servicios.name AS servicios,
     areas.name AS area,
@@ -25,21 +27,22 @@ SELECT
     cbiomedica.name AS clasificacion,
     criesgo.name AS riesgo,
     -- Información adicional dinámica
-    (SELECT fecha_mantenimiento FROM mantenimiento 
-     WHERE equipo_id = equipos.id 
+    (SELECT fecha_mantenimiento FROM mantenimiento
+     WHERE equipo_id = equipos.id
      ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento,
-    (SELECT fecha_calibracion FROM calibracion 
-     WHERE equipo_id = equipos.id 
+    (SELECT fecha_calibracion FROM calibracion
+     WHERE equipo_id = equipos.id
      ORDER BY fecha_calibracion DESC LIMIT 1) AS ultima_calibracion,
     -- ... más subconsultas dinámicas
 FROM equipos
 LEFT JOIN servicios ON servicios.id = equipos.servicio_id
-LEFT JOIN areas ON areas.id = equipos.area_id  
+LEFT JOIN areas ON areas.id = equipos.area_id
 -- ... más joins
 WHERE equipos.status != 0 AND equipos.tipo_id = 1
 ```
 
 #### 🛣️ Rutas Configuradas
+
 ```php
 Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete']);
 Route::get('equipos/{id}/complete-info', [EquipmentController::class, 'getCompleteInfo']);
@@ -50,11 +53,13 @@ Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 
 ### 🎨 Frontend (React + Vite)
 
 #### ✅ Servicio: `medicalDevicesService.js`
+
 - Configuración completa de API
 - Métodos para CRUD y operaciones avanzadas
 - Manejo de errores y respuestas
 
 #### ✅ Hook Personalizado: `useMedicalDevices.js`
+
 - Gestión de estado completa
 - Filtros dinámicos
 - Paginación
@@ -62,6 +67,7 @@ Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 
 - Selección múltiple
 
 #### ✅ Vista: `medical-devices-view.jsx`
+
 - Integración con datos dinámicos
 - Skeleton loading con shadcn/ui
 - Paginación interactiva
@@ -71,6 +77,7 @@ Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 
 ## 🎯 Características Implementadas
 
 ### ✅ Datos Dinámicos
+
 - [x] Nombre, código, marca, modelo, serie del equipo
 - [x] Servicios, áreas, sedes
 - [x] Estados y clasificaciones
@@ -81,6 +88,7 @@ Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 
 - [x] Observaciones y registros sanitarios
 
 ### ✅ UX/UI Mejorada
+
 - [x] Skeleton loading durante carga
 - [x] Paginación dinámica con navegación
 - [x] Filtros avanzados
@@ -89,6 +97,7 @@ Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 
 - [x] Manejo de estados vacíos y errores
 
 ### ✅ Funcionalidades
+
 - [x] Búsqueda en tiempo real
 - [x] Filtrado por múltiples campos
 - [x] Ordenamiento dinámico
@@ -99,6 +108,7 @@ Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 
 ## 🚀 Cómo Ejecutar
 
 ### 1. Backend (Laravel)
+
 ```bash
 cd eva-backend
 composer install
@@ -106,6 +116,7 @@ php artisan serve
 ```
 
 ### 2. Frontend (React)
+
 ```bash
 cd eva-frontend
 npm install
@@ -113,6 +124,7 @@ npm run dev
 ```
 
 ### 3. Verificar Integración
+
 ```bash
 # Ejecutar desde la raíz del proyecto
 node test-integration.js
@@ -121,6 +133,7 @@ node test-integration.js
 ## 📊 Estructura de Datos
 
 ### Respuesta de la API
+
 ```json
 {
   "current_page": 1,
@@ -159,25 +172,28 @@ node test-integration.js
 
 ## 🔍 Endpoints Disponibles
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/equipos/medical-devices-complete` | Lista completa de equipos médicos |
-| GET | `/api/equipos/{id}/complete-info` | Información detallada de un equipo |
-| GET | `/api/equipos/filter-options` | Opciones para filtros |
-| GET | `/api/equipos/estadisticas/medical-devices` | Estadísticas generales |
+| Método | Endpoint                                    | Descripción                        |
+| ------ | ------------------------------------------- | ---------------------------------- |
+| GET    | `/api/equipos/medical-devices-complete`     | Lista completa de equipos médicos  |
+| GET    | `/api/equipos/{id}/complete-info`           | Información detallada de un equipo |
+| GET    | `/api/equipos/filter-options`               | Opciones para filtros              |
+| GET    | `/api/equipos/estadisticas/medical-devices` | Estadísticas generales             |
 
 ## 🎨 Componentes de UI
 
 ### Skeleton Loading
+
 - Utiliza `@/components/ui/skeleton` de shadcn/ui
 - Muestra placeholders durante la carga
 - Mantiene la estructura visual
 
 ### Badges Dinámicos
+
 - Estados: Verde (Operativo), Rojo (Fuera de Servicio), Amarillo (Mantenimiento)
 - Riesgos: Rojo (Alto), Amarillo (Medio), Verde (Bajo)
 
 ### Paginación Inteligente
+
 - Navegación entre páginas
 - Selector de elementos por página
 - Información de totales
@@ -185,6 +201,7 @@ node test-integration.js
 ## 🔧 Configuración
 
 ### Variables de Entorno
+
 ```env
 # Backend
 DB_CONNECTION=mysql
@@ -197,18 +214,21 @@ VITE_API_URL=http://localhost:8000/api
 ```
 
 ### CORS Configurado
+
 - Permite peticiones desde el frontend
 - Headers necesarios configurados
 
 ## 🧪 Testing
 
 ### Pruebas Automatizadas
+
 ```bash
 # Ejecutar prueba de integración
 node test-integration.js
 ```
 
 ### Verificaciones Manuales
+
 1. ✅ Datos se cargan correctamente
 2. ✅ Filtros funcionan
 3. ✅ Paginación navega
@@ -218,18 +238,21 @@ node test-integration.js
 ## 📝 Notas Importantes
 
 ### 🔒 Cumplimiento de Reglas
+
 - ✅ No se modificaron estilos visuales existentes
 - ✅ Solo se reemplazaron datos estáticos por dinámicos
 - ✅ Se mantuvieron clases CSS y estructura HTML
 - ✅ Componentes visuales conservados
 
 ### 🚀 Optimizaciones
+
 - Consultas SQL optimizadas con índices
 - Paginación eficiente
 - Cache de opciones de filtros
 - Manejo de errores robusto
 
 ### 🔮 Próximos Pasos
+
 - [ ] Implementar WebSockets para actualizaciones en tiempo real
 - [ ] Agregar filtros avanzados adicionales
 - [ ] Mejorar cache del lado del cliente
@@ -238,6 +261,7 @@ node test-integration.js
 ## 🤝 Soporte
 
 Para cualquier problema o duda:
+
 1. Revisar logs del backend: `storage/logs/laravel.log`
 2. Revisar consola del navegador para errores de frontend
 3. Ejecutar `test-integration.js` para diagnósticos
@@ -245,4 +269,4 @@ Para cualquier problema o duda:
 ---
 
 **✅ Implementación Completa y Funcional**  
-*Todos los requerimientos han sido cumplidos exitosamente*
+_Todos los requerimientos han sido cumplidos exitosamente_

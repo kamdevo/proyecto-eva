@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import medicalDevicesService from '../services/medicalDevicesService';
+import { useState, useEffect, useCallback } from "react";
+import medicalDevicesService from "../services/medicalDevicesService";
 
 /**
  * Hook personalizado para gestión de equipos médicos
@@ -29,18 +29,18 @@ export const useMedicalDevices = () => {
   });
 
   const [filters, setFilters] = useState({
-    search: '',
-    servicio_id: '',
-    area_id: '',
-    sede_id: '',
-    estado_id: '',
-    clasificacion_id: '',
-    riesgo_id: '',
-    propietario_id: '',
+    search: "",
+    servicio_id: "",
+    area_id: "",
+    sede_id: "",
+    estado_id: "",
+    clasificacion_id: "",
+    riesgo_id: "",
+    propietario_id: "",
     page: 1,
     per_page: 15,
-    sort_by: 'name',
-    sort_order: 'asc',
+    sort_by: "name",
+    sort_order: "asc",
   });
 
   // Estados para estadísticas
@@ -58,45 +58,54 @@ export const useMedicalDevices = () => {
   /**
    * Cargar equipos médicos con filtros actuales
    */
-  const loadDevices = useCallback(async (customFilters = null) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const currentFilters = customFilters || filters;
-      const response = await medicalDevicesService.getAllMedicalDevices(currentFilters);
-      
-      // Manejar diferentes estructuras de respuesta del backend
-      if (response && response.success !== false) {
-        const data = response.data || response;
-        
-        setDevices(data.data || data || []);
-        setPagination({
-          current_page: data.current_page || currentFilters.page || 1,
-          per_page: data.per_page || currentFilters.per_page || 15,
-          total: data.total || 0,
-          last_page: data.last_page || 1,
-        });
-      } else {
-        throw new Error(response?.message || 'Error al cargar equipos');
+  const loadDevices = useCallback(
+    async (customFilters = null) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const currentFilters = customFilters || filters;
+        const response = await medicalDevicesService.getAllMedicalDevices(
+          currentFilters
+        );
+
+        // Manejar diferentes estructuras de respuesta del backend
+        if (response && response.success !== false) {
+          const data = response.data || response;
+
+          setDevices(data.data || data || []);
+          setPagination({
+            current_page: data.current_page || currentFilters.page || 1,
+            per_page: data.per_page || currentFilters.per_page || 15,
+            total: data.total || 0,
+            last_page: data.last_page || 1,
+          });
+        } else {
+          throw new Error(response?.message || "Error al cargar equipos");
+        }
+      } catch (err) {
+        // Manejar errores específicos - Sin redirección para equipos biomédicos
+        if (err.response?.status === 401) {
+          setError(
+            "Las rutas de equipos biomédicos están configuradas como públicas. Continuando..."
+          );
+          console.warn(
+            "401 en equipos biomédicos - continuando sin autenticación"
+          );
+        } else if (err.response?.status === 403) {
+          setError("No tienes permisos para acceder a esta información.");
+        } else if (err.response?.status === 404) {
+          setError("Servicio no disponible. Contacta al administrador.");
+        } else {
+          setError(err.message || "Error al cargar equipos médicos");
+        }
+        console.error("Error loading devices:", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      // Manejar errores específicos - Sin redirección para equipos biomédicos
-      if (err.response?.status === 401) {
-        setError('Las rutas de equipos biomédicos están configuradas como públicas. Continuando...');
-        console.warn('401 en equipos biomédicos - continuando sin autenticación');
-      } else if (err.response?.status === 403) {
-        setError('No tienes permisos para acceder a esta información.');
-      } else if (err.response?.status === 404) {
-        setError('Servicio no disponible. Contacta al administrador.');
-      } else {
-        setError(err.message || 'Error al cargar equipos médicos');
-      }
-      console.error('Error loading devices:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+    },
+    [filters]
+  );
 
   /**
    * Cargar opciones para filtros
@@ -104,11 +113,11 @@ export const useMedicalDevices = () => {
   const loadFilterOptions = useCallback(async () => {
     try {
       const response = await medicalDevicesService.getFilterOptions();
-      if (response.status === 'success') {
+      if (response.status === "success") {
         setFilterOptions(response.data);
       }
     } catch (err) {
-      console.error('Error loading filter options:', err);
+      console.error("Error loading filter options:", err);
     }
   }, []);
 
@@ -118,47 +127,53 @@ export const useMedicalDevices = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await medicalDevicesService.getGeneralStats();
-      if (response.status === 'success') {
+      if (response.status === "success") {
         setStats(response.data);
       }
     } catch (err) {
-      console.error('Error loading stats:', err);
+      console.error("Error loading stats:", err);
     }
   }, []);
 
   /**
    * Actualizar filtros y recargar datos
    */
-  const updateFilters = useCallback((newFilters) => {
-    const updatedFilters = { ...filters, ...newFilters, page: 1 };
-    setFilters(updatedFilters);
-  }, [filters]);
+  const updateFilters = useCallback(
+    (newFilters) => {
+      const updatedFilters = { ...filters, ...newFilters, page: 1 };
+      setFilters(updatedFilters);
+    },
+    [filters]
+  );
 
   /**
    * Cambiar página
    */
-  const changePage = useCallback((page) => {
-    const updatedFilters = { ...filters, page };
-    setFilters(updatedFilters);
-  }, [filters]);
+  const changePage = useCallback(
+    (page) => {
+      const updatedFilters = { ...filters, page };
+      setFilters(updatedFilters);
+    },
+    [filters]
+  );
 
   /**
    * Limpiar filtros
    */
   const clearFilters = useCallback(() => {
     const clearedFilters = {
-      search: '',
-      servicio_id: '',
-      area_id: '',
-      sede_id: '',
-      estado_id: '',
-      clasificacion_id: '',
-      riesgo_id: '',
-      propietario_id: '',
+      search: "",
+      servicio_id: "",
+      area_id: "",
+      sede_id: "",
+      estado_id: "",
+      clasificacion_id: "",
+      riesgo_id: "",
+      propietario_id: "",
       page: 1,
       per_page: 15,
-      sort_by: 'name',
-      sort_order: 'asc',
+      sort_by: "name",
+      sort_order: "asc",
     };
     setFilters(clearedFilters);
   }, []);
@@ -169,14 +184,14 @@ export const useMedicalDevices = () => {
   const searchDevices = useCallback(async (searchTerm) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await medicalDevicesService.searchDevices(searchTerm);
-      if (response.status === 'success') {
+      if (response.status === "success") {
         setDevices(response.data || []);
       }
     } catch (err) {
-      setError(err.message || 'Error en la búsqueda');
+      setError(err.message || "Error en la búsqueda");
     } finally {
       setLoading(false);
     }
@@ -188,9 +203,9 @@ export const useMedicalDevices = () => {
   const getDeviceById = useCallback(async (id) => {
     try {
       const response = await medicalDevicesService.getMedicalDeviceById(id);
-      return response.status === 'success' ? response.data : null;
+      return response.status === "success" ? response.data : null;
     } catch (err) {
-      console.error('Error getting device by ID:', err);
+      console.error("Error getting device by ID:", err);
       return null;
     }
   }, []);
@@ -198,88 +213,108 @@ export const useMedicalDevices = () => {
   /**
    * Crear nuevo equipo
    */
-  const createDevice = useCallback(async (deviceData) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await medicalDevicesService.createMedicalDevice(deviceData);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        await loadStats(); // Actualizar estadísticas
-        return response;
+  const createDevice = useCallback(
+    async (deviceData) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await medicalDevicesService.createMedicalDevice(
+          deviceData
+        );
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          await loadStats(); // Actualizar estadísticas
+          return response;
+        }
+        throw new Error(response.message || "Error al crear equipo");
+      } catch (err) {
+        setError(err.message || "Error al crear equipo");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw new Error(response.message || 'Error al crear equipo');
-    } catch (err) {
-      setError(err.message || 'Error al crear equipo');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDevices, loadStats]);
+    },
+    [loadDevices, loadStats]
+  );
 
   /**
    * Actualizar equipo existente
    */
-  const updateDevice = useCallback(async (id, deviceData) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await medicalDevicesService.updateMedicalDevice(id, deviceData);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        return response;
+  const updateDevice = useCallback(
+    async (id, deviceData) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await medicalDevicesService.updateMedicalDevice(
+          id,
+          deviceData
+        );
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          return response;
+        }
+        throw new Error(response.message || "Error al actualizar equipo");
+      } catch (err) {
+        setError(err.message || "Error al actualizar equipo");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw new Error(response.message || 'Error al actualizar equipo');
-    } catch (err) {
-      setError(err.message || 'Error al actualizar equipo');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDevices]);
+    },
+    [loadDevices]
+  );
 
   /**
    * Eliminar equipo
    */
-  const deleteDevice = useCallback(async (id) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await medicalDevicesService.deleteMedicalDevice(id);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        await loadStats(); // Actualizar estadísticas
-        return response;
+  const deleteDevice = useCallback(
+    async (id) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await medicalDevicesService.deleteMedicalDevice(id);
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          await loadStats(); // Actualizar estadísticas
+          return response;
+        }
+        throw new Error(response.message || "Error al eliminar equipo");
+      } catch (err) {
+        setError(err.message || "Error al eliminar equipo");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw new Error(response.message || 'Error al eliminar equipo');
-    } catch (err) {
-      setError(err.message || 'Error al eliminar equipo');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDevices, loadStats]);
+    },
+    [loadDevices, loadStats]
+  );
 
   /**
    * Cambiar estado de un equipo
    */
-  const toggleDeviceStatus = useCallback(async (id, newStatusId) => {
-    try {
-      const response = await medicalDevicesService.toggleStatus(id, newStatusId);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        await loadStats(); // Actualizar estadísticas
-        return response;
+  const toggleDeviceStatus = useCallback(
+    async (id, newStatusId) => {
+      try {
+        const response = await medicalDevicesService.toggleStatus(
+          id,
+          newStatusId
+        );
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          await loadStats(); // Actualizar estadísticas
+          return response;
+        }
+        throw new Error(response.message || "Error al cambiar estado");
+      } catch (err) {
+        setError(err.message || "Error al cambiar estado");
+        throw err;
       }
-      throw new Error(response.message || 'Error al cambiar estado');
-    } catch (err) {
-      setError(err.message || 'Error al cambiar estado');
-      throw err;
-    }
-  }, [loadDevices, loadStats]);
+    },
+    [loadDevices, loadStats]
+  );
 
   /**
    * Obtener historial de mantenimientos
@@ -287,9 +322,9 @@ export const useMedicalDevices = () => {
   const getMaintenanceHistory = useCallback(async (id) => {
     try {
       const response = await medicalDevicesService.getMaintenanceHistory(id);
-      return response.status === 'success' ? response.data : [];
+      return response.status === "success" ? response.data : [];
     } catch (err) {
-      console.error('Error getting maintenance history:', err);
+      console.error("Error getting maintenance history:", err);
       return [];
     }
   }, []);
@@ -300,9 +335,9 @@ export const useMedicalDevices = () => {
   const getCalibrationHistory = useCallback(async (id) => {
     try {
       const response = await medicalDevicesService.getCalibrationHistory(id);
-      return response.status === 'success' ? response.data : [];
+      return response.status === "success" ? response.data : [];
     } catch (err) {
-      console.error('Error getting calibration history:', err);
+      console.error("Error getting calibration history:", err);
       return [];
     }
   }, []);
@@ -313,9 +348,9 @@ export const useMedicalDevices = () => {
   const getDeviceDocuments = useCallback(async (id) => {
     try {
       const response = await medicalDevicesService.getDeviceDocuments(id);
-      return response.status === 'success' ? response.data : [];
+      return response.status === "success" ? response.data : [];
     } catch (err) {
-      console.error('Error getting device documents:', err);
+      console.error("Error getting device documents:", err);
       return [];
     }
   }, []);
@@ -328,7 +363,7 @@ export const useMedicalDevices = () => {
       const response = await medicalDevicesService.uploadDocument(id, formData);
       return response;
     } catch (err) {
-      console.error('Error uploading document:', err);
+      console.error("Error uploading document:", err);
       throw err;
     }
   }, []);
@@ -336,71 +371,83 @@ export const useMedicalDevices = () => {
   /**
    * Actualización masiva de equipos
    */
-  const bulkUpdate = useCallback(async (deviceIds, updateData) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await medicalDevicesService.bulkUpdate(deviceIds, updateData);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        await loadStats(); // Actualizar estadísticas
-        return response;
+  const bulkUpdate = useCallback(
+    async (deviceIds, updateData) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await medicalDevicesService.bulkUpdate(
+          deviceIds,
+          updateData
+        );
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          await loadStats(); // Actualizar estadísticas
+          return response;
+        }
+        throw new Error(response.message || "Error en actualización masiva");
+      } catch (err) {
+        setError(err.message || "Error en actualización masiva");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw new Error(response.message || 'Error en actualización masiva');
-    } catch (err) {
-      setError(err.message || 'Error en actualización masiva');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDevices, loadStats]);
+    },
+    [loadDevices, loadStats]
+  );
 
   /**
    * Eliminación masiva de equipos
    */
-  const bulkDelete = useCallback(async (deviceIds) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await medicalDevicesService.bulkDelete(deviceIds);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        await loadStats(); // Actualizar estadísticas
-        return response;
+  const bulkDelete = useCallback(
+    async (deviceIds) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await medicalDevicesService.bulkDelete(deviceIds);
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          await loadStats(); // Actualizar estadísticas
+          return response;
+        }
+        throw new Error(response.message || "Error en eliminación masiva");
+      } catch (err) {
+        setError(err.message || "Error en eliminación masiva");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw new Error(response.message || 'Error en eliminación masiva');
-    } catch (err) {
-      setError(err.message || 'Error en eliminación masiva');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDevices, loadStats]);
+    },
+    [loadDevices, loadStats]
+  );
 
   /**
    * Importar equipos desde archivo
    */
-  const importDevices = useCallback(async (formData) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await medicalDevicesService.importDevices(formData);
-      if (response.status === 'success') {
-        await loadDevices(); // Recargar lista
-        await loadStats(); // Actualizar estadísticas
-        return response;
+  const importDevices = useCallback(
+    async (formData) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await medicalDevicesService.importDevices(formData);
+        if (response.status === "success") {
+          await loadDevices(); // Recargar lista
+          await loadStats(); // Actualizar estadísticas
+          return response;
+        }
+        throw new Error(response.message || "Error en importación");
+      } catch (err) {
+        setError(err.message || "Error en importación");
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      throw new Error(response.message || 'Error en importación');
-    } catch (err) {
-      setError(err.message || 'Error en importación');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [loadDevices, loadStats]);
+    },
+    [loadDevices, loadStats]
+  );
 
   // Efectos para cargar datos iniciales
   useEffect(() => {

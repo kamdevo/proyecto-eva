@@ -1,5 +1,5 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * Componente Skeleton para mostrar durante la carga de equipos médicos
@@ -74,8 +74,8 @@ export const MedicalDevicesSkeleton = ({ count = 5 }) => {
               {/* Botones de acción - Skeleton */}
               <div className="flex lg:flex-col gap-1 lg:gap-2 justify-end lg:justify-start">
                 {Array.from({ length: 6 }).map((_, btnIndex) => (
-                  <div 
-                    key={btnIndex} 
+                  <div
+                    key={btnIndex}
                     className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-slate-200 animate-pulse rounded"
                   ></div>
                 ))}
@@ -113,7 +113,10 @@ export const FiltersSkeleton = () => {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="h-8 w-32 bg-slate-200 animate-pulse rounded"></div>
+        <div
+          key={index}
+          className="h-8 w-32 bg-slate-200 animate-pulse rounded"
+        ></div>
       ))}
     </div>
   );
@@ -129,21 +132,21 @@ export const ActionButtonsSkeleton = () => {
         <CardContent className="p-0.5 sm:p-1">
           <div className="flex gap-0.5">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="h-6 xs:h-7 sm:h-8 md:h-9 flex-1 bg-slate-300 animate-pulse rounded"
               ></div>
             ))}
           </div>
         </CardContent>
       </Card>
-      
+
       <Card className="bg-slate-200 border-slate-300 shadow-lg flex-1">
         <CardContent className="p-0.5 sm:p-1">
           <div className="flex gap-0.5">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="h-6 xs:h-7 sm:h-8 md:h-9 flex-1 bg-slate-300 animate-pulse rounded"
               ></div>
             ))}
@@ -188,7 +191,10 @@ export const FullMedicalDevicesSkeleton = () => {
       <div className="flex justify-center mt-6">
         <div className="flex gap-2">
           {Array.from({ length: 5 }).map((_, index) => (
-            <div key={index} className="w-8 h-8 bg-slate-200 animate-pulse rounded"></div>
+            <div
+              key={index}
+              className="w-8 h-8 bg-slate-200 animate-pulse rounded"
+            ></div>
           ))}
         </div>
       </div>

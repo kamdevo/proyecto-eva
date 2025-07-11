@@ -1,11 +1,10 @@
-import api from '../config/apiClient';
+import api from "../config/apiClient";
 
 /**
  * Servicio para gestión de equipos médicos
  * Integra completamente con el backend EVA para equipos biomédicos
  */
 class MedicalDevicesService {
-  
   /**
    * Obtiene todos los equipos médicos con información completa
    * @param {Object} params - Parámetros de filtrado y paginación
@@ -16,16 +15,16 @@ class MedicalDevicesService {
       const {
         page = 1,
         per_page = 15,
-        search = '',
-        servicio_id = '',
-        area_id = '',
-        sede_id = '',
-        estado_id = '',
-        clasificacion_id = '',
-        riesgo_id = '',
-        propietario_id = '',
-        sort_by = 'name',
-        sort_order = 'asc'
+        search = "",
+        servicio_id = "",
+        area_id = "",
+        sede_id = "",
+        estado_id = "",
+        clasificacion_id = "",
+        riesgo_id = "",
+        propietario_id = "",
+        sort_by = "name",
+        sort_order = "asc",
       } = params;
 
       const queryParams = new URLSearchParams({
@@ -40,13 +39,15 @@ class MedicalDevicesService {
         ...(riesgo_id && { riesgo_id }),
         ...(propietario_id && { propietario_id }),
         sort_by,
-        sort_order
+        sort_order,
       });
 
-      const response = await api.get(`/v1/equipos/medical-devices-complete?${queryParams}`);
+      const response = await api.get(
+        `/v1/equipos/medical-devices-complete?${queryParams}`
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching medical devices:', error);
+      console.error("Error fetching medical devices:", error);
       throw error;
     }
   }
@@ -61,7 +62,7 @@ class MedicalDevicesService {
       const response = await api.get(`/v1/equipos/${id}/complete-info`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching medical device:', error);
+      console.error("Error fetching medical device:", error);
       throw error;
     }
   }
@@ -73,10 +74,10 @@ class MedicalDevicesService {
    */
   async createMedicalDevice(deviceData) {
     try {
-      const response = await api.post('/v1/equipos', deviceData);
+      const response = await api.post("/v1/equipos", deviceData);
       return response.data;
     } catch (error) {
-      console.error('Error creating medical device:', error);
+      console.error("Error creating medical device:", error);
       throw error;
     }
   }
@@ -92,7 +93,7 @@ class MedicalDevicesService {
       const response = await api.put(`/v1/equipos/${id}`, deviceData);
       return response.data;
     } catch (error) {
-      console.error('Error updating medical device:', error);
+      console.error("Error updating medical device:", error);
       throw error;
     }
   }
@@ -107,7 +108,7 @@ class MedicalDevicesService {
       const response = await api.delete(`/v1/equipos/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Error deleting medical device:', error);
+      console.error("Error deleting medical device:", error);
       throw error;
     }
   }
@@ -122,7 +123,7 @@ class MedicalDevicesService {
       const response = await api.get(`/v1/equipos/${id}/mantenimientos`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching maintenance history:', error);
+      console.error("Error fetching maintenance history:", error);
       throw error;
     }
   }
@@ -137,7 +138,7 @@ class MedicalDevicesService {
       const response = await api.get(`/v1/equipos/${id}/calibraciones`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching calibration history:', error);
+      console.error("Error fetching calibration history:", error);
       throw error;
     }
   }
@@ -152,7 +153,7 @@ class MedicalDevicesService {
       const response = await api.get(`/v1/equipos/${id}/documentos`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching device documents:', error);
+      console.error("Error fetching device documents:", error);
       throw error;
     }
   }
@@ -165,14 +166,18 @@ class MedicalDevicesService {
    */
   async uploadDocument(id, formData) {
     try {
-      const response = await api.post(`/v1/equipos/${id}/documentos`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.post(
+        `/v1/equipos/${id}/documentos`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
       return response.data;
     } catch (error) {
-      console.error('Error uploading document:', error);
+      console.error("Error uploading document:", error);
       throw error;
     }
   }
@@ -183,10 +188,12 @@ class MedicalDevicesService {
    */
   async getGeneralStats() {
     try {
-      const response = await api.get('/v1/equipos/estadisticas/medical-devices');
+      const response = await api.get(
+        "/v1/equipos/estadisticas/medical-devices"
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching general stats:', error);
+      console.error("Error fetching general stats:", error);
       throw error;
     }
   }
@@ -197,10 +204,10 @@ class MedicalDevicesService {
    */
   async getCriticalDevices() {
     try {
-      const response = await api.get('/v1/equipos/estadisticas/criticos');
+      const response = await api.get("/v1/equipos/estadisticas/criticos");
       return response.data;
     } catch (error) {
-      console.error('Error fetching critical devices:', error);
+      console.error("Error fetching critical devices:", error);
       throw error;
     }
   }
@@ -212,10 +219,12 @@ class MedicalDevicesService {
    */
   async searchDevices(searchTerm) {
     try {
-      const response = await api.get(`/v1/equipos/buscar/${encodeURIComponent(searchTerm)}`);
+      const response = await api.get(
+        `/v1/equipos/buscar/${encodeURIComponent(searchTerm)}`
+      );
       return response.data;
     } catch (error) {
-      console.error('Error searching devices:', error);
+      console.error("Error searching devices:", error);
       throw error;
     }
   }
@@ -227,10 +236,10 @@ class MedicalDevicesService {
    */
   async advancedSearch(filters) {
     try {
-      const response = await api.post('/v1/equipos/busqueda-avanzada', filters);
+      const response = await api.post("/v1/equipos/busqueda-avanzada", filters);
       return response.data;
     } catch (error) {
-      console.error('Error in advanced search:', error);
+      console.error("Error in advanced search:", error);
       throw error;
     }
   }
@@ -244,11 +253,11 @@ class MedicalDevicesService {
   async toggleStatus(id, newStatusId) {
     try {
       const response = await api.post(`/v1/equipos/${id}/toggle-status`, {
-        estado_id: newStatusId
+        estado_id: newStatusId,
       });
       return response.data;
     } catch (error) {
-      console.error('Error toggling status:', error);
+      console.error("Error toggling status:", error);
       throw error;
     }
   }
@@ -262,11 +271,11 @@ class MedicalDevicesService {
   async assignToArea(id, areaId) {
     try {
       const response = await api.post(`/v1/equipos/${id}/asignar-area`, {
-        area_id: areaId
+        area_id: areaId,
       });
       return response.data;
     } catch (error) {
-      console.error('Error assigning to area:', error);
+      console.error("Error assigning to area:", error);
       throw error;
     }
   }
@@ -280,11 +289,11 @@ class MedicalDevicesService {
   async assignToService(id, servicioId) {
     try {
       const response = await api.post(`/v1/equipos/${id}/asignar-servicio`, {
-        servicio_id: servicioId
+        servicio_id: servicioId,
       });
       return response.data;
     } catch (error) {
-      console.error('Error assigning to service:', error);
+      console.error("Error assigning to service:", error);
       throw error;
     }
   }
@@ -299,7 +308,7 @@ class MedicalDevicesService {
       const response = await api.get(`/v1/equipos/${id}/qr`);
       return response.data;
     } catch (error) {
-      console.error('Error generating QR:', error);
+      console.error("Error generating QR:", error);
       throw error;
     }
   }
@@ -311,14 +320,14 @@ class MedicalDevicesService {
    */
   async importDevices(formData) {
     try {
-      const response = await api.post('/v1/equipos/importar', formData, {
+      const response = await api.post("/v1/equipos/importar", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
       return response.data;
     } catch (error) {
-      console.error('Error importing devices:', error);
+      console.error("Error importing devices:", error);
       throw error;
     }
   }
@@ -331,13 +340,13 @@ class MedicalDevicesService {
    */
   async bulkUpdate(deviceIds, updateData) {
     try {
-      const response = await api.post('/v1/equipos/actualizar-masivo', {
+      const response = await api.post("/v1/equipos/actualizar-masivo", {
         device_ids: deviceIds,
-        update_data: updateData
+        update_data: updateData,
       });
       return response.data;
     } catch (error) {
-      console.error('Error in bulk update:', error);
+      console.error("Error in bulk update:", error);
       throw error;
     }
   }
@@ -349,12 +358,12 @@ class MedicalDevicesService {
    */
   async bulkDelete(deviceIds) {
     try {
-      const response = await api.post('/v1/equipos/eliminar-masivo', {
-        device_ids: deviceIds
+      const response = await api.post("/v1/equipos/eliminar-masivo", {
+        device_ids: deviceIds,
       });
       return response.data;
     } catch (error) {
-      console.error('Error in bulk delete:', error);
+      console.error("Error in bulk delete:", error);
       throw error;
     }
   }
@@ -365,10 +374,10 @@ class MedicalDevicesService {
    */
   async getFilterOptions() {
     try {
-      const response = await api.get('/v1/equipos/filter-options');
+      const response = await api.get("/v1/equipos/filter-options");
       return response.data;
     } catch (error) {
-      console.error('Error fetching filter options:', error);
+      console.error("Error fetching filter options:", error);
       throw error;
     }
   }
@@ -381,13 +390,13 @@ class MedicalDevicesService {
    */
   async schedulePreventiveMaintenance(deviceId, maintenanceData) {
     try {
-      const response = await api.post('/v1/mantenimiento/preventivo', {
+      const response = await api.post("/v1/mantenimiento/preventivo", {
         equipo_id: deviceId,
-        ...maintenanceData
+        ...maintenanceData,
       });
       return response.data;
     } catch (error) {
-      console.error('Error scheduling preventive maintenance:', error);
+      console.error("Error scheduling preventive maintenance:", error);
       throw error;
     }
   }
@@ -400,13 +409,13 @@ class MedicalDevicesService {
    */
   async scheduleCalibration(deviceId, calibrationData) {
     try {
-      const response = await api.post('/v1/calibracion', {
+      const response = await api.post("/v1/calibracion", {
         equipo_id: deviceId,
-        ...calibrationData
+        ...calibrationData,
       });
       return response.data;
     } catch (error) {
-      console.error('Error scheduling calibration:', error);
+      console.error("Error scheduling calibration:", error);
       throw error;
     }
   }
@@ -419,13 +428,13 @@ class MedicalDevicesService {
    */
   async registerCorrectiveMaintenance(deviceId, correctiveData) {
     try {
-      const response = await api.post('/v1/mantenimiento/correctivo', {
+      const response = await api.post("/v1/mantenimiento/correctivo", {
         equipo_id: deviceId,
-        ...correctiveData
+        ...correctiveData,
       });
       return response.data;
     } catch (error) {
-      console.error('Error registering corrective maintenance:', error);
+      console.error("Error registering corrective maintenance:", error);
       throw error;
     }
   }
@@ -436,17 +445,21 @@ class MedicalDevicesService {
    * @param {Object} filters - Filtros aplicados
    * @returns {Promise} Respuesta de la API
    */
-  async exportDevices(format = 'excel', filters = {}) {
+  async exportDevices(format = "excel", filters = {}) {
     try {
-      const response = await api.post('/v1/equipos/exportar', {
-        format,
-        filters
-      }, {
-        responseType: 'blob'
-      });
+      const response = await api.post(
+        "/v1/equipos/exportar",
+        {
+          format,
+          filters,
+        },
+        {
+          responseType: "blob",
+        }
+      );
       return response.data;
     } catch (error) {
-      console.error('Error exporting devices:', error);
+      console.error("Error exporting devices:", error);
       throw error;
     }
   }

@@ -7,6 +7,7 @@
 **Total de equipos médicos**: 2
 
 #### Equipo 1: Monitor de Signos Vitales Philips
+
 - **ID**: 1
 - **Código**: MSV-001
 - **Serie**: PHL-MSV-2024-001
@@ -15,7 +16,8 @@
 - **Servicio**: UCI - Unidad de Cuidados Intensivos
 - **Sede**: Sede Principal
 
-#### Equipo 2: Ventilador Mecánico Hamilton  
+#### Equipo 2: Ventilador Mecánico Hamilton
+
 - **ID**: 2
 - **Código**: VM-002
 - **Serie**: HAM-VM-2024-002
@@ -31,10 +33,11 @@
 **Status**: ✅ 200 OK
 
 **Estructura de Respuesta**:
+
 ```json
 {
   "success": true,
-  "status": "success", 
+  "status": "success",
   "message": "Equipos médicos obtenidos exitosamente",
   "data": {
     "current_page": 1,
@@ -44,7 +47,7 @@
         "equipo": {
           "name": "Monitor de Signos Vitales Philips",
           "code": "MSV-001",
-          "brand": "Philips", 
+          "brand": "Philips",
           "model": "IntelliVue MX40",
           "series": "PHL-MSV-2024-001"
         },
@@ -57,7 +60,7 @@
         "id": 2,
         "equipo": {
           "name": "Ventilador Mecánico Hamilton",
-          "code": "VM-002", 
+          "code": "VM-002",
           "brand": "Hamilton Medical",
           "model": "HAMILTON-C3",
           "series": "HAM-VM-2024-002"
@@ -84,19 +87,22 @@
 ### Validación Completa
 
 #### ✅ Backend
+
 - [x] Endpoint público funcional
 - [x] Base de datos conectada
 - [x] Consultas SQL corregidas
 - [x] Datos reales insertados
 - [x] Respuesta JSON válida
 
-#### ✅ Frontend  
+#### ✅ Frontend
+
 - [x] Sin errores de carga
 - [x] Hook `useMedicalDevices` funcional
 - [x] Servicio `medicalDevicesService` operativo
 - [x] Componentes preparados para mostrar datos
 
 #### ✅ Integración
+
 - [x] Comunicación backend-frontend exitosa
 - [x] Estructura de datos compatible
 - [x] Paginación funcional
@@ -116,7 +122,7 @@
 **El problema original "Error al cargar los equipos" ha sido completamente resuelto.**
 
 - ✅ El endpoint API funciona correctamente
-- ✅ Los datos se muestran en formato correcto  
+- ✅ Los datos se muestran en formato correcto
 - ✅ El frontend recibe y procesa los datos sin errores
 - ✅ La tabla de equipos médicos muestra información real
 
