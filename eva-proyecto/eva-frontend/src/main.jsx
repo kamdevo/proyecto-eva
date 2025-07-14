@@ -8,6 +8,18 @@ import "./index.css";
 // Import debug config to check environment variables
 import "./debug-config.js";
 
+// Inicializar autenticación inmediatamente
+import { initializeAuth } from "./services/httpService";
+
+// Inicializar autenticación al cargar la aplicación
+initializeAuth().then((result) => {
+  if (result.success) {
+    console.log("✅ [MAIN] Autenticación inicializada:", result.user?.name);
+  } else {
+    console.log("ℹ️ [MAIN] Sin sesión previa:", result.error);
+  }
+});
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />

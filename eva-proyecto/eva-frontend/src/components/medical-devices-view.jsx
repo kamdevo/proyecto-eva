@@ -487,14 +487,9 @@ export function MedicalDevicesView() {
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="border-b">
                     <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
-                      <div className="flex items-start gap-1 xs:gap-2 sm:gap-3">
-                        <Skeleton className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg" />
-                        <div className="min-w-0 flex-1">
-                          <Skeleton className="h-4 w-3/4 mb-2" />
-                          <Skeleton className="h-3 w-1/2 mb-1" />
-                          <Skeleton className="h-3 w-2/3 mb-1" />
-                          <Skeleton className="h-3 w-1/3" />
-                        </div>
+                      <div className="space-y-2 sm:space-y-3">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 rounded-lg" />
                       </div>
                     </td>
                     <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
@@ -545,44 +540,19 @@ export function MedicalDevicesView() {
                     >
                       {/* Equipment Column */}
                       <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
-                        <div className="flex items-start gap-1 xs:gap-2 sm:gap-3">
-                          <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
+                        <div className="space-y-2 sm:space-y-3">
+                          {/* Título del equipo */}
+                          <div className="font-semibold text-slate-900 text-[10px] xs:text-xs sm:text-sm md:text-base">
+                            {safeRenderText(device.equipo?.name, "Sin nombre")}
+                          </div>
+
+                          {/* Imagen del equipo - responsive y grande */}
+                          <div className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden">
                             <img
                               src={notFoundImg}
                               alt={device.equipo?.name || "Equipo médico"}
-                              className="hover:scale-220 transition-all w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 object-cover rounded opacity-70"
+                              className="w-full h-full object-cover hover:scale-105 transition-all duration-300 opacity-80"
                             />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-semibold text-slate-900 text-[10px] xs:text-xs sm:text-sm md:text-base mb-0.5 sm:mb-1">
-                              {safeRenderText(
-                                device.equipo?.name,
-                                "Sin nombre"
-                              )}
-                            </div>
-                            <div className="text-[9px] xs:text-[10px] sm:text-xs md:text-sm text-slate-600 space-y-0.5">
-                              <div>
-                                <span className="font-medium">Fabricante:</span>{" "}
-                                {safeRenderText(
-                                  device.equipo?.brand,
-                                  "Sin marca"
-                                )}
-                              </div>
-                              <div>
-                                <span className="font-medium">Modelo:</span>{" "}
-                                {safeRenderText(
-                                  device.equipo?.model,
-                                  "Sin modelo"
-                                )}
-                              </div>
-                              <div>
-                                <span className="font-medium">Serie:</span>{" "}
-                                {safeRenderText(
-                                  device.equipo?.series,
-                                  "Sin serie"
-                                )}
-                              </div>
-                            </div>
                           </div>
                         </div>
                       </td>

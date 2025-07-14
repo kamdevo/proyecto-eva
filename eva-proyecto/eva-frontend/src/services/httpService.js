@@ -19,7 +19,22 @@ const httpService = axios.create({
 });
 
 // Variable para almacenar el token de autenticación
-let authToken = localStorage.getItem("eva_auth_token");
+let authToken = null;
+
+// Inicializar token desde localStorage al cargar el módulo
+const initializeTokenFromStorage = () => {
+  const storedToken = localStorage.getItem("eva_auth_token");
+  if (storedToken) {
+    authToken = storedToken;
+    httpService.defaults.headers.common[
+      "Authorization"
+    ] = `Bearer ${storedToken}`;
+    console.log("🔄 [HTTP] Token restaurado desde localStorage");
+  }
+};
+
+// Llamar la inicialización inmediatamente
+initializeTokenFromStorage();
 
 // Interceptor de peticiones (request)
 httpService.interceptors.request.use(
@@ -124,9 +139,11 @@ export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem("eva_auth_token", token);
     httpService.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    console.log("✅ [HTTP] Token establecido y persistido");
   } else {
     localStorage.removeItem("eva_auth_token");
     delete httpService.defaults.headers.common["Authorization"];
+    console.log("🧹 [HTTP] Token eliminado y headers limpiados");
   }
 };
 
@@ -187,25 +204,67 @@ export const getCsrfToken = async () => {
 // Función para inicializar la autenticación
 export const initializeAuth = async () => {
   try {
+    console.log("🔄 [AUTH] Inicializando autenticación...");
+
     // Obtener CSRF token
     await getCsrfToken();
 
     // Verificar si hay token almacenado
     const storedToken = localStorage.getItem("eva_auth_token");
     if (storedToken) {
+      console.log("🔍 [AUTH] Token encontrado, validando...");
       setAuthToken(storedToken);
 
       // Verificar que el token sigue siendo válido
       try {
-        await httpService.get(AUTH_ENDPOINTS.USER);
-        console.log("✅ [AUTH] Token válido, usuario autenticado");
+        const response = await httpService.get(AUTH_ENDPOINTS.USER);
+        console.log(
+          "✅ [AUTH] Token válido, usuario autenticado:",
+          response.data
+        );
+        return { success: true, user: response.data };
       } catch (error) {
-        console.warn("⚠️ [AUTH] Token inválido, limpiando autenticación");
-        setAuthToken(null);
+        const status = error.response?.status;
+        const message = error.response?.data?.message || error.message;
+
+        if (status === 401) {
+          console.warn(
+            "⚠️ [AUTH] Token inválido (401), limpiando autenticación"
+          );
+          setAuthToken(null);
+          return { success: false, error: "Token expirado o inválido" };
+        } else if (status === 500) {
+          console.error(
+            "💥 [AUTH] Error 500 del servidor - posible token corrupto:",
+            message
+          );
+          // Para error 500 que podría ser token corrupto, limpiamos también
+          setAuthToken(null);
+          return {
+            success: false,
+            error: "Token corrupto, por favor inicie sesión nuevamente",
+          };
+        } else {
+          // Para otros errores (network, etc.), mantener el token y intentar más tarde
+          console.warn(
+            `⚠️ [AUTH] Error del servidor (${
+              status || "Network"
+            }), manteniendo token para reintentar`
+          );
+          return {
+            success: false,
+            error: "Error temporal del servidor",
+            keepToken: true,
+          };
+        }
       }
+    } else {
+      console.log("ℹ️ [AUTH] No hay token almacenado");
+      return { success: false, error: "No hay token" };
     }
   } catch (error) {
     console.error("❌ [AUTH] Error al inicializar autenticación:", error);
+    return { success: false, error: error.message };
   }
 };
 

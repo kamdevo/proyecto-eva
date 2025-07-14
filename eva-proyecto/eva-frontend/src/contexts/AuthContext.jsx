@@ -145,27 +145,84 @@ export const AuthProvider = ({ children }) => {
         payload: { isLoading: true },
       });
 
-      if (authService.isAuthenticated()) {
-        // Verificar que el usuario actual esté disponible
+      console.log("🔄 [AuthContext] Inicializando autenticación...");
+
+      // Verificar si hay datos de sesión en localStorage
+      const token = localStorage.getItem("eva_auth_token");
+      const storedUser = localStorage.getItem("eva_user");
+
+      if (token && storedUser) {
         try {
-          const result = await authService.getCurrentUser();
-          dispatch({
-            type: AUTH_ACTIONS.SET_USER,
-            payload: { user: result.data || result.user },
-          });
+          // Intentar validar con el backend
+          const isValid = await authService.isAuthenticated();
+
+          if (isValid && authService.user) {
+            console.log(
+              "✅ [AuthContext] Usuario autenticado:",
+              authService.user
+            );
+            dispatch({
+              type: AUTH_ACTIONS.SET_USER,
+              payload: { user: authService.user },
+            });
+          } else {
+            console.log(
+              "ℹ️ [AuthContext] Validación fallida, pero manteniendo datos locales temporalmente"
+            );
+            // Si falla por error del servidor, usar datos locales temporalmente
+            try {
+              const localUser = JSON.parse(storedUser);
+              dispatch({
+                type: AUTH_ACTIONS.SET_USER,
+                payload: { user: localUser },
+              });
+              console.log(
+                "📦 [AuthContext] Usando datos locales mientras el servidor se recupera"
+              );
+            } catch (parseError) {
+              console.warn(
+                "⚠️ [AuthContext] Error al parsear usuario local:",
+                parseError
+              );
+              console.log("ℹ️ [AuthContext] No hay sesión válida");
+              dispatch({
+                type: AUTH_ACTIONS.SET_LOADING,
+                payload: { isLoading: false },
+              });
+            }
+          }
         } catch (error) {
-          console.error("Error getting current user:", error);
-          // Si falla, limpiar autenticación
-          await logout();
+          console.error(
+            "❌ [AuthContext] Error al validar sesión, usando datos locales:",
+            error
+          );
+          // En caso de error del servidor, usar datos locales
+          try {
+            const localUser = JSON.parse(storedUser);
+            dispatch({
+              type: AUTH_ACTIONS.SET_USER,
+              payload: { user: localUser },
+            });
+          } catch (parseError) {
+            console.warn(
+              "⚠️ [AuthContext] Error al parsear usuario de respaldo:",
+              parseError
+            );
+            dispatch({
+              type: AUTH_ACTIONS.SET_LOADING,
+              payload: { isLoading: false },
+            });
+          }
         }
       } else {
+        console.log("ℹ️ [AuthContext] No hay sesión válida");
         dispatch({
           type: AUTH_ACTIONS.SET_LOADING,
           payload: { isLoading: false },
         });
       }
     } catch (error) {
-      console.error("Error initializing auth:", error);
+      console.error("❌ [AuthContext] Error al inicializar:", error);
       dispatch({
         type: AUTH_ACTIONS.SET_LOADING,
         payload: { isLoading: false },
@@ -180,10 +237,18 @@ export const AuthProvider = ({ children }) => {
 
       const result = await authService.login(credentials);
 
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: { user: result.user },
-      });
+      // Verificar si el login fue exitoso antes de actualizar el estado
+      if (result.success) {
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: { user: result.user },
+        });
+      } else {
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_FAILURE,
+          payload: { error: result.message || "Error al iniciar sesión" },
+        });
+      }
 
       return result;
     } catch (error) {

@@ -236,10 +236,30 @@ class AuthController extends ApiController
     public function user(Request $request)
     {
         try {
-            $usuario = $request->user()->load(['zonasUsuario']);
+            // El middleware auth:sanctum ya validó el token
+            $usuario = $request->user();
+            
+            if (!$usuario) {
+                Log::warning('Usuario no encontrado después de autenticación válida');
+                return ResponseFormatter::error('Usuario no encontrado', 401);
+            }
+            
+            // Cargar relaciones necesarias
+            $usuario->load(['zonasUsuario']);
+            
+            Log::info('Usuario obtenido exitosamente', ['user_id' => $usuario->id]);
+            
             return ResponseFormatter::success($usuario, 'Usuario obtenido exitosamente');
+            
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al obtener usuario: ' . $e->getMessage(), 500);
+            Log::error('Error inesperado al obtener usuario autenticado', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return ResponseFormatter::error('Error interno del servidor', 500);
         }
     }
 

@@ -39,10 +39,12 @@ class AuthService {
       this.user = user;
       this._isAuthenticated = true;
 
-      // Almacenar información del usuario
+      // Almacenar información del usuario (asegurar persistencia)
       localStorage.setItem("eva_user", JSON.stringify(user));
+      localStorage.setItem("eva_auth_token", token);
 
       console.log("✅ [AUTH] Sesión iniciada correctamente:", user);
+      console.log("🔐 [AUTH] Token almacenado:", token ? "Sí" : "No");
 
       return {
         success: true,
@@ -180,18 +182,49 @@ class AuthService {
   /**
    * Verificar si el usuario está autenticado
    */
-  isAuthenticated() {
+  async isAuthenticated() {
     const token = localStorage.getItem("eva_auth_token");
     const user = localStorage.getItem("eva_user");
 
     if (token && user) {
       try {
-        this.user = JSON.parse(user);
+        // Verificar que el token sigue siendo válido con el backend
+        const response = await httpService.get(AUTH_ENDPOINTS.USER);
+        this.user = response.data;
         this._isAuthenticated = true;
+
+        // Actualizar usuario almacenado si es necesario
+        localStorage.setItem("eva_user", JSON.stringify(this.user));
+
         return true;
       } catch (error) {
-        console.error("❌ [AUTH] Error al parsear usuario almacenado:", error);
-        this.clearAuthData();
+        const status = error.response?.status;
+        const message = error.response?.data?.message || error.message;
+
+        if (status === 401) {
+          console.error(
+            "❌ [AUTH] Token inválido (401), limpiando autenticación"
+          );
+          this.clearAuthData();
+          return false;
+        } else if (status === 500) {
+          console.error(
+            "💥 [AUTH] Error 500 del servidor - posible token corrupto:",
+            message
+          );
+          // Para error 500 que podría ser token corrupto, limpiamos también
+          this.clearAuthData();
+          return false;
+        } else {
+          // Para errores del servidor (network, etc.), mantener sesión y permitir reintento
+          console.warn(
+            `⚠️ [AUTH] Error del servidor (${
+              status || "Network"
+            }), manteniendo sesión temporalmente`
+          );
+          // Retornar true temporalmente para no forzar logout por error del servidor
+          return true;
+        }
       }
     }
 

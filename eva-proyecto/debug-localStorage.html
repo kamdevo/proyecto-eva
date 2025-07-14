@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Debug localStorage</title>
+  </head>
+  <body>
+    <h1>Debug localStorage - Sistema EVA</h1>
+
+    <div>
+      <h2>Estado actual del localStorage:</h2>
+      <div id="storage-info"></div>
+    </div>
+
+    <div>
+      <h2>Acciones:</h2>
+      <button onclick="showStorageInfo()">Mostrar datos</button>
+      <button onclick="clearAuthData()">Limpiar datos de autenticación</button>
+      <button onclick="clearAllData()">Limpiar todo el localStorage</button>
+    </div>
+
+    <div>
+      <h2>Test Token:</h2>
+      <input
+        type="text"
+        id="test-token"
+        placeholder="Pegar token para probar"
+        style="width: 500px"
+      />
+      <button onclick="testToken()">Probar Token</button>
+      <div id="token-result"></div>
+    </div>
+
+    <script>
+      function showStorageInfo() {
+        const info = document.getElementById("storage-info");
+        const authToken = localStorage.getItem("eva_auth_token");
+        const userData = localStorage.getItem("eva_user");
+
+        info.innerHTML = `
+                <strong>Token:</strong> ${
+                  authToken
+                    ? authToken.substring(0, 50) + "..."
+                    : "No encontrado"
+                }<br>
+                <strong>Token completo:</strong> <pre>${
+                  authToken || "N/A"
+                }</pre>
+                <strong>Usuario:</strong> <pre>${userData || "N/A"}</pre>
+                <strong>Cantidad de items:</strong> ${localStorage.length}
+            `;
+      }
+
+      function clearAuthData() {
+        localStorage.removeItem("eva_auth_token");
+        localStorage.removeItem("eva_user");
+        console.log("Datos de autenticación eliminados");
+        showStorageInfo();
+      }
+
+      function clearAllData() {
+        localStorage.clear();
+        console.log("Todo el localStorage eliminado");
+        showStorageInfo();
+      }
+
+      async function testToken() {
+        const token = document.getElementById("test-token").value;
+        const result = document.getElementById("token-result");
+
+        if (!token) {
+          result.innerHTML =
+            '<span style="color: red;">Por favor ingresa un token</span>';
+          return;
+        }
+
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/v1/user", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            result.innerHTML = `<span style="color: green;">✅ Token válido</span><pre>${JSON.stringify(
+              data,
+              null,
+              2
+            )}</pre>`;
+          } else {
+            result.innerHTML = `<span style="color: red;">❌ Token inválido (${response.status})</span>`;
+          }
+        } catch (error) {
+          result.innerHTML = `<span style="color: red;">❌ Error: ${error.message}</span>`;
+        }
+      }
+
+      // Mostrar info al cargar
+      showStorageInfo();
+    </script>
+  </body>
+</html>
