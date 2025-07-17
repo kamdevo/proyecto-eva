@@ -130,6 +130,7 @@ function IndustrialDevicesView() {
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
@@ -142,6 +143,26 @@ function IndustrialDevicesView() {
           Control y seguimiento integral de equipamiento biomédico hospitalario
         </p>
       </div>
+
+      {/* Global Search Input */}
+      <div className="mb-3 sm:mb-4">
+        <div className="space-y-1 sm:space-y-2">
+          <label className="text-xs sm:text-sm font-medium text-slate-700 block">
+            Consulta Global:
+          </label>
+          <div className="relative">
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3 sm:w-4 sm:h-4" />
+            <Input
+              type="text"
+              placeholder="Buscar registros..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              className="w-full h-8 sm:h-9 md:h-10 pl-7 sm:pl-9 pr-3 text-xs sm:text-sm bg-white border border-slate-200 rounded focus:border-teal-500 focus:ring-1 focus:ring-teal-200 transition-all duration-200 placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons - Ultra Compact Side by Side */}
       <div className="flex gap-2 mb-6">
         {/* Main Action Buttons */}
@@ -470,39 +491,26 @@ function IndustrialDevicesView() {
               </tr>
             </thead>
             <tbody>
-              {equipmentData.map((equipment, index) => (
+              {equipmentData.map((equipment) => (
                 <tr
                   key={equipment.id}
                   className="border-b hover:bg-slate-50/50 transition-colors"
                 >
                   {/* Equipment Column */}
                   <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
+                    <div className="space-y-2 sm:space-y-3">
+                      {/* Título del equipo */}
+                      <div className="font-semibold text-slate-900 text-sm mb-1">
+                        {equipment.equipo.name}
+                      </div>
+
+                      {/* Imagen del equipo - responsive y grande */}
+                      <div className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden">
                         <img
                           src={notFoundImg}
                           alt={equipment.equipo.name}
-                          className=" hover:scale-220 transition-all w-5 h-5 xs:w-6 xs:h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 object-cover rounded opacity-70"
+                          className="w-full h-full object-cover hover:scale-105 transition-all duration-300 opacity-80"
                         />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 text-sm mb-1">
-                          {equipment.equipo.name}
-                        </div>
-                        <div className="text-xs text-slate-600 space-y-0.5">
-                          <div>
-                            <span className="font-medium">Fabricante:</span>{" "}
-                            {equipment.equipo.brand}
-                          </div>
-                          <div>
-                            <span className="font-medium">Modelo:</span>{" "}
-                            {equipment.equipo.model}
-                          </div>
-                          <div>
-                            <span className="font-medium">Serie:</span>{" "}
-                            {equipment.equipo.series}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </td>
@@ -545,6 +553,14 @@ function IndustrialDevicesView() {
                           </span>
                           <span className="font-medium text-slate-700">
                             {equipment.equipo.brand || "SIN MARCA"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Modelo:
+                          </span>
+                          <span className="font-medium text-slate-700">
+                            {equipment.equipo.model || "SIN MODELO"}
                           </span>
                         </div>
                         <div>

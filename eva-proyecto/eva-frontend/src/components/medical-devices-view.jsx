@@ -97,6 +97,7 @@ export function MedicalDevicesView() {
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1 xs:p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
@@ -109,6 +110,26 @@ export function MedicalDevicesView() {
           Control y seguimiento integral de equipamiento biomédico hospitalario
         </p>
       </div>
+
+      {/* Global Search Input */}
+      <div className="mb-3 sm:mb-4">
+        <div className="space-y-1 sm:space-y-2">
+          <label className="text-xs sm:text-sm font-medium text-slate-700 block">
+            Consulta Global:
+          </label>
+          <div className="relative">
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3 sm:w-4 sm:h-4" />
+            <Input
+              type="text"
+              placeholder="Buscar registros..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              className="w-full h-8 sm:h-9 md:h-10 pl-7 sm:pl-9 pr-3 text-xs sm:text-sm bg-white border border-slate-200 rounded focus:border-teal-500 focus:ring-1 focus:ring-teal-200 transition-all duration-200 placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons - Ultra Compact Side by Side */}
       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
         {/* Main Action Buttons */}
