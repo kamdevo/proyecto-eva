@@ -20,6 +20,10 @@
 
 use Illuminate\Support\Facades\Route;
 
+// Página de pruebas para el modal (sin middleware)
+Route::get('/test-modal', function () {
+    return view('test-modal');
+});
 
 // Agrupación optimizada de rutas con middleware empresarial
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {

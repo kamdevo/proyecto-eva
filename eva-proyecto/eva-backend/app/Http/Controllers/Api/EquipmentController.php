@@ -256,16 +256,54 @@ class EquipmentController extends ApiController
         try {
             DB::beginTransaction();
 
-            $equipoData = $request->except(['image']);
-            $equipoData['status'] = true;
+            $equipoData = $request->except(['image', 'archivo_excel', 'manuales', 'planos']);
+            $equipoData['status'] = 1;
             $equipoData['created_at'] = now();
+            $equipoData['usuario_id'] = auth()->id();
+
+            // Manejar propietario_id = 0 como null
+            if (isset($equipoData['propietario_id']) && $equipoData['propietario_id'] == '0') {
+                $equipoData['propietario_id'] = null;
+            }
+
+            // Manejar area_id = 0 como null
+            if (isset($equipoData['area_id']) && $equipoData['area_id'] == '0') {
+                $equipoData['area_id'] = null;
+            }
+
+            // Procesar manuales y planos JSON
+            if ($request->has('manuales')) {
+                $manuales = is_string($request->manuales) ? json_decode($request->manuales, true) : $request->manuales;
+                $equipoData['manual_operacion'] = $manuales['operacion'] ?? false;
+                $equipoData['manual_mantenimiento'] = $manuales['mantenimiento'] ?? false;
+                $equipoData['manual_partes'] = $manuales['partes'] ?? false;
+                $equipoData['manual_otros'] = $manuales['otros'] ?? false;
+            }
+
+            if ($request->has('planos')) {
+                $planos = is_string($request->planos) ? json_decode($request->planos, true) : $request->planos;
+                $equipoData['plano_electrico'] = $planos['electrico'] ?? false;
+                $equipoData['plano_electronico'] = $planos['electronico'] ?? false;
+                $equipoData['plano_neumatico'] = $planos['neumatico'] ?? false;
+                $equipoData['plano_mecanico'] = $planos['mecanico'] ?? false;
+            }
 
             // Manejar subida de imagen
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
-                $imageName = 'equipos/' . uniqid() . '.' . $image->getClientOriginalExtension();
-                $imagePath = $image->storeAs('equipos', $imageName, 'public');
+                $timestamp = now()->format('YmdHis');
+                $imageName = "equipo_{$timestamp}_" . uniqid() . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('equipos/images', $imageName, 'public');
                 $equipoData['image'] = $imagePath;
+            }
+
+            // Manejar subida de archivo Excel/PDF
+            if ($request->hasFile('archivo_excel')) {
+                $archivo = $request->file('archivo_excel');
+                $timestamp = now()->format('YmdHis');
+                $archivoName = "hoja_vida_{$timestamp}_" . uniqid() . '.' . $archivo->getClientOriginalExtension();
+                $archivoPath = $archivo->storeAs('equipos/documentos', $archivoName, 'public');
+                $equipoData['archivo_hoja_vida'] = $archivoPath;
             }
 
             $equipo = Equipo::create($equipoData);
@@ -1015,7 +1053,13 @@ class EquipmentController extends ApiController
                 'to' => min($offset + $perPage, $total),
             ];
 
-            return $this->successResponse($responseData, 'Equipos médicos obtenidos exitosamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipos médicos obtenidos exitosamente',
+                'data' => $responseData
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
         } catch (\Exception $e) {
             return response()->json([
@@ -1096,10 +1140,21 @@ class EquipmentController extends ApiController
                 'propietarios' => DB::table('propietarios')->select('id', 'nombre as name')->get(),
             ];
 
-            return $this->success($options, 'Opciones de filtros obtenidas exitosamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Opciones de filtros obtenidas exitosamente',
+                'data' => $options
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
         } catch (\Exception $e) {
-            return $this->error('Error al obtener opciones de filtros: ' . $e->getMessage(), 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener opciones de filtros: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         }
     }
 
@@ -1153,10 +1208,21 @@ class EquipmentController extends ApiController
                     ->get(),
             ];
 
-            return $this->success($stats, 'Estadísticas de equipos médicos obtenidas exitosamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Estadísticas de equipos médicos obtenidas exitosamente',
+                'data' => $stats
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
         } catch (\Exception $e) {
-            return $this->error('Error al obtener estadísticas: ' . $e->getMessage(), 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener estadísticas: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         }
     }
 }

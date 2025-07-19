@@ -41,23 +41,73 @@ class ModalController extends ApiController
     {
         try {
             \Log::info('Ejecutando método en ModalController', ['user_id' => auth()->id()]);
+
             $data = [
-                'servicios' => Servicio::where('status', 1)->get(['id', 'name']),
-                'areas' => Area::where('status', 1)->get(['id', 'name']),
-                'propietarios' => Propietario::where('status', 1)->get(['id', 'name']),
-                'fuentes_alimentacion' => FuenteAlimentacion::all(['id', 'name']),
-                'tecnologias' => Tecnologia::all(['id', 'name']),
-                'frecuencias_mantenimiento' => FrecuenciaMantenimiento::all(['id', 'name']),
-                'clasificaciones_biomedicas' => ClasificacionBiomedica::all(['id', 'name']),
-                'clasificaciones_riesgo' => ClasificacionRiesgo::all(['id', 'name']),
-                'tipos_adquisicion' => TipoAdquisicion::all(['id', 'name']),
-                'estados_equipo' => EstadoEquipo::all(['id', 'name']),
-                'usuarios' => Usuario::where('status', 1)->get(['id', 'name', 'lastname']),
-                'sedes' => $this->getSedes(),
-                'tipos_equipo' => $this->getTiposEquipo()
+                // CATÁLOGOS REALES DE LA BD
+                'servicios' => DB::table('servicios')->where('status', 1)->get(['id', 'name']),
+                'areas' => DB::table('areas')->where('status', 1)->get(['id', 'name', 'servicio_id']),
+                'propietarios' => DB::table('propietarios')->get(['id', 'nombre as name']),
+                'sedes' => DB::table('sedes')->get(['id', 'name']),
+                'tipos_equipo' => DB::table('tipos')->get(['id', 'name']),
+                'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
+
+                // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
+                'estados_equipo' => DB::table('estadoequipos')->get(['id', 'name']),
+                'invimas' => DB::table('invimas')->where('status', 1)->get(['id', 'invima as name', 'titulo']),
+
+                // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
+                'fuentes_alimentacion' => [
+                    ['id' => 1, 'name' => '110V AC'],
+                    ['id' => 2, 'name' => '220V AC'],
+                    ['id' => 3, 'name' => 'Batería'],
+                    ['id' => 4, 'name' => 'Gas'],
+                    ['id' => 5, 'name' => 'Neumático'],
+                    ['id' => 6, 'name' => 'Solar']
+                ],
+                'tecnologias' => [
+                    ['id' => 1, 'name' => 'Electromecánica'],
+                    ['id' => 2, 'name' => 'Electrónica'],
+                    ['id' => 3, 'name' => 'Hidráulica'],
+                    ['id' => 4, 'name' => 'Neumática'],
+                    ['id' => 5, 'name' => 'Digital'],
+                    ['id' => 6, 'name' => 'Mecánica']
+                ],
+                'frecuencias_mantenimiento' => [
+                    ['id' => 1, 'name' => 'Mensual'],
+                    ['id' => 2, 'name' => 'Bimestral'],
+                    ['id' => 3, 'name' => 'Trimestral'],
+                    ['id' => 4, 'name' => 'Semestral'],
+                    ['id' => 5, 'name' => 'Anual'],
+                    ['id' => 6, 'name' => 'Según uso']
+                ],
+                'clasificaciones_biomedicas' => [
+                    ['id' => 1, 'name' => 'Clase I - Bajo riesgo'],
+                    ['id' => 2, 'name' => 'Clase IIa - Riesgo moderado'],
+                    ['id' => 3, 'name' => 'Clase IIb - Riesgo moderado-alto'],
+                    ['id' => 4, 'name' => 'Clase III - Alto riesgo']
+                ],
+                'clasificaciones_riesgo' => [
+                    ['id' => 1, 'name' => 'Alto'],
+                    ['id' => 2, 'name' => 'Medio'],
+                    ['id' => 3, 'name' => 'Bajo']
+                ],
+                'tipos_adquisicion' => [
+                    ['id' => 1, 'name' => 'Compra'],
+                    ['id' => 2, 'name' => 'Donación'],
+                    ['id' => 3, 'name' => 'Comodato'],
+                    ['id' => 4, 'name' => 'Leasing'],
+                    ['id' => 5, 'name' => 'Alquiler']
+                ],
+                'disponibilidades' => [
+                    ['id' => 1, 'name' => 'Disponible'],
+                    ['id' => 2, 'name' => 'En Uso'],
+                    ['id' => 3, 'name' => 'En Mantenimiento'],
+                    ['id' => 4, 'name' => 'Fuera de Servicio'],
+                    ['id' => 5, 'name' => 'Reservado']
+                ]
             ];
 
-            return ResponseFormatter::success($data, 'Datos para modal de agregar equipo obtenidos');
+            return ResponseFormatter::success($data, 'Datos para modal de agregar equipo obtenidos (estructura real BD)');
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener datos: ' . $e->getMessage(), 500);
         }

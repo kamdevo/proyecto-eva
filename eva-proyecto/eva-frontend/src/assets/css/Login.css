@@ -405,6 +405,64 @@ input.is-warning {
   background-color: #fff8e1;
 }
 
+/* Estilos específicos para inputs en modales de login */
+.modal-box input,
+.modal-box-register input {
+  background-color: #ffffff !important;
+  color: #2b3d5e !important;
+  border: 1px solid #ddd !important;
+}
+
+.modal-box input:focus,
+.modal-box-register input:focus {
+  background-color: #ffffff !important;
+  color: #2b3d5e !important;
+  border-color: #2b3d5e !important;
+}
+
+.modal-box input::placeholder,
+.modal-box-register input::placeholder {
+  color: #999 !important;
+}
+
+/* Estilos para select en modales */
+.modal-box select,
+.modal-box-register select {
+  background-color: #ffffff !important;
+  color: #2b3d5e !important;
+  border: 1px solid #ddd !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+}
+
+.modal-box select:focus,
+.modal-box-register select:focus {
+  border-color: #2b3d5e !important;
+  outline: none !important;
+}
+
+/* Estilos para labels en modales */
+.modal-box label,
+.modal-box-register label {
+  color: #2b3d5e !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+}
+
+/* Estilos para texto en general dentro de modales */
+.modal-box,
+.modal-box-register {
+  color: #2b3d5e !important;
+}
+
+/* Asegurar que los iconos sean visibles */
+.modal-box .text-muted-foreground,
+.modal-box-register .text-muted-foreground {
+  color: #666 !important;
+}
+
 /* Botón principal que abre el modal inicial */
 .abir-modal-inicial {
   display: block;

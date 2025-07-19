@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba Modal Equipos Biomédicos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            color: #2b3d5e;
+            margin-top: 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.pending {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #2b3d5e;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1f2d44;
+        }
+        .results {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .checklist li:before {
+            content: "⏳ ";
+            margin-right: 10px;
+        }
+        .checklist li.success:before {
+            content: "✅ ";
+        }
+        .checklist li.error:before {
+            content: "❌ ";
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Pruebas Modal Equipos Biomédicos</h1>
+        <p>Esta página te ayudará a probar sistemáticamente todas las funcionalidades del modal.</p>
+
+        <!-- Sección 1: Verificación de Conexiones -->
+        <div class="test-section">
+            <h3>1. 🔗 Verificación de Conexiones</h3>
+            <ul class="checklist" id="connection-checklist">
+                <li id="backend-check">Backend Laravel (localhost:8000)</li>
+                <li id="frontend-check">Frontend React (localhost:3000)</li>
+                <li id="api-check">API Health Check</li>
+                <li id="auth-check">Sistema de Autenticación</li>
+            </ul>
+            <button onclick="testConnections()">Probar Conexiones</button>
+            <div id="connection-results" class="results" style="display:none;"></div>
+        </div>
+
+        <!-- Sección 2: Pruebas de API -->
+        <div class="test-section">
+            <h3>2. 🔌 Pruebas de API Backend</h3>
+            <ul class="checklist" id="api-checklist">
+                <li id="catalogs-check">Cargar catálogos (/api/v1/modal/add-equipment-data)</li>
+                <li id="validation-check">Validaciones de campos</li>
+                <li id="create-check">Crear equipo básico</li>
+                <li id="files-check">Subir archivos</li>
+            </ul>
+            <button onclick="testAPI()">Probar APIs</button>
+            <div id="api-results" class="results" style="display:none;"></div>
+        </div>
+
+        <!-- Sección 3: Pruebas de Frontend -->
+        <div class="test-section">
+            <h3>3. 🎨 Pruebas de Frontend</h3>
+            <ul class="checklist" id="frontend-checklist">
+                <li id="modal-open-check">Modal se abre correctamente</li>
+                <li id="catalogs-load-check">Catálogos se cargan en selects</li>
+                <li id="dependent-fields-check">Campos dependientes funcionan</li>
+                <li id="file-upload-check">Subida de archivos</li>
+                <li id="validation-ui-check">Validaciones en tiempo real</li>
+                <li id="toasts-check">Toasts de Sonner</li>
+            </ul>
+            <button onclick="openModal()">Abrir Modal de Prueba</button>
+            <div id="frontend-results" class="results" style="display:none;"></div>
+        </div>
+
+        <!-- Sección 4: Casos de Prueba -->
+        <div class="test-section">
+            <h3>4. 📝 Casos de Prueba Específicos</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>Caso 1: Registro Básico</h4>
+                    <button onclick="testBasicRegistration()">Probar Registro Básico</button>
+                    <div id="basic-test-results" class="results" style="display:none;"></div>
+                </div>
+                <div>
+                    <h4>Caso 2: Registro Completo</h4>
+                    <button onclick="testCompleteRegistration()">Probar Registro Completo</button>
+                    <div id="complete-test-results" class="results" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 5: Resultados Finales -->
+        <div class="test-section">
+            <h3>5. 📊 Resultados Finales</h3>
+            <div id="final-results">
+                <div class="status pending">
+                    <strong>Estado:</strong> Esperando pruebas...
+                </div>
+            </div>
+            <button onclick="runAllTests()">🚀 Ejecutar Todas las Pruebas</button>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let testResults = {
+            connections: {},
+            api: {},
+            frontend: {},
+            cases: {}
+        };
+
+        // Función para actualizar checklist
+        function updateChecklistItem(listId, itemId, status) {
+            const item = document.getElementById(itemId);
+            if (item) {
+                item.className = status;
+            }
+        }
+
+        // Función para mostrar resultados
+        function showResults(containerId, content) {
+            const container = document.getElementById(containerId);
+            container.style.display = 'block';
+            container.textContent = content;
+        }
+
+        // 1. Pruebas de Conexión
+        async function testConnections() {
+            console.log('🔗 Iniciando pruebas de conexión...');
+            
+            // Test Backend
+            try {
+                const response = await fetch('http://localhost:8000');
+                updateChecklistItem('connection-checklist', 'backend-check', 'success');
+                testResults.connections.backend = true;
+            } catch (error) {
+                updateChecklistItem('connection-checklist', 'backend-check', 'error');
+                testResults.connections.backend = false;
+            }
+
+            // Test Frontend
+            updateChecklistItem('connection-checklist', 'frontend-check', 'success');
+            testResults.connections.frontend = true;
+
+            // Test API Health
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/health');
+                if (response.ok) {
+                    updateChecklistItem('connection-checklist', 'api-check', 'success');
+                    testResults.connections.api = true;
+                } else {
+                    updateChecklistItem('connection-checklist', 'api-check', 'error');
+                    testResults.connections.api = false;
+                }
+            } catch (error) {
+                updateChecklistItem('connection-checklist', 'api-check', 'error');
+                testResults.connections.api = false;
+            }
+
+            showResults('connection-results', JSON.stringify(testResults.connections, null, 2));
+        }
+
+        // 2. Pruebas de API
+        async function testAPI() {
+            console.log('🔌 Iniciando pruebas de API...');
+            
+            // Test cargar catálogos
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/modal/add-equipment-data', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('token') || 'test-token')
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateChecklistItem('api-checklist', 'catalogs-check', 'success');
+                    testResults.api.catalogs = true;
+                } else {
+                    updateChecklistItem('api-checklist', 'catalogs-check', 'error');
+                    testResults.api.catalogs = false;
+                }
+            } catch (error) {
+                updateChecklistItem('api-checklist', 'catalogs-check', 'error');
+                testResults.api.catalogs = false;
+            }
+
+            showResults('api-results', JSON.stringify(testResults.api, null, 2));
+        }
+
+        // 3. Abrir Modal
+        function openModal() {
+            console.log('🎨 Abriendo modal para pruebas manuales...');
+            alert('Ahora ve a tu aplicación React y abre el modal de agregar equipos para probar manualmente:\n\n1. Verifica que se abra correctamente\n2. Comprueba que los catálogos se carguen\n3. Prueba la subida de archivos\n4. Verifica las validaciones\n5. Prueba el envío del formulario');
+        }
+
+        // 4. Casos de Prueba
+        function testBasicRegistration() {
+            console.log('📝 Iniciando prueba de registro básico...');
+            alert('Prueba Manual - Registro Básico:\n\n1. Abre el modal\n2. Llena solo los campos obligatorios:\n   - Nombre: "Equipo Prueba 001"\n   - Serie: "TEST-001"\n   - Código: "INV-001"\n   - Marca: "MARCA TEST"\n   - Modelo: "MODELO TEST"\n3. Envía el formulario\n4. Verifica que se registre exitosamente');
+        }
+
+        function testCompleteRegistration() {
+            console.log('📝 Iniciando prueba de registro completo...');
+            alert('Prueba Manual - Registro Completo:\n\n1. Abre el modal\n2. Llena TODOS los campos\n3. Sube una imagen (< 5MB)\n4. Sube un archivo Excel/PDF (< 20MB)\n5. Selecciona manuales y planos\n6. Envía el formulario\n7. Verifica que todo se guarde correctamente');
+        }
+
+        // 5. Ejecutar todas las pruebas
+        async function runAllTests() {
+            console.log('🚀 Ejecutando todas las pruebas...');
+            
+            await testConnections();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await testAPI();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Actualizar resultados finales
+            const totalTests = Object.keys(testResults.connections).length + Object.keys(testResults.api).length;
+            const passedTests = Object.values(testResults.connections).filter(Boolean).length + 
+                              Object.values(testResults.api).filter(Boolean).length;
+            
+            const finalContainer = document.getElementById('final-results');
+            const percentage = Math.round((passedTests / totalTests) * 100);
+            
+            let statusClass = 'error';
+            let statusText = 'FALLÓ';
+            
+            if (percentage >= 80) {
+                statusClass = 'success';
+                statusText = 'APROBADO';
+            } else if (percentage >= 60) {
+                statusClass = 'pending';
+                statusText = 'PARCIAL';
+            }
+            
+            finalContainer.innerHTML = `
+                <div class="status ${statusClass}">
+                    <strong>Estado Final:</strong> ${statusText} (${passedTests}/${totalTests} pruebas pasaron - ${percentage}%)
+                </div>
+                <div class="results">
+Resumen de Pruebas:
+- Conexiones: ${Object.values(testResults.connections).filter(Boolean).length}/${Object.keys(testResults.connections).length}
+- APIs: ${Object.values(testResults.api).filter(Boolean).length}/${Object.keys(testResults.api).length}
+
+${percentage >= 80 ? '✅ Sistema listo para producción!' : '❌ Revisar errores antes de continuar'}
+                </div>
+            `;
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Página de pruebas cargada. Lista para comenzar!');
+        });
+    </script>
+</body>
+</html>

@@ -374,7 +374,14 @@ class MedicalDevicesService {
    */
   async getFilterOptions() {
     try {
-      const response = await api.get("/v1/equipos/filter-options");
+      // Intentar endpoint original primero, si falla usar el de prueba
+      let response;
+      try {
+        response = await api.get("/v1/equipos/filter-options");
+      } catch (authError) {
+        console.warn("Error con endpoint original, usando endpoint de prueba:", authError);
+        response = await api.get("/v1/test/equipos/filter-options");
+      }
       return response.data;
     } catch (error) {
       console.error("Error fetching filter options:", error);

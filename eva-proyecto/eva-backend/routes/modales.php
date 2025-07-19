@@ -34,8 +34,8 @@ use App\Http\Controllers\Api\ModalController;
 Route::middleware('auth:sanctum')->group(function () {
     // Modales de equipos
 
-// Agrupación optimizada de rutas con middleware empresarial
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
+// Rutas de modales (ya están dentro del grupo v1 del archivo api.php)
+Route::middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
         Route::get('modal/add-equipment-data', [ModalController::class, 'getAddEquipmentData']);
         Route::get('modal/edit-equipment-data/{id}', [ModalController::class, 'getEditEquipmentData']);
         Route::get('modal/equipment-details/{id}', [ModalController::class, 'getEquipmentDetails']);

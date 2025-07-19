@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Catálogos Modal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #2b3d5e;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1f2d44;
+        }
+        .results {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .catalog-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .catalog-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2b3d5e;
+        }
+        .catalog-item h4 {
+            margin: 0 0 10px 0;
+            color: #2b3d5e;
+        }
+        .catalog-item .count {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test de Catálogos para Modal de Equipos</h1>
+        <p>Esta página prueba la carga de catálogos desde el backend.</p>
+
+        <div id="status" class="status loading">
+            ⏳ Listo para probar...
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button onclick="testCORS()">🌐 Probar CORS</button>
+            <button onclick="testBasicConnection()">🔗 Probar Conexión Básica</button>
+            <button onclick="testCatalogCounts()">📊 Probar Conteo de Catálogos</button>
+            <button onclick="testFullModalData()">📋 Probar Datos Completos del Modal</button>
+            <button onclick="testOriginalEndpoint()">🔐 Probar Endpoint Original (con Auth)</button>
+        </div>
+
+        <div id="catalog-summary" class="catalog-summary" style="display: none;"></div>
+
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        function showResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function showCatalogSummary(data) {
+            const summaryDiv = document.getElementById('catalog-summary');
+            summaryDiv.style.display = 'grid';
+            summaryDiv.innerHTML = '';
+
+            Object.entries(data).forEach(([key, value]) => {
+                const count = Array.isArray(value) ? value.length : (typeof value === 'number' ? value : 'N/A');
+                const item = document.createElement('div');
+                item.className = 'catalog-item';
+                item.innerHTML = `
+                    <h4>${key.replace(/_/g, ' ').toUpperCase()}</h4>
+                    <div class="count">${count}</div>
+                    <small>${Array.isArray(value) ? 'registros' : 'items'}</small>
+                `;
+                summaryDiv.appendChild(item);
+            });
+        }
+
+        async function testCORS() {
+            updateStatus('🌐 Probando CORS...', 'loading');
+
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/test/cors');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus('✅ CORS funcionando correctamente!', 'success');
+                    showResults(data);
+                } else {
+                    updateStatus('❌ Error en CORS', 'error');
+                    showResults(data);
+                }
+            } catch (error) {
+                updateStatus('❌ Error de CORS: ' + error.message, 'error');
+                showResults({ error: error.message, details: 'Verifica que el servidor Laravel esté corriendo en puerto 8000' });
+            }
+        }
+
+        async function testBasicConnection() {
+            updateStatus('🔗 Probando conexión básica...', 'loading');
+
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/test/db');
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus(`✅ Conexión exitosa! Equipos en BD: ${data.equipos_count}`, 'success');
+                    showResults(data);
+                } else {
+                    updateStatus('❌ Error en la conexión', 'error');
+                    showResults(data);
+                }
+            } catch (error) {
+                updateStatus('❌ Error de conexión: ' + error.message, 'error');
+                showResults({ error: error.message });
+            }
+        }
+
+        async function testCatalogCounts() {
+            updateStatus('📊 Probando conteo de catálogos...', 'loading');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/test/catalogs');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('✅ Catálogos disponibles!', 'success');
+                    showCatalogSummary(data.data);
+                    showResults(data);
+                } else {
+                    updateStatus('❌ Error al obtener catálogos', 'error');
+                    showResults(data);
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+                showResults({ error: error.message });
+            }
+        }
+
+        async function testFullModalData() {
+            updateStatus('📋 Probando datos completos del modal...', 'loading');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/test/modal-data');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('✅ Datos del modal cargados exitosamente!', 'success');
+                    showCatalogSummary(data.data);
+                    showResults(data);
+                } else {
+                    updateStatus('❌ Error al cargar datos del modal', 'error');
+                    showResults(data);
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+                showResults({ error: error.message });
+            }
+        }
+
+        async function testOriginalEndpoint() {
+            updateStatus('🔐 Probando endpoint original con autenticación...', 'loading');
+            
+            try {
+                const token = localStorage.getItem('token') || 'test-token';
+                const response = await fetch('http://localhost:8000/api/v1/modal/add-equipment-data', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    updateStatus('✅ Endpoint original funciona!', 'success');
+                    showCatalogSummary(data.data);
+                    showResults(data);
+                } else if (response.status === 401) {
+                    updateStatus('🔐 Error de autenticación - Token requerido', 'error');
+                    showResults({ error: 'Token de autenticación requerido', status: response.status });
+                } else {
+                    updateStatus('❌ Error en endpoint original', 'error');
+                    showResults(data);
+                }
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+                showResults({ error: error.message });
+            }
+        }
+
+        // Auto-ejecutar prueba CORS al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Página de pruebas cargada');
+            setTimeout(testCORS, 1000);
+        });
+    </script>
+</body>
+</html>

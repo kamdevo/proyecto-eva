@@ -1,4 +1,5 @@
 "use client";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +20,480 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Upload, Plus } from "lucide-react";
+import { Upload, Plus, Eye, X, FileText, Image as ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+import { PDFSlick } from "@pdfslick/react";
+import "@pdfslick/react/dist/pdf_viewer.css";
+import axios from "axios";
 
-export function AddEquipmentModal({ open, onOpenChange }) {
+export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
+  // Estado del formulario
+  const [formData, setFormData] = useState({
+    // Identificación del equipo
+    name: "",
+    serial: "",
+    code: "",
+    marca: "",
+    modelo: "",
+    descripcion: "",
+    codigo_antiguo: "",
+    codigo_inventario: "",
+    centro_costo: "",
+    pais_origen: "",
+
+    // Ubicación
+    servicio_id: "",
+    area_id: "",
+    sede_id: "1", // Default SEDE HUV
+    localizacion_actual: "",
+
+    // Registro histórico
+    tadquisicion_id: "",
+    garantia: "",
+    activo_comodato: "",
+    fecha_adquisicion: "",
+    fecha_instalacion: "",
+    fecha_recepcion_almacen: "",
+    fecha_acta_recibo: "",
+    fecha_inicio_operacion: "",
+    fecha_fabricacion: "",
+    costo: "",
+    vida_util: "",
+
+    // Registro técnico
+    fuente_id: "",
+    tecnologia_id: "",
+    evaluacion_desempeno: "",
+    calibracion: false,
+    periodicidad_calibracion: "",
+    frecuencia_id: "",
+
+    // Estado actual
+    funcionalidad: "",
+    disponibilidad_id: "",
+    estadoequipo_id: "",
+
+    // Apoyo técnico
+    manuales: {
+      operacion: false,
+      mantenimiento: false,
+      partes: false,
+      otros: false
+    },
+    planos: {
+      electrico: false,
+      electronico: false,
+      neumatico: false,
+      mecanico: false
+    },
+    cbiomedica_id: "",
+    criesgo_id: "",
+
+    // Componentes y seguimiento
+    componentes: "",
+    propietario_id: "",
+    verificacion_fisica: "",
+    observaciones: "",
+
+    // Archivos
+    image: null,
+    archivo_excel: null,
+
+    // Campos adicionales
+    invima: "",
+    tipo_id: "1" // Default biomédico
+  });
+
+  // Estados para catálogos
+  const [catalogs, setCatalogs] = useState({
+    servicios: [],
+    areas: [],
+    propietarios: [],
+    fuentes_alimentacion: [],
+    tecnologias: [],
+    frecuencias_mantenimiento: [],
+    clasificaciones_biomedicas: [],
+    clasificaciones_riesgo: [],
+    tipos_adquisicion: [],
+    estados_equipo: [],
+    disponibilidades: [],
+    sedes: []
+  });
+
+  // Estados para UI
+  const [loading, setLoading] = useState(false);
+  const [loadingCatalogs, setLoadingCatalogs] = useState(true);
+  const [errors, setErrors] = useState({});
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewType, setPreviewType] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Referencias para archivos
+  const imageInputRef = useRef(null);
+  const excelInputRef = useRef(null);
+
+  // Cargar catálogos al abrir el modal
+  useEffect(() => {
+    if (open) {
+      loadCatalogs();
+    }
+  }, [open]);
+
+  // Validación asíncrona de unicidad
+  const validateUniqueness = async (field, value) => {
+    if (!value) return;
+
+    try {
+      const response = await axios.get(`/api/v1/equipos/validate-unique`, {
+        params: { field, value },
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.data.unique) {
+        setErrors(prev => ({
+          ...prev,
+          [field]: `Ya existe un equipo con este ${field === 'code' ? 'código' : field === 'serial' ? 'número de serie' : 'código antiguo'}`
+        }));
+      }
+    } catch (error) {
+      console.error('Error validating uniqueness:', error);
+    }
+  };
+
+  // Debounce para validaciones asíncronas
+  useEffect(() => {
+    const timeouts = {};
+
+    ['code', 'serial', 'codigo_antiguo'].forEach(field => {
+      if (formData[field]) {
+        timeouts[field] = setTimeout(() => {
+          validateUniqueness(field, formData[field]);
+        }, 500);
+      }
+    });
+
+    return () => {
+      Object.values(timeouts).forEach(timeout => clearTimeout(timeout));
+    };
+  }, [formData.code, formData.serial, formData.codigo_antiguo]);
+
+  // Función para cargar catálogos
+  const loadCatalogs = async () => {
+    try {
+      setLoadingCatalogs(true);
+      // Intentar endpoint original primero, si falla usar el de prueba
+      let response;
+      try {
+        response = await axios.get('/api/v1/modal/add-equipment-data', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          }
+        });
+      } catch (authError) {
+        console.warn('Error de autenticación, usando endpoint de prueba:', authError);
+        response = await axios.get('/api/v1/test/modal-data', {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+      }
+
+      if (response.data.success) {
+        setCatalogs(response.data.data);
+      } else {
+        toast.error('Error al cargar los catálogos');
+      }
+    } catch (error) {
+      console.error('Error loading catalogs:', error);
+      toast.error('Error al cargar los catálogos del sistema');
+    } finally {
+      setLoadingCatalogs(false);
+    }
+  };
+
+  // Función para manejar cambios en el formulario
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    // Limpiar error del campo si existe
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
+  };
+
+  // Función para manejar cambios en checkboxes anidados
+  const handleNestedCheckboxChange = (parent, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [parent]: {
+        ...prev[parent],
+        [field]: value
+      }
+    }));
+  };
+
+  // Función para comprimir imagen
+  const compressImage = (file, maxWidth = 1024, maxHeight = 1024, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo proporción
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Dibujar imagen redimensionada
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a blob
+        canvas.toBlob(resolve, 'image/jpeg', quality);
+      };
+
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Función para manejar archivos
+  const handleFileChange = async (field, file) => {
+    if (!file) return;
+
+    // Validar tipo y tamaño de archivo
+    const validations = {
+      image: {
+        types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        maxSize: 5 * 1024 * 1024, // 5MB
+        label: 'imagen'
+      },
+      archivo_excel: {
+        types: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/pdf'],
+        maxSize: field === 'archivo_excel' ? 10 * 1024 * 1024 : 20 * 1024 * 1024, // 10MB Excel, 20MB PDF
+        label: 'archivo'
+      }
+    };
+
+    const validation = validations[field];
+
+    if (!validation.types.includes(file.type)) {
+      toast.error(`Tipo de archivo no válido para ${validation.label}`);
+      return;
+    }
+
+    let processedFile = file;
+
+    // Comprimir imagen si es necesario
+    if (field === 'image' && file.size > 2 * 1024 * 1024) { // Comprimir si es mayor a 2MB
+      try {
+        toast.loading('Comprimiendo imagen...', { id: 'compress-image' });
+        processedFile = await compressImage(file);
+        toast.success('Imagen comprimida exitosamente', { id: 'compress-image' });
+      } catch (error) {
+        toast.error('Error al comprimir imagen', { id: 'compress-image' });
+        return;
+      }
+    }
+
+    if (processedFile.size > validation.maxSize) {
+      toast.error(`El archivo es muy grande. Máximo ${validation.maxSize / (1024 * 1024)}MB`);
+      return;
+    }
+  
+    setFormData(prev => ({
+      ...prev,
+      [field]: processedFile
+    }));
+
+    toast.success(`${validation.label} seleccionada correctamente`);
+  };
+
+  // Función para previsualizar archivos
+  const handlePreviewFile = (file, type) => {
+    if (!file) return;
+
+    const fileURL = URL.createObjectURL(file);
+    setPreviewFile(fileURL);
+    setPreviewType(type);
+    setShowPreview(true);
+  };
+
+  // Función para cerrar preview
+  const closePreview = () => {
+    if (previewFile) {
+      URL.revokeObjectURL(previewFile);
+    }
+    setPreviewFile(null);
+    setPreviewType(null);
+    setShowPreview(false);
+  };
+
+  // Función para validar formulario
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Campos obligatorios
+    const requiredFields = {
+      name: 'Nombre del equipo',
+      serial: 'Serie',
+      code: 'INV/Activo',
+      marca: 'Marca',
+      modelo: 'Modelo',
+      codigo_antiguo: 'Código antiguo',
+      codigo_inventario: 'Código nuevo',
+      servicio_id: 'Servicio',
+      centro_costo: 'Centro de costo',
+      pais_origen: 'País de origen',
+      tadquisicion_id: 'Forma de adquisición',
+      garantia: 'Garantía',
+      fecha_adquisicion: 'Fecha de adquisición',
+      fecha_instalacion: 'Fecha de instalación',
+      fecha_recepcion_almacen: 'Fecha recepción almacén',
+      fecha_acta_recibo: 'Fecha acta de recibo',
+      fecha_inicio_operacion: 'Fecha de inicio operación',
+      fecha_fabricacion: 'Fecha de fabricación',
+      costo: 'Costo',
+      vida_util: 'Vida útil',
+      fuente_id: 'Fuente de alimentación',
+      tecnologia_id: 'Tecnología predominante',
+      evaluacion_desempeno: 'Evaluación de desempeño',
+      frecuencia_id: 'Frecuencia de mantenimiento',
+      funcionalidad: 'Funcionalidad',
+      disponibilidad_id: 'Disponibilidad',
+      localizacion_actual: 'Localización actual',
+      cbiomedica_id: 'Clasificación biomédica',
+      criesgo_id: 'Clasificación de riesgo',
+      propietario_id: 'Propietario',
+      verificacion_fisica: 'Verificación física',
+      archivo_excel: 'Archivo Excel hoja de vida'
+    };
+
+    // Validar campos obligatorios
+    Object.entries(requiredFields).forEach(([field, label]) => {
+      if (!formData[field] || formData[field] === '') {
+        newErrors[field] = `${label} es obligatorio`;
+      }
+    });
+
+    // Validaciones específicas
+    if (formData.costo && isNaN(parseFloat(formData.costo))) {
+      newErrors.costo = 'El costo debe ser un número válido';
+    }
+
+    if (formData.vida_util && isNaN(parseInt(formData.vida_util))) {
+      newErrors.vida_util = 'La vida útil debe ser un número entero';
+    }
+
+    // Validar fechas lógicas
+    const fechas = ['fecha_fabricacion', 'fecha_adquisicion', 'fecha_recepcion_almacen', 'fecha_instalacion', 'fecha_inicio_operacion'];
+    const fechaValues = fechas.map(f => formData[f] ? new Date(formData[f]) : null);
+
+    if (fechaValues[0] && fechaValues[1] && fechaValues[0] > fechaValues[1]) {
+      newErrors.fecha_adquisicion = 'La fecha de adquisición no puede ser anterior a la fecha de fabricación';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Función para enviar formulario
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      toast.error('Por favor, complete todos los campos obligatorios');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      toast.loading('Registrando equipo...', { id: 'submit-equipment' });
+
+      // Crear FormData para envío con archivos
+      const submitData = new FormData();
+
+      // Agregar todos los campos del formulario
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'manuales' || key === 'planos') {
+          // Convertir objetos anidados a JSON
+          submitData.append(key, JSON.stringify(value));
+        } else if (value instanceof File) {
+          // Archivos
+          submitData.append(key, value);
+        } else if (value !== null && value !== '') {
+          // Otros campos
+          submitData.append(key, value);
+        }
+      });
+
+      const response = await axios.post('/api/v1/equipos', submitData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.success) {
+        toast.success('Equipo registrado exitosamente', { id: 'submit-equipment' });
+
+        // Resetear formulario
+        setFormData({
+          name: "", serial: "", code: "", marca: "", modelo: "", descripcion: "",
+          codigo_antiguo: "", codigo_inventario: "", centro_costo: "", pais_origen: "",
+          servicio_id: "", area_id: "", sede_id: "1", localizacion_actual: "",
+          tadquisicion_id: "", garantia: "", activo_comodato: "",
+          fecha_adquisicion: "", fecha_instalacion: "", fecha_recepcion_almacen: "",
+          fecha_acta_recibo: "", fecha_inicio_operacion: "", fecha_fabricacion: "",
+          costo: "", vida_util: "", fuente_id: "", tecnologia_id: "",
+          evaluacion_desempeno: "", calibracion: false, periodicidad_calibracion: "",
+          frecuencia_id: "", funcionalidad: "", disponibilidad_id: "", estadoequipo_id: "",
+          manuales: { operacion: false, mantenimiento: false, partes: false, otros: false },
+          planos: { electrico: false, electronico: false, neumatico: false, mecanico: false },
+          cbiomedica_id: "", criesgo_id: "", componentes: "", propietario_id: "",
+          verificacion_fisica: "", observaciones: "", image: null, archivo_excel: null,
+          invima: "", tipo_id: "1"
+        });
+
+        // Llamar callback si existe
+        if (onEquipmentAdded) {
+          onEquipmentAdded(response.data.data);
+        }
+
+        // Cerrar modal
+        onOpenChange(false);
+      } else {
+        toast.error(response.data.message || 'Error al registrar equipo', { id: 'submit-equipment' });
+      }
+    } catch (error) {
+      console.error('Error submitting equipment:', error);
+      const errorMessage = error.response?.data?.message || 'Error al registrar el equipo';
+      toast.error(errorMessage, { id: 'submit-equipment' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl min-w-6xl max-h-[85vh] overflow-y-auto">
@@ -54,8 +526,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <Input
                       placeholder="NOMBRE"
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.name ? 'border-red-500' : ''}`}
                     />
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                   </div>
 
                   <div>
@@ -64,8 +539,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <Input
                       placeholder="SERIE"
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.serial}
+                      onChange={(e) => handleInputChange('serial', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.serial ? 'border-red-500' : ''}`}
                     />
+                    {errors.serial && <p className="text-red-500 text-xs mt-1">{errors.serial}</p>}
                   </div>
 
                   <div>
@@ -73,9 +551,12 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       INV/Activo:<span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      placeholder=""
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      placeholder="CÓDIGO INVENTARIO"
+                      value={formData.code}
+                      onChange={(e) => handleInputChange('code', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.code ? 'border-red-500' : ''}`}
                     />
+                    {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code}</p>}
                   </div>
 
                   <div>
@@ -84,8 +565,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <Input
                       placeholder="MARCA"
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.marca}
+                      onChange={(e) => handleInputChange('marca', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.marca ? 'border-red-500' : ''}`}
                     />
+                    {errors.marca && <p className="text-red-500 text-xs mt-1">{errors.marca}</p>}
                   </div>
 
                   <div>
@@ -94,8 +578,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <Input
                       placeholder="MODELO"
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.modelo}
+                      onChange={(e) => handleInputChange('modelo', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.modelo ? 'border-red-500' : ''}`}
                     />
+                    {errors.modelo && <p className="text-red-500 text-xs mt-1">{errors.modelo}</p>}
                   </div>
 
                   <div>
@@ -103,17 +590,15 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       R.Invima:<span className="text-destructive">*</span>
                     </Label>
                     <div className="flex gap-2 mt-1">
-                      <Select>
-                        <SelectTrigger className="flex-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
-                          <SelectValue placeholder="----------" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="si">Sí</SelectItem>
-                          <SelectItem value="no">No</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        placeholder="REGISTRO INVIMA"
+                        value={formData.invima}
+                        onChange={(e) => handleInputChange('invima', e.target.value)}
+                        className="flex-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      />
                       <Button
                         size="sm"
+                        type="button"
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <Plus className="h-4 w-4" />
@@ -130,6 +615,8 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <Input
                       placeholder="DESCRIPCIÓN ADICIONAL"
+                      value={formData.descripcion}
+                      onChange={(e) => handleInputChange('descripcion', e.target.value)}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                     />
                   </div>
@@ -140,13 +627,36 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       <span className="text-destructive">*</span>
                     </Label>
                     <div className="flex gap-2 mt-1">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        onClick={() => excelInputRef.current?.click()}
+                      >
                         Seleccionar archivo
                       </Button>
-                      <span className="text-sm text-gray-500">
-                        NINGÚN ARC. LECCIONADO
+                      <span className="text-sm text-gray-500 flex items-center">
+                        {formData.archivo_excel ? formData.archivo_excel.name : 'NINGÚN ARCHIVO SELECCIONADO'}
                       </span>
+                      {formData.archivo_excel && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          onClick={() => handlePreviewFile(formData.archivo_excel, 'excel')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
+                    <input
+                      ref={excelInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.pdf"
+                      onChange={(e) => handleFileChange('archivo_excel', e.target.files[0])}
+                      className="hidden"
+                    />
+                    {errors.archivo_excel && <p className="text-red-500 text-xs mt-1">{errors.archivo_excel}</p>}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -156,8 +666,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       </Label>
                       <Input
                         placeholder="CÓDIGO ANTIGUO"
-                        className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                        value={formData.codigo_antiguo}
+                        onChange={(e) => handleInputChange('codigo_antiguo', e.target.value)}
+                        className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.codigo_antiguo ? 'border-red-500' : ''}`}
                       />
+                      {errors.codigo_antiguo && <p className="text-red-500 text-xs mt-1">{errors.codigo_antiguo}</p>}
                     </div>
                     <div>
                       <Label className="text-xs sm:text-sm">
@@ -165,8 +678,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       </Label>
                       <Input
                         placeholder="CÓDIGO INVENTARIO"
-                        className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                        value={formData.codigo_inventario}
+                        onChange={(e) => handleInputChange('codigo_inventario', e.target.value)}
+                        className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.codigo_inventario ? 'border-red-500' : ''}`}
                       />
+                      {errors.codigo_inventario && <p className="text-red-500 text-xs mt-1">{errors.codigo_inventario}</p>}
                     </div>
                   </div>
 
@@ -178,21 +694,51 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div>
                           <Label className="text-xs sm:text-sm">
-                            Servicio ★
+                            Servicio ★<span className="text-destructive">*</span>
                           </Label>
-                          <Input
-                            placeholder=""
-                            className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
-                          />
+                          <Select
+                            value={formData.servicio_id}
+                            onValueChange={(value) => {
+                              handleInputChange('servicio_id', value);
+                              // Limpiar área cuando cambie el servicio
+                              handleInputChange('area_id', '');
+                            }}
+                          >
+                            <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.servicio_id ? 'border-red-500' : ''}`}>
+                              <SelectValue placeholder="Seleccionar servicio" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {catalogs.servicios?.map((servicio) => (
+                                <SelectItem key={servicio.id} value={servicio.id.toString()}>
+                                  {servicio.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors.servicio_id && <p className="text-red-500 text-xs mt-1">{errors.servicio_id}</p>}
                         </div>
                         <div>
                           <Label className="text-xs sm:text-sm">
-                            Área ★<span className="text-destructive">*</span>
+                            Área ★ <span className="text-muted-foreground">(opcional)</span>
                           </Label>
-                          <Input
-                            placeholder=""
-                            className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
-                          />
+                          <Select
+                            value={formData.area_id}
+                            onValueChange={(value) => handleInputChange('area_id', value)}
+                            disabled={!formData.servicio_id}
+                          >
+                            <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.area_id ? 'border-red-500' : ''}`}>
+                              <SelectValue placeholder="Seleccionar área" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">No disponible</SelectItem>
+                              {catalogs.areas?.filter(area => area.servicio_id?.toString() === formData.servicio_id).map((area) => (
+                                <SelectItem key={area.id} value={area.id.toString()}>
+                                  {area.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors.area_id && <p className="text-red-500 text-xs mt-1">{errors.area_id}</p>}
                         </div>
                       </div>
                     </div>
@@ -201,12 +747,19 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       <Label className="text-xs sm:text-sm">
                         Sede:<span className="text-destructive">*</span>
                       </Label>
-                      <Select>
+                      <Select
+                        value={formData.sede_id}
+                        onValueChange={(value) => handleInputChange('sede_id', value)}
+                      >
                         <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
                           <SelectValue placeholder="SEDE HUV" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="sede1">SEDE HUV</SelectItem>
+                          {catalogs.sedes?.map((sede) => (
+                            <SelectItem key={sede.id} value={sede.id.toString()}>
+                              {sede.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <div className="text-xs text-gray-500 mt-1">
@@ -221,9 +774,12 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                           <span className="text-destructive">*</span>
                         </Label>
                         <Input
-                          placeholder=""
-                          className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                          placeholder="CENTRO DE COSTO"
+                          value={formData.centro_costo}
+                          onChange={(e) => handleInputChange('centro_costo', e.target.value)}
+                          className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.centro_costo ? 'border-red-500' : ''}`}
                         />
+                        {errors.centro_costo && <p className="text-red-500 text-xs mt-1">{errors.centro_costo}</p>}
                       </div>
                       <div>
                         <Label className="text-xs sm:text-sm">
@@ -231,9 +787,12 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                           <span className="text-destructive">*</span>
                         </Label>
                         <Input
-                          placeholder=""
-                          className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                          placeholder="PAÍS DE ORIGEN"
+                          value={formData.pais_origen}
+                          onChange={(e) => handleInputChange('pais_origen', e.target.value)}
+                          className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.pais_origen ? 'border-red-500' : ''}`}
                         />
+                        {errors.pais_origen && <p className="text-red-500 text-xs mt-1">{errors.pais_origen}</p>}
                       </div>
                     </div>
                   </div>
@@ -245,24 +804,73 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     <Label className="text-xs sm:text-sm">
                       IMAGEN RELACIONADA DEL EQUIPO
                     </Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mt-2 min-h-[150px] sm:min-h-[180px] flex flex-col items-center justify-center">
-                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-gray-500 mb-2">
-                        Drag & drop files here
-                      </p>
-                      <p className="text-sm text-gray-400 mb-4">
-                        (or click to select file)
-                      </p>
-                      <Button variant="outline" size="sm">
-                        SELECT FILE
-                      </Button>
-                      <Button
-                        className="bg-blue-600 hover:bg-blue-700 mt-2"
-                        size="sm"
-                      >
-                        Preview
-                      </Button>
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mt-2 min-h-[150px] sm:min-h-[180px] flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                      onClick={() => imageInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0) {
+                          handleFileChange('image', files[0]);
+                        }
+                      }}
+                    >
+                      {formData.image ? (
+                        <div className="w-full">
+                          <img
+                            src={URL.createObjectURL(formData.image)}
+                            alt="Preview"
+                            className="max-h-32 mx-auto mb-2 rounded"
+                          />
+                          <p className="text-sm text-gray-600 mb-2">{formData.image.name}</p>
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreviewFile(formData.image, 'image');
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInputChange('image', null);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                          <p className="text-gray-500 mb-2">
+                            Arrastra y suelta archivos aquí
+                          </p>
+                          <p className="text-sm text-gray-400 mb-4">
+                            (o haz clic para seleccionar archivo)
+                          </p>
+                          <Button variant="outline" size="sm" type="button">
+                            SELECCIONAR ARCHIVO
+                          </Button>
+                        </>
+                      )}
                     </div>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange('image', e.target.files[0])}
+                      className="hidden"
+                    />
                   </div>
                 </div>
               </div>
@@ -283,15 +891,22 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Forma de adquisición:
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.tadquisicion_id}
+                    onValueChange={(value) => handleInputChange('tadquisicion_id', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.tadquisicion_id ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="--SELECCIONE--" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="compra">Compra</SelectItem>
-                      <SelectItem value="donacion">Donación</SelectItem>
+                      {catalogs.tipos_adquisicion?.map((tipo) => (
+                        <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                          {tipo.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {errors.tadquisicion_id && <p className="text-red-500 text-xs mt-1">{errors.tadquisicion_id}</p>}
                 </div>
 
                 <div>
@@ -299,19 +914,29 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Garantía:<span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    placeholder="----------"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    placeholder="GARANTÍA EN AÑOS"
+                    value={formData.garantia}
+                    onChange={(e) => handleInputChange('garantia', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.garantia ? 'border-red-500' : ''}`}
                   />
+                  {errors.garantia && <p className="text-red-500 text-xs mt-1">{errors.garantia}</p>}
                 </div>
 
                 <div>
                   <Label className="text-xs sm:text-sm">
-                    Activo comodato:<span className="text-destructive">*</span>
+                    Activo comodato:
+                    {formData.tadquisicion_id === '3' && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
                     placeholder="CÓDIGO DE COMODATO"
+                    value={formData.activo_comodato}
+                    onChange={(e) => handleInputChange('activo_comodato', e.target.value)}
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    disabled={formData.tadquisicion_id !== '3'}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Solo requerido para equipos en comodato
+                  </p>
                 </div>
 
                 <div>
@@ -321,9 +946,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </Label>
                   <Input
                     type="date"
-                    placeholder="DD/MM/AAAA"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    value={formData.fecha_adquisicion}
+                    onChange={(e) => handleInputChange('fecha_adquisicion', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fecha_adquisicion ? 'border-red-500' : ''}`}
                   />
+                  {errors.fecha_adquisicion && <p className="text-red-500 text-xs mt-1">{errors.fecha_adquisicion}</p>}
                 </div>
 
                 <div>
@@ -333,9 +960,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </Label>
                   <Input
                     type="date"
-                    placeholder="DD/MM/AAAA"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    value={formData.fecha_instalacion}
+                    onChange={(e) => handleInputChange('fecha_instalacion', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fecha_instalacion ? 'border-red-500' : ''}`}
                   />
+                  {errors.fecha_instalacion && <p className="text-red-500 text-xs mt-1">{errors.fecha_instalacion}</p>}
                 </div>
 
                 <div>
@@ -345,9 +974,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </Label>
                   <Input
                     type="date"
-                    placeholder="DD/MM/AAAA"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    value={formData.fecha_recepcion_almacen}
+                    onChange={(e) => handleInputChange('fecha_recepcion_almacen', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fecha_recepcion_almacen ? 'border-red-500' : ''}`}
                   />
+                  {errors.fecha_recepcion_almacen && <p className="text-red-500 text-xs mt-1">{errors.fecha_recepcion_almacen}</p>}
                 </div>
 
                 <div>
@@ -357,9 +988,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </Label>
                   <Input
                     type="date"
-                    placeholder="DD/MM/AAAA"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    value={formData.fecha_acta_recibo}
+                    onChange={(e) => handleInputChange('fecha_acta_recibo', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fecha_acta_recibo ? 'border-red-500' : ''}`}
                   />
+                  {errors.fecha_acta_recibo && <p className="text-red-500 text-xs mt-1">{errors.fecha_acta_recibo}</p>}
                 </div>
 
                 <div>
@@ -369,9 +1002,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </Label>
                   <Input
                     type="date"
-                    placeholder="DD/MM/AAAA"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    value={formData.fecha_inicio_operacion}
+                    onChange={(e) => handleInputChange('fecha_inicio_operacion', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fecha_inicio_operacion ? 'border-red-500' : ''}`}
                   />
+                  {errors.fecha_inicio_operacion && <p className="text-red-500 text-xs mt-1">{errors.fecha_inicio_operacion}</p>}
                 </div>
 
                 <div>
@@ -381,9 +1016,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   </Label>
                   <Input
                     type="date"
-                    placeholder="DD/MM/AAAA"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    value={formData.fecha_fabricacion}
+                    onChange={(e) => handleInputChange('fecha_fabricacion', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fecha_fabricacion ? 'border-red-500' : ''}`}
                   />
+                  {errors.fecha_fabricacion && <p className="text-red-500 text-xs mt-1">{errors.fecha_fabricacion}</p>}
                 </div>
               </div>
 
@@ -395,18 +1032,26 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Costo:<span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    placeholder="COSTO"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    placeholder="COSTO EN PESOS"
+                    type="number"
+                    value={formData.costo}
+                    onChange={(e) => handleInputChange('costo', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.costo ? 'border-red-500' : ''}`}
                   />
+                  {errors.costo && <p className="text-red-500 text-xs mt-1">{errors.costo}</p>}
                 </div>
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Vida útil:<span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    placeholder="VIDA ÚTIL AÑOS"
-                    className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    placeholder="VIDA ÚTIL EN AÑOS"
+                    type="number"
+                    value={formData.vida_util}
+                    onChange={(e) => handleInputChange('vida_util', e.target.value)}
+                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.vida_util ? 'border-red-500' : ''}`}
                   />
+                  {errors.vida_util && <p className="text-red-500 text-xs mt-1">{errors.vida_util}</p>}
                 </div>
               </div>
             </CardContent>
@@ -426,16 +1071,22 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Fuente de alimentación:
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.fuente_id}
+                    onValueChange={(value) => handleInputChange('fuente_id', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.fuente_id ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="electrica">Eléctrica</SelectItem>
-                      <SelectItem value="bateria">Batería</SelectItem>
-                      <SelectItem value="manual">Manual</SelectItem>
+                      {catalogs.fuentes_alimentacion?.map((fuente) => (
+                        <SelectItem key={fuente.id} value={fuente.id.toString()}>
+                          {fuente.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {errors.fuente_id && <p className="text-red-500 text-xs mt-1">{errors.fuente_id}</p>}
                 </div>
 
                 <div>
@@ -443,16 +1094,22 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Tecnología predominante:
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.tecnologia_id}
+                    onValueChange={(value) => handleInputChange('tecnologia_id', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.tecnologia_id ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="electronica">Electrónica</SelectItem>
-                      <SelectItem value="mecanica">Mecánica</SelectItem>
-                      <SelectItem value="hidraulica">Hidráulica</SelectItem>
+                      {catalogs.tecnologias?.map((tecnologia) => (
+                        <SelectItem key={tecnologia.id} value={tecnologia.id.toString()}>
+                          {tecnologia.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {errors.tecnologia_id && <p className="text-red-500 text-xs mt-1">{errors.tecnologia_id}</p>}
                 </div>
 
                 <div>
@@ -460,16 +1117,21 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Evaluación de desempeño:
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.evaluacion_desempeno}
+                    onValueChange={(value) => handleInputChange('evaluacion_desempeno', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.evaluacion_desempeno ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="excelente">Excelente</SelectItem>
                       <SelectItem value="bueno">Bueno</SelectItem>
                       <SelectItem value="regular">Regular</SelectItem>
+                      <SelectItem value="deficiente">Deficiente</SelectItem>
                     </SelectContent>
                   </Select>
+                  {errors.evaluacion_desempeno && <p className="text-red-500 text-xs mt-1">{errors.evaluacion_desempeno}</p>}
                 </div>
 
                 <div>
@@ -477,25 +1139,35 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     ¿Se realiza calibración?
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
+                  <Select
+                    value={formData.calibracion ? "true" : "false"}
+                    onValueChange={(value) => handleInputChange('calibracion', value === "true")}
+                  >
                     <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="true">Sí</SelectItem>
+                      <SelectItem value="false">No</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label className="text-xs sm:text-sm">
-                    Periodicidad:<span className="text-destructive">*</span>
+                    Periodicidad calibración:
+                    {formData.calibracion && <span className="text-destructive">*</span>}
                   </Label>
                   <Input
-                    placeholder="Periodicidad"
+                    placeholder="Periodicidad en meses"
+                    value={formData.periodicidad_calibracion}
+                    onChange={(e) => handleInputChange('periodicidad_calibracion', e.target.value)}
                     className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                    disabled={!formData.calibracion}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Solo requerido si se realiza calibración
+                  </p>
                 </div>
 
                 <div>
@@ -503,17 +1175,22 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Frecuencia de mantenimiento:
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.frecuencia_id}
+                    onValueChange={(value) => handleInputChange('frecuencia_id', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.frecuencia_id ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="mensual">Mensual</SelectItem>
-                      <SelectItem value="trimestral">Trimestral</SelectItem>
-                      <SelectItem value="semestral">Semestral</SelectItem>
-                      <SelectItem value="anual">Anual</SelectItem>
+                      {catalogs.frecuencias_mantenimiento?.map((frecuencia) => (
+                        <SelectItem key={frecuencia.id} value={frecuencia.id.toString()}>
+                          {frecuencia.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {errors.frecuencia_id && <p className="text-red-500 text-xs mt-1">{errors.frecuencia_id}</p>}
                 </div>
               </div>
 
@@ -526,34 +1203,46 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                   <div>
-                    <Label className="text-xs sm:text-sm">Funcionalidad:</Label>
-                    <Select>
-                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                    <Label className="text-xs sm:text-sm">
+                      Funcionalidad:<span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={formData.funcionalidad}
+                      onValueChange={(value) => handleInputChange('funcionalidad', value)}
+                    >
+                      <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.funcionalidad ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="optima">Óptima</SelectItem>
                         <SelectItem value="buena">Buena</SelectItem>
                         <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="deficiente">Deficiente</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.funcionalidad && <p className="text-red-500 text-xs mt-1">{errors.funcionalidad}</p>}
                   </div>
 
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Disponibilidad:<span className="text-destructive">*</span>
                     </Label>
-                    <Select>
-                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                    <Select
+                      value={formData.disponibilidad_id}
+                      onValueChange={(value) => handleInputChange('disponibilidad_id', value)}
+                    >
+                      <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.disponibilidad_id ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="disponible">Disponible</SelectItem>
-                        <SelectItem value="no-disponible">
-                          No Disponible
-                        </SelectItem>
+                        {catalogs.disponibilidades?.map((disponibilidad) => (
+                          <SelectItem key={disponibilidad.id} value={disponibilidad.id.toString()}>
+                            {disponibilidad.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {errors.disponibilidad_id && <p className="text-red-500 text-xs mt-1">{errors.disponibilidad_id}</p>}
                   </div>
 
                   <div>
@@ -563,8 +1252,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <Input
                       placeholder="LOCALIZACIÓN ACTUAL"
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.localizacion_actual}
+                      onChange={(e) => handleInputChange('localizacion_actual', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.localizacion_actual ? 'border-red-500' : ''}`}
                     />
+                    {errors.localizacion_actual && <p className="text-red-500 text-xs mt-1">{errors.localizacion_actual}</p>}
                   </div>
                 </div>
               </div>
@@ -583,7 +1275,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="manual-operacion" />
+                        <Checkbox
+                          id="manual-operacion"
+                          checked={formData.manuales.operacion}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('manuales', 'operacion', checked)}
+                        />
                         <Label
                           htmlFor="manual-operacion"
                           className="text-xs sm:text-sm"
@@ -592,7 +1288,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="manual-mantenimiento" />
+                        <Checkbox
+                          id="manual-mantenimiento"
+                          checked={formData.manuales.mantenimiento}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('manuales', 'mantenimiento', checked)}
+                        />
                         <Label
                           htmlFor="manual-mantenimiento"
                           className="text-xs sm:text-sm"
@@ -601,7 +1301,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="manual-partes" />
+                        <Checkbox
+                          id="manual-partes"
+                          checked={formData.manuales.partes}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('manuales', 'partes', checked)}
+                        />
                         <Label
                           htmlFor="manual-partes"
                           className="text-xs sm:text-sm"
@@ -610,7 +1314,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="manual-otros" />
+                        <Checkbox
+                          id="manual-otros"
+                          checked={formData.manuales.otros}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('manuales', 'otros', checked)}
+                        />
                         <Label
                           htmlFor="manual-otros"
                           className="text-xs sm:text-sm"
@@ -627,7 +1335,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="plano-electrico" />
+                        <Checkbox
+                          id="plano-electrico"
+                          checked={formData.planos.electrico}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('planos', 'electrico', checked)}
+                        />
                         <Label
                           htmlFor="plano-electrico"
                           className="text-xs sm:text-sm"
@@ -636,7 +1348,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="plano-electronico" />
+                        <Checkbox
+                          id="plano-electronico"
+                          checked={formData.planos.electronico}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('planos', 'electronico', checked)}
+                        />
                         <Label
                           htmlFor="plano-electronico"
                           className="text-xs sm:text-sm"
@@ -645,7 +1361,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="plano-neumatico" />
+                        <Checkbox
+                          id="plano-neumatico"
+                          checked={formData.planos.neumatico}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('planos', 'neumatico', checked)}
+                        />
                         <Label
                           htmlFor="plano-neumatico"
                           className="text-xs sm:text-sm"
@@ -654,7 +1374,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Checkbox id="plano-mecanico" />
+                        <Checkbox
+                          id="plano-mecanico"
+                          checked={formData.planos.mecanico}
+                          onCheckedChange={(checked) => handleNestedCheckboxChange('planos', 'mecanico', checked)}
+                        />
                         <Label
                           htmlFor="plano-mecanico"
                           className="text-xs sm:text-sm"
@@ -672,17 +1396,25 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       Clasificación biomédica:
                       <span className="text-destructive">*</span>
                     </Label>
-                    <Select>
-                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                    <Select
+                      value={formData.cbiomedica_id}
+                      onValueChange={(value) => handleInputChange('cbiomedica_id', value)}
+                    >
+                      <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.cbiomedica_id ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="clase1">Clase I</SelectItem>
-                        <SelectItem value="clase2a">Clase IIa</SelectItem>
-                        <SelectItem value="clase2b">Clase IIb</SelectItem>
-                        <SelectItem value="clase3">Clase III</SelectItem>
+                        {catalogs.clasificaciones_biomedicas?.map((clasificacion) => (
+                          <SelectItem key={clasificacion.id} value={clasificacion.id.toString()}>
+                            {clasificacion.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {errors.cbiomedica_id && <p className="text-red-500 text-xs mt-1">{errors.cbiomedica_id}</p>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solo visible para equipos biomédicos (tipo_id = 1)
+                    </p>
                   </div>
 
                   <div>
@@ -690,16 +1422,22 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       Clasificación de acuerdo al riesgo:
                       <span className="text-destructive">*</span>
                     </Label>
-                    <Select>
-                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                    <Select
+                      value={formData.criesgo_id}
+                      onValueChange={(value) => handleInputChange('criesgo_id', value)}
+                    >
+                      <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.criesgo_id ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bajo">Bajo</SelectItem>
-                        <SelectItem value="medio">Medio</SelectItem>
-                        <SelectItem value="alto">Alto</SelectItem>
+                        {catalogs.clasificaciones_riesgo?.map((riesgo) => (
+                          <SelectItem key={riesgo.id} value={riesgo.id.toString()}>
+                            {riesgo.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {errors.criesgo_id && <p className="text-red-500 text-xs mt-1">{errors.criesgo_id}</p>}
                   </div>
                 </div>
               </div>
@@ -717,6 +1455,8 @@ export function AddEquipmentModal({ open, onOpenChange }) {
               <div className="border border-gray-300 rounded-lg p-4 min-h-[80px] sm:min-h-[100px] bg-white">
                 <Textarea
                   placeholder="Descripción de componentes del equipo..."
+                  value={formData.componentes}
+                  onChange={(e) => handleInputChange('componentes', e.target.value)}
                   className="min-h-[100px] border-none resize-none focus:ring-0 w-full"
                 />
               </div>
@@ -736,18 +1476,24 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                   <Label className="text-xs sm:text-sm">
                     Propietario:<span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.propietario_id}
+                    onValueChange={(value) => handleInputChange('propietario_id', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.propietario_id ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="SELECCIONE UN ELEMENTO DE LA LISTA" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="hospital">
-                        Hospital Universitario del Valle
-                      </SelectItem>
-                      <SelectItem value="tercero">Tercero</SelectItem>
+                      <SelectItem value="0">No disponible</SelectItem>
+                      {catalogs.propietarios?.map((propietario) => (
+                        <SelectItem key={propietario.id} value={propietario.id.toString()}>
+                          {propietario.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" size="sm" className="mt-2">
+                  {errors.propietario_id && <p className="text-red-500 text-xs mt-1">{errors.propietario_id}</p>}
+                  <Button variant="outline" size="sm" className="mt-2" type="button">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -757,8 +1503,11 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                     Verificación física:
                     <span className="text-destructive">*</span>
                   </Label>
-                  <Select>
-                    <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                  <Select
+                    value={formData.verificacion_fisica}
+                    onValueChange={(value) => handleInputChange('verificacion_fisica', value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.verificacion_fisica ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
@@ -767,6 +1516,7 @@ export function AddEquipmentModal({ open, onOpenChange }) {
                       <SelectItem value="no-aplica">No Aplica</SelectItem>
                     </SelectContent>
                   </Select>
+                  {errors.verificacion_fisica && <p className="text-red-500 text-xs mt-1">{errors.verificacion_fisica}</p>}
                 </div>
               </div>
             </CardContent>
@@ -782,6 +1532,8 @@ export function AddEquipmentModal({ open, onOpenChange }) {
             <CardContent className="p-3 sm:p-4 md:p-6">
               <Textarea
                 placeholder="Escriba todas las observaciones que se estimen pertinentes para el seguimiento del equipo"
+                value={formData.observaciones}
+                onChange={(e) => handleInputChange('observaciones', e.target.value)}
                 className="min-h-[60px] sm:min-h-[80px] w-full"
               />
             </CardContent>
@@ -789,17 +1541,74 @@ export function AddEquipmentModal({ open, onOpenChange }) {
         </div>
 
         <div className="flex justify-between p-4 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8">
-            Agregar
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+            onClick={handleSubmit}
+            disabled={loading || loadingCatalogs}
+            type="button"
+          >
+            {loading ? 'Registrando...' : 'Agregar'}
           </Button>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="px-8"
+            disabled={loading}
+            type="button"
           >
             Cerrar
           </Button>
         </div>
+
+        {/* Modal de previsualización de archivos */}
+        {showPreview && (
+          <Dialog open={showPreview} onOpenChange={closePreview}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {previewType === 'image' ? <ImageIcon className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                  Previsualización de archivo
+                </DialogTitle>
+              </DialogHeader>
+              <div className="p-4">
+                {previewType === 'image' && (
+                  <img
+                    src={previewFile}
+                    alt="Preview"
+                    className="max-w-full max-h-96 mx-auto rounded"
+                  />
+                )}
+                {previewType === 'excel' && previewFile && (
+                  <div className="text-center">
+                    {previewFile.endsWith('.pdf') ? (
+                      <div className="h-96">
+                        <PDFSlick
+                          file={previewFile}
+                          className="h-full"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-8 border-2 border-dashed border-gray-300 rounded-lg">
+                        <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600">
+                          Archivo Excel seleccionado. La previsualización no está disponible para archivos Excel.
+                        </p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          El archivo se procesará al enviar el formulario.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end p-4 border-t">
+                <Button variant="outline" onClick={closePreview}>
+                  Cerrar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </DialogContent>
     </Dialog>
   );

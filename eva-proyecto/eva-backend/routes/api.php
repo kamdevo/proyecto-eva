@@ -49,6 +49,228 @@ Route::post('v1/debug-register', function (Request $request) {
     }
 });
 
+// Endpoint de prueba con CORS permisivo
+Route::get('v1/test/cors', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'CORS funcionando correctamente',
+        'timestamp' => now(),
+        'server' => 'Laravel ' . app()->version()
+    ])->header('Access-Control-Allow-Origin', '*')
+      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+});
+
+// Análisis enfocado para el modal de equipos
+Route::get('v1/test/modal-analysis', function () {
+    try {
+        // 1. Obtener todas las tablas
+        $allTables = DB::select('SHOW TABLES');
+        $databaseName = DB::getDatabaseName();
+        $tableKey = "Tables_in_{$databaseName}";
+        $tableNames = array_map(function($table) use ($tableKey) {
+            return $table->$tableKey;
+        }, $allTables);
+
+        // 2. Análisis específico de tabla equipos
+        $equiposAnalysis = null;
+        if (in_array('equipos', $tableNames)) {
+            $equiposColumns = Schema::getColumnListing('equipos');
+            $equiposAnalysis = [
+                'exists' => true,
+                'columns' => $equiposColumns,
+                'total_records' => DB::table('equipos')->count(),
+                'foreign_keys' => [],
+                'related_tables' => []
+            ];
+
+            // Analizar claves foráneas
+            foreach ($equiposColumns as $column) {
+                if (str_ends_with($column, '_id')) {
+                    $possibleTables = [
+                        str_replace('_id', 's', $column),
+                        str_replace('_id', '', $column) . 's',
+                        $column === 'servicio_id' ? 'servicios' : null,
+                        $column === 'area_id' ? 'areas' : null,
+                        $column === 'propietario_id' ? 'propietarios' : null,
+                    ];
+
+                    foreach (array_filter($possibleTables) as $possibleTable) {
+                        if (in_array($possibleTable, $tableNames)) {
+                            $equiposAnalysis['foreign_keys'][$column] = $possibleTable;
+                            $equiposAnalysis['related_tables'][$possibleTable] = [
+                                'columns' => Schema::getColumnListing($possibleTable),
+                                'count' => DB::table($possibleTable)->count(),
+                                'sample' => DB::table($possibleTable)->limit(2)->get()->toArray()
+                            ];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Tablas relevantes para catálogos
+        $catalogTables = [
+            'servicios', 'areas', 'propietarios', 'usuarios', 'sedes',
+            'fuentes_alimentacion', 'tecnologias', 'frecuencias_mantenimiento',
+            'clasificaciones_biomedicas', 'clasificaciones_riesgo',
+            'tipos_adquisicion', 'estados_equipo', 'disponibilidades'
+        ];
+
+        $catalogAnalysis = [];
+        foreach ($catalogTables as $table) {
+            if (in_array($table, $tableNames)) {
+                $columns = Schema::getColumnListing($table);
+                $catalogAnalysis[$table] = [
+                    'exists' => true,
+                    'columns' => $columns,
+                    'count' => DB::table($table)->count(),
+                    'has_name' => in_array('name', $columns),
+                    'has_nombre' => in_array('nombre', $columns),
+                    'has_status' => in_array('status', $columns),
+                    'has_estado' => in_array('estado', $columns),
+                    'sample' => DB::table($table)->limit(2)->get()->toArray()
+                ];
+            } else {
+                $catalogAnalysis[$table] = ['exists' => false];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Análisis enfocado para modal completado',
+            'data' => [
+                'database' => $databaseName,
+                'total_tables' => count($tableNames),
+                'equipos_analysis' => $equiposAnalysis,
+                'catalog_analysis' => $catalogAnalysis,
+                'recommendations' => [
+                    'existing_catalogs' => array_keys(array_filter($catalogAnalysis, fn($cat) => $cat['exists'])),
+                    'missing_catalogs' => array_keys(array_filter($catalogAnalysis, fn($cat) => !$cat['exists'])),
+                    'name_field_mapping' => array_reduce(array_keys($catalogAnalysis), function($carry, $table) use ($catalogAnalysis) {
+                        if ($catalogAnalysis[$table]['exists']) {
+                            if ($catalogAnalysis[$table]['has_name']) {
+                                $carry[$table] = 'name';
+                            } elseif ($catalogAnalysis[$table]['has_nombre']) {
+                                $carry[$table] = 'nombre';
+                            }
+                        }
+                        return $carry;
+                    }, []),
+                    'status_field_mapping' => array_reduce(array_keys($catalogAnalysis), function($carry, $table) use ($catalogAnalysis) {
+                        if ($catalogAnalysis[$table]['exists']) {
+                            if ($catalogAnalysis[$table]['has_status']) {
+                                $carry[$table] = 'status';
+                            } elseif ($catalogAnalysis[$table]['has_estado']) {
+                                $carry[$table] = 'estado';
+                            }
+                        }
+                        return $carry;
+                    }, [])
+                ]
+            ]
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500)->header('Access-Control-Allow-Origin', '*');
+    }
+});
+
+// Endpoint para análisis completo de la base de datos
+Route::get('v1/test/database-analysis', function () {
+    try {
+        // 1. Obtener todas las tablas de la base de datos
+        $allTables = DB::select('SHOW TABLES');
+        $databaseName = DB::getDatabaseName();
+        $tableKey = "Tables_in_{$databaseName}";
+
+        $tableNames = array_map(function($table) use ($tableKey) {
+            return $table->$tableKey;
+        }, $allTables);
+
+        // 2. Analizar estructura de cada tabla
+        $analysis = [
+            'database_name' => $databaseName,
+            'total_tables' => count($tableNames),
+            'all_tables' => $tableNames,
+            'table_details' => []
+        ];
+
+        foreach ($tableNames as $tableName) {
+            try {
+                $columns = Schema::getColumnListing($tableName);
+                $rowCount = DB::table($tableName)->count();
+                $sampleData = DB::table($tableName)->limit(2)->get()->toArray();
+
+                $analysis['table_details'][$tableName] = [
+                    'exists' => true,
+                    'columns' => $columns,
+                    'row_count' => $rowCount,
+                    'sample_data' => $sampleData
+                ];
+            } catch (\Exception $e) {
+                $analysis['table_details'][$tableName] = [
+                    'exists' => false,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        // 3. Análisis específico de tabla equipos
+        if (in_array('equipos', $tableNames)) {
+            $equiposColumns = Schema::getColumnListing('equipos');
+            $equiposSample = DB::table('equipos')->limit(1)->get()->toArray();
+
+            $analysis['equipos_analysis'] = [
+                'columns' => $equiposColumns,
+                'total_equipos' => DB::table('equipos')->count(),
+                'sample_equipo' => $equiposSample,
+                'foreign_key_analysis' => []
+            ];
+
+            // Analizar posibles claves foráneas
+            foreach ($equiposColumns as $column) {
+                if (str_ends_with($column, '_id')) {
+                    $possibleTable = str_replace('_id', 's', $column);
+                    if (in_array($possibleTable, $tableNames)) {
+                        $analysis['equipos_analysis']['foreign_key_analysis'][$column] = [
+                            'possible_table' => $possibleTable,
+                            'table_exists' => true,
+                            'table_count' => DB::table($possibleTable)->count()
+                        ];
+                    } else {
+                        $analysis['equipos_analysis']['foreign_key_analysis'][$column] = [
+                            'possible_table' => $possibleTable,
+                            'table_exists' => false
+                        ];
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Análisis completo de base de datos realizado',
+            'data' => $analysis
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500)->header('Access-Control-Allow-Origin', '*')
+                 ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    }
+});
+
 // Endpoint de registro funcional (temporal)
 Route::post('v1/register-working', function (Request $request) {
     try {
@@ -189,17 +411,188 @@ Route::get('v1/test/equipos-simple', function () {
 Route::get('v1/test/db', function () {
     try {
         $count = DB::table('equipos')->count();
-        return response()->json([
+        $response = response()->json([
             'success' => true,
             'message' => 'Base de datos conectada',
             'equipos_count' => $count
         ]);
     } catch (\Exception $e) {
-        return response()->json([
+        $response = response()->json([
             'success' => false,
             'error' => $e->getMessage()
         ], 500);
     }
+
+    return $response->header('Access-Control-Allow-Origin', '*')
+                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                   ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+});
+
+// Test endpoint de catálogos (adaptado a BD actual)
+Route::get('v1/test/catalogs', function () {
+    try {
+        $data = [
+            'servicios' => DB::table('servicios')->where('status', 1)->count(),
+            'areas' => DB::table('areas')->where('status', 1)->count(),
+            'propietarios' => DB::table('propietarios')->count(), // Sin status
+            'tablas_faltantes' => 8, // Las 8 tablas que no existen
+            'total_catalogos' => 11 // 3 reales + 8 por defecto
+        ];
+        $response = response()->json([
+            'success' => true,
+            'message' => 'Catálogos disponibles (adaptado a BD actual)',
+            'data' => $data
+        ]);
+    } catch (\Exception $e) {
+        $response = response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+
+    return $response->header('Access-Control-Allow-Origin', '*')
+                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                   ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+});
+
+// Endpoints de prueba adicionales para equipos (sin autenticación)
+Route::get('v1/test/equipos/filter-options', function () {
+    try {
+        $options = [
+            'servicios' => DB::table('servicios')->select('id', 'name')->where('status', 1)->get(),
+            'areas' => DB::table('areas')->select('id', 'name')->where('status', 1)->get(),
+            'sedes' => DB::table('sedes')->select('id', 'name')->get(),
+            'propietarios' => DB::table('propietarios')->select('id', 'nombre as name')->get(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Opciones de filtros obtenidas exitosamente (test)',
+            'data' => $options
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener opciones de filtros: ' . $e->getMessage()
+        ], 500)->header('Access-Control-Allow-Origin', '*');
+    }
+});
+
+Route::get('v1/test/equipos/estadisticas', function () {
+    try {
+        $stats = [
+            'total_equipos' => DB::table('equipos')->count(),
+            'operativos' => DB::table('equipos')->where('status', 1)->count(),
+            'en_mantenimiento' => 0,
+            'fuera_servicio' => 0,
+            'mantenimientos_mes' => 0,
+            'calibraciones_mes' => 0,
+            'por_clasificacion' => [],
+            'por_riesgo' => [],
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estadísticas obtenidas exitosamente (test)',
+            'data' => $stats
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener estadísticas: ' . $e->getMessage()
+        ], 500)->header('Access-Control-Allow-Origin', '*');
+    }
+});
+
+// Test endpoint completo de modal (estructura real BD)
+Route::get('v1/test/modal-data', function () {
+    try {
+        $data = [
+            // CATÁLOGOS REALES DE LA BD
+            'servicios' => DB::table('servicios')->where('status', 1)->get(['id', 'name']),
+            'areas' => DB::table('areas')->where('status', 1)->get(['id', 'name', 'servicio_id']),
+            'propietarios' => DB::table('propietarios')->get(['id', 'nombre as name']),
+            'sedes' => DB::table('sedes')->get(['id', 'name']),
+            'tipos_equipo' => DB::table('tipos')->get(['id', 'name']),
+            'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
+
+            // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
+            'estados_equipo' => DB::table('estadoequipos')->get(['id', 'name']),
+            'invimas' => DB::table('invimas')->where('status', 1)->get(['id', 'invima as name', 'titulo']),
+
+            // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
+            'fuentes_alimentacion' => [
+                ['id' => 1, 'name' => '110V AC'],
+                ['id' => 2, 'name' => '220V AC'],
+                ['id' => 3, 'name' => 'Batería'],
+                ['id' => 4, 'name' => 'Gas'],
+                ['id' => 5, 'name' => 'Neumático'],
+                ['id' => 6, 'name' => 'Solar']
+            ],
+            'tecnologias' => [
+                ['id' => 1, 'name' => 'Electromecánica'],
+                ['id' => 2, 'name' => 'Electrónica'],
+                ['id' => 3, 'name' => 'Hidráulica'],
+                ['id' => 4, 'name' => 'Neumática'],
+                ['id' => 5, 'name' => 'Digital'],
+                ['id' => 6, 'name' => 'Mecánica']
+            ],
+            'frecuencias_mantenimiento' => [
+                ['id' => 1, 'name' => 'Mensual'],
+                ['id' => 2, 'name' => 'Bimestral'],
+                ['id' => 3, 'name' => 'Trimestral'],
+                ['id' => 4, 'name' => 'Semestral'],
+                ['id' => 5, 'name' => 'Anual'],
+                ['id' => 6, 'name' => 'Según uso']
+            ],
+            'clasificaciones_biomedicas' => [
+                ['id' => 1, 'name' => 'Clase I - Bajo riesgo'],
+                ['id' => 2, 'name' => 'Clase IIa - Riesgo moderado'],
+                ['id' => 3, 'name' => 'Clase IIb - Riesgo moderado-alto'],
+                ['id' => 4, 'name' => 'Clase III - Alto riesgo']
+            ],
+            'clasificaciones_riesgo' => [
+                ['id' => 1, 'name' => 'Alto'],
+                ['id' => 2, 'name' => 'Medio'],
+                ['id' => 3, 'name' => 'Bajo']
+            ],
+            'tipos_adquisicion' => [
+                ['id' => 1, 'name' => 'Compra'],
+                ['id' => 2, 'name' => 'Donación'],
+                ['id' => 3, 'name' => 'Comodato'],
+                ['id' => 4, 'name' => 'Leasing'],
+                ['id' => 5, 'name' => 'Alquiler']
+            ],
+            'disponibilidades' => [
+                ['id' => 1, 'name' => 'Disponible'],
+                ['id' => 2, 'name' => 'En Uso'],
+                ['id' => 3, 'name' => 'En Mantenimiento'],
+                ['id' => 4, 'name' => 'Fuera de Servicio'],
+                ['id' => 5, 'name' => 'Reservado']
+            ]
+        ];
+
+        $response = response()->json([
+            'success' => true,
+            'message' => 'Datos de modal obtenidos exitosamente (estructura real BD)',
+            'data' => $data,
+            'info' => 'Usando estructura real de BD: servicios, areas, propietarios, sedes, tipos, usuarios, estadoequipos, invimas'
+        ]);
+    } catch (\Exception $e) {
+        $response = response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+
+    return $response->header('Access-Control-Allow-Origin', '*')
+                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                   ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 });
 
 // Endpoints públicos para equipos biomédicos (sin autenticación)
@@ -274,9 +667,13 @@ Route::get('v1/equipos/estadisticas/medical-devices', function () {
 });
 
 // Rutas públicas de equipos biomédicos (sin autenticación)
-// Route::prefix('v1')->group(function () {
-//     require __DIR__.'/equipos.php';
-// });
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
+    // Endpoints específicos sin autenticación
+    Route::get('equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete']);
+    Route::get('equipos/filter-options', [\App\Http\Controllers\Api\EquipmentController::class, 'getFilterOptions']);
+    Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
+    Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
+});
 
 // Middleware de seguridad aplicado automáticamente
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -340,10 +737,10 @@ Route::prefix('v1')->group(function () {
     //     require __DIR__.'/auditoria.php';
     // }
 
-    // Interacciones modales (pendiente de implementar controladores)
-    // if (file_exists(__DIR__.'/modales.php')) {
-    //     require __DIR__.'/modales.php';
-    // }
+    // Interacciones modales
+    if (file_exists(__DIR__.'/modales.php')) {
+        require __DIR__.'/modales.php';
+    }
 
     // Observaciones (pendiente de implementar controladores)
     // if (file_exists(__DIR__.'/observaciones.php')) {

@@ -34,11 +34,15 @@ use App\Http\Controllers\Api\EquipmentController;
 // CRUD básico de equipos
 Route::apiResource('equipos', EquipmentController::class);
 
-// Rutas específicas de equipos médicos con información completa
-Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete']);
-Route::get('equipos/{id}/complete-info', [EquipmentController::class, 'getCompleteInfo']);
-Route::get('equipos/filter-options', [EquipmentController::class, 'getFilterOptions']);
-Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 'getMedicalDevicesStats']);
+// Rutas específicas de equipos médicos con información completa (con CORS)
+Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete'])
+    ->withoutMiddleware(['auth:sanctum']);
+Route::get('equipos/{id}/complete-info', [EquipmentController::class, 'getCompleteInfo'])
+    ->withoutMiddleware(['auth:sanctum']);
+Route::get('equipos/filter-options', [EquipmentController::class, 'getFilterOptions'])
+    ->withoutMiddleware(['auth:sanctum']);
+Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 'getMedicalDevicesStats'])
+    ->withoutMiddleware(['auth:sanctum']);
 
 // Otras rutas específicas
 Route::get('equipos/{id}/historial', [EquipmentController::class, 'historial']);

@@ -26,7 +26,7 @@ class StoreEquipmentRequest extends FormRequest
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:equipos,code|max:100',
             'servicio_id' => 'required|exists:servicios,id',
-            'area_id' => 'required|exists:areas,id',
+            'area_id' => 'nullable|numeric|min:0',
             'marca' => 'nullable|string|max:100',
             'modelo' => 'nullable|string|max:100',
             'serial' => 'nullable|string|max:100|unique:equipos,serial',
@@ -38,7 +38,7 @@ class StoreEquipmentRequest extends FormRequest
             'fecha_acta_recibo' => 'nullable|date|before_or_equal:today',
             'fecha_vencimiento_garantia' => 'nullable|date|after:today',
             'vida_util' => 'nullable|integer|min:1|max:50',
-            'propietario_id' => 'nullable|exists:propietarios,id',
+            'propietario_id' => 'nullable|numeric|min:0',
             'fuente_id' => 'nullable|exists:fuenteal,id',
             'tecnologia_id' => 'nullable|exists:tecnologiap,id',
             'frecuencia_id' => 'nullable|exists:frecuenciam,id',
@@ -57,7 +57,25 @@ class StoreEquipmentRequest extends FormRequest
             'propiedad' => 'nullable|string|max:100',
             'evaluacion_desempenio' => 'nullable|string|max:100',
             'periodicidad' => 'nullable|string|max:100',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120|dimensions:max_width=2048,max_height=2048'
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120|dimensions:max_width=2048,max_height=2048',
+            'archivo_excel' => 'required|file|mimes:xlsx,xls,pdf|max:20480', // 20MB max
+            'codigo_antiguo' => 'required|string|max:100|unique:equipos,codigo_antiguo',
+            'codigo_inventario' => 'required|string|max:100',
+            'centro_costo' => 'required|string|max:100',
+            'pais_origen' => 'required|string|max:100',
+            'fecha_adquisicion' => 'required|date|before_or_equal:today',
+            'fecha_recepcion_almacen' => 'required|date|before_or_equal:today',
+            'fecha_acta_recibo' => 'required|date|before_or_equal:today',
+            'fecha_inicio_operacion' => 'required|date|before_or_equal:today',
+            'evaluacion_desempeno' => 'required|string|in:excelente,bueno,regular,deficiente',
+            'periodicidad_calibracion' => 'nullable|string|max:100',
+            'funcionalidad' => 'required|string|in:optima,buena,regular,deficiente',
+            'disponibilidad_id' => 'required|exists:disponibilidad,id',
+            'componentes' => 'nullable|string|max:2000',
+            'verificacion_fisica' => 'required|string|in:realizada,pendiente,no-aplica',
+            'observaciones' => 'nullable|string|max:2000',
+            'manuales' => 'nullable|json',
+            'planos' => 'nullable|json'
         ];
     }
 
@@ -74,8 +92,7 @@ class StoreEquipmentRequest extends FormRequest
             'code.max' => 'El código no puede exceder 100 caracteres.',
             'servicio_id.required' => 'Debe seleccionar un servicio.',
             'servicio_id.exists' => 'El servicio seleccionado no existe.',
-            'area_id.required' => 'Debe seleccionar un área.',
-            'area_id.exists' => 'El área seleccionada no existe.',
+
             'serial.unique' => 'Ya existe un equipo con este número de serie.',
             'costo.numeric' => 'El costo debe ser un valor numérico.',
             'costo.min' => 'El costo no puede ser negativo.',
@@ -89,6 +106,21 @@ class StoreEquipmentRequest extends FormRequest
             'image.mimes' => 'La imagen debe ser de tipo: jpeg, png, jpg, gif o webp.',
             'image.max' => 'La imagen no puede exceder 5MB.',
             'image.dimensions' => 'La imagen no puede exceder 2048x2048 píxeles.',
+            'archivo_excel.required' => 'El archivo Excel de hoja de vida es obligatorio.',
+            'archivo_excel.file' => 'Debe seleccionar un archivo válido.',
+            'archivo_excel.mimes' => 'El archivo debe ser de tipo: xlsx, xls o pdf.',
+            'archivo_excel.max' => 'El archivo no puede exceder 20MB.',
+            'codigo_antiguo.required' => 'El código antiguo es obligatorio.',
+            'codigo_antiguo.unique' => 'Ya existe un equipo con este código antiguo.',
+            'codigo_inventario.required' => 'El código de inventario es obligatorio.',
+            'centro_costo.required' => 'El centro de costo es obligatorio.',
+            'pais_origen.required' => 'El país de origen es obligatorio.',
+            'fecha_adquisicion.required' => 'La fecha de adquisición es obligatoria.',
+            'fecha_adquisicion.before_or_equal' => 'La fecha de adquisición no puede ser futura.',
+            'evaluacion_desempeno.required' => 'La evaluación de desempeño es obligatoria.',
+            'funcionalidad.required' => 'La funcionalidad es obligatoria.',
+            'disponibilidad_id.required' => 'La disponibilidad es obligatoria.',
+            'verificacion_fisica.required' => 'La verificación física es obligatoria.',
         ];
     }
 
