@@ -2,21 +2,23 @@
 
 /**
  * Rutas API - api
- * 
+ *
  * Archivo de rutas optimizado para el sistema EVA
  * con middleware de seguridad empresarial completo.
- * 
+ *
  * Middleware aplicado:
  * - auth:sanctum: Autenticación requerida
  * - throttle:60,1: Rate limiting (60 requests por minuto)
  * - cors: Cross-Origin Resource Sharing
  * - api.version: Versionado de API
  * - verified: Verificación de email (donde aplique)
- * 
+ *
  * @package EVA
  * @version 2.0.0
  * @author Sistema EVA
  */
+
+use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -672,7 +674,279 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     Route::get('equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete']);
     Route::get('equipos/filter-options', [\App\Http\Controllers\Api\EquipmentController::class, 'getFilterOptions']);
     Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
-    Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
+    // Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
+
+    // Endpoint simplificado para crear equipos (sin autenticación)
+    Route::post('equipos', function(Request $request) {
+        try {
+            \Log::info('Creando equipo', ['data' => $request->all()]);
+
+            // Validaciones básicas
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'servicio_id' => 'required|integer',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB max
+                'archivo_excel' => 'nullable|mimes:xlsx,xls,pdf|max:10240', // 10MB max
+                'archivo_invima' => 'nullable|mimes:pdf|max:10240' // 10MB max, solo PDF para INVIMA
+            ]);
+
+            // Procesar archivos subidos
+            $imagePath = null;
+            $archivoExcelPath = null;
+
+            // Procesar imagen
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $imageName = 'equipo_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('equipos/images', $imageName, 'public');
+                \Log::info('Imagen procesada', ['path' => $imagePath]);
+            }
+
+            // Procesar archivo Excel (va a carpeta archivos)
+            if ($request->hasFile('archivo_excel')) {
+                $archivo = $request->file('archivo_excel');
+                $extension = $archivo->getClientOriginalExtension();
+
+                if (in_array(strtolower($extension), ['xlsx', 'xls'])) {
+                    // Archivos Excel van a /archivos
+                    $archivoName = 'excel_' . time() . '_' . uniqid() . '.' . $extension;
+                    $archivoExcelPath = $archivo->storeAs('equipos/archivos', $archivoName, 'public');
+                    \Log::info('Archivo Excel procesado', ['path' => $archivoExcelPath]);
+                } else {
+                    // Otros documentos van a /documentos (mantener compatibilidad)
+                    $archivoName = 'documento_' . time() . '_' . uniqid() . '.' . $extension;
+                    $archivoExcelPath = $archivo->storeAs('equipos/documentos', $archivoName, 'public');
+                    \Log::info('Documento procesado', ['path' => $archivoExcelPath]);
+                }
+            }
+
+            // Procesar archivo INVIMA (va a carpeta registros_sanitarios)
+            $archivoInvimaPath = null;
+            if ($request->hasFile('archivo_invima')) {
+                $archivoInvima = $request->file('archivo_invima');
+                $extension = $archivoInvima->getClientOriginalExtension();
+                $archivoInvimaName = 'invima_' . time() . '_' . uniqid() . '.' . $extension;
+                $archivoInvimaPath = $archivoInvima->storeAs('equipos/registros_sanitarios', $archivoInvimaName, 'public');
+                \Log::info('Archivo INVIMA procesado', ['path' => $archivoInvimaPath]);
+            }
+
+            // Datos básicos del equipo (usando nombres de columnas reales)
+            $equipoData = [
+                'name' => $request->input('name'),
+                'serial' => $request->input('numero_serie'), // Mapear numero_serie -> serial
+                'servicio_id' => $request->input('servicio_id'),
+                'area_id' => $request->input('area_id', 1), // Default to 1 if not provided
+                'propietario_id' => $request->input('propietario_id', 1), // Default to 1 if not provided
+                'tipo_id' => $request->input('tipo_id', 1), // Default to 1 if not provided
+                'marca' => $request->input('marca'),
+                'modelo' => $request->input('modelo'),
+                'descripcion' => $request->input('descripcion'),
+                'status' => 1,
+                'created_at' => now(),
+                // Required foreign keys with defaults (based on NOT NULL constraints)
+                'fuente_id' => $request->input('fuente_id', 1),
+                'tecnologia_id' => $request->input('tecnologia_id', 1),
+                'frecuencia_id' => $request->input('frecuencia_id', 1),
+                'cbiomedica_id' => $request->input('cbiomedica_id', 1),
+                'criesgo_id' => $request->input('criesgo_id', 1),
+                'tadquisicion_id' => $request->input('tadquisicion_id', 1),
+                'invima_id' => $request->input('invima_id', 1),
+                'orden_compra_id' => $request->input('orden_compra_id', 1),
+                'baja_id' => $request->input('baja_id', 1),
+                'estado_mantenimiento' => $request->input('estado_mantenimiento', 0),
+                'estadoequipo_id' => $request->input('estadoequipo_id', 1),
+                'guia_id' => $request->input('guia_id', 1),
+                'manual_id' => $request->input('manual_id', 1),
+                'disponibilidad_id' => $request->input('disponibilidad_id', 1),
+                // Campos de archivos (usando campos existentes en la tabla)
+                'image' => $imagePath,
+                'file' => $archivoExcelPath,
+                'archivo_invima' => $archivoInvimaPath
+            ];
+
+            // Limpiar valores null o vacíos
+            $equipoData = array_filter($equipoData, function($value) {
+                return $value !== null && $value !== '';
+            });
+
+            // Insertar en la base de datos
+            $equipoId = DB::table('equipos')->insertGetId($equipoData);
+
+            \Log::info('Equipo creado exitosamente', ['id' => $equipoId]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipo creado exitosamente',
+                'data' => ['id' => $equipoId, ...$equipoData]
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors' => $e->errors()
+            ], 422)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (\Exception $e) {
+            \Log::error('Error al crear equipo', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear equipo: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    });
+
+    // Endpoint público para datos del modal de equipos
+    Route::get('test/modal-equipment-data', function () {
+        try {
+            $data = [
+                // CATÁLOGOS REALES DE LA BD (solo columnas que existen en equipos)
+                'servicios' => DB::table('servicios')->where('status', 1)->get(['id', 'name']),
+                'areas' => DB::table('areas')->where('status', 1)->get(['id', 'name', 'servicio_id']),
+                'propietarios' => DB::table('propietarios')->get(['id', 'nombre as name']),
+                'tipos_equipo' => DB::table('tipos')->get(['id', 'name']),
+                'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
+                // Removed: sedes (sede_id column doesn't exist in equipos table)
+
+                // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
+                'estados_equipo' => DB::table('estadoequipos')->get(['id', 'name']),
+                'invimas' => DB::table('invimas')->where('status', 1)->get(['id', 'invima as name', 'titulo']),
+
+                // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
+                'fuentes_alimentacion' => [
+                    ['id' => 1, 'name' => '110V AC'],
+                    ['id' => 2, 'name' => '220V AC'],
+                    ['id' => 3, 'name' => 'Batería'],
+                    ['id' => 4, 'name' => 'Gas'],
+                    ['id' => 5, 'name' => 'Neumático'],
+                    ['id' => 6, 'name' => 'Solar']
+                ],
+                'tecnologias' => [
+                    ['id' => 1, 'name' => 'Electromecánica'],
+                    ['id' => 2, 'name' => 'Electrónica'],
+                    ['id' => 3, 'name' => 'Hidráulica'],
+                    ['id' => 4, 'name' => 'Neumática'],
+                    ['id' => 5, 'name' => 'Digital'],
+                    ['id' => 6, 'name' => 'Mecánica']
+                ],
+                'frecuencias_mantenimiento' => [
+                    ['id' => 1, 'name' => 'Mensual'],
+                    ['id' => 2, 'name' => 'Bimestral'],
+                    ['id' => 3, 'name' => 'Trimestral'],
+                    ['id' => 4, 'name' => 'Semestral'],
+                    ['id' => 5, 'name' => 'Anual'],
+                    ['id' => 6, 'name' => 'Según uso']
+                ],
+                'clasificaciones_biomedicas' => [
+                    ['id' => 1, 'name' => 'Clase I - Bajo riesgo'],
+                    ['id' => 2, 'name' => 'Clase IIa - Riesgo moderado'],
+                    ['id' => 3, 'name' => 'Clase IIb - Riesgo moderado-alto'],
+                    ['id' => 4, 'name' => 'Clase III - Alto riesgo']
+                ],
+                'clasificaciones_riesgo' => [
+                    ['id' => 1, 'name' => 'Alto'],
+                    ['id' => 2, 'name' => 'Medio'],
+                    ['id' => 3, 'name' => 'Bajo']
+                ],
+                'tipos_adquisicion' => [
+                    ['id' => 1, 'name' => 'Compra'],
+                    ['id' => 2, 'name' => 'Donación'],
+                    ['id' => 3, 'name' => 'Comodato'],
+                    ['id' => 4, 'name' => 'Leasing'],
+                    ['id' => 5, 'name' => 'Alquiler']
+                ],
+                'disponibilidades' => [
+                    ['id' => 1, 'name' => 'Disponible'],
+                    ['id' => 2, 'name' => 'En Uso'],
+                    ['id' => 3, 'name' => 'En Mantenimiento'],
+                    ['id' => 4, 'name' => 'Fuera de Servicio'],
+                    ['id' => 5, 'name' => 'Reservado']
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Datos para modal de agregar equipo obtenidos (versión pública)',
+                'data' => $data
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener datos: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    });
+
+    // Rutas de archivos públicas (sin autenticación)
+    Route::get('equipos/{id}/files', function($id) {
+        try {
+            $equipo = DB::table('equipos')->where('id', $id)->first();
+
+            if (!$equipo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Equipo no encontrado'
+                ], 404)->header('Access-Control-Allow-Origin', '*')
+                        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            }
+
+            $files = [];
+
+            // Verificar campos de archivos (usando campos existentes en la tabla)
+            if (!empty($equipo->image)) {
+                $files['imagen'] = [
+                    'path' => $equipo->image,
+                    'type' => 'image',
+                    'exists' => true
+                ];
+            }
+
+            if (!empty($equipo->file)) {
+                $files['documento'] = [
+                    'path' => $equipo->file,
+                    'type' => 'document',
+                    'exists' => true
+                ];
+            }
+
+            if (!empty($equipo->archivo_invima)) {
+                $files['archivo_invima'] = [
+                    'path' => $equipo->archivo_invima,
+                    'type' => 'document',
+                    'exists' => true
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $files,
+                'equipo_id' => $id
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener archivos: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    });
 });
 
 // Middleware de seguridad aplicado automáticamente

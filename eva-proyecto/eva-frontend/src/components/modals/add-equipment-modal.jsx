@@ -98,6 +98,7 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
     // Archivos
     image: null,
     archivo_excel: null,
+    archivo_invima: null,
 
     // Campos adicionales
     invima: "",
@@ -184,23 +185,12 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
   const loadCatalogs = async () => {
     try {
       setLoadingCatalogs(true);
-      // Intentar endpoint original primero, si falla usar el de prueba
-      let response;
-      try {
-        response = await axios.get('/api/v1/modal/add-equipment-data', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Accept': 'application/json'
-          }
-        });
-      } catch (authError) {
-        console.warn('Error de autenticación, usando endpoint de prueba:', authError);
-        response = await axios.get('/api/v1/test/modal-data', {
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
-      }
+      // Usar endpoint público directamente (sin autenticación)
+      const response = await axios.get('/api/v1/test/modal-equipment-data', {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
 
       if (response.data.success) {
         setCatalogs(response.data.data);
@@ -433,7 +423,7 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
       // Crear FormData para envío con archivos
       const submitData = new FormData();
 
-      // Agregar todos los campos del formulario
+      // Agregar todos los campos del formulario con mapeo correcto
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'manuales' || key === 'planos') {
           // Convertir objetos anidados a JSON
@@ -442,15 +432,19 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
           // Archivos
           submitData.append(key, value);
         } else if (value !== null && value !== '') {
-          // Otros campos
-          submitData.append(key, value);
+          // Mapear campos del frontend al backend
+          let backendKey = key;
+          if (key === 'serial') {
+            backendKey = 'numero_serie'; // Mapear serial -> numero_serie
+          }
+          submitData.append(backendKey, value);
         }
       });
 
       const response = await axios.post('/api/v1/equipos', submitData, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json'
         }
       });
 
@@ -472,7 +466,7 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
           planos: { electrico: false, electronico: false, neumatico: false, mecanico: false },
           cbiomedica_id: "", criesgo_id: "", componentes: "", propietario_id: "",
           verificacion_fisica: "", observaciones: "", image: null, archivo_excel: null,
-          invima: "", tipo_id: "1"
+          archivo_invima: null, invima: "", tipo_id: "1"
         });
 
         // Llamar callback si existe
@@ -603,6 +597,25 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Archivo Registro INVIMA (PDF):
+                    </Label>
+                    <div className="mt-1">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => handleFileChange('archivo_invima', e.target.files[0])}
+                        className="block w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {formData.archivo_invima && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✓ {formData.archivo_invima.name}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

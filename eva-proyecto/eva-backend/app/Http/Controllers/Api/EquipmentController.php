@@ -899,6 +899,9 @@ class EquipmentController extends ApiController
                     'equipos.serial',
                     'equipos.marca',
                     'equipos.modelo',
+                    'equipos.image',
+                    'equipos.file',
+                    'equipos.archivo_invima',
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
@@ -1002,11 +1005,14 @@ class EquipmentController extends ApiController
                 return [
                     'id' => $equipo->id,
                     'equipo' => [
+                        'id' => $equipo->id,
                         'name' => $equipo->name,
                         'code' => $equipo->code,
                         'brand' => $equipo->marca,
                         'model' => $equipo->modelo,
                         'series' => $equipo->serial,
+                        'image' => $equipo->image ? url('storage/' . $equipo->image) : null,
+                        'hasImage' => !empty($equipo->image),
                     ],
                     'data' => [
                         'status' => $equipo->estadoequipo,

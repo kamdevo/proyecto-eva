@@ -41,6 +41,7 @@ import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
+import EquipmentImage from "./ui/equipment-image";
 
 // Helper function to safely render nested object properties
 const safeRenderText = (value, fallback = "Sin información") => {
@@ -567,14 +568,15 @@ export function MedicalDevicesView() {
                             {safeRenderText(device.equipo?.name, "Sin nombre")}
                           </div>
 
-                          {/* Imagen del equipo - responsive y grande */}
-                          <div className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden">
-                            <img
-                              src={notFoundImg}
-                              alt={device.equipo?.name || "Equipo médico"}
-                              className="w-full h-full object-cover hover:scale-105 transition-all duration-300 opacity-80"
-                            />
-                          </div>
+                          {/* Imagen del equipo - responsive y grande con carga dinámica */}
+                          <EquipmentImage
+                            equipmentId={device.id}
+                            equipmentData={device.equipo}
+                            equipmentName={device.equipo?.name || "Equipo médico"}
+                            className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44"
+                            fallbackImage={notFoundImg}
+                            showLoader={true}
+                          />
                         </div>
                       </td>
 
