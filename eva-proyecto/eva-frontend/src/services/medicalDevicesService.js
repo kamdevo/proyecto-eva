@@ -16,6 +16,7 @@ class MedicalDevicesService {
         page = 1,
         per_page = 15,
         search = "",
+        // Filtros originales
         servicio_id = "",
         area_id = "",
         sede_id = "",
@@ -23,24 +24,67 @@ class MedicalDevicesService {
         clasificacion_id = "",
         riesgo_id = "",
         propietario_id = "",
+        // Nuevos filtros del modal avanzado
+        filtro_code = "",
+        filtro_name = "",
+        filtro_serial = "",
+        filtro_marca = "",
+        filtro_modelo = "",
+        filtro_zona = "",
+        servicio_id_auxiliar = "",
+        area_id_auxiliar = "",
+        filtro_estadoequipo_id = "",
+        filtro_estadom = "",
+        proveedor_mantenimiento = "",
+        tipo_id = "",
+        estado_id_cg = "",
+        anio_plan = "",
+        consulta_id = "",
         sort_by = "name",
         sort_order = "asc",
       } = params;
 
+      // Construir parámetros de consulta incluyendo todos los filtros
       const queryParams = new URLSearchParams({
         page,
         per_page,
-        ...(search && { search }),
-        ...(servicio_id && { servicio_id }),
-        ...(area_id && { area_id }),
-        ...(sede_id && { sede_id }),
-        ...(estado_id && { estado_id }),
-        ...(clasificacion_id && { clasificacion_id }),
-        ...(riesgo_id && { riesgo_id }),
-        ...(propietario_id && { propietario_id }),
         sort_by,
         sort_order,
       });
+
+      // Agregar filtros solo si tienen valor y no son "all"
+      const addParam = (key, value) => {
+        if (value && value !== "" && value !== "all") {
+          queryParams.append(key, value);
+        }
+      };
+
+      // Filtros originales
+      addParam("search", search);
+      addParam("servicio_id", servicio_id);
+      addParam("area_id", area_id);
+      addParam("sede_id", sede_id);
+      addParam("estado_id", estado_id);
+      addParam("clasificacion_id", clasificacion_id);
+      addParam("riesgo_id", riesgo_id);
+      addParam("propietario_id", propietario_id);
+
+      // Nuevos filtros del modal avanzado
+      addParam("filtro_code", filtro_code);
+      addParam("filtro_name", filtro_name);
+      addParam("filtro_serial", filtro_serial);
+      addParam("filtro_marca", filtro_marca);
+      addParam("filtro_modelo", filtro_modelo);
+      addParam("filtro_zona", filtro_zona);
+      addParam("servicio_id_auxiliar", servicio_id_auxiliar);
+      addParam("area_id_auxiliar", area_id_auxiliar);
+      addParam("filtro_estadoequipo_id", filtro_estadoequipo_id);
+      addParam("filtro_estadom", filtro_estadom);
+      addParam("proveedor_mantenimiento", proveedor_mantenimiento);
+      addParam("tipo_id", tipo_id);
+      addParam("estado_id_cg", estado_id_cg);
+      addParam("anio_plan", anio_plan);
+      addParam("consulta_id", consulta_id);
 
       const response = await api.get(
         `/v1/equipos/medical-devices-complete?${queryParams}`

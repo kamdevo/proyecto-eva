@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Middleware global
         $middleware->append([
+            \App\Http\Middleware\GlobalCorsMiddleware::class,
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\AuditMiddleware::class,
         ]);
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'audit' => \App\Http\Middleware\AuditMiddleware::class,
             'security.headers' => \App\Http\Middleware\SecurityHeaders::class,
             'advanced.throttle' => \App\Http\Middleware\AdvancedRateLimit::class,
+            'storage.cors' => \App\Http\Middleware\StorageCorsMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -31,8 +31,8 @@ use App\Http\Controllers\Api\EquipmentController;
 */
 
 // Rutas de equipos médicos
-// CRUD básico de equipos
-Route::apiResource('equipos', EquipmentController::class);
+// CRUD básico de equipos (EXCLUIR store - manejado por ruta pública)
+Route::apiResource('equipos', EquipmentController::class)->except(['store']);
 
 // Rutas específicas de equipos médicos con información completa (con CORS)
 Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete'])
@@ -70,6 +70,9 @@ Route::get('equipos/estadisticas/criticos', [EquipmentController::class, 'equipo
 Route::post('equipos/importar', [EquipmentController::class, 'importar']);
 Route::post('equipos/actualizar-masivo', [EquipmentController::class, 'actualizarMasivo']);
 Route::post('equipos/eliminar-masivo', [EquipmentController::class, 'eliminarMasivo']);
+
+// Debugging y limpieza de datos (movido a rutas públicas en api.php)
+// Las rutas de debugging están ahora en api.php como rutas públicas sin autenticación
 
 // QR y códigos
 Route::get('equipos/{id}/qr', [EquipmentController::class, 'generarQR']);

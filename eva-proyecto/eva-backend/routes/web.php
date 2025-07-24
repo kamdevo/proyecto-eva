@@ -25,6 +25,14 @@ Route::get('/test-modal', function () {
     return view('test-modal');
 });
 
+// Rutas para archivos de storage con CORS habilitado
+Route::middleware(['storage.cors'])->group(function () {
+    // Manejar requests OPTIONS para storage
+    Route::options('storage/{path}', function () {
+        return response('', 200);
+    })->where('path', '.*');
+});
+
 // Agrupación optimizada de rutas con middleware empresarial
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
     Route::get('/', function () {

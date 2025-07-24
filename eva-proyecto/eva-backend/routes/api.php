@@ -524,7 +524,7 @@ Route::get('v1/test/modal-data', function () {
 
             // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
             'estados_equipo' => DB::table('estadoequipos')->get(['id', 'name']),
-            'invimas' => DB::table('invimas')->where('status', 1)->get(['id', 'invima as name', 'titulo']),
+            'invimas' => DB::table('registros_invima')->where('estado', 'vigente')->get(['id', 'numero_registro as name', 'nombre_equipo as titulo']),
 
             // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
             'fuentes_alimentacion' => [
@@ -673,6 +673,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     // Endpoints específicos sin autenticación
     Route::get('equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete']);
     Route::get('equipos/filter-options', [\App\Http\Controllers\Api\EquipmentController::class, 'getFilterOptions']);
+    Route::post('equipos/export', [\App\Http\Controllers\Api\EquipmentController::class, 'exportFilteredEquipment']);
     Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
     // Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
 
@@ -733,7 +734,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             // Datos básicos del equipo (usando nombres de columnas reales)
             $equipoData = [
                 'name' => $request->input('name'),
-                'serial' => $request->input('numero_serie'), // Mapear numero_serie -> serial
+                'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
                 'servicio_id' => $request->input('servicio_id'),
                 'area_id' => $request->input('area_id', 1), // Default to 1 if not provided
                 'propietario_id' => $request->input('propietario_id', 1), // Default to 1 if not provided
@@ -741,6 +742,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'marca' => $request->input('marca'),
                 'modelo' => $request->input('modelo'),
                 'descripcion' => $request->input('descripcion'),
+                'invima' => $request->input('invima'), // Campo INVIMA (número de registro)
                 'status' => 1,
                 'created_at' => now(),
                 // Required foreign keys with defaults (based on NOT NULL constraints)
@@ -889,6 +891,132 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
+    // Endpoint para obtener registros INVIMA
+    Route::get('registros-invima', function() {
+        try {
+            $registros = DB::table('registros_invima')
+                ->select('id', 'numero_registro', 'nombre_equipo', 'fabricante', 'modelo', 'estado', 'archivo_pdf')
+                ->where('estado', 'vigente')
+                ->orderBy('numero_registro')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $registros
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener registros INVIMA: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    });
+
+    // Endpoint para crear nuevo registro INVIMA
+    Route::post('registros-invima', function(Request $request) {
+        try {
+            // Validaciones
+            $request->validate([
+                'numero_registro' => 'required|string|max:255|unique:registros_invima,numero_registro',
+                'descripcion_detallada' => 'required|string',
+                'titulo' => 'required|string|max:255',
+                'marcas' => 'required|string|max:255',
+                'archivo_pdf' => 'nullable|mimes:pdf|max:10240', // 10MB max
+                'estado' => 'nullable|string|in:vigente,vencido,suspendido'
+            ]);
+
+            // Procesar archivo PDF si existe
+            $archivoPdfPath = null;
+            if ($request->hasFile('archivo_pdf')) {
+                $archivo = $request->file('archivo_pdf');
+                $archivoName = 'registro_invima_' . time() . '_' . uniqid() . '.pdf';
+                $archivoPdfPath = $archivo->storeAs('equipos/registros_sanitarios', $archivoName, 'public');
+                \Log::info('Archivo PDF INVIMA procesado', ['path' => $archivoPdfPath]);
+            }
+
+            // Crear registro en BD
+            $registroData = [
+                'numero_registro' => $request->input('numero_registro'),
+                'nombre_equipo' => $request->input('titulo'), // Usar título como nombre_equipo
+                'fabricante' => $request->input('marcas'), // Usar marcas como fabricante
+                'modelo' => '', // Campo vacío por ahora
+                'descripcion_detallada' => $request->input('descripcion_detallada'),
+                'titulo' => $request->input('titulo'),
+                'marcas' => $request->input('marcas'),
+                'archivo_pdf' => $archivoPdfPath,
+                'estado' => $request->input('estado', 'vigente'),
+                'fecha_expedicion' => now(),
+                'fecha_vencimiento' => now()->addYears(5), // 5 años por defecto
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+
+            $registroId = DB::table('registros_invima')->insertGetId($registroData);
+
+            \Log::info('Registro INVIMA creado', ['id' => $registroId, 'numero' => $request->input('numero_registro')]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro INVIMA creado exitosamente',
+                'data' => array_merge($registroData, ['id' => $registroId])
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $e->errors()
+            ], 422)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (Exception $e) {
+            \Log::error('Error creando registro INVIMA', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear registro INVIMA: ' . $e->getMessage()
+            ], 500)->header('Access-Control-Allow-Origin', '*')
+                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    });
+
+    // Ruta para servir archivos de storage con CORS
+    Route::get('storage/{path}', function($path) {
+        try {
+            // Verificar que el archivo existe
+            if (!Storage::disk('public')->exists($path)) {
+                return response()->json(['error' => 'Archivo no encontrado'], 404);
+            }
+
+            // Obtener el archivo
+            $file = Storage::disk('public')->get($path);
+            $mimeType = Storage::disk('public')->mimeType($path);
+
+            // Crear respuesta con headers CORS
+            $response = response($file, 200)
+                ->header('Content-Type', $mimeType)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
+                ->header('Access-Control-Allow-Credentials', 'true')
+                ->header('Cross-Origin-Resource-Policy', 'cross-origin')
+                ->header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+
+            return $response;
+
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error al acceder al archivo: ' . $e->getMessage()], 500);
+        }
+    })->where('path', '.*');
+
     // Rutas de archivos públicas (sin autenticación)
     Route::get('equipos/{id}/files', function($id) {
         try {
@@ -947,6 +1075,16 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         }
     });
+
+    // Rutas públicas de debugging de equipos (sin autenticación)
+    Route::prefix('equipos/debugging')->group(function () {
+        Route::get('test-connection', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'testConnection']);
+        Route::post('test-connection', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'testConnection']);
+        Route::get('name-analysis', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'getNameAnalysis']);
+        Route::post('apply-cleaning', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'applyNameCleaning']);
+        Route::post('preview-changes', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'previewChanges']);
+        Route::get('name-suggestions', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'getNameSuggestions']);
+    });
 });
 
 // Middleware de seguridad aplicado automáticamente
@@ -960,6 +1098,9 @@ Route::prefix('v1')->group(function () {
     | Módulos de Rutas Organizados
     |--------------------------------------------------------------------------
     */
+
+    // Equipos médicos e industriales (rutas protegidas)
+    require __DIR__.'/equipos.php';
 
     // Mantenimiento y calibraciones
     require __DIR__.'/mantenimiento.php';

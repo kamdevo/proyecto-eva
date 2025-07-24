@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   Files,
   Link,
+  X,
 } from "lucide-react";
 import { useMedicalDevices } from "@/hooks/useMedicalDevices";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,7 +71,7 @@ export function MedicalDevicesView() {
     criticalDevices,
     filterOptions,
     updateFilters,
-    resetFilters,
+    clearFilters,
     changePage,
     changePerPage,
     searchDevices,
@@ -80,7 +81,7 @@ export function MedicalDevicesView() {
     toggleDeviceStatus,
     bulkUpdateDevices,
     bulkDeleteDevices,
-    refreshData,
+    refreshDevices,
   } = useMedicalDevices();
 
   const [filterModalOpen, setFilterModalOpen] = useState(false);
@@ -99,6 +100,30 @@ export function MedicalDevicesView() {
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [globalSearch, setGlobalSearch] = useState("");
+
+  // Estados para filtros avanzados
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+
+  // Función para aplicar filtros desde el modal
+  const handleFiltersApply = (newFilters) => {
+    setAppliedFilters(newFilters);
+    setActiveFiltersCount(Object.keys(newFilters).length);
+
+    // Actualizar filtros en el hook
+    updateFilters({
+      ...filters,
+      ...newFilters,
+      page: 1 // Resetear a primera página
+    });
+  };
+
+  // Función para limpiar filtros
+  const handleClearFilters = () => {
+    setAppliedFilters({});
+    setActiveFiltersCount(0);
+    clearFilters();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1 xs:p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
@@ -141,13 +166,38 @@ export function MedicalDevicesView() {
                 onClick={() => setFilterModalOpen(true)}
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
+                className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 relative ${
+                  activeFiltersCount > 0 ? 'bg-teal-600 hover:bg-teal-700' : ''
+                }`}
               >
                 <Filter className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
                 <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
                   Filtrar
                 </span>
+                {activeFiltersCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[8px] bg-orange-500 text-white border-0 flex items-center justify-center"
+                  >
+                    {activeFiltersCount}
+                  </Badge>
+                )}
               </Button>
+
+              {/* Clear Filters Button - only show when filters are active */}
+              {activeFiltersCount > 0 && (
+                <Button
+                  onClick={handleClearFilters}
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-red-600 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
+                >
+                  <X className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
+                  <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
+                    Limpiar
+                  </span>
+                </Button>
+              )}
               <Button
                 onClick={() => setAddModalOpen(true)}
                 variant="ghost"
@@ -1086,7 +1136,13 @@ export function MedicalDevicesView() {
       </Card>
 
       {/* Modals */}
-      <FilterModal open={filterModalOpen} onOpenChange={setFilterModalOpen} />
+      <FilterModal
+        open={filterModalOpen}
+        onOpenChange={setFilterModalOpen}
+        onFiltersApply={handleFiltersApply}
+        onFiltersClear={handleClearFilters}
+        currentFilters={appliedFilters}
+      />
       <AddEquipmentModal open={addModalOpen} onOpenChange={setAddModalOpen} />
       <CleanNamesModal
         open={cleanNamesModalOpen}

@@ -142,8 +142,10 @@ export const useMedicalDevices = () => {
     (newFilters) => {
       const updatedFilters = { ...filters, ...newFilters, page: 1 };
       setFilters(updatedFilters);
+      // Recargar datos inmediatamente con los nuevos filtros
+      loadDevices(updatedFilters);
     },
-    [filters]
+    [filters, loadDevices]
   );
 
   /**
@@ -176,7 +178,9 @@ export const useMedicalDevices = () => {
       sort_order: "asc",
     };
     setFilters(clearedFilters);
-  }, []);
+    // Recargar datos inmediatamente con filtros limpiados
+    loadDevices(clearedFilters);
+  }, [loadDevices]);
 
   /**
    * Buscar equipos por término

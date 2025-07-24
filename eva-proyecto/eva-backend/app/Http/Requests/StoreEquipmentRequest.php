@@ -32,10 +32,12 @@ class StoreEquipmentRequest extends FormRequest
             'serial' => 'nullable|string|max:100|unique:equipos,serial',
             'descripcion' => 'nullable|string|max:1000',
             'costo' => 'nullable|numeric|min:0|max:999999999.99',
+            'fecha_ad' => 'nullable|date|before_or_equal:today', // fecha_adquisicion mapeada
             'fecha_fabricacion' => 'nullable|date|before_or_equal:today',
             'fecha_instalacion' => 'nullable|date|before_or_equal:today',
             'fecha_inicio_operacion' => 'nullable|date|before_or_equal:today',
             'fecha_acta_recibo' => 'nullable|date|before_or_equal:today',
+            'fecha_recepcion_almacen' => 'nullable|date|before_or_equal:today',
             'fecha_vencimiento_garantia' => 'nullable|date|after:today',
             'vida_util' => 'nullable|integer|min:1|max:50',
             'propietario_id' => 'nullable|numeric|min:0',
@@ -58,22 +60,15 @@ class StoreEquipmentRequest extends FormRequest
             'evaluacion_desempenio' => 'nullable|string|max:100',
             'periodicidad' => 'nullable|string|max:100',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120|dimensions:max_width=2048,max_height=2048',
-            'archivo_excel' => 'required|file|mimes:xlsx,xls,pdf|max:20480', // 20MB max
-            'codigo_antiguo' => 'required|string|max:100|unique:equipos,codigo_antiguo',
-            'codigo_inventario' => 'required|string|max:100',
-            'centro_costo' => 'required|string|max:100',
-            'pais_origen' => 'required|string|max:100',
-            'fecha_adquisicion' => 'required|date|before_or_equal:today',
-            'fecha_recepcion_almacen' => 'required|date|before_or_equal:today',
-            'fecha_acta_recibo' => 'required|date|before_or_equal:today',
-            'fecha_inicio_operacion' => 'required|date|before_or_equal:today',
-            'evaluacion_desempeno' => 'required|string|in:excelente,bueno,regular,deficiente',
+            'archivo_excel' => 'nullable|file|mimes:xlsx,xls,pdf|max:20480', // 20MB max
+            'codigo_antiguo' => 'nullable|string|max:100|unique:equipos,codigo_antiguo',
+            'evaluacion_desempenio' => 'nullable|string|max:100',
             'periodicidad_calibracion' => 'nullable|string|max:100',
-            'funcionalidad' => 'required|string|in:optima,buena,regular,deficiente',
-            'disponibilidad_id' => 'required|exists:disponibilidad,id',
+            'disponibilidad_id' => 'nullable|numeric|min:1',
             'componentes' => 'nullable|string|max:2000',
-            'verificacion_fisica' => 'required|string|in:realizada,pendiente,no-aplica',
-            'observaciones' => 'nullable|string|max:2000',
+            'verificacion_inventario' => 'nullable|string|max:10',
+            'observacion' => 'nullable|string|max:2000', // usar observacion en lugar de observaciones
+            'otros' => 'nullable|string|max:2000', // para campos adicionales
             'manuales' => 'nullable|json',
             'planos' => 'nullable|json'
         ];

@@ -64,6 +64,10 @@ class Equipo extends Model
     protected $primaryKey = 'id';
     public $timestamps = true;
 
+    // Configuración de columnas de timestamp personalizadas
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'fecha_cambio';
+
     // ==========================================
     // CONFIGURACIÓN DE CAMPOS Y VALIDACIONES
     // ==========================================
@@ -152,7 +156,7 @@ class Equipo extends Model
     protected $guarded = [
         'id',
         'created_at',
-        'updated_at'
+        'fecha_cambio' // Protegemos fecha_cambio que actúa como updated_at
     ];
 
     /**
@@ -220,7 +224,7 @@ class Equipo extends Model
         
         // Timestamps del sistema
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'fecha_cambio' => 'datetime' // Usamos fecha_cambio como updated_at
     ];
 
     // ==========================================

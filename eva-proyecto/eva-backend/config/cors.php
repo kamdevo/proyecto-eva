@@ -27,7 +27,8 @@ return [
         'health',
         'metrics',
         'export/*',
-        'files/*'
+        'files/*',
+        'storage/*'
     ],
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
