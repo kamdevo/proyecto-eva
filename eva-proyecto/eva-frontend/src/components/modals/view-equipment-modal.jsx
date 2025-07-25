@@ -313,7 +313,7 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">País de Origen:</span>
                     <span className="font-medium text-gray-800">
-                      {safeValue(displayData.pais_origen)}
+                      {safeValue(displayData.propiedad || displayData.pais_origen)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">

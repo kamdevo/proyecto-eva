@@ -19,6 +19,7 @@
  */
 
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -731,8 +732,83 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 \Log::info('Archivo INVIMA procesado', ['path' => $archivoInvimaPath]);
             }
 
+            // Función para procesar fechas (convertir de frontend a formato DB)
+            $procesarFecha = function($fecha) {
+                if (!$fecha || $fecha === '' || $fecha === '0000-00-00') return null;
+
+                try {
+                    // Manejar diferentes formatos de fecha
+                    $fechaObj = null;
+
+                    // Formato ISO (YYYY-MM-DD) - más común del frontend
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+                        $fechaObj = Carbon::createFromFormat('Y-m-d', $fecha);
+                    }
+                    // Formato con tiempo (YYYY-MM-DD HH:MM:SS)
+                    elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $fecha)) {
+                        $fechaObj = Carbon::createFromFormat('Y-m-d H:i:s', $fecha);
+                    }
+                    // Formato DD/MM/YYYY
+                    elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fecha)) {
+                        $fechaObj = Carbon::createFromFormat('d/m/Y', $fecha);
+                    }
+                    // Intentar parsing automático como último recurso
+                    else {
+                        $fechaObj = Carbon::parse($fecha);
+                    }
+
+                    // Validar que la fecha sea razonable (no muy antigua ni futura)
+                    $fechaFormateada = $fechaObj->format('Y-m-d');
+                    $año = $fechaObj->year;
+
+                    if ($año < 1900 || $año > 2100) {
+                        \Log::warning('Fecha fuera de rango válido', ['fecha' => $fecha, 'año' => $año]);
+                        return null;
+                    }
+
+                    \Log::info('Fecha procesada correctamente', ['original' => $fecha, 'procesada' => $fechaFormateada]);
+                    return $fechaFormateada;
+
+                } catch (\Exception $e) {
+                    \Log::warning('Error procesando fecha', ['fecha' => $fecha, 'error' => $e->getMessage()]);
+                    return null;
+                }
+            };
+
+            // Función para procesar INVIMA ID (mapear numero_registro a invima_id)
+            $procesarInvimaId = function($numeroRegistro) {
+                if (!$numeroRegistro) return 1; // Default si no hay registro
+
+                try {
+                    // Buscar el registro INVIMA por numero_registro
+                    $registroInvima = DB::table('registros_invima')
+                        ->where('numero_registro', $numeroRegistro)
+                        ->where('estado', 'vigente')
+                        ->first();
+
+                    if ($registroInvima) {
+                        \Log::info('Registro INVIMA encontrado', [
+                            'numero_registro' => $numeroRegistro,
+                            'invima_id' => $registroInvima->id,
+                            'nombre_equipo' => $registroInvima->nombre_equipo ?? 'N/A'
+                        ]);
+                        return $registroInvima->id;
+                    } else {
+                        \Log::warning('Registro INVIMA no encontrado', ['numero_registro' => $numeroRegistro]);
+                        return 1; // Default si no se encuentra
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error procesando INVIMA ID', [
+                        'numero_registro' => $numeroRegistro,
+                        'error' => $e->getMessage()
+                    ]);
+                    return 1; // Default en caso de error
+                }
+            };
+
             // Datos básicos del equipo (usando nombres de columnas reales)
             $equipoData = [
+                // Información básica
                 'name' => $request->input('name'),
                 'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
                 'servicio_id' => $request->input('servicio_id'),
@@ -745,6 +821,30 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'invima' => $request->input('invima'), // Campo INVIMA (número de registro)
                 'status' => 1,
                 'created_at' => now(),
+
+                // CAMPOS DE FECHA (MAPEO CORRECTO)
+                'fecha_ad' => $procesarFecha($request->input('fecha_adquisicion')), // Frontend: fecha_adquisicion -> DB: fecha_ad
+                'fecha_instalacion' => $procesarFecha($request->input('fecha_instalacion')),
+                'fecha_recepcion_almacen' => $procesarFecha($request->input('fecha_recepcion_almacen')),
+                'fecha_acta_recibo' => $procesarFecha($request->input('fecha_acta_recibo')),
+                'fecha_inicio_operacion' => $procesarFecha($request->input('fecha_inicio_operacion')),
+                'fecha_fabricacion' => $procesarFecha($request->input('fecha_fabricacion')),
+                'fecha_vencimiento_garantia' => $procesarFecha($request->input('fecha_vencimiento_garantia')),
+
+                // Campos adicionales
+                'vida_util' => $request->input('vida_util'),
+                'costo' => $request->input('costo'),
+                'garantia' => $request->input('garantia'),
+                'activo_comodato' => $request->input('activo_comodato'),
+                'observacion' => $request->input('observacion'),
+                'localizacion_actual' => $request->input('localizacion_actual'),
+                'codigo_antiguo' => $request->input('codigo_inventario') ?: $request->input('codigo_antiguo'), // Mapear codigo_inventario -> codigo_antiguo
+                'propiedad' => $request->input('pais_origen') ?: $request->input('propiedad'), // Mapear pais_origen -> propiedad (temporal)
+                'otros' => $request->input('centro_costo') ?: $request->input('otros'), // Mapear centro_costo -> otros
+                'evaluacion_desempenio' => $request->input('evaluacion_desempeno'),
+                'periodicidad' => $request->input('periodicidad_calibracion', 'ANUAL'),
+                'calibracion' => $request->input('calibracion') ? 'SI' : 'NO',
+
                 // Required foreign keys with defaults (based on NOT NULL constraints)
                 'fuente_id' => $request->input('fuente_id', 1),
                 'tecnologia_id' => $request->input('tecnologia_id', 1),
@@ -752,7 +852,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'cbiomedica_id' => $request->input('cbiomedica_id', 1),
                 'criesgo_id' => $request->input('criesgo_id', 1),
                 'tadquisicion_id' => $request->input('tadquisicion_id', 1),
-                'invima_id' => $request->input('invima_id', 1),
+                'invima_id' => $procesarInvimaId($request->input('invima')), // Mapear numero_registro -> invima_id
                 'orden_compra_id' => $request->input('orden_compra_id', 1),
                 'baja_id' => $request->input('baja_id', 1),
                 'estado_mantenimiento' => $request->input('estado_mantenimiento', 0),
@@ -760,16 +860,46 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'guia_id' => $request->input('guia_id', 1),
                 'manual_id' => $request->input('manual_id', 1),
                 'disponibilidad_id' => $request->input('disponibilidad_id', 1),
+
                 // Campos de archivos (usando campos existentes en la tabla)
                 'image' => $imagePath,
                 'file' => $archivoExcelPath,
                 'archivo_invima' => $archivoInvimaPath
             ];
 
-            // Limpiar valores null o vacíos
-            $equipoData = array_filter($equipoData, function($value) {
+            // Log de datos antes de limpiar para debugging
+            \Log::info('Datos del equipo antes de limpiar', [
+                'fecha_ad' => $equipoData['fecha_ad'],
+                'fecha_instalacion' => $equipoData['fecha_instalacion'],
+                'fecha_recepcion_almacen' => $equipoData['fecha_recepcion_almacen'],
+                'fecha_acta_recibo' => $equipoData['fecha_acta_recibo'],
+                'fecha_inicio_operacion' => $equipoData['fecha_inicio_operacion'],
+                'fecha_fabricacion' => $equipoData['fecha_fabricacion'],
+                'invima_text' => $equipoData['invima'],
+                'invima_id' => $equipoData['invima_id'],
+                'archivo_invima' => $equipoData['archivo_invima'],
+                'total_fields' => count($equipoData)
+            ]);
+
+            // Limpiar valores null o vacíos (PERO MANTENER fechas null para campos opcionales)
+            $equipoData = array_filter($equipoData, function($value, $key) {
+                // Mantener campos de fecha incluso si son null (son opcionales)
+                $camposFecha = ['fecha_ad', 'fecha_instalacion', 'fecha_recepcion_almacen',
+                               'fecha_acta_recibo', 'fecha_inicio_operacion', 'fecha_fabricacion',
+                               'fecha_vencimiento_garantia'];
+
+                if (in_array($key, $camposFecha)) {
+                    return true; // Mantener campos de fecha siempre
+                }
+
                 return $value !== null && $value !== '';
-            });
+            }, ARRAY_FILTER_USE_BOTH);
+
+            // Log de datos después de limpiar
+            \Log::info('Datos del equipo después de limpiar', [
+                'total_fields' => count($equipoData),
+                'fecha_fields' => array_intersect_key($equipoData, array_flip(['fecha_ad', 'fecha_instalacion', 'fecha_recepcion_almacen', 'fecha_acta_recibo', 'fecha_inicio_operacion', 'fecha_fabricacion']))
+            ]);
 
             // Insertar en la base de datos
             $equipoId = DB::table('equipos')->insertGetId($equipoData);

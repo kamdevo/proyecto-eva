@@ -952,8 +952,8 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT description FROM observaciones 
                              WHERE equipo_id = equipos.id 
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
-                    'invimas.invima as registro_sanitario',
-                    'invimas.file as archivo_registro_sanitario',
+                    'registros_invima.numero_registro as registro_sanitario',
+                    'registros_invima.archivo_pdf as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
@@ -965,7 +965,7 @@ class EquipmentController extends ApiController
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
                 ->leftJoin('cbiomedica', 'cbiomedica.id', '=', 'equipos.cbiomedica_id')
                 ->leftJoin('criesgo', 'criesgo.id', '=', 'equipos.criesgo_id')
-                ->leftJoin('invimas', 'invimas.id', '=', 'equipos.invima_id')
+                ->leftJoin('registros_invima', 'registros_invima.id', '=', 'equipos.invima_id')
                 ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
                 ->leftJoin('ordenes_compra', 'ordenes_compra.id', '=', 'equipos.orden_compra_id')
                 ->leftJoin('tipos_compra', 'tipos_compra.id', '=', 'ordenes_compra.tipo_compra_id')
@@ -1248,12 +1248,35 @@ class EquipmentController extends ApiController
             }
 
             try {
-                $invima = DB::table('invimas')->where('id', $equipo->invima_id)->first();
-                if ($invima) {
-                    $equipoData['registro_sanitario'] = $invima->invima;
-                    $equipoData['archivo_registro_sanitario'] = $invima->file;
+                // FIXED: Query the correct registros_invima table instead of old invimas table
+                $registroInvima = DB::table('registros_invima')->where('id', $equipo->invima_id)->first();
+                if ($registroInvima) {
+                    $equipoData['registro_sanitario'] = $registroInvima->numero_registro;
+                    $equipoData['archivo_registro_sanitario'] = $registroInvima->archivo_pdf;
+
+                    // Additional INVIMA data for completeness
+                    $equipoData['invima_nombre_equipo'] = $registroInvima->nombre_equipo;
+                    $equipoData['invima_fabricante'] = $registroInvima->fabricante;
+                    $equipoData['invima_modelo'] = $registroInvima->modelo;
+                    $equipoData['invima_estado'] = $registroInvima->estado;
+
+                    \Log::info('INVIMA data retrieved successfully', [
+                        'equipo_id' => $equipo->id,
+                        'invima_id' => $equipo->invima_id,
+                        'numero_registro' => $registroInvima->numero_registro
+                    ]);
+                } else {
+                    \Log::warning('INVIMA record not found', [
+                        'equipo_id' => $equipo->id,
+                        'invima_id' => $equipo->invima_id
+                    ]);
                 }
             } catch (\Exception $e) {
+                \Log::error('Error retrieving INVIMA data', [
+                    'equipo_id' => $equipo->id,
+                    'invima_id' => $equipo->invima_id,
+                    'error' => $e->getMessage()
+                ]);
                 $equipoData['registro_sanitario'] = null;
                 $equipoData['archivo_registro_sanitario'] = null;
             }

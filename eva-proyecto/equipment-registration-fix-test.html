@@ -59,10 +59,18 @@
         <h1>🔧 Equipment Registration Fix Applied</h1>
         
         <div class="fix-info">
-            <h3>✅ Fix Applied:</h3>
-            <p><strong>Problem:</strong> The <code>Route::apiResource('equipos', EquipmentController::class)</code> was creating a protected POST route that required authentication.</p>
-            <p><strong>Solution:</strong> Excluded the 'store' method from the resource: <code>->except(['store'])</code></p>
-            <p><strong>Result:</strong> Now only our public route handles POST /api/v1/equipos without authentication.</p>
+            <h3>✅ Data Mapping Fix Applied:</h3>
+            <p><strong>Problem 1:</strong> Date fields were not being saved (appearing as NULL in database)</p>
+            <p><strong>Problem 2:</strong> Field name mismatches between frontend and database</p>
+            <p><strong>Solution:</strong> Added comprehensive field mapping with proper date processing</p>
+            <ul>
+                <li><code>fecha_adquisicion</code> → <code>fecha_ad</code></li>
+                <li><code>codigo_inventario</code> → <code>codigo_antiguo</code></li>
+                <li><code>centro_costo</code> → <code>otros</code></li>
+                <li><code>pais_origen</code> → <code>propiedad</code></li>
+                <li>Added Carbon date processing with format validation</li>
+            </ul>
+            <p><strong>Result:</strong> All date fields and mapped data should now save correctly to the database.</p>
         </div>
         
         <h2>🧪 Test Equipment Registration</h2>
@@ -84,28 +92,63 @@
             <li>✅ <strong>Status 201:</strong> Equipment created successfully</li>
             <li>✅ <strong>No 401 errors:</strong> Authentication not required</li>
             <li>✅ <strong>JSON response:</strong> Success message with equipment ID</li>
+            <li>✅ <strong>Date fields saved:</strong> All date fields should appear in database (not NULL)</li>
+            <li>✅ <strong>Field mapping:</strong> Frontend field names correctly mapped to database columns</li>
+            <li>✅ <strong>Date format:</strong> Dates converted to proper Y-m-d format</li>
+        </ul>
+
+        <h3>🔍 Database Verification:</h3>
+        <p>After successful registration, check the database to verify:</p>
+        <ul>
+            <li><code>fecha_ad</code> = 2024-01-15 (not NULL)</li>
+            <li><code>fecha_instalacion</code> = 2024-02-01 (not NULL)</li>
+            <li><code>codigo_antiguo</code> = INV-[timestamp] (not NULL)</li>
+            <li><code>otros</code> = CC-001 (not NULL)</li>
+            <li><code>propiedad</code> = Colombia (not NULL)</li>
         </ul>
     </div>
 
     <script>
         async function testEquipmentRegistration() {
             const resultDiv = document.getElementById('test-result');
-            resultDiv.innerHTML = '<div class="status">Testing equipment registration...</div>';
+            resultDiv.innerHTML = '<div class="status">Testing equipment registration with date fields...</div>';
             resultDiv.className = 'result';
-            
+
             try {
+                // Test data with all date fields that were previously failing
+                const testData = {
+                    name: 'Test Equipment - Date Mapping Fix',
+                    servicio_id: 1,
+                    marca: 'Test Brand',
+                    modelo: 'Test Model',
+                    numero_serie: 'TEST-' + Date.now(),
+                    descripcion: 'Test equipment for date mapping verification',
+
+                    // DATE FIELDS - These were previously saving as NULL
+                    fecha_adquisicion: '2024-01-15',        // Maps to fecha_ad
+                    fecha_instalacion: '2024-02-01',        // Maps directly
+                    fecha_recepcion_almacen: '2024-01-20',  // Maps directly
+                    fecha_acta_recibo: '2024-01-25',        // Maps directly
+                    fecha_inicio_operacion: '2024-02-05',   // Maps directly
+                    fecha_fabricacion: '2023-12-10',       // Maps directly
+
+                    // Additional fields that were missing mapping
+                    codigo_inventario: 'INV-' + Date.now(),  // Maps to codigo_antiguo
+                    centro_costo: 'CC-001',                  // Maps to otros
+                    pais_origen: 'Colombia',                 // Maps to propiedad
+                    vida_util: '10',
+                    costo: '1500000',
+                    garantia: '24',
+                    observacion: 'Test equipment with complete date mapping'
+                };
+
                 const response = await fetch('http://localhost:8000/api/v1/equipos', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                     },
-                    body: JSON.stringify({
-                        name: 'Test Equipment - Fix Verification',
-                        servicio_id: 1,
-                        marca: 'Test Brand',
-                        modelo: 'Test Model'
-                    })
+                    body: JSON.stringify(testData)
                 });
                 
                 const data = await response.json();

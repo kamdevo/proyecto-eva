@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test INVIMA Mapping Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0fdf4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background-color: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .test-button:hover {
+            background-color: #059669;
+        }
+        .result {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { border-color: #10b981; background-color: #f0fdf4; }
+        .error { border-color: #ef4444; background-color: #fef2f2; }
+        .warning { border-color: #f59e0b; background-color: #fffbeb; }
+        .fix-info {
+            background-color: #eff6ff;
+            border: 2px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test INVIMA Mapping Fix</h1>
+        
+        <div class="fix-info">
+            <h3>🎯 Fix Applied:</h3>
+            <p><strong>Problem:</strong> INVIMA dropdown selection wasn't properly mapping to database relationships</p>
+            <p><strong>Root Cause:</strong> Backend was setting <code>invima_id = 1</code> (default) instead of looking up the actual ID from <code>registros_invima</code> table</p>
+            <p><strong>Solution:</strong> Added <code>procesarInvimaId()</code> function to map <code>numero_registro</code> → <code>invima_id</code></p>
+            <p><strong>Expected Result:</strong> Equipment registration should now correctly link to INVIMA records and display properly in lifecycle modal</p>
+        </div>
+        
+        <button class="test-button" onclick="testInvimaRegistros()">
+            📋 1. Check Available INVIMA Records
+        </button>
+        
+        <button class="test-button" onclick="testEquipmentWithInvima()">
+            🚀 2. Register Equipment with INVIMA
+        </button>
+        
+        <button class="test-button" onclick="testEquipmentRetrieval()">
+            🔍 3. Verify INVIMA Data in Equipment
+        </button>
+        
+        <div id="test-result" class="result">
+            Click the test buttons in order to verify the INVIMA mapping fix...
+        </div>
+    </div>
+
+    <script>
+        let selectedInvimaRecord = null;
+        let testEquipmentId = null;
+        
+        async function testInvimaRegistros() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🔄 Checking available INVIMA records...\n';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/registros-invima', {
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const registros = data.data;
+                    resultDiv.innerHTML += `✅ Found ${registros.length} INVIMA records\n\n`;
+                    
+                    if (registros.length > 0) {
+                        resultDiv.innerHTML += `📋 Available INVIMA Records:\n`;
+                        registros.slice(0, 5).forEach((registro, index) => {
+                            resultDiv.innerHTML += `${index + 1}. ID: ${registro.id}, Number: ${registro.numero_registro}\n`;
+                            resultDiv.innerHTML += `   Equipment: ${registro.nombre_equipo || 'N/A'}\n`;
+                            resultDiv.innerHTML += `   Manufacturer: ${registro.fabricante || 'N/A'}\n\n`;
+                        });
+                        
+                        // Select the first record for testing
+                        selectedInvimaRecord = registros[0];
+                        resultDiv.innerHTML += `🎯 Selected for testing: ${selectedInvimaRecord.numero_registro}\n`;
+                        resultDiv.innerHTML += `   ID: ${selectedInvimaRecord.id}\n`;
+                        resultDiv.innerHTML += `   Equipment: ${selectedInvimaRecord.nombre_equipo || 'N/A'}\n\n`;
+                        resultDiv.innerHTML += `✅ Ready for next test!\n`;
+                        resultDiv.classList.add('success');
+                    } else {
+                        resultDiv.innerHTML += `⚠️ No INVIMA records found. You may need to create some first.\n`;
+                        resultDiv.classList.add('warning');
+                    }
+                } else {
+                    resultDiv.innerHTML += `❌ Failed to get INVIMA records: ${data.message || 'Unknown error'}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testEquipmentWithInvima() {
+            const resultDiv = document.getElementById('test-result');
+            
+            if (!selectedInvimaRecord) {
+                resultDiv.innerHTML = '❌ Please run "Check Available INVIMA Records" first\n';
+                resultDiv.className = 'result error';
+                return;
+            }
+            
+            resultDiv.innerHTML = `🚀 Registering equipment with INVIMA: ${selectedInvimaRecord.numero_registro}...\n`;
+            resultDiv.className = 'result';
+            
+            const timestamp = Date.now();
+            const equipmentData = {
+                name: `Test Equipment INVIMA Fix ${timestamp}`,
+                servicio_id: 1,
+                marca: 'Test Brand INVIMA',
+                modelo: 'Model INVIMA Test',
+                numero_serie: `INVIMA-FIX-${timestamp}`,
+                descripcion: 'Equipment to test INVIMA mapping fix',
+                
+                // CRITICAL: INVIMA field mapping
+                invima: selectedInvimaRecord.numero_registro,
+                
+                // Additional fields
+                fecha_adquisicion: '2024-01-15',
+                fecha_instalacion: '2024-02-01',
+                vida_util: '10',
+                costo: '3000000',
+                garantia: '24'
+            };
+            
+            resultDiv.innerHTML += `📤 Sending data:\n`;
+            resultDiv.innerHTML += `   Name: ${equipmentData.name}\n`;
+            resultDiv.innerHTML += `   INVIMA: ${equipmentData.invima}\n`;
+            resultDiv.innerHTML += `   Expected invima_id: ${selectedInvimaRecord.id}\n\n`;
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/equipos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(equipmentData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    testEquipmentId = data.data.id;
+                    resultDiv.innerHTML += `✅ Equipment registered successfully!\n`;
+                    resultDiv.innerHTML += `   Equipment ID: ${testEquipmentId}\n`;
+                    resultDiv.innerHTML += `   Name: ${data.data.name}\n\n`;
+                    resultDiv.innerHTML += `🔍 Now run "Verify INVIMA Data" to check if the mapping worked!\n`;
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.innerHTML += `❌ Registration failed: ${data.message || 'Unknown error'}\n`;
+                    resultDiv.innerHTML += `Response: ${JSON.stringify(data, null, 2)}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testEquipmentRetrieval() {
+            const resultDiv = document.getElementById('test-result');
+            
+            if (!testEquipmentId) {
+                resultDiv.innerHTML = '❌ Please register an equipment first\n';
+                resultDiv.className = 'result error';
+                return;
+            }
+            
+            resultDiv.innerHTML = `🔍 Verifying INVIMA data for equipment ID: ${testEquipmentId}...\n`;
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch(`http://localhost:8000/api/v1/equipos/${testEquipmentId}/complete-info`, {
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const equipment = data.data;
+                    
+                    resultDiv.innerHTML += `📊 INVIMA Data Retrieved:\n`;
+                    resultDiv.innerHTML += `   invima (text): ${equipment.invima || 'NULL'}\n`;
+                    resultDiv.innerHTML += `   invima_id: ${equipment.invima_id || 'NULL'}\n`;
+                    resultDiv.innerHTML += `   registro_sanitario: ${equipment.registro_sanitario || 'NULL'}\n`;
+                    resultDiv.innerHTML += `   archivo_registro_sanitario: ${equipment.archivo_registro_sanitario || 'NULL'}\n`;
+                    resultDiv.innerHTML += `   archivo_invima: ${equipment.archivo_invima || 'NULL'}\n\n`;
+                    
+                    // Verify the mapping worked
+                    let success = true;
+                    let issues = [];
+                    
+                    if (!equipment.invima || equipment.invima !== selectedInvimaRecord.numero_registro) {
+                        success = false;
+                        issues.push(`❌ invima field mismatch: got '${equipment.invima}', expected '${selectedInvimaRecord.numero_registro}'`);
+                    } else {
+                        issues.push(`✅ invima field correct: ${equipment.invima}`);
+                    }
+                    
+                    if (!equipment.invima_id || equipment.invima_id == 1) {
+                        success = false;
+                        issues.push(`❌ invima_id not mapped correctly: got '${equipment.invima_id}', expected '${selectedInvimaRecord.id}'`);
+                    } else if (equipment.invima_id == selectedInvimaRecord.id) {
+                        issues.push(`✅ invima_id mapped correctly: ${equipment.invima_id}`);
+                    } else {
+                        success = false;
+                        issues.push(`❌ invima_id wrong value: got '${equipment.invima_id}', expected '${selectedInvimaRecord.id}'`);
+                    }
+                    
+                    if (equipment.registro_sanitario && equipment.registro_sanitario === selectedInvimaRecord.numero_registro) {
+                        issues.push(`✅ registro_sanitario retrieved correctly: ${equipment.registro_sanitario}`);
+                    } else {
+                        issues.push(`⚠️ registro_sanitario: ${equipment.registro_sanitario || 'NULL'} (may be normal if JOIN didn't work)`);
+                    }
+                    
+                    resultDiv.innerHTML += `📋 VERIFICATION RESULTS:\n`;
+                    issues.forEach(issue => {
+                        resultDiv.innerHTML += `${issue}\n`;
+                    });
+                    
+                    if (success) {
+                        resultDiv.innerHTML += `\n🎉 SUCCESS! INVIMA MAPPING FIX IS WORKING!\n`;
+                        resultDiv.innerHTML += `✅ The equipment is now properly linked to the INVIMA record\n`;
+                        resultDiv.innerHTML += `✅ The ViewEquipmentModal should now display INVIMA data correctly\n`;
+                        resultDiv.classList.add('success');
+                    } else {
+                        resultDiv.innerHTML += `\n❌ ISSUES FOUND - The fix may need more work\n`;
+                        resultDiv.classList.add('error');
+                    }
+                    
+                } else {
+                    resultDiv.innerHTML += `❌ Failed to retrieve equipment data: ${data.message || 'Unknown error'}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+    </script>
+</body>
+</html>
