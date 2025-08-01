@@ -49,6 +49,10 @@ class Observacion extends Model
     protected $primaryKey = 'id';
     public $timestamps = true;
 
+    // Configuración de timestamps personalizada (solo created_at)
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null; // La tabla no tiene updated_at
+
     /**
      * Campos que pueden ser asignados masivamente
      * Configurados con máxima seguridad empresarial
@@ -69,8 +73,7 @@ class Observacion extends Model
      */
     protected $guarded = [
         'id',
-        'created_at',
-        'updated_at'
+        'created_at'
     ];
 
     /**

@@ -213,7 +213,6 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
 
     // Estado actual
     funcionalidad: "",
-    disponibilidad_id: "",
     estadoequipo_id: "",
 
     // Apoyo técnico
@@ -830,7 +829,7 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
       evaluacion_desempeno: 'Evaluación de desempeño',
       frecuencia_id: 'Frecuencia de mantenimiento',
       funcionalidad: 'Funcionalidad',
-      disponibilidad_id: 'Disponibilidad',
+      estadoequipo_id: 'Disponibilidad',
       localizacion_actual: 'Localización actual',
       cbiomedica_id: 'Clasificación biomédica',
       criesgo_id: 'Clasificación de riesgo',
@@ -951,7 +950,7 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
           fecha_acta_recibo: "", fecha_inicio_operacion: "", fecha_fabricacion: "",
           costo: "", vida_util: "", fuente_id: "", tecnologia_id: "",
           evaluacion_desempeno: "", calibracion: false, periodicidad_calibracion: "",
-          frecuencia_id: "", funcionalidad: "", disponibilidad_id: "", estadoequipo_id: "",
+          frecuencia_id: "", funcionalidad: "", estadoequipo_id: "",
           manuales: { operacion: false, mantenimiento: false, partes: false, otros: false },
           planos: { electrico: false, electronico: false, neumatico: false, mecanico: false },
           cbiomedica_id: "", criesgo_id: "", componentes: "", propietario_id: "",
@@ -1825,21 +1824,21 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
                       Disponibilidad:<span className="text-destructive">*</span>
                     </Label>
                     <Select
-                      value={formData.disponibilidad_id}
-                      onValueChange={(value) => handleInputChange('disponibilidad_id', value)}
+                      value={formData.estadoequipo_id}
+                      onValueChange={(value) => handleInputChange('estadoequipo_id', value)}
                     >
-                      <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.disponibilidad_id ? 'border-red-500' : ''}`}>
+                      <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.estadoequipo_id ? 'border-red-500' : ''}`}>
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        {catalogs.disponibilidades?.map((disponibilidad) => (
-                          <SelectItem key={disponibilidad.id} value={disponibilidad.id.toString()}>
-                            {disponibilidad.name}
+                        {catalogs.estados_equipo?.map((estado) => (
+                          <SelectItem key={estado.id} value={estado.id.toString()}>
+                            {estado.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.disponibilidad_id && <p className="text-red-500 text-xs mt-1">{errors.disponibilidad_id}</p>}
+                    {errors.estadoequipo_id && <p className="text-red-500 text-xs mt-1">{errors.estadoequipo_id}</p>}
                   </div>
 
                   <div>

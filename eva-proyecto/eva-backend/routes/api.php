@@ -524,7 +524,7 @@ Route::get('v1/test/modal-data', function () {
             'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
 
             // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
-            'estados_equipo' => DB::table('estadoequipos')->get(['id', 'name']),
+            'estados_equipo' => $this->getEstadosEquipoWithDefault(),
             'invimas' => DB::table('registros_invima')->where('estado', 'vigente')->get(['id', 'numero_registro as name', 'nombre_equipo as titulo']),
 
             // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
@@ -948,7 +948,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 // Removed: sedes (sede_id column doesn't exist in equipos table)
 
                 // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
-                'estados_equipo' => DB::table('estadoequipos')->get(['id', 'name']),
+                'estados_equipo' => $this->getEstadosEquipoWithDefault(),
                 'invimas' => DB::table('invimas')->where('status', 1)->get(['id', 'invima as name', 'titulo']),
 
                 // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
@@ -1287,7 +1287,7 @@ Route::prefix('v1')->group(function () {
         require __DIR__.'/modales.php';
     }
 
-    // Observaciones (pendiente de implementar controladores)
+    // Observaciones (moved to direct routes outside v1 prefix)
     // if (file_exists(__DIR__.'/observaciones.php')) {
     //     require __DIR__.'/observaciones.php';
     // }
@@ -1488,6 +1488,25 @@ Route::prefix('v1')->group(function () {
     });
 });
 
+});
+
+// Observaciones routes (PUBLIC - no authentication required)
+Route::withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
+    Route::post('observaciones/equipo', [\App\Http\Controllers\Api\ObservacionController::class, 'crearObservacionEquipo']);
+    Route::get('observaciones/equipo/{equipoId}', [\App\Http\Controllers\Api\ObservacionController::class, 'obtenerObservacionesEquipo']);
+});
+
+// Test route to verify public access
+Route::get('observaciones/test', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'Observaciones routes are public and working',
+        'timestamp' => now(),
+        'routes' => [
+            'POST /api/observaciones/equipo',
+            'GET /api/observaciones/equipo/{id}'
+        ]
+    ]);
 });
 
 // Test login endpoint without middleware
@@ -1718,3 +1737,38 @@ Route::get('debug/routes', function () {
         ]
     ]);
 });
+
+/**
+ * Helper function para obtener estados de equipo con opción por defecto
+ * Si la tabla estadoequipos está vacía, retorna opción "No disponible"
+ */
+function getEstadosEquipoWithDefault() {
+    try {
+        $estados = DB::table('estadoequipos')
+            ->where('status', 1) // Solo estados activos
+            ->get(['id', 'name'])
+            ->toArray();
+
+        // Si la tabla está vacía, retornar opción por defecto
+        if (empty($estados)) {
+            return [
+                (object) [
+                    'id' => 1,
+                    'name' => 'No disponible'
+                ]
+            ];
+        }
+
+        return $estados;
+
+    } catch (\Exception $e) {
+        // En caso de error, retornar opción por defecto
+        \Log::warning('Error obteniendo estados de equipo: ' . $e->getMessage());
+        return [
+            (object) [
+                'id' => 1,
+                'name' => 'No disponible'
+            ]
+        ];
+    }
+}

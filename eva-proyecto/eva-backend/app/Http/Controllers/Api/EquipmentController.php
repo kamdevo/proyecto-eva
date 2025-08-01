@@ -1366,7 +1366,7 @@ class EquipmentController extends ApiController
                 'areas' => $safeQuery('areas', ['id', 'name', 'servicio_id']),
 
                 // Estados y clasificaciones
-                'estados' => $safeQuery('estadoequipos'),
+                'estados' => $this->getEstadosEquipoWithDefault(),
                 'clasificaciones' => $safeQuery('cbiomedicas'),
                 'riesgos' => $safeQuery('criesgos'),
                 'propietarios' => $safeQuery('propietarios', ['id', 'nombre as name'], 'nombre'),
@@ -1666,6 +1666,42 @@ class EquipmentController extends ApiController
             ], 500)->header('Access-Control-Allow-Origin', '*')
                     ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
                     ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    }
+
+    /**
+     * Helper function para obtener estados de equipo con opción por defecto
+     * Si la tabla estadoequipos está vacía, retorna opción "No disponible"
+     */
+    private function getEstadosEquipoWithDefault()
+    {
+        try {
+            $estados = DB::table('estadoequipos')
+                ->where('status', 1) // Solo estados activos
+                ->get(['id', 'name'])
+                ->toArray();
+
+            // Si la tabla está vacía, retornar opción por defecto
+            if (empty($estados)) {
+                return [
+                    (object) [
+                        'id' => 1,
+                        'name' => 'No disponible'
+                    ]
+                ];
+            }
+
+            return $estados;
+
+        } catch (\Exception $e) {
+            // En caso de error, retornar opción por defecto
+            \Log::warning('Error obteniendo estados de equipo: ' . $e->getMessage());
+            return [
+                (object) [
+                    'id' => 1,
+                    'name' => 'No disponible'
+                ]
+            ];
         }
     }
 }

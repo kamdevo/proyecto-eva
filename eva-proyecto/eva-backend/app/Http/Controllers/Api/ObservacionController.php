@@ -442,4 +442,94 @@ class ObservacionController extends ApiController
             return $this->errorResponse('Error al obtener estadísticas: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Crear observación específica para equipos
+     * Usa la estructura simple de la tabla observaciones
+     */
+    public function crearObservacionEquipo(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'description' => 'required|string',
+                'equipo_id' => 'required|integer|exists:equipos,id',
+                'fecha_nota' => 'required|date',
+                'repuesto_id' => 'nullable|string',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            $observacionData = [
+                'description' => $request->description,
+                'equipo_id' => $request->equipo_id,
+                'fecha_nota' => $request->fecha_nota,
+                'repuesto_id' => $request->repuesto_id,
+                'usuario_id' => auth()->id() ?? 1, // Default user if not authenticated
+                'preventivo_id' => 1, // Default value as per database structure
+                'repuesto_pendiente' => $request->repuesto_id ? 'si' : 'no'
+            ];
+
+            // Handle file upload if present
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('observaciones', $fileName, 'public');
+                $observacionData['file'] = $filePath;
+            }
+
+            $observacion = Observacion::create($observacionData);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Observación creada exitosamente',
+                'data' => $observacion
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error creating equipment observation: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la observación: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener observaciones de un equipo específico
+     */
+    public function obtenerObservacionesEquipo($equipoId)
+    {
+        try {
+            $observaciones = Observacion::where('equipo_id', $equipoId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Observaciones obtenidas exitosamente',
+                'data' => $observaciones
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting equipment observations: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener las observaciones: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

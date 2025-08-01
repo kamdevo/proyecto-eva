@@ -41,6 +41,7 @@ import { EditEquipmentModal } from "@/components/modals/edit-equipment-modal";
 import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
+import AddObservacionModal from "@/components/modals/add-observacion-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
 import EquipmentImage from "./ui/equipment-image";
 
@@ -98,6 +99,7 @@ export function MedicalDevicesView() {
   const [viewEquipmentModalOpen, setViewEquipmentModalOpen] = useState(false);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [globalSearch, setGlobalSearch] = useState("");
 
@@ -114,7 +116,7 @@ export function MedicalDevicesView() {
     updateFilters({
       ...filters,
       ...newFilters,
-      page: 1 // Resetear a primera página
+      page: 1, // Resetear a primera página
     });
   };
 
@@ -167,7 +169,7 @@ export function MedicalDevicesView() {
                 variant="ghost"
                 size="sm"
                 className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 relative ${
-                  activeFiltersCount > 0 ? 'bg-teal-600 hover:bg-teal-700' : ''
+                  activeFiltersCount > 0 ? "bg-teal-600 hover:bg-teal-700" : ""
                 }`}
               >
                 <Filter className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
@@ -622,7 +624,9 @@ export function MedicalDevicesView() {
                           <EquipmentImage
                             equipmentId={device.id}
                             equipmentData={device.equipo}
-                            equipmentName={device.equipo?.name || "Equipo médico"}
+                            equipmentName={
+                              device.equipo?.name || "Equipo médico"
+                            }
                             className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44"
                             fallbackImage={notFoundImg}
                             showLoader={true}
@@ -714,6 +718,34 @@ export function MedicalDevicesView() {
                                     "0"
                                   )}
                                 </Badge>
+                              </div>
+
+                              {/* Observation Section */}
+                              <div className="mt-3 xs:mt-4 pt-2 xs:pt-3 border-t border-slate-200">
+                                <div className="flex items-center justify-between">
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-blue-50 text-blue-700 border-blue-200 text-[8px] xs:text-[9px] sm:text-xs cursor-pointer hover:bg-blue-100"
+                                    onClick={() => {
+                                      setSelectedEquipment(device);
+                                      setAddObservacionModalOpen(true);
+                                    }}
+                                  >
+                                    Agregar Observación
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-5 w-5 xs:h-6 xs:w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    onClick={() => {
+                                      setSelectedEquipment(device);
+                                      setAddObservacionModalOpen(true);
+                                    }}
+                                    title="Agregar observación"
+                                  >
+                                    <Plus className="w-3 h-3 xs:w-4 xs:h-4" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1184,6 +1216,10 @@ export function MedicalDevicesView() {
         open={editEquipmentModalOpen}
         onOpenChange={setEditEquipmentModalOpen}
         equipment={selectedEquipment}
+        onEquipmentUpdated={() => {
+          // Refresh the equipment data after updating
+          refreshDevices();
+        }}
       />
       <ViewEquipmentModal
         open={viewEquipmentModalOpen}
@@ -1194,6 +1230,16 @@ export function MedicalDevicesView() {
         open={deleteConfirmModalOpen}
         onOpenChange={setDeleteConfirmModalOpen}
         equipment={selectedEquipment}
+      />
+      <AddObservacionModal
+        isOpen={addObservacionModalOpen}
+        onClose={() => setAddObservacionModalOpen(false)}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.equipo?.name || "Equipo sin nombre"}
+        onObservationAdded={() => {
+          // Refresh the equipment data after adding observation
+          refreshDevices();
+        }}
       />
     </div>
   );

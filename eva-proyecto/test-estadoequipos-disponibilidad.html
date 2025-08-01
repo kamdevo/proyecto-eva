@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Estados Equipo - Disponibilidad</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0fdf4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background-color: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .test-button:hover {
+            background-color: #059669;
+        }
+        .result {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { border-color: #10b981; background-color: #f0fdf4; }
+        .error { border-color: #ef4444; background-color: #fef2f2; }
+        .warning { border-color: #f59e0b; background-color: #fffbeb; }
+        .info {
+            background-color: #eff6ff;
+            border: 2px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .before, .after {
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .before {
+            background-color: #fef2f2;
+            border: 2px solid #fecaca;
+        }
+        .after {
+            background-color: #f0fdf4;
+            border: 2px solid #bbf7d0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Estados Equipo - Disponibilidad</h1>
+        
+        <div class="info">
+            <h3>🎯 Cambio Implementado:</h3>
+            <p><strong>Requerimiento:</strong> Usar tabla <code>estadoequipos</code> en lugar de <code>disponibilidades</code></p>
+            <p><strong>Problema:</strong> La tabla <code>estadoequipos</code> está vacía</p>
+            <p><strong>Solución:</strong> Mostrar opción por defecto "No disponible" cuando la tabla esté vacía</p>
+        </div>
+        
+        <div class="comparison">
+            <div class="before">
+                <h4>❌ Antes:</h4>
+                <ul>
+                    <li>Campo: <code>disponibilidad_id</code></li>
+                    <li>Fuente: <code>catalogs.disponibilidades</code></li>
+                    <li>Tabla: <code>disponibilidades</code> (datos estáticos)</li>
+                </ul>
+            </div>
+            <div class="after">
+                <h4>✅ Después:</h4>
+                <ul>
+                    <li>Campo: <code>estadoequipo_id</code></li>
+                    <li>Fuente: <code>catalogs.estados_equipo</code></li>
+                    <li>Tabla: <code>estadoequipos</code> (con fallback)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <button class="test-button" onclick="testEstadosEquipoTable()">
+            🗄️ 1. Verificar Tabla estadoequipos
+        </button>
+        
+        <button class="test-button" onclick="testModalDataAPI()">
+            📋 2. Test API Modal Data
+        </button>
+        
+        <button class="test-button" onclick="testEquipmentOptionsAPI()">
+            🔧 3. Test Equipment Options API
+        </button>
+        
+        <button class="test-button" onclick="testDefaultFallback()">
+            🛡️ 4. Test Fallback "No disponible"
+        </button>
+        
+        <div id="test-result" class="result">
+            Click the test buttons to verify the estadoequipos implementation...
+        </div>
+    </div>
+
+    <script>
+        async function testEstadosEquipoTable() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🔄 Checking estadoequipos table...\n';
+            resultDiv.className = 'result';
+            
+            try {
+                // Simular consulta directa a la tabla (esto sería via API en producción)
+                resultDiv.innerHTML += '📊 Verificando estado de la tabla estadoequipos...\n\n';
+                
+                // Test the modal data API to see what it returns
+                const response = await fetch('http://localhost:8000/api/v1/test/modal-equipment-data');
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const estadosEquipo = data.data.estados_equipo;
+                    
+                    resultDiv.innerHTML += `✅ API Response successful\n`;
+                    resultDiv.innerHTML += `📋 Estados Equipo found: ${estadosEquipo ? estadosEquipo.length : 0}\n\n`;
+                    
+                    if (estadosEquipo && estadosEquipo.length > 0) {
+                        resultDiv.innerHTML += `📊 Estados disponibles:\n`;
+                        estadosEquipo.forEach((estado, index) => {
+                            resultDiv.innerHTML += `${index + 1}. ID: ${estado.id}, Name: ${estado.name}\n`;
+                        });
+                        
+                        // Check if it's the default fallback
+                        if (estadosEquipo.length === 1 && estadosEquipo[0].name === 'No disponible') {
+                            resultDiv.innerHTML += `\n🛡️ FALLBACK DETECTED: Showing default "No disponible" option\n`;
+                            resultDiv.innerHTML += `✅ This means the estadoequipos table is empty and fallback is working\n`;
+                            resultDiv.classList.add('success');
+                        } else {
+                            resultDiv.innerHTML += `\n✅ Table has data - showing actual records\n`;
+                            resultDiv.classList.add('success');
+                        }
+                    } else {
+                        resultDiv.innerHTML += `⚠️ No estados_equipo data returned\n`;
+                        resultDiv.classList.add('warning');
+                    }
+                } else {
+                    resultDiv.innerHTML += `❌ API Error: ${data.message || 'Unknown error'}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testModalDataAPI() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🔄 Testing modal data API...\n';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/test/modal-equipment-data');
+                const data = await response.json();
+                
+                resultDiv.innerHTML += `📥 Response Status: ${response.status}\n`;
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML += `✅ API call successful\n\n`;
+                    
+                    // Check specifically for estados_equipo
+                    if (data.data.estados_equipo) {
+                        const estados = data.data.estados_equipo;
+                        resultDiv.innerHTML += `📊 estados_equipo field found:\n`;
+                        resultDiv.innerHTML += `   Count: ${estados.length}\n`;
+                        resultDiv.innerHTML += `   Data: ${JSON.stringify(estados, null, 2)}\n\n`;
+                        
+                        // Verify the structure
+                        if (estados.length > 0 && estados[0].id && estados[0].name) {
+                            resultDiv.innerHTML += `✅ Correct structure: {id, name}\n`;
+                            resultDiv.innerHTML += `✅ Ready for frontend consumption\n`;
+                            resultDiv.classList.add('success');
+                        } else {
+                            resultDiv.innerHTML += `❌ Incorrect structure\n`;
+                            resultDiv.classList.add('error');
+                        }
+                    } else {
+                        resultDiv.innerHTML += `❌ estados_equipo field not found in response\n`;
+                        resultDiv.classList.add('error');
+                    }
+                } else {
+                    resultDiv.innerHTML += `❌ API Error: ${data.message || 'Unknown error'}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testEquipmentOptionsAPI() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🔄 Testing equipment options API...\n';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/equipos/options');
+                const data = await response.json();
+                
+                resultDiv.innerHTML += `📥 Response Status: ${response.status}\n`;
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML += `✅ Equipment options API successful\n\n`;
+                    
+                    // Check for estados field
+                    if (data.data.estados) {
+                        const estados = data.data.estados;
+                        resultDiv.innerHTML += `📊 estados field found:\n`;
+                        resultDiv.innerHTML += `   Count: ${estados.length}\n`;
+                        resultDiv.innerHTML += `   Data: ${JSON.stringify(estados, null, 2)}\n\n`;
+                        
+                        if (estados.length === 1 && estados[0].name === 'No disponible') {
+                            resultDiv.innerHTML += `🛡️ FALLBACK CONFIRMED: Equipment options also showing "No disponible"\n`;
+                            resultDiv.innerHTML += `✅ Both APIs are consistent\n`;
+                            resultDiv.classList.add('success');
+                        } else {
+                            resultDiv.innerHTML += `✅ Equipment options showing actual data\n`;
+                            resultDiv.classList.add('success');
+                        }
+                    } else {
+                        resultDiv.innerHTML += `❌ estados field not found in equipment options\n`;
+                        resultDiv.classList.add('error');
+                    }
+                } else {
+                    resultDiv.innerHTML += `❌ Equipment options API Error: ${data.message || 'Unknown error'}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testDefaultFallback() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🔄 Testing default fallback behavior...\n';
+            resultDiv.className = 'result';
+            
+            try {
+                // Test both APIs to ensure consistency
+                const [modalResponse, optionsResponse] = await Promise.all([
+                    fetch('http://localhost:8000/api/v1/test/modal-equipment-data'),
+                    fetch('http://localhost:8000/api/v1/equipos/options')
+                ]);
+                
+                const modalData = await modalResponse.json();
+                const optionsData = await optionsResponse.json();
+                
+                resultDiv.innerHTML += `📊 FALLBACK BEHAVIOR TEST:\n\n`;
+                
+                // Check modal API
+                if (modalResponse.ok && modalData.success && modalData.data.estados_equipo) {
+                    const modalEstados = modalData.data.estados_equipo;
+                    resultDiv.innerHTML += `📋 Modal API estados_equipo:\n`;
+                    resultDiv.innerHTML += `   Count: ${modalEstados.length}\n`;
+                    resultDiv.innerHTML += `   First item: ${JSON.stringify(modalEstados[0])}\n\n`;
+                }
+                
+                // Check options API
+                if (optionsResponse.ok && optionsData.success && optionsData.data.estados) {
+                    const optionsEstados = optionsData.data.estados;
+                    resultDiv.innerHTML += `🔧 Options API estados:\n`;
+                    resultDiv.innerHTML += `   Count: ${optionsEstados.length}\n`;
+                    resultDiv.innerHTML += `   First item: ${JSON.stringify(optionsEstados[0])}\n\n`;
+                }
+                
+                // Verify consistency
+                const modalEstados = modalData.data?.estados_equipo || [];
+                const optionsEstados = optionsData.data?.estados || [];
+                
+                if (modalEstados.length === 1 && optionsEstados.length === 1 &&
+                    modalEstados[0].name === 'No disponible' && optionsEstados[0].name === 'No disponible') {
+                    
+                    resultDiv.innerHTML += `🎉 SUCCESS! FALLBACK IS WORKING CORRECTLY:\n`;
+                    resultDiv.innerHTML += `✅ Both APIs return "No disponible" when table is empty\n`;
+                    resultDiv.innerHTML += `✅ Frontend will show the default option\n`;
+                    resultDiv.innerHTML += `✅ Equipment registration will work with estadoequipo_id = 1\n`;
+                    resultDiv.classList.add('success');
+                    
+                } else if (modalEstados.length > 1 || optionsEstados.length > 1) {
+                    resultDiv.innerHTML += `✅ Table has actual data - no fallback needed\n`;
+                    resultDiv.innerHTML += `✅ Showing real estadoequipos records\n`;
+                    resultDiv.classList.add('success');
+                    
+                } else {
+                    resultDiv.innerHTML += `❌ Inconsistent behavior between APIs\n`;
+                    resultDiv.innerHTML += `Modal: ${modalEstados.length} items\n`;
+                    resultDiv.innerHTML += `Options: ${optionsEstados.length} items\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Network error: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+    </script>
+</body>
+</html>

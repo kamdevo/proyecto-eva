@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,9 +19,147 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Upload, Plus } from "lucide-react";
+import { Upload, Plus, Save, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import httpService from "@/services/httpService";
 
-export function EditEquipmentModal({ open, onOpenChange, equipment }) {
+export function EditEquipmentModal({
+  open,
+  onOpenChange,
+  equipment,
+  onEquipmentUpdated,
+}) {
+  const [formData, setFormData] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  // Initialize form data when equipment changes
+  useEffect(() => {
+    if (equipment && open) {
+      setFormData({
+        // Identificación básica
+        name: equipment.name || "",
+        description: equipment.description || "",
+        series: equipment.series || "",
+        old_inventory_code: equipment.old_inventory_code || "",
+        new_inventory_code: equipment.new_inventory_code || "",
+        brand: equipment.brand || "",
+
+        // Especificaciones técnicas
+        model: equipment.model || "",
+        manufacturing_year: equipment.manufacturing_year || "",
+        installation_year: equipment.installation_year || "",
+        useful_life: equipment.useful_life || "",
+
+        // Ubicación
+        service: equipment.service || "",
+        specific_area: equipment.specific_area || "",
+        floor: equipment.floor || "",
+        equipment_type: equipment.equipment_type || "FIJO",
+
+        // Información económica
+        acquisition_value: equipment.acquisition_value || "",
+        current_value: equipment.current_value || "",
+        acquisition_method: equipment.acquisition_method || "",
+
+        // Clasificaciones (solo biomédicos)
+        biomedical_classification: equipment.biomedical_classification || "",
+        risk_classification: equipment.risk_classification || "",
+      });
+      setErrors({});
+    }
+  }, [equipment, open]);
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Validaciones básicas requeridas
+    if (!formData.name?.trim()) {
+      newErrors.name = "El nombre del equipo es obligatorio";
+    }
+
+    if (!formData.series?.trim()) {
+      newErrors.series = "El número de serie es obligatorio";
+    }
+
+    // Validación de años
+    if (formData.manufacturing_year && formData.installation_year) {
+      if (
+        parseInt(formData.installation_year) <
+        parseInt(formData.manufacturing_year)
+      ) {
+        newErrors.installation_year =
+          "El año de instalación no puede ser anterior al año de fabricación";
+      }
+    }
+
+    // Validación de valores económicos
+    if (
+      formData.acquisition_value &&
+      isNaN(parseFloat(formData.acquisition_value))
+    ) {
+      newErrors.acquisition_value =
+        "El valor de adquisición debe ser un número válido";
+    }
+
+    if (formData.current_value && isNaN(parseFloat(formData.current_value))) {
+      newErrors.current_value = "El valor actual debe ser un número válido";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      toast.error("Por favor corrija los errores en el formulario");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await httpService.put(
+        `/v1/equipos/${equipment.id}`,
+        formData
+      );
+
+      if (response.data.success) {
+        toast.success("Equipo actualizado exitosamente");
+        onEquipmentUpdated && onEquipmentUpdated();
+        onOpenChange(false);
+      } else {
+        throw new Error(
+          response.data.message || "Error al actualizar el equipo"
+        );
+      }
+    } catch (error) {
+      console.error("Error updating equipment:", error);
+      toast.error(
+        error.response?.data?.message || "Error al actualizar el equipo"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!equipment) return null;
 
   return (
@@ -32,7 +171,7 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 p-4">
+        <form onSubmit={handleSubmit} className="space-y-6 p-4">
           {/* REGISTRO DE EQUIPOS BIOMÉDICOS */}
           <Card>
             <CardHeader className="bg-gray-100 py-3">
@@ -50,14 +189,22 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Nombre del equipo:Serie:
+                      Nombre del equipo:
                       <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      disabled
-                      defaultValue={equipment.equipo.name}
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.name || ''}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.name ? 'border-red-500' : ''}`}
+                      placeholder="Ingrese el nombre del equipo"
+                      disabled={isSubmitting}
                     />
+                    {errors.name && (
+                      <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.name}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -65,41 +212,57 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
                       Serie:<span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      disabled
-                      defaultValue={equipment.equipo.series}
-                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      value={formData.series || ''}
+                      onChange={(e) => handleInputChange('series', e.target.value)}
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.series ? 'border-red-500' : ''}`}
+                      placeholder="Ingrese el número de serie"
+                      disabled={isSubmitting}
                     />
+                    {errors.series && (
+                      <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.series}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      INV/Activo:Serie:
+                      INV/Activo:
                       <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      disabled
-                      defaultValue={equipment.equipo.code}
+                      value={formData.old_inventory_code || ''}
+                      onChange={(e) => handleInputChange('old_inventory_code', e.target.value)}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      placeholder="Código de inventario anterior"
+                      disabled={isSubmitting}
                     />
                   </div>
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Marca:Serie:<span className="text-destructive">*</span>
+                      Marca:<span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      defaultValue={equipment.equipo.brand}
+                      value={formData.brand || ''}
+                      onChange={(e) => handleInputChange('brand', e.target.value)}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      placeholder="Marca del equipo"
+                      disabled={isSubmitting}
                     />
                   </div>
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Modelo:Serie:<span className="text-destructive">*</span>
+                      Modelo:<span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      defaultValue={equipment.equipo.model}
+                      value={formData.model || ''}
+                      onChange={(e) => handleInputChange('model', e.target.value)}
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      placeholder="Modelo del equipo"
+                      disabled={isSubmitting}
                     />
                   </div>
 
@@ -796,25 +959,44 @@ export function EditEquipmentModal({ open, onOpenChange, equipment }) {
             <CardContent className="p-3 sm:p-4 md:p-6">
               <Textarea
                 placeholder="Escriba todas las observaciones que se estimen pertinentes para el seguimiento del equipo"
-                defaultValue="Observaciones del equipo médico..."
+                value={formData.description || ''}
+                onChange={(e) => handleInputChange('description', e.target.value)}
                 className="min-h-[60px] sm:min-h-[80px] w-full"
+                disabled={isSubmitting}
               />
             </CardContent>
           </Card>
         </div>
 
         <div className="flex justify-between p-4 border-t">
-          <Button className="bg-green-600 hover:bg-green-700 text-white px-8">
-            Guardar Cambios
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 flex items-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Guardar Cambios
+              </>
+            )}
           </Button>
           <Button
+            type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="px-8"
+            disabled={isSubmitting}
           >
             Cancelar
           </Button>
         </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

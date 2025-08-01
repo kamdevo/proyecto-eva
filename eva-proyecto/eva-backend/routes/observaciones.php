@@ -31,10 +31,14 @@ use App\Http\Controllers\Api\ObservacionController;
 |
 */
 
+// Rutas específicas para observaciones de equipos (sin autenticación para pruebas)
+Route::post('observaciones/equipo', [ObservacionController::class, 'crearObservacionEquipo']);
+Route::get('observaciones/equipo/{equipoId}', [ObservacionController::class, 'obtenerObservacionesEquipo']);
+
 Route::middleware('auth:sanctum')->group(function () {
     // CRUD básico de observaciones
     Route::apiResource('observaciones', ObservacionController::class);
-    
+
     // Observaciones por entidad
 
 // Agrupación optimizada de rutas con middleware empresarial

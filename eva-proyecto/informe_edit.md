@@ -306,3 +306,76 @@ Cada contacto incluye:
 El modal de edición de equipos biomédicos es una interfaz compleja que permite la gestión integral de la información de equipos médicos, manteniendo la integridad de los datos y cumpliendo con las regulaciones hospitalarias y sanitarias aplicables.
 
 ---
+
+DATOS GENERALES
+id (hidden)
+name (Nombre del equipo)
+descripcion (Descripción)
+code (Código/Inventario)
+serial (Serial)
+modelo (Modelo)
+marca (Marca)
+invima_id (Registro sanitario INVIMA)
+propietario_id (Propietario)
+sede_id (Sede)
+servicio_id (Servicio)
+area_id (Área)
+fuente_id (Fuente de energía)
+tecnologia_id (Tecnología)
+frecuencia_id (Frecuencia de mantenimiento)
+cbiomedica_id (Clasificación biomédica)
+criesgo_id (Clasificación de riesgo)
+tadquisicion_id (Tipo de adquisición)
+verificacion_inventario (Verificación inventario)
+fecha_recepcion_almacen (Fecha recepción almacén)
+fecha_acta_recibo (Fecha acta de recibo)
+fecha_inicio_operacion (Fecha inicio operación)
+fecha_fabricacion (Fecha fabricación)
+fecha_ad (Fecha adquisición)
+fecha_instalacion (Fecha instalación)
+fecha_mantenimiento (Fecha último mantenimiento)
+fecha_vencimiento_garantia (Fecha vencimiento garantía)
+vida_util (Vida útil)
+garantia (Garantía)
+costo (Costo)
+costo_original (Costo original)
+accesorios (Accesorios)
+movilidad (Movilidad)
+codigo_antiguo (Código antiguo)
+evaluacion_desempenio (Evaluación desempeño)
+calibracion (Calibración)
+activo_comodato (Activo en comodato)
+localizacion_actual (Localización actual)
+disponibilidad_id (Disponibilidad)
+estadoequipo_id (Estado del equipo)
+tmp_estado_equipo_id (Estado temporal)
+preview_imagen (Imagen)
+archivo_invima1 (Archivo INVIMA)
+
+MANUALES Y PLANOS
+manual_id (hidden)
+Checkbox de manuales
+Checkbox de planos
+contenedor_url_manual (URL manual)
+contenedor_descripcion_manual (Descripción manual)
+
+ORDEN DE COMPRA / CONTRATOS / COMODATOS
+orden_compra_id (hidden)
+Visualización de orden de compra, contrato, cruce de cuentas, comodato
+file_orden_compra (Archivo orden de compra)
+
+ESPECIFICACIONES TÉCNICAS
+Tabla de especificaciones técnicas (inputs dinámicos por fila)
+
+MANTENIMIENTOS PREVENTIVOS
+Tabla de mantenimientos preventivos (inputs dinámicos por fila)
+
+CALIBRACIONES
+Tabla de calibraciones (inputs dinámicos por fila)
+
+CORRECTIVOS GENERALES
+Tabla de correctivos generales (inputs dinámicos por fila)
+REPUESTOS/ACCESORIOS
+Tabla de repuestos/accesorios (inputs dinámicos por fila)
+OBSERVACIONES
+Tabla de observaciones (inputs dinámicos por fila)

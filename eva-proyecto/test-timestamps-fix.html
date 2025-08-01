@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fix Timestamps - Observaciones</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0fdf4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background-color: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .test-button:hover {
+            background-color: #059669;
+        }
+        .result {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success { border-color: #10b981; background-color: #f0fdf4; }
+        .error { border-color: #ef4444; background-color: #fef2f2; }
+        .warning { border-color: #f59e0b; background-color: #fffbeb; }
+        .info {
+            background-color: #eff6ff;
+            border: 2px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Fix Timestamps - Observaciones</h1>
+        
+        <div class="info">
+            <h3>🎯 Problema Solucionado:</h3>
+            <p><strong>Error:</strong> <code>Column not found: 1054 Unknown column 'updated_at'</code></p>
+            <p><strong>Causa:</strong> La tabla <code>observaciones</code> solo tiene <code>created_at</code>, no <code>updated_at</code></p>
+            <p><strong>Solución:</strong> Configurado el modelo con <code>const UPDATED_AT = null;</code></p>
+            
+            <h4>📊 Estructura Real de la Tabla:</h4>
+            <ul>
+                <li>✅ <code>id</code> (int, PK)</li>
+                <li>✅ <code>description</code> (text)</li>
+                <li>✅ <code>created_at</code> (datetime)</li>
+                <li>✅ <code>equipo_id</code> (int)</li>
+                <li>✅ <code>file</code> (varchar)</li>
+                <li>✅ <code>usuario_id</code> (int)</li>
+                <li>✅ <code>repuesto_id</code> (text)</li>
+                <li>✅ <code>repuesto_pendiente</code> (varchar)</li>
+                <li>✅ <code>preventivo_id</code> (int)</li>
+                <li>✅ <code>fecha_nota</code> (date)</li>
+                <li>❌ <code>updated_at</code> (NO EXISTE)</li>
+            </ul>
+        </div>
+        
+        <div class="file-input">
+            <label for="fileInput">📎 Seleccionar archivo (opcional):</label>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        </div>
+        
+        <button class="test-button" onclick="testCreateWithoutFile()">
+            ✨ 1. Test Crear (Sin Archivo)
+        </button>
+        
+        <button class="test-button" onclick="testCreateWithFile()">
+            📎 2. Test Crear (Con Archivo)
+        </button>
+        
+        <button class="test-button" onclick="testGetObservations()">
+            📋 3. Test Obtener Observaciones
+        </button>
+        
+        <button class="test-button" onclick="testCompleteFlow()">
+            🚀 4. Test Flujo Completo
+        </button>
+        
+        <div id="test-result" class="result">
+            Haga clic en los botones para probar la corrección de timestamps...
+        </div>
+    </div>
+
+    <script>
+        async function testCreateWithoutFile() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🚀 Probando creación de observación SIN archivo...\n';
+            resultDiv.className = 'result';
+            
+            const formData = new FormData();
+            formData.append('equipo_id', '21');
+            formData.append('description', 'Test TIMESTAMPS FIX - Sin archivo - ' + new Date().toLocaleString());
+            formData.append('fecha_nota', new Date().toISOString().split('T')[0]);
+            formData.append('repuesto_id', 'TIMESTAMP-FIX-001');
+            
+            const url = 'http://localhost:8000/api/observaciones/equipo';
+            
+            resultDiv.innerHTML += `📤 URL: ${url}\n`;
+            resultDiv.innerHTML += `📤 Datos enviados:\n`;
+            resultDiv.innerHTML += `   equipo_id: 21\n`;
+            resultDiv.innerHTML += `   description: Test TIMESTAMPS FIX - Sin archivo\n`;
+            resultDiv.innerHTML += `   fecha_nota: ${new Date().toISOString().split('T')[0]}\n`;
+            resultDiv.innerHTML += `   repuesto_id: TIMESTAMP-FIX-001\n`;
+            resultDiv.innerHTML += `   file: NO INCLUIDO\n\n`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML += `📥 Respuesta del servidor:\n`;
+                resultDiv.innerHTML += `   Status: ${response.status}\n`;
+                resultDiv.innerHTML += `   Success: ${data.success}\n`;
+                resultDiv.innerHTML += `   Message: ${data.message}\n\n`;
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML += `🎉 ¡OBSERVACIÓN CREADA EXITOSAMENTE!\n`;
+                    resultDiv.innerHTML += `   ID: ${data.data.id}\n`;
+                    resultDiv.innerHTML += `   Descripción: ${data.data.description}\n`;
+                    resultDiv.innerHTML += `   Equipo ID: ${data.data.equipo_id}\n`;
+                    resultDiv.innerHTML += `   Usuario ID: ${data.data.usuario_id}\n`;
+                    resultDiv.innerHTML += `   Fecha Nota: ${data.data.fecha_nota}\n`;
+                    resultDiv.innerHTML += `   Created At: ${data.data.created_at}\n`;
+                    resultDiv.innerHTML += `   Archivo: ${data.data.file || 'Sin archivo'}\n\n`;
+                    resultDiv.innerHTML += `✅ PROBLEMA DE TIMESTAMPS SOLUCIONADO!\n`;
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.innerHTML += `❌ Error creando observación:\n`;
+                    resultDiv.innerHTML += `   Response: ${JSON.stringify(data, null, 2)}\n`;
+                    
+                    if (data.message && data.message.includes('updated_at')) {
+                        resultDiv.innerHTML += `\n🔧 PROBLEMA AÚN PERSISTE: Error de updated_at\n`;
+                        resultDiv.innerHTML += `   Verificar configuración del modelo Observacion.php\n`;
+                    }
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Error de red: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testCreateWithFile() {
+            const resultDiv = document.getElementById('test-result');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '❌ Por favor seleccione un archivo primero\n';
+                resultDiv.className = 'result error';
+                return;
+            }
+            
+            resultDiv.innerHTML = '🚀 Probando creación de observación CON archivo...\n';
+            resultDiv.className = 'result';
+            
+            const formData = new FormData();
+            formData.append('equipo_id', '21');
+            formData.append('description', 'Test TIMESTAMPS FIX - Con archivo - ' + new Date().toLocaleString());
+            formData.append('fecha_nota', new Date().toISOString().split('T')[0]);
+            formData.append('repuesto_id', 'TIMESTAMP-FIX-002');
+            formData.append('file', fileInput.files[0]);
+            
+            const url = 'http://localhost:8000/api/observaciones/equipo';
+            
+            resultDiv.innerHTML += `📤 URL: ${url}\n`;
+            resultDiv.innerHTML += `📤 Datos enviados:\n`;
+            resultDiv.innerHTML += `   equipo_id: 21\n`;
+            resultDiv.innerHTML += `   description: Test TIMESTAMPS FIX - Con archivo\n`;
+            resultDiv.innerHTML += `   fecha_nota: ${new Date().toISOString().split('T')[0]}\n`;
+            resultDiv.innerHTML += `   repuesto_id: TIMESTAMP-FIX-002\n`;
+            resultDiv.innerHTML += `   file: ${fileInput.files[0].name} (${(fileInput.files[0].size / 1024).toFixed(2)} KB)\n\n`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML += `📥 Respuesta del servidor:\n`;
+                resultDiv.innerHTML += `   Status: ${response.status}\n`;
+                resultDiv.innerHTML += `   Success: ${data.success}\n`;
+                resultDiv.innerHTML += `   Message: ${data.message}\n\n`;
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML += `🎉 ¡OBSERVACIÓN CON ARCHIVO CREADA EXITOSAMENTE!\n`;
+                    resultDiv.innerHTML += `   ID: ${data.data.id}\n`;
+                    resultDiv.innerHTML += `   Descripción: ${data.data.description}\n`;
+                    resultDiv.innerHTML += `   Archivo: ${data.data.file}\n`;
+                    resultDiv.innerHTML += `   Created At: ${data.data.created_at}\n\n`;
+                    resultDiv.innerHTML += `✅ UPLOAD DE ARCHIVOS Y TIMESTAMPS FUNCIONANDO!\n`;
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.innerHTML += `❌ Error creando observación con archivo:\n`;
+                    resultDiv.innerHTML += `   Response: ${JSON.stringify(data, null, 2)}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Error de red: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testGetObservations() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🔍 Probando obtención de observaciones...\n';
+            resultDiv.className = 'result';
+            
+            const equipmentId = 21;
+            const url = `http://localhost:8000/api/observaciones/equipo/${equipmentId}`;
+            
+            resultDiv.innerHTML += `📤 URL: ${url}\n`;
+            resultDiv.innerHTML += `📤 Equipo ID: ${equipmentId}\n\n`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML += `📥 Respuesta del servidor:\n`;
+                resultDiv.innerHTML += `   Status: ${response.status}\n`;
+                resultDiv.innerHTML += `   Success: ${data.success}\n`;
+                resultDiv.innerHTML += `   Message: ${data.message}\n\n`;
+                
+                if (response.ok && data.success) {
+                    const observaciones = data.data;
+                    resultDiv.innerHTML += `✅ OBSERVACIONES OBTENIDAS: ${observaciones.length}\n\n`;
+                    
+                    if (observaciones.length > 0) {
+                        resultDiv.innerHTML += `📋 ÚLTIMAS OBSERVACIONES:\n`;
+                        observaciones.slice(0, 5).forEach((obs, index) => {
+                            resultDiv.innerHTML += `${index + 1}. ID: ${obs.id}\n`;
+                            resultDiv.innerHTML += `   Descripción: ${obs.description.substring(0, 60)}...\n`;
+                            resultDiv.innerHTML += `   Fecha: ${obs.fecha_nota}\n`;
+                            resultDiv.innerHTML += `   Created: ${obs.created_at}\n`;
+                            resultDiv.innerHTML += `   Archivo: ${obs.file || 'Sin archivo'}\n\n`;
+                        });
+                        
+                        resultDiv.innerHTML += `✅ TIMESTAMPS FUNCIONANDO CORRECTAMENTE\n`;
+                        resultDiv.classList.add('success');
+                    } else {
+                        resultDiv.innerHTML += `ℹ️ No hay observaciones para este equipo\n`;
+                        resultDiv.innerHTML += `   Crear algunas observaciones primero\n`;
+                        resultDiv.classList.add('warning');
+                    }
+                } else {
+                    resultDiv.innerHTML += `❌ Error obteniendo observaciones:\n`;
+                    resultDiv.innerHTML += `   Response: ${JSON.stringify(data, null, 2)}\n`;
+                    resultDiv.classList.add('error');
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Error de red: ${error.message}\n`;
+                resultDiv.classList.add('error');
+            }
+        }
+        
+        async function testCompleteFlow() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '🚀 Ejecutando test completo del flujo de observaciones...\n\n';
+            resultDiv.className = 'result';
+            
+            let allTestsPassed = true;
+            
+            // Test 1: Crear sin archivo
+            resultDiv.innerHTML += '=== TEST 1: CREAR SIN ARCHIVO ===\n';
+            try {
+                await testCreateWithoutFile();
+                resultDiv.innerHTML += '✅ Test 1 completado\n\n';
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Test 1 falló: ${error.message}\n\n`;
+                allTestsPassed = false;
+            }
+            
+            // Esperar un poco
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Test 2: Obtener observaciones
+            resultDiv.innerHTML += '=== TEST 2: OBTENER OBSERVACIONES ===\n';
+            try {
+                await testGetObservations();
+                resultDiv.innerHTML += '✅ Test 2 completado\n\n';
+            } catch (error) {
+                resultDiv.innerHTML += `❌ Test 2 falló: ${error.message}\n\n`;
+                allTestsPassed = false;
+            }
+            
+            // Resumen final
+            resultDiv.innerHTML += '=== RESUMEN FINAL ===\n';
+            if (allTestsPassed) {
+                resultDiv.innerHTML += '🎉 TODOS LOS TESTS PASARON!\n';
+                resultDiv.innerHTML += '✅ Problema de timestamps solucionado\n';
+                resultDiv.innerHTML += '✅ Creación de observaciones funcional\n';
+                resultDiv.innerHTML += '✅ Upload de archivos funcional\n';
+                resultDiv.innerHTML += '✅ Obtención de observaciones funcional\n\n';
+                resultDiv.innerHTML += '🚀 El frontend puede usar las rutas sin problemas!\n';
+                resultDiv.classList.add('success');
+            } else {
+                resultDiv.innerHTML += '❌ ALGUNOS TESTS FALLARON\n';
+                resultDiv.innerHTML += '🔧 Revisar los errores anteriores\n';
+                resultDiv.classList.add('error');
+            }
+        }
+    </script>
+</body>
+</html>

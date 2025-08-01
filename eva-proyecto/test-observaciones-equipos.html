@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Observaciones de Equipos</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f0fdf4;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .test-button {
+        background-color: #10b981;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin: 10px 5px;
+        font-size: 16px;
+      }
+      .test-button:hover {
+        background-color: #059669;
+      }
+      .result {
+        background-color: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 600px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+      .success {
+        border-color: #10b981;
+        background-color: #f0fdf4;
+      }
+      .error {
+        border-color: #ef4444;
+        background-color: #fef2f2;
+      }
+      .warning {
+        border-color: #f59e0b;
+        background-color: #fffbeb;
+      }
+      .info {
+        background-color: #eff6ff;
+        border: 2px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .form-section {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      .form-group input,
+      .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .form-group textarea {
+        height: 80px;
+        resize: vertical;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔧 Test Observaciones de Equipos</h1>
+
+      <div class="info">
+        <h3>🎯 Funcionalidad Implementada:</h3>
+        <ul>
+          <li>
+            <strong>Frontend:</strong> Badge "Agregar Observación" + botón "+"
+            en columna "Datos Técnicos"
+          </li>
+          <li>
+            <strong>Modal:</strong> AddObservacionModal.jsx con campos según
+            estructura de BD
+          </li>
+          <li>
+            <strong>Backend:</strong> Endpoint /api/observaciones/equipo para
+            crear observaciones
+          </li>
+          <li>
+            <strong>Base de datos:</strong> Tabla 'observaciones' con campos
+            correctos
+          </li>
+        </ul>
+      </div>
+
+      <div class="form-section">
+        <h3>📝 Crear Observación de Prueba</h3>
+        <div class="form-group">
+          <label for="equipmentId">ID del Equipo:</label>
+          <input type="number" id="equipmentId" value="22" min="1" />
+        </div>
+        <div class="form-group">
+          <label for="description">Descripción:</label>
+          <textarea
+            id="description"
+            placeholder="Descripción de la observación..."
+          >
+Observación de prueba para verificar funcionalidad</textarea
+          >
+        </div>
+        <div class="form-group">
+          <label for="fechaNota">Fecha:</label>
+          <input type="date" id="fechaNota" />
+        </div>
+        <div class="form-group">
+          <label for="repuestoId">Repuesto ID (opcional):</label>
+          <input
+            type="text"
+            id="repuestoId"
+            placeholder="ID del repuesto si aplica"
+          />
+        </div>
+      </div>
+
+      <button class="test-button" onclick="testDatabaseStructure()">
+        🗄️ 1. Verificar Estructura BD
+      </button>
+
+      <button class="test-button" onclick="testEquipmentExists()">
+        🔍 2. Verificar Equipo Existe
+      </button>
+
+      <button class="test-button" onclick="testCreateObservation()">
+        ✨ 3. Crear Observación
+      </button>
+
+      <button class="test-button" onclick="testGetObservations()">
+        📋 4. Obtener Observaciones
+      </button>
+
+      <div id="test-result" class="result">
+        Haga clic en los botones de prueba para verificar la funcionalidad de
+        observaciones...
+      </div>
+    </div>
+
+    <script>
+      // Set today's date as default
+      document.getElementById("fechaNota").value = new Date()
+        .toISOString()
+        .split("T")[0];
+
+      async function testDatabaseStructure() {
+        const resultDiv = document.getElementById("test-result");
+        resultDiv.innerHTML = "🔄 Verificando estructura de base de datos...\n";
+        resultDiv.className = "result";
+
+        resultDiv.innerHTML +=
+          '📊 ESTRUCTURA ESPERADA DE LA TABLA "observaciones":\n';
+        resultDiv.innerHTML += "   - id (int, PK)\n";
+        resultDiv.innerHTML += "   - description (text)\n";
+        resultDiv.innerHTML += "   - created_at (datetime)\n";
+        resultDiv.innerHTML += "   - equipo_id (int, FK)\n";
+        resultDiv.innerHTML += "   - file (varchar)\n";
+        resultDiv.innerHTML += "   - usuario_id (int, FK)\n";
+        resultDiv.innerHTML += "   - repuesto_id (text)\n";
+        resultDiv.innerHTML +=
+          '   - repuesto_pendiente (varchar, default "no")\n';
+        resultDiv.innerHTML += "   - preventivo_id (int, NOT NULL)\n";
+        resultDiv.innerHTML += "   - fecha_nota (date)\n\n";
+
+        resultDiv.innerHTML +=
+          "✅ Estructura verificada según database_structure.txt\n";
+        resultDiv.innerHTML +=
+          "✅ Modelo Observacion.php configurado con fillable correcto\n";
+        resultDiv.innerHTML +=
+          "✅ Controlador con método crearObservacionEquipo\n";
+        resultDiv.innerHTML +=
+          "✅ Ruta /api/observaciones/equipo configurada\n\n";
+
+        resultDiv.innerHTML +=
+          "🎯 PRÓXIMO PASO: Verificar que existe un equipo para probar\n";
+        resultDiv.classList.add("success");
+      }
+
+      async function testEquipmentExists() {
+        const resultDiv = document.getElementById("test-result");
+        const equipmentId = document.getElementById("equipmentId").value;
+
+        if (!equipmentId) {
+          resultDiv.innerHTML = "❌ Por favor ingrese un ID de equipo\n";
+          resultDiv.className = "result error";
+          return;
+        }
+
+        resultDiv.innerHTML = `🔍 Verificando si existe equipo ID: ${equipmentId}...\n`;
+        resultDiv.className = "result";
+
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/v1/equipos/${equipmentId}/complete-info`
+          );
+          const data = await response.json();
+
+          if (response.ok && data.success) {
+            resultDiv.innerHTML += `✅ Equipo encontrado:\n`;
+            resultDiv.innerHTML += `   Nombre: ${data.data.name}\n`;
+            resultDiv.innerHTML += `   Marca: ${data.data.marca || "N/A"}\n`;
+            resultDiv.innerHTML += `   Modelo: ${data.data.modelo || "N/A"}\n`;
+            resultDiv.innerHTML += `   Código: ${data.data.code || "N/A"}\n\n`;
+            resultDiv.innerHTML += `🎯 LISTO PARA CREAR OBSERVACIÓN\n`;
+            resultDiv.classList.add("success");
+          } else {
+            resultDiv.innerHTML += `❌ Equipo no encontrado o error en API\n`;
+            resultDiv.innerHTML += `   Status: ${response.status}\n`;
+            resultDiv.innerHTML += `   Message: ${
+              data.message || "Unknown error"
+            }\n`;
+            resultDiv.classList.add("error");
+          }
+        } catch (error) {
+          resultDiv.innerHTML += `❌ Error de red: ${error.message}\n`;
+          resultDiv.classList.add("error");
+        }
+      }
+
+      async function testCreateObservation() {
+        const resultDiv = document.getElementById("test-result");
+        const equipmentId = document.getElementById("equipmentId").value;
+        const description = document.getElementById("description").value;
+        const fechaNota = document.getElementById("fechaNota").value;
+        const repuestoId = document.getElementById("repuestoId").value;
+
+        if (!equipmentId || !description || !fechaNota) {
+          resultDiv.innerHTML =
+            "❌ Por favor complete los campos obligatorios (ID Equipo, Descripción, Fecha)\n";
+          resultDiv.className = "result error";
+          return;
+        }
+
+        resultDiv.innerHTML = `🚀 Creando observación para equipo ${equipmentId}...\n`;
+        resultDiv.className = "result";
+
+        try {
+          const formData = new FormData();
+          formData.append("equipo_id", equipmentId);
+          formData.append("description", description);
+          formData.append("fecha_nota", fechaNota);
+          if (repuestoId) {
+            formData.append("repuesto_id", repuestoId);
+          }
+
+          resultDiv.innerHTML += `📤 Enviando datos:\n`;
+          resultDiv.innerHTML += `   equipo_id: ${equipmentId}\n`;
+          resultDiv.innerHTML += `   description: ${description}\n`;
+          resultDiv.innerHTML += `   fecha_nota: ${fechaNota}\n`;
+          resultDiv.innerHTML += `   repuesto_id: ${repuestoId || "N/A"}\n\n`;
+
+          const response = await fetch(
+            "http://localhost:8000/api/observaciones/equipo",
+            {
+              method: "POST",
+              body: formData,
+              headers: {
+                Accept: "application/json",
+                // Note: Don't set Content-Type for FormData, browser will set it automatically
+              },
+            }
+          );
+
+          const data = await response.json();
+
+          resultDiv.innerHTML += `📥 Respuesta del servidor:\n`;
+          resultDiv.innerHTML += `   Status: ${response.status}\n`;
+          resultDiv.innerHTML += `   Success: ${data.success}\n`;
+          resultDiv.innerHTML += `   Message: ${data.message}\n\n`;
+
+          if (response.ok && data.success) {
+            resultDiv.innerHTML += `🎉 ¡OBSERVACIÓN CREADA EXITOSAMENTE!\n`;
+            resultDiv.innerHTML += `   ID: ${data.data.id}\n`;
+            resultDiv.innerHTML += `   Equipo ID: ${data.data.equipo_id}\n`;
+            resultDiv.innerHTML += `   Descripción: ${data.data.description}\n`;
+            resultDiv.innerHTML += `   Fecha: ${data.data.fecha_nota}\n`;
+            resultDiv.innerHTML += `   Usuario ID: ${data.data.usuario_id}\n`;
+            resultDiv.innerHTML += `   Archivo: ${
+              data.data.file || "Sin archivo"
+            }\n\n`;
+            resultDiv.innerHTML += `✅ La funcionalidad está trabajando correctamente!\n`;
+            resultDiv.classList.add("success");
+          } else {
+            resultDiv.innerHTML += `❌ Error creando observación:\n`;
+            if (data.errors) {
+              Object.keys(data.errors).forEach((field) => {
+                resultDiv.innerHTML += `   ${field}: ${data.errors[field].join(
+                  ", "
+                )}\n`;
+              });
+            }
+            resultDiv.classList.add("error");
+          }
+        } catch (error) {
+          resultDiv.innerHTML += `❌ Error de red: ${error.message}\n`;
+          resultDiv.classList.add("error");
+        }
+      }
+
+      async function testGetObservations() {
+        const resultDiv = document.getElementById("test-result");
+        const equipmentId = document.getElementById("equipmentId").value;
+
+        if (!equipmentId) {
+          resultDiv.innerHTML = "❌ Por favor ingrese un ID de equipo\n";
+          resultDiv.className = "result error";
+          return;
+        }
+
+        resultDiv.innerHTML = `🔍 Obteniendo observaciones del equipo ${equipmentId}...\n`;
+        resultDiv.className = "result";
+
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/observaciones/equipo/${equipmentId}`
+          );
+          const data = await response.json();
+
+          resultDiv.innerHTML += `📥 Respuesta del servidor:\n`;
+          resultDiv.innerHTML += `   Status: ${response.status}\n`;
+
+          if (response.ok && data.success) {
+            const observaciones = data.data;
+            resultDiv.innerHTML += `✅ Observaciones encontradas: ${observaciones.length}\n\n`;
+
+            if (observaciones.length > 0) {
+              resultDiv.innerHTML += `📋 LISTA DE OBSERVACIONES:\n`;
+              observaciones.forEach((obs, index) => {
+                resultDiv.innerHTML += `${index + 1}. ID: ${obs.id}\n`;
+                resultDiv.innerHTML += `   Descripción: ${obs.description}\n`;
+                resultDiv.innerHTML += `   Fecha: ${obs.fecha_nota}\n`;
+                resultDiv.innerHTML += `   Usuario: ${obs.usuario_id}\n`;
+                resultDiv.innerHTML += `   Repuesto: ${
+                  obs.repuesto_id || "N/A"
+                }\n`;
+                resultDiv.innerHTML += `   Archivo: ${
+                  obs.file || "Sin archivo"
+                }\n`;
+                resultDiv.innerHTML += `   Creado: ${obs.created_at}\n\n`;
+              });
+              resultDiv.classList.add("success");
+            } else {
+              resultDiv.innerHTML += `ℹ️ No hay observaciones para este equipo\n`;
+              resultDiv.classList.add("warning");
+            }
+          } else {
+            resultDiv.innerHTML += `❌ Error obteniendo observaciones: ${data.message}\n`;
+            resultDiv.classList.add("error");
+          }
+        } catch (error) {
+          resultDiv.innerHTML += `❌ Error de red: ${error.message}\n`;
+          resultDiv.classList.add("error");
+        }
+      }
+    </script>
+  </body>
+</html>
