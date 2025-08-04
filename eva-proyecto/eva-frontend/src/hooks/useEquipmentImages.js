@@ -90,6 +90,22 @@ export const useEquipmentImages = () => {
   }, []);
 
   /**
+   * Limpiar cache de un equipo específico
+   */
+  const clearEquipmentImageCache = useCallback((equipmentId) => {
+    setImageCache((prev) => {
+      const newCache = new Map(prev);
+      newCache.delete(equipmentId);
+      return newCache;
+    });
+    setLoadingImages((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(equipmentId);
+      return newSet;
+    });
+  }, []);
+
+  /**
    * Obtener imagen desde cache (síncrono)
    */
   const getCachedImage = useCallback(
@@ -113,6 +129,7 @@ export const useEquipmentImages = () => {
     getEquipmentImage,
     preloadImages,
     clearImageCache,
+    clearEquipmentImageCache,
     getCachedImage,
     isImageLoading,
     imageCache: imageCache,

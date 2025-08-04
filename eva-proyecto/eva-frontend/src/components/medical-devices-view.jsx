@@ -1175,7 +1175,11 @@ export function MedicalDevicesView() {
         onFiltersClear={handleClearFilters}
         currentFilters={appliedFilters}
       />
-      <AddEquipmentModal open={addModalOpen} onOpenChange={setAddModalOpen} />
+      <AddEquipmentModal
+        open={addModalOpen}
+        onOpenChange={setAddModalOpen}
+        onEquipmentAdded={refreshDevices}
+      />
       <CleanNamesModal
         open={cleanNamesModalOpen}
         onOpenChange={setCleanNamesModalOpen}

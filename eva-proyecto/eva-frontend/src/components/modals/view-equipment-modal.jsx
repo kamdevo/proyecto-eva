@@ -20,34 +20,40 @@ import {
   DollarSign,
   User,
   AlertCircle,
-  Info
+  Info,
 } from "lucide-react";
-import { usePDF } from '@react-pdf/renderer';
-import { EquipmentLifecyclePDFRobust } from '../pdf/equipment-lifecycle-pdf-robust';
-import { MinimalTestPDF } from '../pdf/minimal-test-pdf';
-import { toast } from 'sonner';
-import httpService from '@/services/httpService';
+import { usePDF } from "@react-pdf/renderer";
+import { EquipmentLifecyclePDFRobust } from "../pdf/equipment-lifecycle-pdf-robust";
+import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
+import { toast } from "sonner";
+import httpService from "@/services/httpService";
 
 export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
   const [equipmentDetails, setEquipmentDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   // PDF generation hook - switch between components for testing
   // Use MinimalTestPDF for basic testing, EquipmentLifecyclePDFRobust for full functionality
   const [instance, updateInstance] = usePDF({
-    document: equipmentDetails ? <EquipmentLifecyclePDFRobust equipment={equipmentDetails} /> : null
+    document: equipmentDetails ? (
+      <EquipmentLifecyclePDFRobust equipment={equipmentDetails} />
+    ) : null,
     // document: equipmentDetails ? <MinimalTestPDF equipment={equipmentDetails} /> : null  // For testing
   });
 
   // Define fetchEquipmentDetailsPublic function first
   const fetchEquipmentDetailsPublic = async (equipmentId) => {
-    const response = await fetch(`http://localhost:8000/api/v1/equipos/${equipmentId}/complete-info`, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `http://localhost:8000/api/v1/equipos/${equipmentId}/complete-info`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       }
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -58,7 +64,7 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
     if (data.success) {
       setEquipmentDetails(data.data);
     } else {
-      throw new Error(data.message || 'Error al obtener datos del equipo');
+      throw new Error(data.message || "Error al obtener datos del equipo");
     }
   };
 
@@ -69,29 +75,34 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
 
     try {
       // Try authenticated request first
-      const authToken = localStorage.getItem('eva_auth_token') || localStorage.getItem('auth_token');
+      const authToken =
+        localStorage.getItem("eva_auth_token") ||
+        localStorage.getItem("auth_token");
 
       if (authToken) {
         try {
-          const response = await httpService.get(`/v1/equipos/${equipmentId}/complete-info`);
+          const response = await httpService.get(
+            `/v1/equipos/${equipmentId}/complete-info`
+          );
           if (response.data?.success) {
             setEquipmentDetails(response.data.data);
             return;
           }
         } catch (authError) {
           if (authError.response?.status === 401) {
-            toast.error('Error de autenticación. Intentando endpoint público...');
+            toast.error(
+              "Error de autenticación. Intentando endpoint público..."
+            );
           }
         }
       }
 
       // Fallback to public endpoint
       await fetchEquipmentDetailsPublic(equipmentId);
-
     } catch (err) {
-      console.error('Error fetching equipment details:', err);
-      setError('Error al cargar los detalles del equipo');
-      toast.error('Error al cargar los detalles del equipo');
+      console.error("Error fetching equipment details:", err);
+      setError("Error al cargar los detalles del equipo");
+      toast.error("Error al cargar los detalles del equipo");
     } finally {
       setLoading(false);
     }
@@ -100,6 +111,7 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
   // Fetch complete equipment information when modal opens
   useEffect(() => {
     if (open && equipment?.id) {
+      setImageError(false); // Reset image error state
       fetchEquipmentDetails(equipment.id);
     }
   }, [open, equipment?.id, fetchEquipmentDetails]);
@@ -107,7 +119,9 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
   // Update PDF when equipment details change
   useEffect(() => {
     if (equipmentDetails) {
-      updateInstance(<EquipmentLifecyclePDFRobust equipment={equipmentDetails} />);
+      updateInstance(
+        <EquipmentLifecyclePDFRobust equipment={equipmentDetails} />
+      );
       // updateInstance(<MinimalTestPDF equipment={equipmentDetails} />);  // For testing
     }
   }, [equipmentDetails, updateInstance]);
@@ -115,22 +129,24 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
   // Handle PDF download
   const handleDownloadPDF = () => {
     if (instance.url) {
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = instance.url;
-      link.download = `equipo_${equipmentDetails?.code || equipment?.id}_reporte.pdf`;
+      link.download = `equipo_${
+        equipmentDetails?.code || equipment?.id
+      }_reporte.pdf`;
       link.click();
-      toast.success('Reporte PDF descargado exitosamente');
+      toast.success("Reporte PDF descargado exitosamente");
     } else {
-      toast.error('Error al generar el PDF. Intente nuevamente.');
+      toast.error("Error al generar el PDF. Intente nuevamente.");
     }
   };
 
   // Enhanced safe value function with better data handling
-  const safeValue = (value, fallback = 'No disponible') => {
-    if (value === null || value === undefined || value === '') return fallback;
-    if (value === 0) return '0'; // Handle zero values properly
-    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
-    if (typeof value === 'object' && value !== null) {
+  const safeValue = (value, fallback = "No disponible") => {
+    if (value === null || value === undefined || value === "") return fallback;
+    if (value === 0) return "0"; // Handle zero values properly
+    if (typeof value === "boolean") return value ? "Sí" : "No";
+    if (typeof value === "object" && value !== null) {
       if (value.name) return value.name;
       if (value.nombre) return value.nombre;
       return JSON.stringify(value);
@@ -139,35 +155,32 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
   };
 
   // Enhanced date formatting with better error handling
-  const formatDate = (date, fallback = 'No disponible') => {
-    if (!date || date === null || date === undefined || date === '') return fallback;
+  const formatDate = (date, fallback = "No disponible") => {
+    if (!date || date === null || date === undefined || date === "")
+      return fallback;
     try {
       const dateObj = new Date(date);
       if (isNaN(dateObj.getTime())) return fallback;
-      return dateObj.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
+      return dateObj.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
     } catch {
       return fallback;
     }
   };
 
-
-
-
-
   // Calculate age function
   const calculateAge = (fabricationDate) => {
-    if (!fabricationDate) return 'No disponible';
+    if (!fabricationDate) return "No disponible";
     try {
       const today = new Date();
       const fabDate = new Date(fabricationDate);
       const years = today.getFullYear() - fabDate.getFullYear();
       return `${years} años`;
     } catch {
-      return 'No calculable';
+      return "No calculable";
     }
   };
 
@@ -187,7 +200,9 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                 <DialogTitle className="text-xl font-bold text-blue-700">
                   FORMATO DE HOJA DE VIDA PARA EQUIPOS BIOMÉDICOS
                 </DialogTitle>
-                <p className="text-sm text-gray-600">Hospital Universitario del Valle Evaristo García</p>
+                <p className="text-sm text-gray-600">
+                  Hospital Universitario del Valle Evaristo García
+                </p>
               </div>
             </div>
             <Button
@@ -196,7 +211,7 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               <Download className="h-4 w-4 mr-2" />
-              {instance.loading ? 'Generando...' : 'Descargar PDF'}
+              {instance.loading ? "Generando..." : "Descargar PDF"}
             </Button>
           </div>
         </DialogHeader>
@@ -204,7 +219,9 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
         {loading && (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-3 text-gray-600">Cargando información del equipo...</span>
+            <span className="ml-3 text-gray-600">
+              Cargando información del equipo...
+            </span>
           </div>
         )}
 
@@ -224,21 +241,20 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
               <div className="flex items-start gap-6">
                 <div className="w-32 h-24 bg-gray-200 rounded-lg flex items-center justify-center border-2 border-blue-200">
-                  {displayData.image ? (
+                  {displayData.image && !imageError ? (
                     <img
                       src={displayData.image_url || displayData.image}
                       alt={displayData.name}
                       className="w-full h-full object-cover rounded-lg"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
+                      onError={() => setImageError(true)}
+                      onLoad={() => setImageError(false)}
                     />
-                  ) : null}
-                  <div className="flex flex-col items-center text-gray-500">
-                    <FileText className="h-8 w-8 mb-1" />
-                    <span className="text-xs">Sin imagen</span>
-                  </div>
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-500">
+                      <FileText className="h-8 w-8 mb-1" />
+                      <span className="text-xs">Sin imagen</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold text-blue-800 mb-4">
@@ -246,47 +262,76 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <span className="text-sm font-semibold text-gray-600">ID del Equipo:</span>
+                      <span className="text-sm font-semibold text-gray-600">
+                        ID del Equipo:
+                      </span>
                       <Badge className="ml-2 bg-orange-100 text-orange-800">
                         {safeValue(displayData.id)}
                       </Badge>
                     </div>
                     <div>
-                      <span className="text-sm font-semibold text-gray-600">Código:</span>
+                      <span className="text-sm font-semibold text-gray-600">
+                        Código:
+                      </span>
                       <Badge className="ml-2 bg-blue-100 text-blue-800">
                         {safeValue(displayData.code)}
                       </Badge>
                     </div>
                     <div>
-                      <span className="text-sm font-semibold text-gray-600">Serie:</span>
-                      <span className="ml-2 text-sm">{safeValue(displayData.serial)}</span>
+                      <span className="text-sm font-semibold text-gray-600">
+                        Serie:
+                      </span>
+                      <span className="ml-2 text-sm">
+                        {safeValue(displayData.serial)}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-sm font-semibold text-gray-600">Estado:</span>
-                      <Badge className={`ml-2 ${
-                        displayData.estado_nombre?.toLowerCase().includes('operativo') || displayData.estado_nombre?.toLowerCase().includes('funcionando')
-                          ? 'bg-green-100 text-green-800'
-                          : displayData.estado_nombre?.toLowerCase().includes('mantenimiento')
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className="text-sm font-semibold text-gray-600">
+                        Estado:
+                      </span>
+                      <Badge
+                        className={`ml-2 ${
+                          displayData.estado_nombre
+                            ?.toLowerCase()
+                            .includes("operativo") ||
+                          displayData.estado_nombre
+                            ?.toLowerCase()
+                            .includes("funcionando")
+                            ? "bg-green-100 text-green-800"
+                            : displayData.estado_nombre
+                                ?.toLowerCase()
+                                .includes("mantenimiento")
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
                         {safeValue(displayData.estado_nombre)}
                       </Badge>
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-sm font-semibold text-gray-600">Marca:</span>
-                      <span className="ml-2 text-sm">{safeValue(displayData.marca)}</span>
+                      <span className="text-sm font-semibold text-gray-600">
+                        Marca:
+                      </span>
+                      <span className="ml-2 text-sm">
+                        {safeValue(displayData.marca)}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-sm font-semibold text-gray-600">Modelo:</span>
-                      <span className="ml-2 text-sm">{safeValue(displayData.modelo)}</span>
+                      <span className="text-sm font-semibold text-gray-600">
+                        Modelo:
+                      </span>
+                      <span className="ml-2 text-sm">
+                        {safeValue(displayData.modelo)}
+                      </span>
                     </div>
                   </div>
                   {displayData.descripcion && (
                     <div className="mt-4">
-                      <span className="text-sm font-semibold text-gray-600">Descripción:</span>
+                      <span className="text-sm font-semibold text-gray-600">
+                        Descripción:
+                      </span>
                       <p className="text-sm text-gray-700 mt-1 bg-white p-3 rounded border">
                         {displayData.descripcion}
                       </p>
@@ -313,7 +358,9 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">País de Origen:</span>
                     <span className="font-medium text-gray-800">
-                      {safeValue(displayData.propiedad || displayData.pais_origen)}
+                      {safeValue(
+                        displayData.propiedad || displayData.pais_origen
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -338,11 +385,13 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Movilidad:</span>
-                    <Badge className={`${
-                      displayData.movilidad?.toLowerCase() === 'movil'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <Badge
+                      className={`${
+                        displayData.movilidad?.toLowerCase() === "movil"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
                       {safeValue(displayData.movilidad)}
                     </Badge>
                   </div>
@@ -359,20 +408,30 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Clasificación Biomédica:</span>
+                    <span className="text-gray-600">
+                      Clasificación Biomédica:
+                    </span>
                     <Badge className="bg-purple-100 text-purple-800">
                       {safeValue(displayData.clasificacion_nombre)}
                     </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Clasificación de Riesgo:</span>
-                    <Badge className={`${
-                      displayData.riesgo_nombre?.toLowerCase().includes('alto')
-                        ? 'bg-red-100 text-red-800'
-                        : displayData.riesgo_nombre?.toLowerCase().includes('medio')
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
+                    <span className="text-gray-600">
+                      Clasificación de Riesgo:
+                    </span>
+                    <Badge
+                      className={`${
+                        displayData.riesgo_nombre
+                          ?.toLowerCase()
+                          .includes("alto")
+                          ? "bg-red-100 text-red-800"
+                          : displayData.riesgo_nombre
+                              ?.toLowerCase()
+                              .includes("medio")
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
                       {safeValue(displayData.riesgo_nombre)}
                     </Badge>
                   </div>
@@ -387,7 +446,7 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Archivos Disponibles:</span>
                     <Badge className="bg-blue-100 text-blue-800">
-                      {safeValue(displayData.cuenta_archivos, '0')} archivos
+                      {safeValue(displayData.cuenta_archivos, "0")} archivos
                     </Badge>
                   </div>
                 </div>
@@ -424,20 +483,28 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Piso:</span>
-                    <span className="text-gray-800">{safeValue(displayData.piso)}</span>
+                    <span className="text-gray-800">
+                      {safeValue(displayData.piso)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Sector:</span>
-                    <span className="text-gray-800">{safeValue(displayData.sector)}</span>
+                    <span className="text-gray-800">
+                      {safeValue(displayData.sector)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Localización Actual:</span>
-                    <span className="text-gray-800">{safeValue(displayData.localizacion_actual)}</span>
+                    <span className="text-gray-800">
+                      {safeValue(displayData.localizacion_actual)}
+                    </span>
                   </div>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <span className="text-sm font-semibold text-blue-800">Hospital:</span>
+                <span className="text-sm font-semibold text-blue-800">
+                  Hospital:
+                </span>
                 <p className="text-sm text-blue-700 mt-1">
                   Hospital Universitario del Valle Evaristo García
                 </p>
@@ -502,53 +569,89 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-700 text-sm">Fechas de Adquisición</h4>
+                  <h4 className="font-semibold text-gray-700 text-sm">
+                    Fechas de Adquisición
+                  </h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Fecha de Adquisición:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_ad)}</span>
+                      <span className="text-gray-600">
+                        Fecha de Adquisición:
+                      </span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_ad)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Recepción Almacén:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_recepcion_almacen)}</span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_recepcion_almacen)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Acta de Recibo:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_acta_recibo)}</span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_acta_recibo)}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-700 text-sm">Fechas Operativas</h4>
+                  <h4 className="font-semibold text-gray-700 text-sm">
+                    Fechas Operativas
+                  </h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Fecha de Instalación:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_instalacion)}</span>
+                      <span className="text-gray-600">
+                        Fecha de Instalación:
+                      </span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_instalacion)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Inicio de Operación:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_inicio_operacion)}</span>
+                      <span className="text-gray-600">
+                        Inicio de Operación:
+                      </span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_inicio_operacion)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Entrega al Servicio:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_entrega_servicio)}</span>
+                      <span className="text-gray-600">
+                        Entrega al Servicio:
+                      </span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_entrega_servicio)}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-700 text-sm">Fechas de Mantenimiento</h4>
+                  <h4 className="font-semibold text-gray-700 text-sm">
+                    Fechas de Mantenimiento
+                  </h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Último Mantenimiento:</span>
-                      <span className="text-gray-800">{formatDate(displayData.ultimo_mantenimiento)}</span>
+                      <span className="text-gray-600">
+                        Último Mantenimiento:
+                      </span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.ultimo_mantenimiento)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Última Calibración:</span>
-                      <span className="text-gray-800">{formatDate(displayData.ultima_calibracion)}</span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.ultima_calibracion)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Fecha de Mantenimiento:</span>
-                      <span className="text-gray-800">{formatDate(displayData.fecha_mantenimiento)}</span>
+                      <span className="text-gray-600">
+                        Fecha de Mantenimiento:
+                      </span>
+                      <span className="text-gray-800">
+                        {formatDate(displayData.fecha_mantenimiento)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -565,33 +668,44 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Requiere Calibración:</span>
-                    <Badge className={`${
-                      displayData.calibracion?.toLowerCase() === 'si'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
+                    <Badge
+                      className={`${
+                        displayData.calibracion?.toLowerCase() === "si"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
                       {safeValue(displayData.calibracion)}
                     </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Evaluación Desempeño:</span>
-                    <Badge className={`${
-                      displayData.evaluacion_desempenio?.toLowerCase() === 'si'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <Badge
+                      className={`${
+                        displayData.evaluacion_desempenio?.toLowerCase() ===
+                        "si"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
                       {safeValue(displayData.evaluacion_desempenio)}
                     </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Verificación Inventario:</span>
-                    <Badge className={`${
-                      displayData.verificacion_inventario?.toLowerCase() === 'verificado'
-                        ? 'bg-green-100 text-green-800'
-                        : displayData.verificacion_inventario?.toLowerCase() === 'nuevo'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
+                    <span className="text-gray-600">
+                      Verificación Inventario:
+                    </span>
+                    <Badge
+                      className={`${
+                        displayData.verificacion_inventario?.toLowerCase() ===
+                        "verificado"
+                          ? "bg-green-100 text-green-800"
+                          : displayData.verificacion_inventario?.toLowerCase() ===
+                            "nuevo"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
                       {safeValue(displayData.verificacion_inventario)}
                     </Badge>
                   </div>
@@ -599,12 +713,14 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Status del Registro:</span>
-                    <Badge className={`${
-                      displayData.status
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {displayData.status ? 'Activo' : 'Inactivo'}
+                    <Badge
+                      className={`${
+                        displayData.status
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {displayData.status ? "Activo" : "Inactivo"}
                     </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -614,7 +730,9 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Plan de Mantenimiento:</span>
+                    <span className="text-gray-600">
+                      Plan de Mantenimiento:
+                    </span>
                     <span className="font-medium text-gray-800">
                       {safeValue(displayData.plan)}
                     </span>
@@ -661,8 +779,12 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
               </div>
               {displayData.observacion && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm font-semibold text-gray-700">Observaciones:</span>
-                  <p className="text-sm text-gray-600 mt-1">{displayData.observacion}</p>
+                  <span className="text-sm font-semibold text-gray-700">
+                    Observaciones:
+                  </span>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {displayData.observacion}
+                  </p>
                 </div>
               )}
             </div>
@@ -678,19 +800,19 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Archivos Disponibles:</span>
                     <Badge className="bg-blue-100 text-blue-800">
-                      {safeValue(displayData.cuenta_archivos, '0')} archivos
+                      {safeValue(displayData.cuenta_archivos, "0")} archivos
                     </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Manual Técnico:</span>
                     <span className="font-medium text-gray-800">
-                      {displayData.manual ? 'Disponible' : 'No disponible'}
+                      {displayData.manual ? "Disponible" : "No disponible"}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Planos Técnicos:</span>
                     <span className="font-medium text-gray-800">
-                      {displayData.plano ? 'Disponible' : 'No disponible'}
+                      {displayData.plano ? "Disponible" : "No disponible"}
                     </span>
                   </div>
                 </div>
@@ -698,13 +820,15 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Archivo Excel:</span>
                     <span className="font-medium text-gray-800">
-                      {displayData.file ? 'Disponible' : 'No disponible'}
+                      {displayData.file ? "Disponible" : "No disponible"}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Archivo INVIMA:</span>
                     <span className="font-medium text-gray-800">
-                      {displayData.archivo_registro_sanitario ? 'Disponible' : 'No disponible'}
+                      {displayData.archivo_registro_sanitario
+                        ? "Disponible"
+                        : "No disponible"}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -726,23 +850,29 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-white rounded-lg shadow-sm">
                   <div className="text-2xl mb-2">📊</div>
-                  <h4 className="font-semibold text-gray-800">Estado General</h4>
+                  <h4 className="font-semibold text-gray-800">
+                    Estado General
+                  </h4>
                   <p className="text-sm text-gray-600 mt-2">
-                    {displayData.status ? 'Sistema Activo' : 'Sistema Inactivo'}
+                    {displayData.status ? "Sistema Activo" : "Sistema Inactivo"}
                   </p>
                 </div>
                 <div className="text-center p-4 bg-white rounded-lg shadow-sm">
                   <div className="text-2xl mb-2">🔧</div>
                   <h4 className="font-semibold text-gray-800">Mantenimiento</h4>
                   <p className="text-sm text-gray-600 mt-2">
-                    {displayData.ultimo_mantenimiento ? 'Registrado' : 'Sin registros'}
+                    {displayData.ultimo_mantenimiento
+                      ? "Registrado"
+                      : "Sin registros"}
                   </p>
                 </div>
                 <div className="text-center p-4 bg-white rounded-lg shadow-sm">
                   <div className="text-2xl mb-2">📋</div>
                   <h4 className="font-semibold text-gray-800">Documentación</h4>
                   <p className="text-sm text-gray-600 mt-2">
-                    {parseInt(displayData.cuenta_archivos || 0) > 0 ? 'Completa' : 'Incompleta'}
+                    {parseInt(displayData.cuenta_archivos || 0) > 0
+                      ? "Completa"
+                      : "Incompleta"}
                   </p>
                 </div>
               </div>
@@ -757,7 +887,8 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
                     Modo Solo Lectura
                   </h4>
                   <p className="text-sm text-yellow-700">
-                    Esta vista es de solo consulta. Los datos se obtienen directamente de la base de datos del sistema EVA.
+                    Esta vista es de solo consulta. Los datos se obtienen
+                    directamente de la base de datos del sistema EVA.
                   </p>
                 </div>
               </div>

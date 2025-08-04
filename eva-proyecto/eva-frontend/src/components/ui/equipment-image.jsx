@@ -15,29 +15,49 @@ export const EquipmentImage = ({
   fallbackImage = notFoundImg,
   ...props
 }) => {
-  const { getEquipmentImage, getCachedImage, isImageLoading } = useEquipmentImages();
+  const {
+    getEquipmentImage,
+    getCachedImage,
+    isImageLoading,
+    clearEquipmentImageCache,
+  } = useEquipmentImages();
   const [imageUrl, setImageUrl] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Debug: Log solo para equipos nuevos o con problemas
+    if (
+      equipmentId &&
+      equipmentData &&
+      !equipmentData.image &&
+      equipmentData.hasImage
+    ) {
+      console.warn(
+        `EquipmentImage [ID: ${equipmentId}]: hasImage=true but no image URL`,
+        equipmentData
+      );
+    }
+
     // Si se proporciona equipmentData directamente, usar esa información
-    if (equipmentData && equipmentData.image) {
-      setImageUrl(equipmentData.image);
-      setLoading(false);
-      setImageError(false);
-      return;
+    if (equipmentData) {
+      if (equipmentData.image) {
+        // Hay imagen, usarla directamente
+        setImageUrl(equipmentData.image);
+        setLoading(false);
+        setImageError(false);
+        return;
+      } else if (equipmentData.hasImage === false) {
+        // Explícitamente marcado como sin imagen
+        setImageUrl(null);
+        setLoading(false);
+        setImageError(false);
+        return;
+      }
+      // Si equipmentData existe pero no tiene image ni hasImage definido, continuar con el flujo normal
     }
 
-    // Si se proporciona equipmentData pero no tiene imagen, no cargar
-    if (equipmentData && !equipmentData.hasImage) {
-      setImageUrl(null);
-      setLoading(false);
-      setImageError(false);
-      return;
-    }
-
-    // Fallback al método original si no hay equipmentData
+    // Fallback al método original si no hay equipmentData o no tiene información de imagen
     if (!equipmentId) return;
 
     // Verificar si ya está en cache
@@ -63,7 +83,7 @@ export const EquipmentImage = ({
         const url = await getEquipmentImage(equipmentId);
         setImageUrl(url);
       } catch (error) {
-        console.error('Error loading equipment image:', error);
+        console.error("Error loading equipment image:", error);
         setImageError(true);
       } finally {
         setLoading(false);
@@ -71,7 +91,13 @@ export const EquipmentImage = ({
     };
 
     loadImage();
-  }, [equipmentId, equipmentData, getEquipmentImage, getCachedImage, isImageLoading]);
+  }, [
+    equipmentId,
+    equipmentData,
+    getEquipmentImage,
+    getCachedImage,
+    isImageLoading,
+  ]);
 
   const handleImageError = () => {
     setImageError(true);
@@ -82,10 +108,23 @@ export const EquipmentImage = ({
     setImageError(false);
   };
 
+  // Función para forzar recarga de imagen (útil cuando se actualiza un equipo)
+  const forceReload = () => {
+    if (equipmentId) {
+      clearEquipmentImageCache(equipmentId);
+      setImageUrl(null);
+      setImageError(false);
+      setLoading(true);
+    }
+  };
+
   // Mostrar loader mientras carga
   if (loading && showLoader) {
     return (
-      <div className={`bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 ${className}`} {...props}>
+      <div
+        className={`bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 ${className}`}
+        {...props}
+      >
         <Loader2 className="h-8 w-8 text-teal-600 animate-spin" />
       </div>
     );
@@ -94,7 +133,10 @@ export const EquipmentImage = ({
   // Mostrar imagen si existe y no hay error
   if (imageUrl && !imageError) {
     return (
-      <div className={`bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden ${className}`} {...props}>
+      <div
+        className={`bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden ${className}`}
+        {...props}
+      >
         <img
           src={imageUrl}
           alt={equipmentName}
@@ -108,7 +150,10 @@ export const EquipmentImage = ({
 
   // Mostrar imagen por defecto o placeholder
   return (
-    <div className={`bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden ${className}`} {...props}>
+    <div
+      className={`bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden ${className}`}
+      {...props}
+    >
       {fallbackImage ? (
         <img
           src={fallbackImage}
