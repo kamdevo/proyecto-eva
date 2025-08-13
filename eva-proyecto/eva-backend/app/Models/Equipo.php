@@ -145,8 +145,7 @@ class Equipo extends Model
         'guia_id',
         'manual_id',
         'necesidad_id',
-        'disponibilidad_id',
-        'usuario_id'
+        'disponibilidad_id'
     ];
 
     /**
@@ -220,7 +219,6 @@ class Equipo extends Model
         'manual_id' => 'integer',
         'necesidad_id' => 'integer',
         'disponibilidad_id' => 'integer',
-        'usuario_id' => 'integer',
         
         // Timestamps del sistema
         'created_at' => 'datetime',

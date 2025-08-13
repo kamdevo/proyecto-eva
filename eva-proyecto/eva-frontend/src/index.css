@@ -118,3 +118,47 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Estilos específicos para el select de INVIMA */
+[data-radix-select-content] {
+  max-width: 500px !important;
+  width: auto !important;
+}
+
+[data-radix-select-item] {
+  max-width: 480px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Contenedor del select INVIMA */
+.invima-select-container {
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.invima-select-trigger {
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.invima-select-trigger [data-radix-select-value] {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 24px) !important;
+}
+
+/* Estilos específicos solo para modales de documentos */
+.document-modal-wide {
+  width: 85vw !important;
+  max-width: 1200px !important;
+  height: 85vh !important;
+}
+
+.document-upload-modal-wide {
+  width: 80vw !important;
+  max-width: 1024px !important;
+  height: 85vh !important;
+}

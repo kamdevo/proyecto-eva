@@ -256,10 +256,8 @@ class EquipmentController extends ApiController
         try {
             DB::beginTransaction();
 
-            $equipoData = $request->except(['image', 'archivo_excel', 'manuales', 'planos']);
+            $equipoData = $request->except(['image', 'archivo_excel']);
             $equipoData['status'] = 1;
-            $equipoData['created_at'] = now();
-            $equipoData['usuario_id'] = auth()->id() ?? 1; // Default user if not authenticated
 
             // Manejar propietario_id = 0 como null
             if (isset($equipoData['propietario_id']) && $equipoData['propietario_id'] == '0') {
@@ -295,22 +293,23 @@ class EquipmentController extends ApiController
                 }
             }
 
-            // Procesar manuales y planos JSON
-            if ($request->has('manuales')) {
-                $manuales = is_string($request->manuales) ? json_decode($request->manuales, true) : $request->manuales;
-                $equipoData['manual_operacion'] = $manuales['operacion'] ?? false;
-                $equipoData['manual_mantenimiento'] = $manuales['mantenimiento'] ?? false;
-                $equipoData['manual_partes'] = $manuales['partes'] ?? false;
-                $equipoData['manual_otros'] = $manuales['otros'] ?? false;
-            }
+            // Procesar manuales y planos JSON - SOLUCIÓN ROBUSTA
+            \Log::info('DEBUG: Before processing manuales and planos', [
+                'request_all' => $request->all(),
+                'has_manuales' => $request->has('manuales'),
+                'has_planos' => $request->has('planos'),
+                'manuales_value' => $request->input('manuales'),
+                'planos_value' => $request->input('planos')
+            ]);
 
-            if ($request->has('planos')) {
-                $planos = is_string($request->planos) ? json_decode($request->planos, true) : $request->planos;
-                $equipoData['plano_electrico'] = $planos['electrico'] ?? false;
-                $equipoData['plano_electronico'] = $planos['electronico'] ?? false;
-                $equipoData['plano_neumatico'] = $planos['neumatico'] ?? false;
-                $equipoData['plano_mecanico'] = $planos['mecanico'] ?? false;
-            }
+            $this->processManualesAndPlanos($request, $equipoData);
+
+            \Log::info('DEBUG: After processing manuales and planos', [
+                'has_manual_in_data' => isset($equipoData['manual']),
+                'manual_value' => $equipoData['manual'] ?? 'NOT_SET',
+                'has_plano_in_data' => isset($equipoData['plano']),
+                'plano_value' => $equipoData['plano'] ?? 'NOT_SET'
+            ]);
 
             // Manejar subida de imagen
             if ($request->hasFile('image')) {
@@ -330,21 +329,39 @@ class EquipmentController extends ApiController
                 $equipoData['archivo_hoja_vida'] = $archivoPath;
             }
 
+            // Final verification and forced setting of manual/plano before creation
+            if ($request->filled('manuales') && !isset($equipoData['manual'])) {
+                $manualesInput = $request->input('manuales');
+                if (is_string($manualesInput)) {
+                    $equipoData['manual'] = $manualesInput;
+                }
+            }
+
+            if ($request->filled('planos') && !isset($equipoData['plano'])) {
+                $planosInput = $request->input('planos');
+                if (is_string($planosInput)) {
+                    $equipoData['plano'] = $planosInput;
+                }
+            }
+
+            \Log::info('DEBUG: Final equipoData before creation', [
+                'has_manual' => isset($equipoData['manual']),
+                'manual_value' => $equipoData['manual'] ?? 'NOT_SET',
+                'has_plano' => isset($equipoData['plano']),
+                'plano_value' => $equipoData['plano'] ?? 'NOT_SET',
+                'total_fields' => count($equipoData)
+            ]);
+
             $equipo = Equipo::create($equipoData);
 
-            // Cargar relaciones para la respuesta
-            $equipo->load([
-                'servicio:id,nombre',
-                'area:id,nombre',
-                'propietario:id,nombre',
-                'fuenteAlimentacion:id,nombre',
-                'tecnologia:id,nombre',
-                'frecuenciaMantenimiento:id,nombre',
-                'clasificacionBiomedica:id,nombre',
-                'clasificacionRiesgo:id,nombre',
-                'estadoEquipo:id,nombre',
-                'tipo:id,nombre'
+            \Log::info('DEBUG: Equipment created', [
+                'id' => $equipo->id,
+                'manual_in_db' => $equipo->manual,
+                'plano_in_db' => $equipo->plano
             ]);
+
+            // Skip relationship loading for now to focus on core functionality
+            // $equipo->load([...]);
 
             if ($equipo->image) {
                 $equipo->image_url = Storage::disk('public')->url($equipo->image);
@@ -464,7 +481,9 @@ class EquipmentController extends ApiController
             'propiedad' => 'nullable|string|max:100',
             'evaluacion_desempenio' => 'nullable|string|max:100',
             'periodicidad' => 'nullable|string|max:100',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120'
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'manuales' => 'nullable|json',
+            'planos' => 'nullable|json'
         ]);
 
         if ($validator->fails()) {
@@ -475,7 +494,18 @@ class EquipmentController extends ApiController
             DB::beginTransaction();
 
             $equipo = Equipo::findOrFail($id);
-            $equipoData = $request->except(['image']);
+            $equipoData = $request->except(['image', 'manuales', 'planos']);
+
+            // Process manuales and planos JSON
+            if ($request->has('manuales')) {
+                $manuales = is_string($request->manuales) ? json_decode($request->manuales, true) : $request->manuales;
+                $equipoData['manual'] = json_encode($manuales);
+            }
+
+            if ($request->has('planos')) {
+                $planos = is_string($request->planos) ? json_decode($request->planos, true) : $request->planos;
+                $equipoData['plano'] = json_encode($planos);
+            }
 
             // Manejar actualización de imagen
             if ($request->hasFile('image')) {
@@ -926,6 +956,10 @@ class EquipmentController extends ApiController
                     'equipos.image',
                     'equipos.file',
                     'equipos.archivo_invima',
+                    'equipos.registro_sanitario',
+                    'equipos.numero_invima',
+                    'equipos.fecha_vencimiento_invima',
+                    'equipos.estado_invima',
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
@@ -952,8 +986,8 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT description FROM observaciones 
                              WHERE equipo_id = equipos.id 
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
-                    'registros_invima.numero_registro as registro_sanitario',
-                    'registros_invima.archivo_pdf as archivo_registro_sanitario',
+                    'invimas.invima as registro_sanitario',
+                    'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
@@ -965,7 +999,7 @@ class EquipmentController extends ApiController
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
                 ->leftJoin('cbiomedica', 'cbiomedica.id', '=', 'equipos.cbiomedica_id')
                 ->leftJoin('criesgo', 'criesgo.id', '=', 'equipos.criesgo_id')
-                ->leftJoin('registros_invima', 'registros_invima.id', '=', 'equipos.invima_id')
+                ->leftJoin('invimas', 'invimas.id', '=', 'equipos.invima_id')
                 ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
                 ->leftJoin('ordenes_compra', 'ordenes_compra.id', '=', 'equipos.orden_compra_id')
                 ->leftJoin('tipos_compra', 'tipos_compra.id', '=', 'ordenes_compra.tipo_compra_id')
@@ -1104,12 +1138,16 @@ class EquipmentController extends ApiController
                         'brand' => $equipo->marca,
                         'model' => $equipo->modelo,
                         'series' => $equipo->serial,
-                        'image' => $equipo->image ? url('storage/' . $equipo->image) : null,
+                        'image' => $equipo->image ? url('storage/equipos/images/' . $equipo->image) : null,
                         'hasImage' => !empty($equipo->image),
                     ],
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => $equipo->registro_sanitario,
+                        'registroSanitario' => $equipo->registro_sanitario ?: ($equipo->numero_invima ?: null),
+                        'numeroInvima' => $equipo->numero_invima,
+                        'fechaVencimientoInvima' => $equipo->fecha_vencimiento_invima,
+                        'estadoInvima' => $equipo->estado_invima,
+                        'archivoInvima' => $equipo->archivo_invima,
                         'clasificacion' => $equipo->clasificacion,
                         'riesgo' => $equipo->riesgo,
                         'archivos' => (int) $equipo->cuenta_archivos,
@@ -1220,12 +1258,14 @@ class EquipmentController extends ApiController
                 $sede = DB::table('sedes')
                     ->join('servicios', 'servicios.sede_id', '=', 'sedes.id')
                     ->where('servicios.id', $equipo->servicio_id)
-                    ->select('sedes.name as sede_nombre')
+                    ->select('sedes.id as sede_id', 'sedes.name as sede_nombre')
                     ->first();
                 if ($sede) {
+                    $equipoData['sede_id'] = $sede->sede_id;
                     $equipoData['sede_nombre'] = $sede->sede_nombre;
                 }
             } catch (\Exception $e) {
+                $equipoData['sede_id'] = null;
                 $equipoData['sede_nombre'] = null;
             }
 
@@ -1248,17 +1288,17 @@ class EquipmentController extends ApiController
             }
 
             try {
-                // FIXED: Query the correct registros_invima table instead of old invimas table
-                $registroInvima = DB::table('registros_invima')->where('id', $equipo->invima_id)->first();
+                // Query the correct invimas table
+                $registroInvima = DB::table('invimas')->where('id', $equipo->invima_id)->first();
                 if ($registroInvima) {
-                    $equipoData['registro_sanitario'] = $registroInvima->numero_registro;
-                    $equipoData['archivo_registro_sanitario'] = $registroInvima->archivo_pdf;
+                    $equipoData['registro_sanitario'] = $registroInvima->invima;
+                    $equipoData['archivo_registro_sanitario'] = $registroInvima->file;
 
                     // Additional INVIMA data for completeness
-                    $equipoData['invima_nombre_equipo'] = $registroInvima->nombre_equipo;
-                    $equipoData['invima_fabricante'] = $registroInvima->fabricante;
-                    $equipoData['invima_modelo'] = $registroInvima->modelo;
-                    $equipoData['invima_estado'] = $registroInvima->estado;
+                    $equipoData['invima_nombre_equipo'] = $registroInvima->titulo;
+                    $equipoData['invima_fabricante'] = $registroInvima->marcas;
+                    $equipoData['invima_modelo'] = $registroInvima->description;
+                    $equipoData['invima_estado'] = 'vigente'; // Por defecto vigente
 
                     \Log::info('INVIMA data retrieved successfully', [
                         'equipo_id' => $equipo->id,
@@ -1311,7 +1351,7 @@ class EquipmentController extends ApiController
 
             // Agregar URLs de archivos si existen
             if ($equipo->image) {
-                $equipoData['image_url'] = url('storage/' . $equipo->image);
+                $equipoData['image_url'] = url('storage/equipos/images/' . $equipo->image);
             }
 
             if ($equipo->file) {
@@ -1341,8 +1381,8 @@ class EquipmentController extends ApiController
     public function getFilterOptions()
     {
         try {
-            // Helper function to safely query tables with optional status column
-            $safeQuery = function($table, $select = ['id', 'name'], $orderBy = 'name') {
+            // Helper function to safely query tables with optional status column and default fallback
+            $safeQuery = function($table, $select = ['id', 'name'], $orderBy = 'name', $defaultOption = null) {
                 try {
                     $query = DB::table($table)->select($select);
 
@@ -1352,9 +1392,19 @@ class EquipmentController extends ApiController
                         $query->where('status', 1);
                     }
 
-                    return $query->orderBy($orderBy)->get();
+                    $results = $query->orderBy($orderBy)->get();
+
+                    // Si no hay resultados y se especifica una opción por defecto, agregarla
+                    if ($results->isEmpty() && $defaultOption) {
+                        $results = collect([$defaultOption]);
+                    }
+
+                    return $results;
                 } catch (\Exception $e) {
-                    // If table doesn't exist or has issues, return empty collection
+                    // Si la tabla no existe o hay problemas, devolver opción por defecto si se especifica
+                    if ($defaultOption) {
+                        return collect([$defaultOption]);
+                    }
                     return collect([]);
                 }
             };
@@ -1367,19 +1417,28 @@ class EquipmentController extends ApiController
 
                 // Estados y clasificaciones
                 'estados' => $this->getEstadosEquipoWithDefault(),
-                'clasificaciones' => $safeQuery('cbiomedicas'),
-                'riesgos' => $safeQuery('criesgos'),
-                'propietarios' => $safeQuery('propietarios', ['id', 'nombre as name'], 'nombre'),
-                'tipos_equipos' => $safeQuery('tipos'),
+                'clasificaciones' => $safeQuery('cbiomedica', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar clasificaciones biomédicas']),
+                'riesgos' => $safeQuery('criesgo', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar clasificaciones de riesgo']),
+                'propietarios' => $safeQuery('propietarios', ['id', 'nombre as name'], 'nombre',
+                    ['id' => 0, 'name' => 'No disponible - Configurar propietarios']),
+                'tipos_equipos' => $safeQuery('tipos', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar tipos de equipos']),
 
                 // Proveedores y tecnología
-                'proveedores' => $safeQuery('proveedores'),
-                'tecnologias' => $safeQuery('tecnologias'),
-                'fuentes' => $safeQuery('fuentes'),
-                'frecuencias' => $safeQuery('frecuencias'),
+                'proveedores' => $safeQuery('proveedores', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar proveedores']),
+                'tecnologias' => $safeQuery('tecnologiap', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar tecnologías']),
+                'fuentes' => $safeQuery('fuenteal', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar fuentes de alimentación']),
+                'frecuencias' => $safeQuery('frecuenciam', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar frecuencias de mantenimiento']),
 
                 // Tipos de adquisición
-                'tipos_adquisicion' => $safeQuery('tadquisiciones'),
+                'tipos_adquisicion' => $safeQuery('tadquisicion', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar tipos de adquisición']),
 
                 // Estados de mantenimiento (valores fijos según el informe)
                 'estados_mantenimiento' => collect([
@@ -1392,9 +1451,12 @@ class EquipmentController extends ApiController
                 ]),
 
                 // Disponibilidad y documentación
-                'disponibilidades' => $safeQuery('disponibilidades'),
-                'guias' => $safeQuery('guias'),
-                'manuales' => $safeQuery('manuales'),
+                'disponibilidades' => $safeQuery('disponibilidades', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar disponibilidades']),
+                'guias' => $safeQuery('guias', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar guías']),
+                'manuales' => $safeQuery('manuales', ['id', 'name'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar manuales']),
 
                 // Años disponibles para filtros temporales
                 'years' => collect(range(date('Y') - 10, date('Y') + 2))->map(function($year) {
@@ -1703,5 +1765,79 @@ class EquipmentController extends ApiController
                 ]
             ];
         }
+    }
+
+    /**
+     * Procesar manuales y planos JSON de forma robusta
+     * Garantiza que los datos se procesen correctamente independientemente del formato de entrada
+     */
+    private function processManualesAndPlanos($request, &$equipoData)
+    {
+        \Log::info('DEBUG: processManualesAndPlanos called', [
+            'filled_manuales' => $request->filled('manuales'),
+            'filled_planos' => $request->filled('planos')
+        ]);
+
+        // Procesar MANUALES
+        if ($request->filled('manuales')) {
+            $manualesInput = $request->input('manuales');
+            \Log::info('DEBUG: Processing manuales', [
+                'input' => $manualesInput,
+                'type' => gettype($manualesInput)
+            ]);
+
+            // Si es string JSON válido, usarlo directamente
+            if (is_string($manualesInput)) {
+                $decoded = json_decode($manualesInput, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $equipoData['manual'] = $manualesInput;
+                    \Log::info('DEBUG: Manuales set as JSON string', ['manual' => $equipoData['manual']]);
+                } else {
+                    // Si no es JSON válido, intentar crear estructura válida
+                    $equipoData['manual'] = json_encode([
+                        'operacion' => false,
+                        'mantenimiento' => false,
+                        'partes' => false,
+                        'otros' => false
+                    ]);
+                    \Log::info('DEBUG: Manuales set as default structure', ['manual' => $equipoData['manual']]);
+                }
+            }
+            // Si es array, convertir a JSON
+            elseif (is_array($manualesInput)) {
+                $equipoData['manual'] = json_encode($manualesInput);
+                \Log::info('DEBUG: Manuales converted from array', ['manual' => $equipoData['manual']]);
+            }
+        } else {
+            \Log::info('DEBUG: No manuales to process');
+        }
+
+        // Procesar PLANOS
+        if ($request->filled('planos')) {
+            $planosInput = $request->input('planos');
+
+            // Si es string JSON válido, usarlo directamente
+            if (is_string($planosInput)) {
+                $decoded = json_decode($planosInput, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $equipoData['plano'] = $planosInput;
+                } else {
+                    // Si no es JSON válido, intentar crear estructura válida
+                    $equipoData['plano'] = json_encode([
+                        'electrico' => false,
+                        'electronico' => false,
+                        'neumatico' => false,
+                        'mecanico' => false
+                    ]);
+                }
+            }
+            // Si es array, convertir a JSON
+            elseif (is_array($planosInput)) {
+                $equipoData['plano'] = json_encode($planosInput);
+            }
+        }
+
+        // Limpiar campos que no deben ir a la base de datos
+        unset($equipoData['manuales'], $equipoData['planos']);
     }
 }

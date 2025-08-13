@@ -32,160 +32,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
-import { usePDFSlick } from "@pdfslick/react";
-import "@pdfslick/react/dist/pdf_viewer.css";
+
 import axios from "axios";
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
-
-// Componente PDFViewer híbrido con PDFSlick y fallback iframe
-function PDFViewer({ src, className }) {
-  const containerRef = useRef(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [useFallback, setUseFallback] = useState(false);
-
-  // Debug: Log de la URL recibida
-  useEffect(() => {
-    console.log("🔍 PDFViewer - URL recibida:", src);
-    if (!src) {
-      setError("No se proporcionó URL del PDF");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setUseFallback(false);
-
-    // Timeout para detectar si PDFSlick no responde
-    const timeout = setTimeout(() => {
-      console.warn("⚠️ PDFSlick tardando más de 10 segundos, usando fallback");
-      setUseFallback(true);
-      setLoading(false);
-    }, 8000);
-
-    return () => clearTimeout(timeout);
-  }, [src]);
-
-  // Usar PDFSlick solo si no estamos en modo fallback
-  usePDFSlick({
-    src: useFallback ? null : src,
-    container: containerRef,
-    options: {
-      scaleValue: "page-fit",
-      spread: "none",
-      scrollMode: "vertical",
-    },
-  });
-
-  // Monitorear cuando el contenedor se llena (indicativo de que PDFSlick cargó)
-  useEffect(() => {
-    if (!containerRef.current || useFallback) return;
-
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-          console.log("📄 PDFSlick agregó elementos al contenedor");
-
-          // Buscar elementos específicos de PDFSlick
-          const pdfViewer = containerRef.current.querySelector(
-            ".pdfViewer, .pdf-viewer, [data-pdf-viewer], canvas"
-          );
-          if (pdfViewer) {
-            console.log("✅ Visor PDF detectado en DOM");
-            setLoading(false);
-            setError(null);
-          }
-        }
-      });
-    });
-
-    observer.observe(containerRef.current, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => observer.disconnect();
-  }, [src, useFallback]);
-
-  if (!src) {
-    return (
-      <div
-        className={`${className} flex items-center justify-center bg-gray-100`}
-      >
-        <div className="text-center text-gray-500">
-          <FileText className="h-12 w-12 mx-auto mb-2" />
-          <p>No se proporcionó URL del PDF</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className={`${className} flex items-center justify-center bg-red-50`}
-      >
-        <div className="text-center text-red-600">
-          <FileText className="h-12 w-12 mx-auto mb-2" />
-          <p className="font-medium">Error al cargar PDF</p>
-          <p className="text-sm mt-1">{error}</p>
-          <p className="text-xs mt-2 text-gray-500 break-all">URL: {src}</p>
-          <button
-            onClick={() => window.open(src, "_blank")}
-            className="mt-2 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-          >
-            Abrir en nueva pestaña
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`${className} relative`}>
-      {loading && !useFallback && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Cargando PDF...</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Inicializando visor avanzado...
-            </p>
-          </div>
-        </div>
-      )}
-
-      {useFallback ? (
-        <div className="h-full w-full">
-          <div className="bg-yellow-50 border border-yellow-200 p-2 mb-2 rounded text-xs text-yellow-800">
-            📄 Usando visor básico de PDF
-          </div>
-          <iframe
-            src={src}
-            className="w-full h-full border-0"
-            style={{ minHeight: "400px" }}
-            title="PDF Viewer"
-            onLoad={() => {
-              console.log("✅ PDF cargado en iframe");
-              setLoading(false);
-            }}
-            onError={() => {
-              console.error("❌ Error cargando PDF en iframe");
-              setError("Error al cargar PDF en visor básico");
-            }}
-          />
-        </div>
-      ) : (
-        <div
-          ref={containerRef}
-          className="h-full w-full"
-          style={{ minHeight: "400px" }}
-        />
-      )}
-    </div>
-  );
-}
 
 export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
   // Estado del formulario
@@ -290,9 +139,6 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
   const [loading, setLoading] = useState(false);
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
   const [errors, setErrors] = useState({});
-  const [previewFile, setPreviewFile] = useState(null);
-  const [previewType, setPreviewType] = useState(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [showInvimaModal, setShowInvimaModal] = useState(false);
 
   // Referencias para archivos
@@ -511,149 +357,6 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
     toast.success(`${validation.label} seleccionada correctamente`);
   };
 
-  // Función para previsualizar archivos
-  const handlePreviewFile = (file, type) => {
-    if (!file) return;
-
-    const fileURL = URL.createObjectURL(file);
-    setPreviewFile(fileURL);
-    setPreviewType(type);
-    setShowPreview(true);
-  };
-
-  // Función para cerrar preview
-  const closePreview = () => {
-    if (previewFile) {
-      URL.revokeObjectURL(previewFile);
-    }
-    setPreviewFile(null);
-    setPreviewType(null);
-    setShowPreview(false);
-  };
-
-  // Función para abrir PDF en nueva ventana
-  const openInNewWindow = () => {
-    if (!previewFile) {
-      toast.error("No hay documento para abrir");
-      return;
-    }
-
-    console.log("🔗 Abriendo PDF en nueva ventana:", previewFile);
-
-    try {
-      // Obtener información del registro para el título
-      let documentTitle = "Documento PDF";
-      if (previewType === "invima-pdf" && formData.invima) {
-        const registro = registrosInvima.find(
-          (r) => r.numero_registro === formData.invima
-        );
-        if (registro) {
-          documentTitle = `INVIMA: ${registro.numero_registro} - ${registro.nombre_equipo}`;
-        }
-      }
-
-      // Crear una nueva ventana optimizada para PDFs
-      const newWindow = window.open(
-        "",
-        "_blank",
-        "width=1400,height=900,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no"
-      );
-
-      if (newWindow) {
-        // Crear contenido HTML para la nueva ventana
-        newWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>${documentTitle}</title>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body {
-                  background: #f8fafc;
-                  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                  overflow: hidden;
-                }
-                .pdf-container {
-                  width: 100%;
-                  height: 100vh;
-                  background: white;
-                  border: none;
-                  display: block;
-                }
-                .loading {
-                  position: absolute;
-                  top: 50%;
-                  left: 50%;
-                  transform: translate(-50%, -50%);
-                  text-align: center;
-                  color: #6b7280;
-                  z-index: 1000;
-                }
-                .spinner {
-                  width: 40px;
-                  height: 40px;
-                  border: 4px solid #e5e7eb;
-                  border-top: 4px solid #3b82f6;
-                  border-radius: 50%;
-                  animation: spin 1s linear infinite;
-                  margin: 0 auto 16px;
-                }
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Cargando documento PDF...</p>
-              </div>
-              <iframe
-                src="${previewFile}"
-                class="pdf-container"
-                title="PDF Viewer"
-                onload="document.getElementById('loading').style.display='none'"
-                onerror="document.getElementById('loading').innerHTML='<p style=color:red>Error al cargar el PDF</p>'"
-              ></iframe>
-
-              <script>
-                // Ocultar loading después de 10 segundos como fallback
-                setTimeout(() => {
-                  const loading = document.getElementById('loading');
-                  if (loading) loading.style.display = 'none';
-                }, 10000);
-
-                // Manejar tecla ESC para cerrar
-                document.addEventListener('keydown', (e) => {
-                  if (e.key === 'Escape') window.close();
-                });
-              </script>
-            </body>
-          </html>
-        `);
-        newWindow.document.close();
-
-        // Enfocar la nueva ventana
-        newWindow.focus();
-
-        toast.success("📄 Documento abierto en nueva ventana", {
-          description:
-            "El PDF incluye controles nativos para descargar, imprimir y navegar",
-        });
-      } else {
-        toast.error("❌ No se pudo abrir nueva ventana", {
-          description: "Verifique que no esté bloqueada por el navegador",
-        });
-      }
-    } catch (error) {
-      console.error("Error al abrir nueva ventana:", error);
-      toast.error("Error al abrir el documento en nueva ventana");
-    }
-  };
-
   // Función para cargar registros INVIMA
   const loadRegistrosInvima = async () => {
     try {
@@ -752,14 +455,15 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
   const filteredRegistrosInvima = registrosInvima.filter((registro) => {
     if (!searchInvima.trim()) return true;
 
+    const searchTerm = searchInvima.toLowerCase();
+    const numeroRegistro = (registro.numero_registro || "").toLowerCase();
+    const nombreEquipo = (registro.nombre_equipo || "").toLowerCase();
+    const fabricante = (registro.fabricante || "").toLowerCase();
+
     return (
-      registro.numero_registro
-        .toLowerCase()
-        .includes(searchInvima.toLowerCase()) ||
-      registro.nombre_equipo
-        .toLowerCase()
-        .includes(searchInvima.toLowerCase()) ||
-      registro.fabricante.toLowerCase().includes(searchInvima.toLowerCase())
+      numeroRegistro.includes(searchTerm) ||
+      nombreEquipo.includes(searchTerm) ||
+      fabricante.includes(searchTerm)
     );
   });
 
@@ -810,53 +514,56 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
         archivo: registroSeleccionado.archivo_pdf,
       });
 
-      // Construir URL del archivo usando la ruta API con CORS
+      // Construir URL del archivo usando la ruta de storage directa
       const fileUrl = `${
         axios.defaults.baseURL || "http://localhost:8000"
-      }/api/v1/storage/${registroSeleccionado.archivo_pdf}`;
+      }/storage/invimas/${registroSeleccionado.archivo_pdf}`;
 
       console.log("🔗 URL construida:", fileUrl);
 
       // Mostrar loading
-      toast.loading("Cargando documento PDF...", { id: "load-invima-pdf" });
-
-      // Fetch del archivo PDF con headers apropiados
-      const response = await fetch(fileUrl, {
-        method: "GET",
-        headers: {
-          Accept: "application/pdf",
-          Origin: window.location.origin,
-        },
+      toast.loading("Abriendo ventana de impresión...", {
+        id: "load-invima-pdf",
       });
 
-      console.log("📡 Respuesta del servidor:", {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
+      console.log("🖨️ Abriendo PDF con ventana de impresión:", fileUrl);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      console.log("📄 Blob creado:", {
-        size: blob.size,
-        type: blob.type,
-      });
-
-      const pdfUrl = URL.createObjectURL(blob);
-      console.log("🔗 URL del blob:", pdfUrl);
-
-      // Configurar para preview con PDFSlick
-      setPreviewFile(pdfUrl);
-      setPreviewType("invima-pdf");
-      setShowPreview(true);
-
-      toast.success(
-        `Documento INVIMA cargado: ${registroSeleccionado.numero_registro}`,
-        { id: "load-invima-pdf" }
+      // Crear nueva ventana para PDF con auto-impresión
+      const newWindow = window.open(
+        "",
+        "_blank",
+        "width=1200,height=800,scrollbars=yes,resizable=yes"
       );
+
+      if (newWindow) {
+        // Crear HTML que carga el PDF y abre automáticamente la ventana de impresión
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>INVIMA ${registroSeleccionado.numero_registro}</title>
+              <meta charset="UTF-8">
+              <style>
+                body { margin: 0; padding: 0; }
+                iframe { width: 100%; height: 100vh; border: none; }
+              </style>
+            </head>
+            <body>
+              <iframe src="${fileUrl}" onload="setTimeout(() => window.print(), 1000)"></iframe>
+            </body>
+          </html>
+        `);
+        newWindow.document.close();
+
+        toast.success(
+          `Ventana de impresión abierta: ${registroSeleccionado.numero_registro}`,
+          { id: "load-invima-pdf" }
+        );
+      } else {
+        throw new Error(
+          "No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador."
+        );
+      }
     } catch (error) {
       console.error("❌ Error loading INVIMA PDF:", error);
       toast.error(`Error al cargar el documento PDF: ${error.message}`, {
@@ -1268,19 +975,31 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
                           Seleccionar Registro INVIMA:
                           <span className="text-destructive">*</span>
                         </Label>
-                        <div className="mt-1">
+                        <div className="mt-1 invima-select-container">
                           <Select
                             value={formData.invima}
                             onValueChange={handleInvimaSelection}
                           >
                             <SelectTrigger
-                              className={`h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
+                              className={`h-7 sm:h-8 md:h-9 text-xs sm:text-sm max-w-full invima-select-trigger ${
                                 errors.invima ? "border-red-500" : ""
                               }`}
                             >
-                              <SelectValue placeholder="Seleccione un registro INVIMA..." />
+                              <SelectValue
+                                placeholder="Seleccione un registro INVIMA..."
+                                className="truncate max-w-[calc(100%-24px)]"
+                              >
+                                {formData.invima && (
+                                  <span
+                                    className="truncate block max-w-[300px]"
+                                    title={formData.invima}
+                                  >
+                                    {formData.invima}
+                                  </span>
+                                )}
+                              </SelectValue>
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="max-w-[500px]">
                               {loadingInvima ? (
                                 <SelectItem value="loading" disabled>
                                   Cargando registros...
@@ -1290,14 +1009,20 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
                                   <SelectItem
                                     key={registro.id}
                                     value={registro.numero_registro}
+                                    className="max-w-[480px]"
                                   >
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">
+                                    <div className="flex flex-col max-w-[460px]">
+                                      <span className="font-medium text-sm truncate">
                                         {registro.numero_registro}
                                       </span>
-                                      <span className="text-xs text-gray-500">
-                                        {registro.nombre_equipo} -{" "}
-                                        {registro.fabricante}
+                                      <span className="text-xs text-gray-500 truncate">
+                                        {registro.nombre_equipo?.length > 60
+                                          ? `${registro.nombre_equipo.substring(
+                                              0,
+                                              60
+                                            )}...`
+                                          : registro.nombre_equipo}{" "}
+                                        - {registro.fabricante}
                                       </span>
                                     </div>
                                   </SelectItem>
@@ -1444,18 +1169,6 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
                           ? formData.archivo_excel.name
                           : "NINGÚN ARCHIVO SELECCIONADO"}
                       </span>
-                      {formData.archivo_excel && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          type="button"
-                          onClick={() =>
-                            handlePreviewFile(formData.archivo_excel, "excel")
-                          }
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
                     <input
                       ref={excelInputRef}
@@ -1712,17 +1425,6 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
                             {formData.image.name}
                           </p>
                           <div className="flex gap-2 justify-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePreviewFile(formData.image, "image");
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -2738,116 +2440,6 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
             Cerrar
           </Button>
         </div>
-
-        {/* Modal de previsualización de archivos */}
-        {showPreview && (
-          <Dialog open={showPreview} onOpenChange={closePreview}>
-            <DialogContent className="max-w-[98vw] w-[98vw] h-[98vh] max-h-[98vh] overflow-hidden p-0">
-              {/* Header solo para imágenes y Excel, no para PDFs */}
-              {previewType !== "invima-pdf" &&
-                !(previewType === "excel" && previewFile?.endsWith(".pdf")) && (
-                  <DialogHeader className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-                    <DialogTitle className="flex items-center gap-2 text-sm font-medium">
-                      {previewType === "image" ? (
-                        <>
-                          <ImageIcon className="h-4 w-4" />
-                          Imagen
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="h-4 w-4" />
-                          Archivo
-                        </>
-                      )}
-                    </DialogTitle>
-                  </DialogHeader>
-                )}
-              <div className="flex flex-col h-full">
-                {previewType === "image" && (
-                  <div
-                    className="flex justify-center items-center m-1 bg-gray-50 border border-gray-300 rounded overflow-hidden"
-                    style={{ height: "calc(98vh - 80px)" }}
-                  >
-                    <img
-                      src={previewFile}
-                      alt="Preview"
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                )}
-
-                {(previewType === "invima-pdf" ||
-                  (previewType === "excel" && previewFile?.endsWith(".pdf"))) &&
-                  previewFile && (
-                    <div
-                      className="flex-1 m-1 border border-gray-300 rounded overflow-hidden bg-white"
-                      style={{ height: "calc(98vh - 50px)" }}
-                    >
-                      <PDFViewer src={previewFile} className="h-full w-full" />
-                    </div>
-                  )}
-                {previewType === "excel" &&
-                  previewFile &&
-                  !previewFile.endsWith(".pdf") && (
-                    <div
-                      className="flex justify-center items-center m-1 border border-gray-300 rounded bg-gray-50"
-                      style={{ height: "calc(98vh - 80px)" }}
-                    >
-                      <div className="text-center p-8">
-                        <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-600 text-lg font-medium">
-                          Archivo Excel seleccionado
-                        </p>
-                        <p className="text-gray-500 mt-2">
-                          La previsualización no está disponible para archivos
-                          Excel.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-              </div>
-              {/* Footer solo para imágenes y Excel, no para PDFs */}
-              {previewType !== "invima-pdf" &&
-                !(previewType === "excel" && previewFile?.endsWith(".pdf")) && (
-                  <div className="flex justify-end px-4 py-2 border-t border-gray-200 bg-gray-50">
-                    <Button
-                      variant="outline"
-                      onClick={closePreview}
-                      className="px-4 py-1 text-sm"
-                    >
-                      Cerrar
-                    </Button>
-                  </div>
-                )}
-
-              {/* Botones flotantes para PDFs */}
-              {(previewType === "invima-pdf" ||
-                (previewType === "excel" && previewFile?.endsWith(".pdf"))) && (
-                <div className="absolute top-2 right-2 z-50 flex gap-2">
-                  {/* Botón para abrir en nueva ventana */}
-                  <Button
-                    variant="outline"
-                    onClick={openInNewWindow}
-                    className="bg-blue-500/90 hover:bg-blue-600 border-blue-400 text-white shadow-lg px-3 py-1 text-sm"
-                    title="Abrir en nueva ventana"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-
-                  {/* Botón para cerrar */}
-                  <Button
-                    variant="outline"
-                    onClick={closePreview}
-                    className="bg-white/90 hover:bg-white border-gray-300 shadow-lg px-3 py-1 text-sm"
-                    title="Cerrar"
-                  >
-                    ✕
-                  </Button>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        )}
       </DialogContent>
 
       {/* Modal para agregar registro INVIMA */}

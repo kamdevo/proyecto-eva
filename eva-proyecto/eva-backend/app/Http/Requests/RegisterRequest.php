@@ -28,7 +28,7 @@ class RegisterRequest extends FormRequest
             'telefono' => 'nullable|string|max:20|regex:/^[\d\s\-\+\(\)]+$/',
             'email' => 'required|email|unique:usuarios,email|max:255',
             'username' => 'required|string|unique:usuarios,username|max:45|regex:/^[a-zA-Z0-9_\-\.]+$/',
-            'password' => 'required|string|min:8|confirmed|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/',
+            'password' => 'required|string',
             'centro_id' => 'nullable|string|max:100',
             'id_empresa' => 'nullable|integer|min:0',
         ];
@@ -66,9 +66,6 @@ class RegisterRequest extends FormRequest
             
             'password.required' => 'La contraseña es obligatoria.',
             'password.string' => 'La contraseña debe ser texto.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-            'password.confirmed' => 'La confirmación de contraseña no coincide.',
-            'password.regex' => 'La contraseña debe contener al menos: 1 minúscula, 1 mayúscula, 1 número y 1 carácter especial.',
             
             'id_empresa.integer' => 'El ID de empresa debe ser un número.',
             'id_empresa.min' => 'El ID de empresa no puede ser negativo.',

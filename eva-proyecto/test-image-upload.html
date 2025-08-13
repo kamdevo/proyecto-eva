@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Image Upload - Equipment Edit</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 10px;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-left: 4px solid #007bff;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .error {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .info {
+        color: #17a2b8;
+        font-weight: bold;
+      }
+      #fileInput {
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      #preview {
+        max-width: 200px;
+        max-height: 200px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      #results {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #ffffff;
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🖼️ Test de Subida de Imagen - Edición de Equipos</h1>
+
+      <div class="test-section">
+        <h3>📋 Configuración del Test</h3>
+        <p>
+          Este test verifica la funcionalidad de subida de imagen al editar
+          equipos.
+        </p>
+
+        <label for="equipmentId">ID del Equipo a probar:</label>
+        <input type="number" id="equipmentId" value="1" min="1" />
+
+        <br /><br />
+
+        <label for="fileInput">Seleccionar imagen:</label>
+        <input type="file" id="fileInput" accept="image/*" />
+
+        <br />
+
+        <img id="preview" style="display: none" />
+      </div>
+
+      <div class="test-section">
+        <h3>🧪 Tests Disponibles</h3>
+        <button onclick="testBackendRoutes()">
+          1. Verificar Rutas Backend
+        </button>
+        <button onclick="testImageUpload()">2. Test Subida de Imagen</button>
+        <button onclick="testFormDataSubmission()">
+          3. Test FormData vs JSON
+        </button>
+        <button onclick="clearResults()">🗑️ Limpiar Resultados</button>
+      </div>
+
+      <div id="results"></div>
+    </div>
+
+    <script>
+      const API_BASE = "http://localhost:8000/api";
+
+      // Preview selected image
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              const preview = document.getElementById("preview");
+              preview.src = e.target.result;
+              preview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+
+      function log(message, type = "info") {
+        const results = document.getElementById("results");
+        const timestamp = new Date().toLocaleTimeString();
+        const className =
+          type === "success" ? "success" : type === "error" ? "error" : "info";
+        results.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        results.scrollTop = results.scrollHeight;
+      }
+
+      function clearResults() {
+        document.getElementById("results").innerHTML = "";
+      }
+
+      async function testBackendRoutes() {
+        log("🔍 Verificando rutas del backend...", "info");
+
+        try {
+          // Test route without image
+          const equipmentId = document.getElementById("equipmentId").value;
+
+          const testData = {
+            name: "Equipo Test",
+            descripcion: "Test desde frontend",
+          };
+
+          log(
+            `📤 Probando ruta: PUT ${API_BASE}/v1/equipos/${equipmentId}/update-no-auth`,
+            "info"
+          );
+
+          const response1 = await fetch(
+            `${API_BASE}/v1/equipos/${equipmentId}/update-no-auth`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(testData),
+            }
+          );
+
+          if (response1.ok) {
+            const data1 = await response1.json();
+            log("✅ Ruta update-no-auth: FUNCIONA", "success");
+            log(`📋 Respuesta: ${JSON.stringify(data1, null, 2)}`, "info");
+          } else {
+            log(`❌ Ruta update-no-auth: ERROR ${response1.status}`, "error");
+            const errorText = await response1.text();
+            log(`📋 Error: ${errorText}`, "error");
+          }
+
+          // Test route with image endpoint (without actual image)
+          log(
+            `📤 Probando ruta: PUT ${API_BASE}/v1/equipos/${equipmentId}/update-with-image`,
+            "info"
+          );
+
+          const formData = new FormData();
+          formData.append("name", "Equipo Test Sin Imagen");
+          formData.append(
+            "descripcion",
+            "Test de ruta con imagen pero sin archivo"
+          );
+
+          const response2 = await fetch(
+            `${API_BASE}/v1/equipos/${equipmentId}/update-with-image`,
+            {
+              method: "PUT",
+              body: formData,
+            }
+          );
+
+          if (response2.ok) {
+            const data2 = await response2.json();
+            log("✅ Ruta update-with-image: FUNCIONA", "success");
+            log(`📋 Respuesta: ${JSON.stringify(data2, null, 2)}`, "info");
+          } else {
+            log(
+              `❌ Ruta update-with-image: ERROR ${response2.status}`,
+              "error"
+            );
+            const errorText = await response2.text();
+            log(`📋 Error: ${errorText}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Error general: ${error.message}`, "error");
+        }
+      }
+
+      async function testImageUpload() {
+        const fileInput = document.getElementById("fileInput");
+        const equipmentId = document.getElementById("equipmentId").value;
+
+        if (!fileInput.files[0]) {
+          log("❌ Por favor selecciona una imagen primero", "error");
+          return;
+        }
+
+        const file = fileInput.files[0];
+        log(`🖼️ Iniciando test de subida de imagen...`, "info");
+        log(
+          `📁 Archivo: ${file.name} (${file.size} bytes, ${file.type})`,
+          "info"
+        );
+
+        try {
+          const formData = new FormData();
+          formData.append("image", file);
+          formData.append("name", "Equipo con Nueva Imagen");
+          formData.append(
+            "descripcion",
+            "Test de subida de imagen desde frontend"
+          );
+
+          log(
+            `📤 Enviando a: PUT ${API_BASE}/v1/equipos/${equipmentId}/update-with-image`,
+            "info"
+          );
+
+          const response = await fetch(
+            `${API_BASE}/v1/equipos/${equipmentId}/update-with-image`,
+            {
+              method: "PUT",
+              body: formData,
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            log("✅ Imagen subida exitosamente!", "success");
+            log(`📋 Respuesta: ${JSON.stringify(data, null, 2)}`, "success");
+
+            if (data.data && data.data.image_url) {
+              log(`🔗 URL de imagen: ${data.data.image_url}`, "success");
+            }
+          } else {
+            log(`❌ Error al subir imagen: ${response.status}`, "error");
+            const errorText = await response.text();
+            log(`📋 Error: ${errorText}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Error durante la subida: ${error.message}`, "error");
+        }
+      }
+
+      async function testFormDataSubmission() {
+        log("🧪 Comparando FormData vs JSON...", "info");
+
+        const equipmentId = document.getElementById("equipmentId").value;
+        const fileInput = document.getElementById("fileInput");
+
+        // Test 1: JSON submission (current working method)
+        try {
+          log("📤 Test 1: Envío JSON (método actual)", "info");
+
+          const jsonData = {
+            name: "Test JSON",
+            descripcion: "Enviado como JSON",
+            serial: "JSON-001",
+          };
+
+          const jsonResponse = await fetch(
+            `${API_BASE}/v1/equipos/${equipmentId}/update-no-auth`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(jsonData),
+            }
+          );
+
+          if (jsonResponse.ok) {
+            const jsonResult = await jsonResponse.json();
+            log("✅ JSON submission: EXITOSO", "success");
+          } else {
+            log("❌ JSON submission: FALLO", "error");
+          }
+        } catch (error) {
+          log(`❌ Error en JSON test: ${error.message}`, "error");
+        }
+
+        // Test 2: FormData submission (new method with image)
+        try {
+          log("📤 Test 2: Envío FormData (nuevo método)", "info");
+
+          const formData = new FormData();
+          formData.append("name", "Test FormData");
+          formData.append("descripcion", "Enviado como FormData");
+          formData.append("serial", "FORM-001");
+
+          if (fileInput.files[0]) {
+            formData.append("image", fileInput.files[0]);
+            log("📷 Incluyendo imagen en FormData", "info");
+          }
+
+          const formResponse = await fetch(
+            `${API_BASE}/v1/equipos/${equipmentId}/update-with-image`,
+            {
+              method: "PUT",
+              body: formData,
+            }
+          );
+
+          if (formResponse.ok) {
+            const formResult = await formResponse.json();
+            log("✅ FormData submission: EXITOSO", "success");
+          } else {
+            log("❌ FormData submission: FALLO", "error");
+          }
+        } catch (error) {
+          log(`❌ Error en FormData test: ${error.message}`, "error");
+        }
+
+        log("📊 Comparación completada", "info");
+      }
+
+      // Auto-load on page ready
+      window.addEventListener("load", function () {
+        log("🚀 Test de imagen de equipos cargado", "success");
+        log("💡 Selecciona una imagen y ejecuta los tests", "info");
+      });
+    </script>
+  </body>
+</html>

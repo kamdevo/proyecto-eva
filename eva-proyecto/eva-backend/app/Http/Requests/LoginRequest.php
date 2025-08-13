@@ -24,7 +24,7 @@ class LoginRequest extends FormRequest
     {
         return [
             'username' => 'required|string|max:255',
-            'password' => 'required|string|min:6|max:255',
+            'password' => 'required|string',
         ];
     }
 
@@ -39,8 +39,6 @@ class LoginRequest extends FormRequest
             'username.max' => 'El nombre de usuario no puede exceder 255 caracteres.',
             'password.required' => 'La contraseña es obligatoria.',
             'password.string' => 'La contraseña debe ser texto.',
-            'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
-            'password.max' => 'La contraseña no puede exceder 255 caracteres.',
         ];
     }
 

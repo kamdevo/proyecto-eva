@@ -63,7 +63,7 @@ function AppContent() {
             <Route
               path="/login"
               element={
-                <ProtectedRoute requireAuth={false}>
+                <ProtectedRoute requireAuth={true}>
                   <LoginForm />
                 </ProtectedRoute>
               }

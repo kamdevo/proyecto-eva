@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi Equipo de Prueba</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #f0f8ff;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #28a745;
+        text-align: center;
+        border-bottom: 3px solid #28a745;
+        padding-bottom: 10px;
+      }
+      .equipo-info {
+        background: #e8f5e8;
+        border: 2px solid #28a745;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .info-item {
+        margin: 10px 0;
+        font-size: 16px;
+      }
+      .info-label {
+        font-weight: bold;
+        color: #155724;
+        display: inline-block;
+        width: 120px;
+      }
+      .info-value {
+        color: #495057;
+        background: #f8f9fa;
+        padding: 5px 10px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        display: block;
+        margin: 20px auto;
+      }
+      button:hover {
+        background-color: #218838;
+      }
+      #results {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔧 MI EQUIPO DE PRUEBA</h1>
+
+      <div class="equipo-info">
+        <h3 style="color: #28a745; margin-top: 0">
+          📋 Información del Equipo Creado
+        </h3>
+
+        <div class="info-item">
+          <span class="info-label">NOMBRE:</span>
+          <span class="info-value">"Test Equipment with Checkboxes"</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">CÓDIGO:</span>
+          <span class="info-value">CHECKBOX-DIRECT-[timestamp]</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">MARCA:</span>
+          <span class="info-value">Test Brand</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">MODELO:</span>
+          <span class="info-value">Test Model</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">SERIAL:</span>
+          <span class="info-value">TEST-SERIAL-[timestamp]</span>
+        </div>
+
+        <div class="info-item">
+          <span class="info-label">ENDPOINT:</span>
+          <span class="info-value"
+            >POST /api/v1/test/create-equipment-with-checkboxes</span
+          >
+        </div>
+      </div>
+
+      <button onclick="buscarMiEquipo()">
+        🔍 Buscar Mi Equipo en la Base de Datos
+      </button>
+
+      <div id="results"></div>
+    </div>
+
+    <script>
+      const API_BASE = "http://localhost:8000/api";
+
+      function log(message, type = "info") {
+        const results = document.getElementById("results");
+        const timestamp = new Date().toLocaleTimeString();
+        results.innerHTML += `<div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px;">[${timestamp}] ${message}</div>`;
+      }
+
+      async function buscarMiEquipo() {
+        log('🔍 Buscando "Test Equipment with Checkboxes"...', "info");
+
+        try {
+          const response = await fetch(
+            `${API_BASE}/v1/test/find-test-equipment`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                search_terms: [
+                  "Test Equipment with Checkboxes",
+                  "CHECKBOX-DIRECT",
+                ],
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data.length > 0) {
+              log(
+                `✅ ¡ENCONTRADO! Tu equipo existe en la base de datos:`,
+                "success"
+              );
+
+              data.data.forEach((equipo) => {
+                log(`📌 ID: ${equipo.id}`, "info");
+                log(`📌 NOMBRE: ${equipo.name}`, "info");
+                log(`📌 CÓDIGO: ${equipo.code}`, "info");
+                log(`📌 SERIAL: ${equipo.serial}`, "info");
+                log(`📌 FECHA CREACIÓN: ${equipo.created_at}`, "info");
+                log("--------------------", "info");
+              });
+            } else {
+              log("❌ No se encontró tu equipo de prueba", "error");
+            }
+          } else {
+            log(`❌ Error en la búsqueda: ${response.status}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Error: ${error.message}`, "error");
+        }
+      }
+
+      // Auto-búsqueda al cargar la página
+      window.addEventListener("load", function () {
+        log(
+          '🚀 Buscador cargado. Tu equipo se llama "Test Equipment with Checkboxes"',
+          "success"
+        );
+      });
+    </script>
+  </body>
+</html>

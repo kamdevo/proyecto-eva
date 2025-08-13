@@ -9,8 +9,7 @@ const validationSchemas = {
     },
     password: {
       required: true,
-      minLength: 6,
-      message: "La contraseña debe tener al menos 6 caracteres",
+      message: "La contraseña es requerida",
     },
   },
   register: {
@@ -44,36 +43,7 @@ const validationSchemas = {
     },
     password: {
       required: true,
-      minLength: 8,
-      validate: (value) => {
-        const errors = [];
-
-        if (value.length < 8) {
-          errors.push("al menos 8 caracteres");
-        }
-
-        if (!/[a-z]/.test(value)) {
-          errors.push("1 letra minúscula");
-        }
-
-        if (!/[A-Z]/.test(value)) {
-          errors.push("1 letra mayúscula");
-        }
-
-        if (!/\d/.test(value)) {
-          errors.push("1 número");
-        }
-
-        if (!/[@$!%*?&]/.test(value)) {
-          errors.push("1 carácter especial (@$!%*?&)");
-        }
-
-        return errors.length > 0
-          ? `La contraseña debe contener: ${errors.join(", ")}`
-          : null;
-      },
-      message:
-        "La contraseña debe contener al menos: 8 caracteres, 1 minúscula, 1 mayúscula, 1 número y 1 carácter especial",
+      message: "La contraseña es requerida",
     },
     password_confirmation: {
       required: true,

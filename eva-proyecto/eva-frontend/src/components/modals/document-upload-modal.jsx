@@ -1,204 +1,385 @@
-"use client"
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { Upload, FileText, X } from "lucide-react"
+"use client";
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Upload, FileText, X, Calendar, Clock, FileType } from "lucide-react";
+import { toast } from "sonner";
+import httpService from "@/services/httpService";
+import { API_CONFIG } from "@/config/api";
 
-export function DocumentUploadModal({ open, onOpenChange, equipment }) {
-  const [uploadMethod, setUploadMethod] = useState("simple") // "simple" or "dragdrop"
-  const [selectedFiles, setSelectedFiles] = useState([])
+export function DocumentUploadModal({
+  open,
+  onOpenChange,
+  equipment,
+  onDocumentUploaded,
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [documentTypes, setDocumentTypes] = useState([]);
+  const [formData, setFormData] = useState({
+    archivo_id: "",
+    document: null,
+    fecha_capacitacion: "",
+    hora_capacitacion: "",
+    otro: "",
+  });
+
+  // Cargar tipos de documentos al abrir el modal
+  useEffect(() => {
+    if (open) {
+      loadDocumentTypes();
+      resetForm();
+    }
+  }, [open]);
+
+  const loadDocumentTypes = async () => {
+    try {
+      console.log("🔍 [DOCUMENT MODAL] Cargando tipos de documentos...");
+      const response = await httpService.get("/v1/document-types");
+
+      if (response.data.success) {
+        setDocumentTypes(response.data.data);
+        console.log(
+          "✅ [DOCUMENT MODAL] Tipos de documentos cargados:",
+          response.data.data.length
+        );
+      } else {
+        throw new Error("Error al cargar tipos de documentos");
+      }
+    } catch (error) {
+      console.error("❌ [DOCUMENT MODAL] Error cargando tipos:", error);
+      toast.error("Error al cargar tipos de documentos");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      archivo_id: "",
+      document: null,
+      fecha_capacitacion: "",
+      hora_capacitacion: "",
+      otro: "",
+    });
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files)
-    setSelectedFiles((prev) => [...prev, ...files])
-  }
+    const file = event.target.files[0];
+    if (file) {
+      console.log(
+        "📁 [DOCUMENT MODAL] Archivo seleccionado:",
+        file.name,
+        `(${(file.size / 1024).toFixed(1)} KB)`
+      );
+      handleInputChange("document", file);
+    }
+  };
 
-  const handleDragOver = (event) => {
-    event.preventDefault()
-  }
+  const handleUpload = async () => {
+    try {
+      // Validaciones
+      if (!formData.archivo_id) {
+        toast.error("Por favor selecciona un tipo de documento");
+        return;
+      }
 
-  const handleDrop = (event) => {
-    event.preventDefault()
-    const files = Array.from(event.dataTransfer.files)
-    setSelectedFiles((prev) => [...prev, ...files])
-  }
+      if (!formData.document) {
+        toast.error("Por favor selecciona un archivo");
+        return;
+      }
 
-  const removeFile = (index) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
-  }
+      // Validación especial para capacitaciones (archivo_id = 9)
+      if (formData.archivo_id === "9") {
+        if (!formData.fecha_capacitacion || !formData.hora_capacitacion) {
+          toast.error("Para capacitaciones, la fecha y hora son obligatorias");
+          return;
+        }
+      }
 
-  const SimpleUpload = () => (
-    <div className="space-y-4 p-3 sm:p-4 md:p-6 bg-gray-50 rounded-lg">
-      <h3 className="text-lg font-semibold text-gray-800">DOCUMENTACIÓN DEL EQUIPO</h3>
+      setIsUploading(true);
+      console.log("🚀 [DOCUMENT MODAL] Iniciando subida de documento...");
+      console.log("📋 [DOCUMENT MODAL] Datos del formulario:", {
+        equipo_id: equipment?.id,
+        archivo_id: formData.archivo_id,
+        archivo_nombre: formData.document?.name,
+        archivo_tamaño: formData.document?.size,
+        fecha_capacitacion: formData.fecha_capacitacion,
+        hora_capacitacion: formData.hora_capacitacion,
+        otro: formData.otro,
+      });
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-        <div>
-          <Label htmlFor="file-type" className="text-xs sm:text-sm">
-            Tipo de archivo:
-          </Label>
-          <Select>
-            <SelectTrigger className="h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
-              <SelectValue placeholder="Seleccionar tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="manual">Manual</SelectItem>
-              <SelectItem value="certificado">Certificado</SelectItem>
-              <SelectItem value="reporte">Reporte</SelectItem>
-              <SelectItem value="guia">Guía</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      // Preparar FormData
+      const uploadData = new FormData();
+      uploadData.append("archivo_id", formData.archivo_id);
+      uploadData.append("document", formData.document);
 
-        <div>
-          <Label htmlFor="actions" className="text-xs sm:text-sm">
-            Acciones:
-          </Label>
-          <div className="flex gap-2 mt-1">
-            <Button
-              className="bg-red-500 hover:bg-red-600 text-white flex-1 text-xs sm:text-sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Subir
-            </Button>
-            <Button
-              className="bg-red-500 hover:bg-red-600 text-white flex-1 text-xs sm:text-sm">
-              <X className="h-4 w-4 mr-2" />
-              Eliminar
-            </Button>
-          </div>
-        </div>
-      </div>
+      // Campos especiales para capacitaciones
+      if (formData.archivo_id === "9") {
+        uploadData.append("fecha_capacitacion", formData.fecha_capacitacion);
+        uploadData.append("hora_capacitacion", formData.hora_capacitacion);
+      }
 
-      <div>
-        <Label htmlFor="file-input" className="text-xs sm:text-sm">
-          Seleccionar archivo:
-        </Label>
-        <Input
-          id="file-input"
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx"
-          onChange={handleFileSelect}
-          className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm" />
-      </div>
-    </div>
-  )
+      // Campo especial para "otros documentos"
+      if (formData.archivo_id === "19" && formData.otro) {
+        uploadData.append("otro", formData.otro);
+      }
 
-  const DragDropUpload = () => (
-    <div className="space-y-4">
-      <div
-        className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 md:p-12 text-center hover:border-blue-400 transition-colors"
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}>
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <Upload className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400" />
-          </div>
-          <div>
-            <p className="text-lg text-gray-600">Drag & drop files here</p>
-            <p className="text-sm text-gray-500">or click to select files</p>
-          </div>
-          <div className="flex justify-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => document.getElementById("hidden-file-input").click()}
-              className="text-xs sm:text-sm">
-              Browse
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm">Upload</Button>
-          </div>
-        </div>
-      </div>
+      const url = `/v1/equipos/${equipment.id}/upload-document`;
+      console.log("🌐 [DOCUMENT MODAL] URL de subida:", url);
 
-      <input
-        id="hidden-file-input"
-        type="file"
-        multiple
-        accept=".pdf,.doc,.docx"
-        onChange={handleFileSelect}
-        className="hidden" />
+      const response = await httpService.post(url, uploadData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-      {selectedFiles.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-medium text-gray-700">Archivos seleccionados:</h4>
-          {selectedFiles.map((file, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between bg-gray-50 p-2 rounded">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-sm">{file.name}</span>
-                <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => removeFile(index)}
-                className="text-red-600 hover:text-red-800">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+      console.log("📤 [DOCUMENT MODAL] Respuesta del servidor:", response);
+
+      if (response.data.success) {
+        toast.success("Documento subido exitosamente");
+        console.log(
+          "✅ [DOCUMENT MODAL] Documento subido:",
+          response.data.data
+        );
+
+        // Callback para actualizar la lista en el componente padre
+        if (onDocumentUploaded) {
+          onDocumentUploaded(response.data.data);
+        }
+
+        // Limpiar formulario y cerrar modal
+        resetForm();
+        onOpenChange(false);
+      } else {
+        throw new Error(response.data.message || "Error al subir documento");
+      }
+    } catch (error) {
+      console.error("❌ [DOCUMENT MODAL] Error en subida:", error);
+
+      if (error.response?.data?.errors) {
+        // Errores de validación del servidor
+        const errores = Object.values(error.response.data.errors).flat();
+        toast.error(`Errores de validación: ${errores.join(", ")}`);
+      } else {
+        toast.error(
+          error.response?.data?.message || "Error al subir documento"
+        );
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Determinar si mostrar campos especiales
+  const isTrainingDocument = formData.archivo_id === "9";
+  const isOtherDocument = formData.archivo_id === "19";
+  const selectedDocType = documentTypes.find(
+    (type) => type.id.toString() === formData.archivo_id
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent
+        className="w-[80vw] max-w-4xl max-h-[85vh] overflow-y-auto p-4"
+        style={{
+          width: "80vw",
+          maxWidth: "1024px",
+          height: "85vh",
+        }}
+      >
         <DialogHeader>
-          <DialogTitle
-            className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
-            Subir Documentación
+          <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
+            📎 Subir Documento al Equipo
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 p-4">
-          {/* Upload Method Toggle */}
-          <div className="flex gap-2 mb-4">
-            <Button
-              variant={uploadMethod === "simple" ? "default" : "outline"}
-              onClick={() => setUploadMethod("simple")}
-              className="flex-1 text-xs sm:text-sm">
-              Subida Simple
-            </Button>
-            <Button
-              variant={uploadMethod === "dragdrop" ? "default" : "outline"}
-              onClick={() => setUploadMethod("dragdrop")}
-              className="flex-1 text-xs sm:text-sm">
-              Arrastrar y Soltar
-            </Button>
-          </div>
-
-          {/* Equipment Info */}
+          {/* Información del Equipo */}
           {equipment && (
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-blue-800 mb-2">Equipo Seleccionado:</h3>
+              <h3 className="font-semibold text-blue-800 mb-2">
+                🔧 Equipo Seleccionado:
+              </h3>
               <p className="text-sm text-blue-700">
-                <strong>ID:</strong> {equipment.equipo.code} - <strong>Nombre:</strong> {equipment.equipo.name}
+                <strong>ID:</strong> {equipment.id} | <strong>Código:</strong>{" "}
+                {equipment.code} | <strong>Nombre:</strong> {equipment.name}
               </p>
+              {equipment.serial && (
+                <p className="text-sm text-blue-600">
+                  <strong>Serie:</strong> {equipment.serial}
+                </p>
+              )}
             </div>
           )}
 
-          {/* Upload Interface */}
-          {uploadMethod === "simple" ? <SimpleUpload /> : <DragDropUpload />}
+          {/* Formulario de Subida */}
+          <div className="space-y-4">
+            {/* Tipo de Documento */}
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <FileType className="h-4 w-4" />
+                Tipo de Documento *
+              </Label>
+              <Select
+                value={formData.archivo_id}
+                onValueChange={(value) =>
+                  handleInputChange("archivo_id", value)
+                }
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Seleccionar tipo de documento..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {documentTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedDocType && (
+                <p className="text-xs text-gray-600 mt-1">
+                  📋 Tipo seleccionado: <strong>{selectedDocType.name}</strong>
+                </p>
+              )}
+            </div>
+
+            {/* Campo especial para "Otro documento" */}
+            {isOtherDocument && (
+              <div>
+                <Label className="text-sm font-medium">
+                  Especificar tipo de documento
+                </Label>
+                <Input
+                  value={formData.otro}
+                  onChange={(e) => handleInputChange("otro", e.target.value)}
+                  placeholder="Ej: Manual de instalación, Certificado ISO, etc."
+                  className="mt-1"
+                />
+              </div>
+            )}
+
+            {/* Campos especiales para Capacitaciones */}
+            {isTrainingDocument && (
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <h4 className="font-medium text-yellow-800 mb-3 flex items-center gap-2">
+                  🎓 Información de Capacitación
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Fecha de Capacitación *
+                    </Label>
+                    <Input
+                      type="date"
+                      value={formData.fecha_capacitacion}
+                      onChange={(e) =>
+                        handleInputChange("fecha_capacitacion", e.target.value)
+                      }
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Hora de Capacitación *
+                    </Label>
+                    <Input
+                      type="time"
+                      value={formData.hora_capacitacion}
+                      onChange={(e) =>
+                        handleInputChange("hora_capacitacion", e.target.value)
+                      }
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Selección de Archivo */}
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Seleccionar Archivo *
+              </Label>
+              <Input
+                type="file"
+                onChange={handleFileSelect}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                className="mt-1"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                📋 Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, TXT, JPG,
+                JPEG, PNG (máximo 10MB)
+              </p>
+
+              {/* Información del archivo seleccionado */}
+              {formData.document && (
+                <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                  <div className="flex items-center gap-2 text-sm text-green-800">
+                    <FileText className="h-4 w-4" />
+                    <span>
+                      <strong>{formData.document.name}</strong>
+                    </span>
+                    <span className="text-green-600">
+                      ({(formData.document.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-between p-4 border-t">
-          <Button
-            className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm"
-            disabled={selectedFiles.length === 0}>
-            <Upload className="h-4 w-4 mr-2" />
-            Subir Archivos ({selectedFiles.length})
-          </Button>
+        {/* Botones de Acción */}
+        <div className="flex justify-between p-4 border-t bg-gray-50">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="text-xs sm:text-sm">
-            Cerrar
+            disabled={isUploading}
+          >
+            ❌ Cancelar
+          </Button>
+
+          <Button
+            onClick={handleUpload}
+            disabled={!formData.archivo_id || !formData.document || isUploading}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {isUploading ? (
+              <>
+                <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></div>
+                Subiendo...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                📤 Subir Documento
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

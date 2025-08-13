@@ -620,4 +620,95 @@ class EquipoController extends Controller
         }
     }
 
+    /**
+     * Obtener historial completo del equipo
+     * Incluye correctivos, preventivos, calibraciones, repuestos y observaciones
+     */
+    public function getEquipmentHistory($id)
+    {
+        try {
+            $equipo = Equipo::findOrFail($id);
+            
+            Log::info("Obteniendo historial del equipo ID: {$id}");
+
+            // Obtener correctivos generales
+            $correctivos = DB::table('correctivos_generales')
+                ->where('equipo_id', $id)
+                ->where('status', 1)
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+
+            // Obtener preventivos/mantenimientos
+            $preventivos = DB::table('mantenimiento')
+                ->where('equipo_id', $id)
+                ->where('status', 1)
+                ->orderBy('fecha_programada', 'desc')
+                ->limit(50)
+                ->get();
+
+            // Obtener calibraciones
+            $calibraciones = DB::table('calibracion')
+                ->where('equipo_id', $id)
+                ->where('status', 1)
+                ->orderBy('fecha_calibracion', 'desc')
+                ->limit(50)
+                ->get();
+
+            // Obtener repuestos/accesorios
+            $repuestos = DB::table('equipo_repuestos')
+                ->leftJoin('repuestos', 'equipo_repuestos.repuesto_id', '=', 'repuestos.id')
+                ->where('equipo_repuestos.equipo_id', $id)
+                ->select(
+                    'equipo_repuestos.*',
+                    'repuestos.name as repuesto_name'
+                )
+                ->orderBy('equipo_repuestos.fecha', 'desc')
+                ->limit(50)
+                ->get();
+
+            // Obtener observaciones
+            $observaciones = DB::table('observaciones')
+                ->where('equipo_id', $id)
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get();
+
+            $historialData = [
+                'correctivos' => $correctivos,
+                'preventivos' => $preventivos,
+                'calibraciones' => $calibraciones,
+                'repuestos' => $repuestos,
+                'observaciones' => $observaciones,
+            ];
+
+            Log::info("Historial obtenido exitosamente", [
+                'equipo_id' => $id,
+                'correctivos_count' => $correctivos->count(),
+                'preventivos_count' => $preventivos->count(),
+                'calibraciones_count' => $calibraciones->count(),
+                'repuestos_count' => $repuestos->count(),
+                'observaciones_count' => $observaciones->count(),
+            ]);
+
+            return ResponseFormatter::success(
+                $historialData,
+                'Historial del equipo obtenido exitosamente'
+            );
+
+        } catch (Exception $e) {
+            Log::error('Error obteniendo historial del equipo', [
+                'equipo_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return ResponseFormatter::error(
+                null,
+                'Error al obtener el historial del equipo: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
 }

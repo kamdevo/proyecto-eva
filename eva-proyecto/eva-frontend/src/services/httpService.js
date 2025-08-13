@@ -268,5 +268,44 @@ export const initializeAuth = async () => {
   }
 };
 
+// ====================================
+// FUNCIONES ESPECÍFICAS DE EQUIPOS
+// ====================================
+
+/**
+ * Eliminar un equipo por ID
+ * @param {string|number} equipmentId - ID del equipo a eliminar
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+export const deleteEquipment = async (equipmentId) => {
+  try {
+    console.log(`🗑️ [EQUIPMENT] Eliminando equipo ID: ${equipmentId}`);
+
+    const response = await httpService.delete(`/v1/equipos/${equipmentId}`);
+
+    console.log("✅ [EQUIPMENT] Equipo eliminado exitosamente:", response.data);
+
+    return {
+      success: true,
+      message: response.data.message || "Equipo eliminado exitosamente",
+      data: response.data,
+    };
+  } catch (error) {
+    console.error("❌ [EQUIPMENT] Error al eliminar equipo:", error);
+
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Error desconocido al eliminar equipo";
+
+    return {
+      success: false,
+      error: errorMessage,
+      status: error.response?.status,
+    };
+  }
+};
+
 // Exportar la instancia configurada
 export default httpService;

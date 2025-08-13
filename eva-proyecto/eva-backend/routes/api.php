@@ -25,6 +25,134 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
+use App\Models\Equipo;
+
+// ENDPOINT FINAL CORREGIDO PARA CREAR EQUIPOS
+Route::post("v1/equipos-final", function(Request $request) {
+    header("Access-Control-Allow-Origin: *");
+    
+    try {
+        $validator = Validator::make($request->all(), [
+            "name" => "required|string|max:255",
+            "code" => "required|string|max:100|unique:equipos,code",
+            "servicio_id" => "required|exists:servicios,id",
+        ], [
+            "name.required" => "El nombre del equipo es obligatorio.",
+            "code.required" => "El código del equipo es obligatorio.", 
+            "code.unique" => "Ya existe un equipo con este código.",
+            "servicio_id.required" => "Debe seleccionar un servicio.",
+            "servicio_id.exists" => "El servicio seleccionado no existe.",
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                "success" => false,
+                "message" => "Errores de validación",
+                "errors" => $validator->errors()
+            ], 422);
+        }
+
+        $equipo = Equipo::create([
+            "name" => $request->name,
+            "code" => $request->code,
+            "servicio_id" => $request->servicio_id,
+            "status" => 1,
+            "fuente_id" => 1,
+            "tecnologia_id" => 1,
+            "frecuencia_id" => 1,
+            "cbiomedica_id" => 1,
+            "criesgo_id" => 1,
+            "tadquisicion_id" => 1,
+            "invima_id" => 1,
+            "orden_compra_id" => 1,
+            "baja_id" => 1,
+            "estadoequipo_id" => 1,
+            "propietario_id" => 1,
+            "area_id" => 1,
+            "tipo_id" => 1,
+            "guia_id" => 1,
+            "manual_id" => 1,
+            "disponibilidad_id" => 1,
+        ]);
+
+        return response()->json([
+            "success" => true,
+            "message" => "Equipo creado exitosamente",
+            "data" => $equipo,
+            "codigo_creado" => $equipo->code
+        ], 201);
+
+    } catch (Exception $e) {
+        return response()->json([
+            "success" => false,
+            "message" => "Error: " . $e->getMessage()
+        ], 500);
+    }
+});
+
+
+// ENDPOINT DIRECTO SIN MIDDLEWARE PARA CREAR EQUIPOS
+Route::post("v1/equipos-simple", function(Request $request) {
+    header("Access-Control-Allow-Origin: *");
+    
+    try {
+        $validator = Validator::make($request->all(), [
+            "name" => "required|string|max:255",
+            "code" => "required|string|max:100|unique:equipos,code",
+            "servicio_id" => "required|exists:servicios,id",
+        ], [
+            "name.required" => "El nombre del equipo es obligatorio.",
+            "code.required" => "El código del equipo es obligatorio.", 
+            "code.unique" => "Ya existe un equipo con este código.",
+            "servicio_id.required" => "Debe seleccionar un servicio.",
+            "servicio_id.exists" => "El servicio seleccionado no existe.",
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                "success" => false,
+                "message" => "Errores de validación",
+                "errors" => $validator->errors()
+            ], 422);
+        }
+
+        $equipo = Equipo::create([
+            "name" => $request->name,
+            "code" => $request->code,
+            "servicio_id" => $request->servicio_id,
+            "status" => 1,
+            "fuente_id" => 1,
+            "tecnologia_id" => 1,
+            "frecuencia_id" => 1,
+            "cbiomedica_id" => 1,
+            "criesgo_id" => 1,
+            "tadquisicion_id" => 1,
+            "invima_id" => 1,
+            "orden_compra_id" => 1,
+            "baja_id" => 1,
+            "estadoequipo_id" => 1,
+            "tipo_id" => 1,
+            "guia_id" => 1,
+            "manual_id" => 1,
+            "disponibilidad_id" => 1,
+            "area_id" => 1,
+        ]);
+
+        return response()->json([
+            "success" => true,
+            "message" => "Equipo creado exitosamente",
+            "data" => $equipo
+        ], 201);
+
+    } catch (Exception $e) {
+        return response()->json([
+            "success" => false,
+            "message" => "Error: " . $e->getMessage()
+        ], 500);
+    }
+});
+
 
 /*
 |--------------------------------------------------------------------------
@@ -282,7 +410,7 @@ Route::post('v1/register-working', function (Request $request) {
             'nombre' => 'required|string|max:100',
             'email' => 'required|email|max:255',
             'username' => 'required|string|max:45',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string',
         ];
 
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), $rules);
@@ -598,6 +726,255 @@ Route::get('v1/test/modal-data', function () {
                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 });
 
+// Endpoint de verificación de datos de equipos
+Route::get('v1/test/verify-equipment-data/{id?}', function ($id = null) {
+    try {
+        // Verificar si existe la tabla equipos
+        if (!Schema::hasTable('equipos')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La tabla equipos no existe en la base de datos'
+            ], 500);
+        }
+
+        $equipoId = $id ?: DB::table('equipos')->value('id');
+
+        if (!$equipoId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay equipos disponibles para verificar'
+            ], 404);
+        }
+
+        // Obtener datos básicos del equipo primero
+        $equipo = DB::table('equipos')->where('id', $equipoId)->first();
+
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        // Función helper para hacer joins seguros
+        $safeJoin = function($table, $localKeyValue) use ($equipo) {
+            try {
+                if (Schema::hasTable($table) && $localKeyValue) {
+                    $result = DB::table($table)->where('id', $localKeyValue)->first();
+                    return $result ? ($result->name ?? $result->nombre ?? 'Sin nombre') : 'No encontrado';
+                }
+                return Schema::hasTable($table) ? 'Sin relación' : 'Tabla no existe';
+            } catch (\Exception $e) {
+                return 'Error: ' . $e->getMessage();
+            }
+        };
+
+        // Obtener nombres de las relaciones de forma segura
+        $relacionesNombres = [
+            'servicio_nombre' => $safeJoin('servicios', $equipo->servicio_id),
+            'area_nombre' => $safeJoin('areas', $equipo->area_id),
+            'propietario_nombre' => $safeJoin('propietarios', $equipo->propietario_id),
+            'estado_nombre' => $safeJoin('estadoequipos', $equipo->estadoequipo_id),
+            'clasificacion_biomedica' => $safeJoin('cbiomedicas', $equipo->cbiomedica_id),
+            'clasificacion_riesgo' => $safeJoin('criesgos', $equipo->criesgo_id),
+        ];
+
+        // Combinar datos del equipo con nombres de relaciones
+        $equipoCompleto = (object) array_merge((array) $equipo, $relacionesNombres);
+
+        // Analizar completitud de datos
+        $camposRequeridos = [
+            'name' => 'Nombre',
+            'code' => 'Código',
+            'serial' => 'Serie',
+            'marca' => 'Marca',
+            'modelo' => 'Modelo',
+            'servicio_id' => 'Servicio',
+            'propietario_id' => 'Propietario'
+        ];
+
+        $camposOpcionales = [
+            'descripcion' => 'Descripción',
+            'estadoequipo_id' => 'Estado',
+            'cbiomedica_id' => 'Clasificación Biomédica',
+            'criesgo_id' => 'Clasificación Riesgo',
+            'fecha_fabricacion' => 'Fecha Fabricación',
+            'fecha_instalacion' => 'Fecha Instalación',
+            'vida_util' => 'Vida Útil',
+            'costo' => 'Costo',
+            'calibracion' => 'Calibración',
+            'observacion' => 'Observación'
+        ];
+
+        $analisis = [
+            'requeridos_completos' => 0,
+            'requeridos_vacios' => 0,
+            'opcionales_completos' => 0,
+            'opcionales_vacios' => 0,
+            'campos_vacios' => [],
+            'campos_completos' => []
+        ];
+
+        // Analizar campos requeridos
+        foreach ($camposRequeridos as $campo => $descripcion) {
+            $valor = $equipoCompleto->$campo ?? null;
+            if (!empty($valor) && $valor !== '0' && $valor !== 0) {
+                $analisis['requeridos_completos']++;
+                $analisis['campos_completos'][] = $descripcion;
+            } else {
+                $analisis['requeridos_vacios']++;
+                $analisis['campos_vacios'][] = $descripcion;
+            }
+        }
+
+        // Analizar campos opcionales
+        foreach ($camposOpcionales as $campo => $descripcion) {
+            $valor = $equipoCompleto->$campo ?? null;
+            if (!empty($valor) && $valor !== '0' && $valor !== 0) {
+                $analisis['opcionales_completos']++;
+                $analisis['campos_completos'][] = $descripcion;
+            } else {
+                $analisis['opcionales_vacios']++;
+                $analisis['campos_vacios'][] = $descripcion;
+            }
+        }
+
+        $totalCampos = count($camposRequeridos) + count($camposOpcionales);
+        $totalCompletos = $analisis['requeridos_completos'] + $analisis['opcionales_completos'];
+        $porcentajeCompletitud = $totalCampos > 0 ? round(($totalCompletos / $totalCampos) * 100, 1) : 0;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Verificación de datos completada',
+            'data' => [
+                'equipo_id' => $equipoId,
+                'datos_equipo' => $equipoCompleto,
+                'analisis_completitud' => $analisis,
+                'estadisticas' => [
+                    'total_campos' => $totalCampos,
+                    'campos_completos' => $totalCompletos,
+                    'porcentaje_completitud' => $porcentajeCompletitud,
+                    'campos_requeridos_ok' => $analisis['requeridos_completos'] === count($camposRequeridos),
+                    'estado_general' => $porcentajeCompletitud >= 70 ? 'BUENO' : ($porcentajeCompletitud >= 50 ? 'REGULAR' : 'MALO')
+                ]
+            ]
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error verificando datos del equipo: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Endpoint para poblar datos básicos de relaciones
+Route::get('v1/test/seed-basic-data', function () {
+    try {
+        $insertedCount = 0;
+        $errors = [];
+
+        // Función helper para insertar datos si no existen
+        $insertIfNotExists = function($table, $data) use (&$insertedCount, &$errors) {
+            try {
+                if (!Schema::hasTable($table)) {
+                    $errors[] = "Tabla '$table' no existe";
+                    return false;
+                }
+
+                $exists = DB::table($table)->where('id', $data['id'])->exists();
+
+                if (!$exists) {
+                    DB::table($table)->insert($data);
+                    $insertedCount++;
+                    return true;
+                } else {
+                    return false; // Ya existe
+                }
+            } catch (\Exception $e) {
+                $errors[] = "Error en tabla '$table': " . $e->getMessage();
+                return false;
+            }
+        };
+
+        // 1. PROPIETARIOS
+        $propietarios = [
+            ['id' => 1, 'nombre' => 'Hospital San José', 'estado' => 1],
+            ['id' => 2, 'nombre' => 'Clínica Santa María', 'estado' => 1],
+            ['id' => 3, 'nombre' => 'Centro Médico Los Andes', 'estado' => 1],
+        ];
+
+        foreach ($propietarios as $propietario) {
+            $insertIfNotExists('propietarios', $propietario);
+        }
+
+        // 2. ESTADOS DE EQUIPOS
+        $estados = [
+            ['id' => 1, 'name' => 'Operativo', 'status' => 1, 'tipoestado_id' => 1, 'color' => 'green'],
+            ['id' => 2, 'name' => 'En Mantenimiento', 'status' => 1, 'tipoestado_id' => 2, 'color' => 'yellow'],
+            ['id' => 3, 'name' => 'Fuera de Servicio', 'status' => 1, 'tipoestado_id' => 3, 'color' => 'red'],
+        ];
+
+        foreach ($estados as $estado) {
+            $insertIfNotExists('estadoequipos', $estado);
+        }
+
+        // 3. CLASIFICACIONES BIOMÉDICAS
+        $clasificacionesBiomedicas = [
+            ['id' => 1, 'name' => 'Clase I', 'status' => 1],
+            ['id' => 2, 'name' => 'Clase IIa', 'status' => 1],
+            ['id' => 3, 'name' => 'Clase IIb', 'status' => 1],
+            ['id' => 4, 'name' => 'Clase III', 'status' => 1],
+        ];
+
+        foreach ($clasificacionesBiomedicas as $clasificacion) {
+            $insertIfNotExists('cbiomedicas', $clasificacion);
+        }
+
+        // 4. CLASIFICACIONES DE RIESGO
+        $clasificacionesRiesgo = [
+            ['id' => 1, 'name' => 'Bajo', 'status' => 1],
+            ['id' => 2, 'name' => 'Medio', 'status' => 1],
+            ['id' => 3, 'name' => 'Alto', 'status' => 1],
+            ['id' => 4, 'name' => 'Crítico', 'status' => 1],
+        ];
+
+        foreach ($clasificacionesRiesgo as $riesgo) {
+            $insertIfNotExists('criesgos', $riesgo);
+        }
+
+        // Verificar resultados
+        $counts = [
+            'propietarios' => DB::table('propietarios')->count(),
+            'estadoequipos' => DB::table('estadoequipos')->count(),
+            'cbiomedicas' => DB::table('cbiomedicas')->count(),
+            'criesgos' => DB::table('criesgos')->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Datos básicos poblados exitosamente',
+            'data' => [
+                'registros_insertados' => $insertedCount,
+                'conteos_finales' => $counts,
+                'errores' => $errors
+            ]
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error poblando datos básicos: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
 // Endpoints públicos para equipos biomédicos (sin autenticación)
 Route::get('v1/equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete'])
     ->withoutMiddleware(['auth:sanctum']);
@@ -669,6 +1046,137 @@ Route::get('v1/equipos/estadisticas/medical-devices', function () {
     ]);
 });
 
+// RUTAS DIRECTAS PARA IMÁGENES (FUERA DEL GRUPO v1)
+Route::get('storage/equipos/images/{filename}', function($filename) {
+    try {
+        $imagePath = storage_path('app/public/equipos/images/' . $filename);
+
+        if (file_exists($imagePath)) {
+            $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $mimeTypes = [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp'
+            ];
+
+            $mimeType = $mimeTypes[$extension] ?? 'image/jpeg';
+
+            return response()->file($imagePath, [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*'
+            ]);
+        }
+
+        return response()->json(['error' => 'Image not found'], 404);
+    } catch (Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+})->where('filename', '.*');
+
+Route::get('storage/{path}', function($path) {
+    try {
+        $fullPath = storage_path('app/public/' . $path);
+
+        if (file_exists($fullPath)) {
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $mimeTypes = [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'pdf' => 'application/pdf',
+                'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ];
+
+            $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+            return response()->file($fullPath, [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'public, max-age=3600',
+                'Access-Control-Allow-Origin' => '*'
+            ]);
+        }
+
+        return response()->json(['error' => 'File not found'], 404);
+    } catch (Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+})->where('path', '.*');
+
+// ==========================================
+// RUTA INDEPENDIENTE PARA CREAR EQUIPOS
+// Sin middleware de throttle para evitar errores
+// ==========================================
+Route::post('v1/equipos', function(Request $request) {
+    try {
+        // Validaciones de campos requeridos
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:100|unique:equipos,code',
+            'servicio_id' => 'required|exists:servicios,id',
+            'serial' => 'nullable|string|max:100|unique:equipos,serial',
+        ], [
+            'name.required' => 'El nombre del equipo es obligatorio.',
+            'code.required' => 'El código del equipo es obligatorio.',
+            'code.unique' => 'Ya existe un equipo con este código.',
+            'servicio_id.required' => 'Debe seleccionar un servicio.',
+            'servicio_id.exists' => 'El servicio seleccionado no existe.',
+            'serial.unique' => 'Ya existe un equipo con este número de serie.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors' => $validator->errors()
+            ], 422)->header('Access-Control-Allow-Origin', '*');
+        }
+
+        // Crear equipo usando el modelo
+        $equipo = Equipo::create([
+            'name' => $request->name,
+            'code' => $request->code,
+            'servicio_id' => $request->servicio_id,
+            'serial' => $request->serial,
+            'marca' => $request->marca,
+            'modelo' => $request->modelo,
+            'descripcion' => $request->descripcion,
+            'status' => 1,
+            // Valores por defecto para campos requeridos
+            'fuente_id' => 1,
+            'tecnologia_id' => 1,
+            'frecuencia_id' => 1,
+            'cbiomedica_id' => 1,
+            'criesgo_id' => 1,
+            'tadquisicion_id' => 1,
+            'invima_id' => 1,
+            'orden_compra_id' => 1,
+            'baja_id' => 1,
+            'estadoequipo_id' => 1,
+            'tipo_id' => 1,
+            'guia_id' => 1,
+            'manual_id' => 1,
+            'disponibilidad_id' => 1,
+            'area_id' => $request->area_id ?: 1,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Equipo creado exitosamente',
+            'data' => $equipo
+        ], 201)->header('Access-Control-Allow-Origin', '*');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al crear equipo: ' . $e->getMessage()
+        ], 500)->header('Access-Control-Allow-Origin', '*');
+    }
+});
+
 // Rutas públicas de equipos biomédicos (sin autenticación)
 Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     // Endpoints específicos sin autenticación
@@ -676,10 +1184,11 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     Route::get('equipos/filter-options', [\App\Http\Controllers\Api\EquipmentController::class, 'getFilterOptions']);
     Route::post('equipos/export', [\App\Http\Controllers\Api\EquipmentController::class, 'exportFilteredEquipment']);
     Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
-    // Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
+    // Endpoint para crear equipos usando el controlador con validaciones completas
+    Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
 
-    // Endpoint simplificado para crear equipos (sin autenticación)
-    Route::post('equipos', function(Request $request) {
+    // ENDPOINT PERSONALIZADO DESHABILITADO - USAR CONTROLADOR OFICIAL
+    /*Route::post('equipos-custom', function(Request $request) {
         try {
             \Log::info('Creando equipo', ['data' => $request->all()]);
 
@@ -780,17 +1289,16 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 if (!$numeroRegistro) return 1; // Default si no hay registro
 
                 try {
-                    // Buscar el registro INVIMA por numero_registro
-                    $registroInvima = DB::table('registros_invima')
-                        ->where('numero_registro', $numeroRegistro)
-                        ->where('estado', 'vigente')
+                    // Buscar el registro INVIMA por numero en tabla invimas
+                    $registroInvima = DB::table('invimas')
+                        ->where('invima', $numeroRegistro)
                         ->first();
 
                     if ($registroInvima) {
                         \Log::info('Registro INVIMA encontrado', [
                             'numero_registro' => $numeroRegistro,
                             'invima_id' => $registroInvima->id,
-                            'nombre_equipo' => $registroInvima->nombre_equipo ?? 'N/A'
+                            'titulo' => $registroInvima->titulo ?? 'N/A'
                         ]);
                         return $registroInvima->id;
                     } else {
@@ -933,17 +1441,159 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
                     ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         }
+    });*/
+
+
+
+    // Endpoints básicos para el modal (sin autenticación)
+    Route::get('sedes', function() {
+        try {
+            $sedes = DB::table('sedes')->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $sedes
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo sedes: ' . $e->getMessage()
+            ], 500);
+        }
     });
 
+    Route::get('servicios', function() {
+        try {
+            $servicios = DB::table('servicios')->where('status', 1)->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $servicios
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo servicios: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 
+    Route::get('tipos', function() {
+        try {
+            $tipos = DB::table('tipos')->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $tipos
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo tipos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('estados', function() {
+        try {
+            $estados = DB::table('estadoequipos')->where('status', 1)->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $estados
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo estados: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('areas', function() {
+        try {
+            $areas = DB::table('areas')->get(['id', 'name', 'servicio_id']);
+            return response()->json([
+                'success' => true,
+                'data' => $areas
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo áreas: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Endpoint para servir archivos INVIMA de forma segura
+    Route::get('invima/file/{filename}', function($filename) {
+        try {
+            // Validar que el archivo existe en la base de datos
+            $registro = DB::table('invimas')
+                ->where('file', $filename)
+                ->first();
+
+            if (!$registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Archivo no encontrado en registros'
+                ], 404);
+            }
+
+            // Construir ruta del archivo
+            $filePath = storage_path('app/public/invimas/' . $filename);
+
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Archivo físico no encontrado'
+                ], 404);
+            }
+
+            // Validar que es PDF por extensión
+            if (!str_ends_with(strtolower($filename), '.pdf')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tipo de archivo no válido'
+                ], 400);
+            }
+
+            // Servir el archivo con headers apropiados
+            return response()->file($filePath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET',
+                'Access-Control-Allow-Headers' => 'Content-Type, Accept, Origin',
+                'Cache-Control' => 'public, max-age=3600'
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error sirviendo archivo: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Endpoint simple para servir archivos INVIMA con CORS
+    Route::get('invima-pdf/{filename}', function($filename) {
+        $filePath = storage_path('app/public/invimas/' . $filename);
+
+        if (!file_exists($filePath)) {
+            abort(404, 'Archivo no encontrado');
+        }
+
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET',
+            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Origin'
+        ]);
+    });
 
     // Endpoint para obtener registros INVIMA
     Route::get('registros-invima', function() {
         try {
-            $registros = DB::table('registros_invima')
-                ->select('id', 'numero_registro', 'nombre_equipo', 'fabricante', 'modelo', 'estado', 'archivo_pdf')
-                ->where('estado', 'vigente')
-                ->orderBy('numero_registro')
+            $registros = DB::table('invimas')
+                ->select('id', 'invima as numero_registro', 'titulo as nombre_equipo', 'marcas as fabricante', 'description as modelo', 'file as archivo_pdf')
+                ->orderBy('invima')
                 ->get();
 
             return response()->json([
@@ -968,7 +1618,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         try {
             // Validaciones
             $request->validate([
-                'numero_registro' => 'required|string|max:255|unique:registros_invima,numero_registro',
+                'numero_registro' => 'required|string|max:255|unique:invimas,invima',
                 'descripcion_detallada' => 'required|string',
                 'titulo' => 'required|string|max:255',
                 'marcas' => 'required|string|max:255',
@@ -985,24 +1635,16 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 \Log::info('Archivo PDF INVIMA procesado', ['path' => $archivoPdfPath]);
             }
 
-            // Crear registro en BD
+            // Crear registro en BD (tabla invimas)
             $registroData = [
-                'numero_registro' => $request->input('numero_registro'),
-                'nombre_equipo' => $request->input('titulo'), // Usar título como nombre_equipo
-                'fabricante' => $request->input('marcas'), // Usar marcas como fabricante
-                'modelo' => '', // Campo vacío por ahora
-                'descripcion_detallada' => $request->input('descripcion_detallada'),
+                'invima' => $request->input('numero_registro'),
                 'titulo' => $request->input('titulo'),
                 'marcas' => $request->input('marcas'),
-                'archivo_pdf' => $archivoPdfPath,
-                'estado' => $request->input('estado', 'vigente'),
-                'fecha_expedicion' => now(),
-                'fecha_vencimiento' => now()->addYears(5), // 5 años por defecto
-                'created_at' => now(),
-                'updated_at' => now()
+                'description' => $request->input('descripcion_detallada'),
+                'file' => $archivoPdfPath
             ];
 
-            $registroId = DB::table('registros_invima')->insertGetId($registroData);
+            $registroId = DB::table('invimas')->insertGetId($registroData);
 
             \Log::info('Registro INVIMA creado', ['id' => $registroId, 'numero' => $request->input('numero_registro')]);
 
@@ -1081,8 +1723,15 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
             // Verificar campos de archivos (usando campos existentes en la tabla)
             if (!empty($equipo->image)) {
+                // Construir path completo para imágenes
+                $imagePath = $equipo->image;
+                // Si el path no incluye la carpeta, agregarla
+                if (strpos($imagePath, 'equipos/images/') === false) {
+                    $imagePath = 'equipos/images/' . $imagePath;
+                }
+
                 $files['imagen'] = [
-                    'path' => $equipo->image,
+                    'path' => $imagePath,
                     'type' => 'image',
                     'exists' => true
                 ];
@@ -1122,6 +1771,74 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
+    // Rutas para servir archivos de storage (SOLUCIÓN PARA IMÁGENES)
+    Route::get('storage/equipos/images/{filename}', function($filename) {
+        try {
+            $imagePath = storage_path('app/public/equipos/images/' . $filename);
+
+            if (file_exists($imagePath)) {
+                // Determinar tipo MIME de forma segura
+                $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $mimeTypes = [
+                    'jpg' => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'png' => 'image/png',
+                    'gif' => 'image/gif',
+                    'webp' => 'image/webp',
+                    'svg' => 'image/svg+xml'
+                ];
+
+                $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+                return response()->file($imagePath, [
+                    'Content-Type' => $mimeType,
+                    'Cache-Control' => 'public, max-age=3600',
+                    'Access-Control-Allow-Origin' => '*'
+                ]);
+            }
+
+            return response()->json(['error' => 'Image not found'], 404);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error serving image: ' . $e->getMessage()], 500);
+        }
+    })->where('filename', '.*');
+
+    Route::get('storage/{path}', function($path) {
+        try {
+            $fullPath = storage_path('app/public/' . $path);
+
+            if (file_exists($fullPath)) {
+                // Determinar tipo MIME de forma segura
+                $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                $mimeTypes = [
+                    'jpg' => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'png' => 'image/png',
+                    'gif' => 'image/gif',
+                    'webp' => 'image/webp',
+                    'svg' => 'image/svg+xml',
+                    'pdf' => 'application/pdf',
+                    'doc' => 'application/msword',
+                    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'xls' => 'application/vnd.ms-excel',
+                    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                ];
+
+                $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+                return response()->file($fullPath, [
+                    'Content-Type' => $mimeType,
+                    'Cache-Control' => 'public, max-age=3600',
+                    'Access-Control-Allow-Origin' => '*'
+                ]);
+            }
+
+            return response()->json(['error' => 'File not found'], 404);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error serving file: ' . $e->getMessage()], 500);
+        }
+    })->where('path', '.*');
+
     // Rutas públicas de debugging de equipos (sin autenticación)
     Route::prefix('equipos/debugging')->group(function () {
         Route::get('test-connection', [\App\Http\Controllers\Api\EquipmentDebuggingController::class, 'testConnection']);
@@ -1138,8 +1855,9 @@ Route::get('v1/test/modal-equipment-data', function () {
     try {
         $data = [
             // CATÁLOGOS REALES DE LA BD (solo columnas que existen en equipos)
+            'sedes' => DB::table('sedes')->get(['id', 'name']),
             'servicios' => DB::table('servicios')->where('status', 1)->get(['id', 'name']),
-            'areas' => DB::table('areas')->where('status', 1)->get(['id', 'name', 'servicio_id']),
+            'areas' => DB::table('areas')->get(['id', 'name', 'servicio_id']),
             'propietarios' => DB::table('propietarios')->get(['id', 'nombre as name']),
             'tipos_equipo' => DB::table('tipos')->get(['id', 'name']),
             'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
@@ -1148,7 +1866,7 @@ Route::get('v1/test/modal-equipment-data', function () {
             'estados_equipo' => DB::table('estadoequipos')->count() > 0
                 ? DB::table('estadoequipos')->get(['id', 'name'])
                 : [['id' => 0, 'name' => 'No disponible']],
-            'invimas' => DB::table('invimas')->where('status', 1)->get(['id', 'invima as name', 'titulo']),
+            'invimas' => DB::table('invimas')->get(['id', 'invima as name', 'titulo']),
 
             // DATOS POR DEFECTO PARA CATÁLOGOS FALTANTES
             'fuentes_alimentacion' => [
@@ -1218,6 +1936,9 @@ Route::get('v1/test/modal-equipment-data', function () {
                 ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     }
+
+    // Ruta para eliminar equipos
+    Route::delete('equipos/{id}', [\App\Http\Controllers\Api\EquipoController::class, 'destroy']);
 });
 
 // Middleware de seguridad aplicado automáticamente
@@ -1250,8 +1971,8 @@ Route::prefix('v1')->group(function () {
     // Dashboard y estadísticas
     require __DIR__.'/dashboard.php';
 
-    // Áreas y servicios
-    require __DIR__.'/areas.php';
+    // Áreas y servicios (comentado para evitar conflicto con endpoint público)
+    // require __DIR__.'/areas.php';
 
     // Repuestos e inventario
     require __DIR__.'/repuestos.php';
@@ -1654,7 +2375,7 @@ Route::post('auth/register', function (Request $request) {
             'telefono' => 'nullable|string|max:20',
             'email' => 'required|email|unique:usuarios,email|max:255',
             'username' => 'required|string|unique:usuarios,username|max:45',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -1775,3 +2496,1011 @@ function getEstadosEquipoWithDefault() {
         ];
     }
 }
+
+// Test endpoint to create equipment with manual and plano data directly
+Route::post('v1/test/create-equipment-with-checkboxes', function (Request $request) {
+    try {
+        DB::beginTransaction();
+
+        // Create equipment with direct SQL to ensure data is saved
+        $equipoId = DB::table('equipos')->insertGetId([
+            'name' => 'Test Equipment with Checkboxes',
+            'code' => 'CHECKBOX-DIRECT-' . time(),
+            'servicio_id' => 1,
+            'area_id' => 1,
+            'marca' => 'Test Brand',
+            'modelo' => 'Test Model',
+            'serial' => 'TEST-SERIAL-' . time(),
+            'manual' => json_encode([
+                'operacion' => true,
+                'mantenimiento' => false,
+                'partes' => true,
+                'otros' => false
+            ]),
+            'plano' => json_encode([
+                'electrico' => false,
+                'electronico' => true,
+                'neumatico' => false,
+                'mecanico' => true
+            ]),
+            'status' => 1,
+            'created_at' => now(),
+            'fecha_cambio' => now(),
+            // Required fields with defaults
+            'fuente_id' => 1,
+            'tecnologia_id' => 1,
+            'frecuencia_id' => 1,
+            'cbiomedica_id' => 1,
+            'criesgo_id' => 1,
+            'tadquisicion_id' => 1,
+            'invima_id' => 1,
+            'orden_compra_id' => 1,
+            'baja_id' => 1,
+            'estadoequipo_id' => 1,
+            'propietario_id' => 1,
+            'tipo_id' => 1,
+            'guia_id' => 1,
+            'manual_id' => 1,
+            'necesidad_id' => 1,
+            'disponibilidad_id' => 1,
+        ]);
+
+        // Verify the data was saved correctly
+        $equipo = DB::table('equipos')->where('id', $equipoId)->first(['id', 'name', 'code', 'manual', 'plano']);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Test equipment created successfully',
+            'data' => [
+                'id' => $equipoId,
+                'name' => $equipo->name,
+                'code' => $equipo->code,
+                'manual' => $equipo->manual,
+                'plano' => $equipo->plano,
+                'manual_parsed' => json_decode($equipo->manual, true),
+                'plano_parsed' => json_decode($equipo->plano, true)
+            ]
+        ])->header('Access-Control-Allow-Origin', '*');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Equipment update route without any middleware (for development/testing)
+Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
+    try {
+        DB::beginTransaction();
+
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        $updateData = $request->only([
+            'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
+            'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
+            'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
+            'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
+            'localizacion_actual', 'verificacion_inventario', 'calibracion',
+            'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
+            'periodicidad'
+        ]);
+
+        // Process manuales and planos JSON
+        if ($request->has('manuales')) {
+            $manuales = is_string($request->manuales) ? json_decode($request->manuales, true) : $request->manuales;
+            $updateData['manual'] = json_encode($manuales);
+        }
+
+        if ($request->has('planos')) {
+            $planos = is_string($request->planos) ? json_decode($request->planos, true) : $request->planos;
+            $updateData['plano'] = json_encode($planos);
+        }
+
+        $updateData['fecha_cambio'] = now();
+
+        $result = DB::table('equipos')->where('id', $id)->update($updateData);
+
+        if ($result) {
+            $updatedEquipo = DB::table('equipos')->where('id', $id)->first();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipo actualizado exitosamente',
+                'data' => [
+                    'id' => $updatedEquipo->id,
+                    'name' => $updatedEquipo->name,
+                    'code' => $updatedEquipo->code,
+                    'serial' => $updatedEquipo->serial,
+                    'marca' => $updatedEquipo->marca,
+                    'modelo' => $updatedEquipo->modelo,
+                    'descripcion' => $updatedEquipo->descripcion,
+                    'manual' => $updatedEquipo->manual,
+                    'plano' => $updatedEquipo->plano,
+                    'fecha_cambio' => $updatedEquipo->fecha_cambio
+                ]
+            ])->header('Access-Control-Allow-Origin', '*');
+        } else {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el equipo'
+            ], 500);
+        }
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar equipo: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Equipment update route with image support (no auth for development/testing)
+Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id) {
+    try {
+        DB::beginTransaction();
+
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        $updateData = $request->only([
+            'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
+            'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
+            'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
+            'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
+            'localizacion_actual', 'verificacion_inventario', 'calibracion',
+            'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
+            'periodicidad'
+        ]);
+
+        // Process manuales and planos JSON
+        if ($request->has('manuales')) {
+            $manuales = is_string($request->manuales) ? json_decode($request->manuales, true) : $request->manuales;
+            $updateData['manual'] = json_encode($manuales);
+        }
+
+        if ($request->has('planos')) {
+            $planos = is_string($request->planos) ? json_decode($request->planos, true) : $request->planos;
+            $updateData['plano'] = json_encode($planos);
+        }
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            
+            // Validate image
+            $request->validate([
+                'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            // Delete old image if exists
+            if ($equipo->image) {
+                $oldImagePath = storage_path('app/public/equipos/images/' . $equipo->image);
+                if (file_exists($oldImagePath)) {
+                    unlink($oldImagePath);
+                }
+            }
+
+            // Store new image
+            $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('equipos/images', $imageName, 'public');
+            
+            // Save image filename to database
+            $updateData['image'] = $imageName;
+        }
+
+        $updateData['fecha_cambio'] = now();
+
+        $result = DB::table('equipos')->where('id', $id)->update($updateData);
+
+        if ($result) {
+            $updatedEquipo = DB::table('equipos')->where('id', $id)->first();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipo e imagen actualizados exitosamente',
+                'data' => [
+                    'id' => $updatedEquipo->id,
+                    'name' => $updatedEquipo->name,
+                    'code' => $updatedEquipo->code,
+                    'serial' => $updatedEquipo->serial,
+                    'marca' => $updatedEquipo->marca,
+                    'modelo' => $updatedEquipo->modelo,
+                    'descripcion' => $updatedEquipo->descripcion,
+                    'image' => $updatedEquipo->image,
+                    'image_url' => $updatedEquipo->image ? url('storage/equipos/images/' . $updatedEquipo->image) : null,
+                    'manual' => $updatedEquipo->manual,
+                    'plano' => $updatedEquipo->plano,
+                    'fecha_cambio' => $updatedEquipo->fecha_cambio
+                ]
+            ])->header('Access-Control-Allow-Origin', '*');
+        } else {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el equipo'
+            ], 500);
+        }
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error de validación: ' . implode(', ', $e->validator->errors()->all())
+        ], 422);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar equipo: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \Illuminate\Routing\Middleware\ThrottleRequests::class
+]);
+
+// Ruta para obtener historial completo del equipo
+Route::get('v1/equipos/{id}/historial', [\App\Http\Controllers\Api\EquipoController::class, 'obtenerHistorial'])
+    ->withoutMiddleware([
+        'auth:sanctum',
+        'throttle:api',
+        \App\Http\Middleware\AdvancedRateLimit::class,
+        \Illuminate\Routing\Middleware\ThrottleRequests::class
+    ]);
+
+// Ruta para obtener historial completo del equipo (versión nueva)
+Route::get('v1/equipos/{id}/equipment-history', [\App\Http\Controllers\Api\EquipoController::class, 'getEquipmentHistory'])
+    ->withoutMiddleware([
+        'auth:sanctum',
+        'throttle:api',
+        \App\Http\Middleware\AdvancedRateLimit::class,
+        \Illuminate\Routing\Middleware\ThrottleRequests::class
+    ]);
+
+// ====================================================
+// RUTAS PARA GESTIÓN DE ARCHIVOS DE EQUIPOS
+// ====================================================
+
+// Subir documento a equipo
+Route::post('v1/equipos/{id}/upload-document', function (Request $request, $id) {
+    try {
+        // Validar que el equipo existe
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        // Validaciones del archivo y datos
+        $request->validate([
+            'archivo_id' => 'required|integer|exists:archivos,id',
+            'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,txt,jpg,jpeg,png|max:10240', // 10MB
+            'fecha_capacitacion' => 'nullable|date',
+            'hora_capacitacion' => 'nullable',
+            'otro' => 'nullable|string|max:255'
+        ]);
+
+        $file = $request->file('document');
+        
+        // Generar nombre único para el archivo
+        $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        
+        // Guardar archivo en la carpeta especificada
+        $filePath = $file->storeAs('equipos/archivos', $fileName, 'public');
+        
+        // Preparar datos para insertar en equipo_archivo
+        $equipoArchivoData = [
+            'equipo_id' => $id,
+            'archivo_id' => $request->archivo_id,
+            'vinculo' => $fileName,
+            'created_at' => now()
+        ];
+
+        // Manejar campos especiales para capacitaciones (archivo_id = 9)
+        if ($request->archivo_id == 9 && $request->fecha_capacitacion && $request->hora_capacitacion) {
+            $equipoArchivoData['created_at'] = $request->fecha_capacitacion . ' ' . $request->hora_capacitacion;
+        }
+
+        // Manejar campo especial para "otros documentos" (archivo_id = 19)
+        if ($request->archivo_id == 19 && $request->otro) {
+            $equipoArchivoData['otro'] = $request->otro;
+        }
+
+        // Insertar en la tabla equipo_archivo
+        $resultado = DB::table('equipo_archivo')->insert($equipoArchivoData);
+
+        if ($resultado) {
+            // Obtener información del tipo de archivo
+            $tipoArchivo = DB::table('archivos')->where('id', $request->archivo_id)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento subido exitosamente',
+                'data' => [
+                    'equipo_id' => $id,
+                    'archivo_id' => $request->archivo_id,
+                    'tipo_archivo' => $tipoArchivo->name ?? 'Desconocido',
+                    'nombre_archivo' => $file->getClientOriginalName(),
+                    'archivo_guardado' => $fileName,
+                    'ruta_completa' => $filePath,
+                    'url_acceso' => url('storage/equipos/archivos/' . $fileName),
+                    'tamaño' => $file->getSize(),
+                    'fecha_subida' => $equipoArchivoData['created_at']
+                ]
+            ])->header('Access-Control-Allow-Origin', '*');
+        } else {
+            // Si falla la inserción, eliminar el archivo subido
+            Storage::disk('public')->delete('equipos/archivos/' . $fileName);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al registrar el documento en la base de datos'
+            ], 500);
+        }
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Errores de validación',
+            'errors' => $e->validator->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al subir documento: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Obtener tipos de documentos disponibles
+Route::get('v1/document-types', function () {
+    try {
+        $tipos = DB::table('archivos')
+            ->where('status', 1)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $tipos
+        ])->header('Access-Control-Allow-Origin', '*');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener tipos de documento'
+        ], 500);
+    }
+});
+
+// Obtener documentos de un equipo
+Route::get('v1/equipos/{id}/documents', function ($id) {
+    try {
+        $documentos = DB::table('equipo_archivo')
+            ->join('archivos', 'equipo_archivo.archivo_id', '=', 'archivos.id')
+            ->where('equipo_archivo.equipo_id', $id)
+            ->select(
+                'equipo_archivo.id',
+                'equipo_archivo.vinculo as archivo',
+                'equipo_archivo.created_at as fecha_subida',
+                'equipo_archivo.otro',
+                'archivos.name as tipo_documento',
+                'archivos.id as archivo_id'
+            )
+            ->orderBy('equipo_archivo.created_at', 'desc')
+            ->get()
+            ->map(function ($doc) {
+                $doc->url_acceso = url('storage/equipos/archivos/' . $doc->archivo);
+                return $doc;
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $documentos
+        ])->header('Access-Control-Allow-Origin', '*');
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener documentos'
+        ], 500);
+    }
+});
+
+// Ruta para acceder a los archivos
+Route::get('storage/equipos/archivos/{filename}', function($filename) {
+    try {
+        $filePath = storage_path('app/public/equipos/archivos/' . $filename);
+        
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo no encontrado'
+            ], 404);
+        }
+
+        return response()->file($filePath);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al acceder al archivo'
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Endpoint para buscar equipos de prueba
+Route::post('v1/test/find-test-equipment', function (Request $request) {
+    try {
+        $searchTerms = $request->input('search_terms', ['Test', 'TEST', 'CHECKBOX', 'Prueba']);
+        
+        $query = DB::table('equipos')->select('id', 'name', 'code', 'serial', 'marca', 'modelo', 'created_at');
+        
+        // Mejorar la lógica de búsqueda - usar OR para cada término
+        $query->where(function($mainQuery) use ($searchTerms) {
+            foreach ($searchTerms as $term) {
+                $mainQuery->orWhere(function($subQuery) use ($term) {
+                    $subQuery->where('name', 'like', "%{$term}%")
+                             ->orWhere('code', 'like', "%{$term}%")
+                             ->orWhere('serial', 'like', "%{$term}%")
+                             ->orWhere('marca', 'like', "%{$term}%")
+                             ->orWhere('modelo', 'like', "%{$term}%");
+                });
+            }
+        });
+        
+        $equipos = $query->orderBy('created_at', 'desc')->limit(50)->get();
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Encontrados {$equipos->count()} equipos",
+            'search_terms' => $searchTerms,
+            'data' => $equipos
+        ])->header('Access-Control-Allow-Origin', '*');
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al buscar equipos: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Endpoint para búsqueda general de equipos
+Route::get('v1/test/search-equipment/{term?}', function ($term = null) {
+    try {
+        $query = DB::table('equipos')->select('id', 'name', 'code', 'serial', 'marca', 'modelo', 'created_at');
+        
+        if ($term && trim($term) !== '') {
+            $searchTerm = trim($term);
+            $query->where(function($subQuery) use ($searchTerm) {
+                $subQuery->where('name', 'like', "%{$searchTerm}%")
+                         ->orWhere('code', 'like', "%{$searchTerm}%")
+                         ->orWhere('serial', 'like', "%{$searchTerm}%")
+                         ->orWhere('marca', 'like', "%{$searchTerm}%")
+                         ->orWhere('modelo', 'like', "%{$searchTerm}%");
+            });
+            $message = "Búsqueda por '{$searchTerm}': ";
+        } else {
+            $message = "Todos los equipos: ";
+        }
+        
+        $equipos = $query->orderBy('created_at', 'desc')->limit(50)->get();
+        
+        return response()->json([
+            'success' => true,
+            'message' => $message . "{$equipos->count()} resultados",
+            'search_term' => $term,
+            'total_found' => $equipos->count(),
+            'data' => $equipos
+        ])->header('Access-Control-Allow-Origin', '*');
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en búsqueda: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Endpoint para obtener últimos equipos creados
+Route::get('v1/test/latest-equipment', function () {
+    try {
+        $equipos = DB::table('equipos')
+            ->select('id', 'name', 'code', 'serial', 'marca', 'modelo', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Últimos {$equipos->count()} equipos creados",
+            'data' => $equipos
+        ])->header('Access-Control-Allow-Origin', '*');
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener equipos: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Endpoint de prueba que simula medical-devices-complete con búsqueda
+Route::get('v1/test/medical-devices-search/{term?}', function ($term = null) {
+    try {
+        $query = DB::table('equipos')
+            ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
+            ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
+            ->select('equipos.id', 'equipos.name', 'equipos.code', 'equipos.serial', 'equipos.marca', 'equipos.modelo', 'equipos.tipo_id', 'equipos.created_at')
+            ->where('equipos.status', '!=', 0)
+            ->where('equipos.tipo_id', 1); // Solo equipos médicos
+        
+        if ($term && trim($term) !== '') {
+            $searchTerm = trim($term);
+            $query->where(function($subQuery) use ($searchTerm) {
+                $subQuery->where('equipos.name', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.code', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.serial', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.marca', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.modelo', 'like', "%{$searchTerm}%");
+            });
+            $message = "Búsqueda médica por '{$searchTerm}': ";
+        } else {
+            $message = "Todos los equipos médicos: ";
+        }
+        
+        $equipos = $query->orderBy('equipos.created_at', 'desc')->limit(50)->get();
+        
+        return response()->json([
+            'success' => true,
+            'message' => $message . "{$equipos->count()} resultados",
+            'search_term' => $term,
+            'total_found' => $equipos->count(),
+            'data' => $equipos
+        ])->header('Access-Control-Allow-Origin', '*');
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en búsqueda médica: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// ENDPOINT DE REEMPLAZO TEMPORAL para medical-devices-complete con búsqueda
+Route::get('v1/equipos/medical-devices-complete-fixed', function (Request $request) {
+    try {
+        $search = $request->query('search');
+        
+        $query = DB::table('equipos')
+            ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
+            ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
+            ->leftJoin('propietarios', 'propietarios.id', '=', 'equipos.propietario_id')
+            ->select([
+                'equipos.id',
+                'equipos.name',
+                'equipos.code',
+                'equipos.serial',
+                'equipos.marca',
+                'equipos.modelo',
+                'equipos.created_at',
+                'servicios.name as servicio_name',
+                'areas.name as area_name',
+                'propietarios.nombre as propietario_name'
+            ])
+            ->where('equipos.status', '!=', 0)
+            ->where('equipos.tipo_id', 1); // Solo equipos biomédicos
+        
+        // Aplicar filtro de búsqueda si existe
+        if (!empty($search)) {
+            $searchTerm = trim($search);
+            $query->where(function($subQuery) use ($searchTerm) {
+                $subQuery->where('equipos.name', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.code', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.serial', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.marca', 'like', "%{$searchTerm}%")
+                         ->orWhere('equipos.modelo', 'like', "%{$searchTerm}%")
+                         ->orWhere('servicios.name', 'like', "%{$searchTerm}%")
+                         ->orWhere('areas.name', 'like', "%{$searchTerm}%");
+            });
+        }
+        
+        $equipos = $query->orderBy('equipos.created_at', 'desc')->limit(100)->get();
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Equipos médicos encontrados: {$equipos->count()}",
+            'total' => $equipos->count(),
+            'search_applied' => !empty($search) ? $search : null,
+            'data' => $equipos
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Accept');
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en búsqueda: ' . $e->getMessage(),
+            'error_details' => $e->getFile() . ':' . $e->getLine()
+        ], 500)->header('Access-Control-Allow-Origin', '*');
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// ====================================================
+// ENDPOINTS ADICIONALES PARA GESTIÓN COMPLETA DE DOCUMENTOS
+// ====================================================
+
+// Eliminar documento de un equipo
+Route::delete('v1/equipos/{id}/documents/{documentId}', function ($id, $documentId) {
+    try {
+        // Verificar que el equipo existe
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        // Verificar que el documento existe y pertenece al equipo
+        $documento = DB::table('equipo_archivo')
+            ->where('id', $documentId)
+            ->where('equipo_id', $id)
+            ->first();
+
+        if (!$documento) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Documento no encontrado'
+            ], 404);
+        }
+
+        // Eliminar archivo físico del storage
+        $filePath = 'equipos/archivos/' . $documento->vinculo;
+        if (Storage::disk('public')->exists($filePath)) {
+            Storage::disk('public')->delete($filePath);
+        }
+
+        // Eliminar registro de la base de datos
+        $resultado = DB::table('equipo_archivo')
+            ->where('id', $documentId)
+            ->where('equipo_id', $id)
+            ->delete();
+
+        if ($resultado) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento eliminado exitosamente'
+            ])->header('Access-Control-Allow-Origin', '*');
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar documento'
+            ], 500);
+        }
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar documento: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Compartir/Copiar documento entre equipos
+Route::post('v1/equipos/{id}/documents/{documentId}/share', function (Request $request, $id, $documentId) {
+    try {
+        $request->validate([
+            'target_equipment_id' => 'required|integer|exists:equipos,id'
+        ]);
+
+        $targetEquipmentId = $request->target_equipment_id;
+
+        // Verificar que el equipo origen existe
+        $equipoOrigen = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipoOrigen) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo origen no encontrado'
+            ], 404);
+        }
+
+        // Verificar que el equipo destino existe
+        $equipoDestino = DB::table('equipos')->where('id', $targetEquipmentId)->first();
+        if (!$equipoDestino) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo destino no encontrado'
+            ], 404);
+        }
+
+        // Verificar que el documento existe y pertenece al equipo origen
+        $documento = DB::table('equipo_archivo')
+            ->where('id', $documentId)
+            ->where('equipo_id', $id)
+            ->first();
+
+        if (!$documento) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Documento no encontrado'
+            ], 404);
+        }
+
+        // Verificar si el documento ya existe en el equipo destino
+        $documentoExistente = DB::table('equipo_archivo')
+            ->where('equipo_id', $targetEquipmentId)
+            ->where('archivo_id', $documento->archivo_id)
+            ->where('vinculo', $documento->vinculo)
+            ->first();
+
+        if ($documentoExistente) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El documento ya existe en el equipo destino'
+            ], 409);
+        }
+
+        // Crear copia del documento para el equipo destino
+        $datosNuevoDocumento = [
+            'equipo_id' => $targetEquipmentId,
+            'archivo_id' => $documento->archivo_id,
+            'vinculo' => $documento->vinculo,
+            'otro' => $documento->otro,
+            'created_at' => now()
+        ];
+
+        $resultado = DB::table('equipo_archivo')->insert($datosNuevoDocumento);
+
+        if ($resultado) {
+            // Obtener información adicional para la respuesta
+            $tipoArchivo = DB::table('archivos')->where('id', $documento->archivo_id)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento compartido exitosamente',
+                'data' => [
+                    'equipo_origen' => $equipoOrigen->name,
+                    'equipo_destino' => $equipoDestino->name,
+                    'tipo_documento' => $tipoArchivo->name ?? 'Desconocido',
+                    'archivo' => $documento->vinculo
+                ]
+            ])->header('Access-Control-Allow-Origin', '*');
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al compartir documento'
+            ], 500);
+        }
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Errores de validación',
+            'errors' => $e->validator->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al compartir documento: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Obtener estadísticas de documentos por equipo
+Route::get('v1/equipos/{id}/documents/stats', function ($id) {
+    try {
+        // Verificar que el equipo existe
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        // Obtener estadísticas por tipo de documento
+        $estadisticas = DB::table('equipo_archivo')
+            ->join('archivos', 'equipo_archivo.archivo_id', '=', 'archivos.id')
+            ->where('equipo_archivo.equipo_id', $id)
+            ->select('archivos.name as tipo_documento', 
+                    'archivos.id as archivo_id',
+                    DB::raw('COUNT(*) as cantidad'))
+            ->groupBy('archivos.id', 'archivos.name')
+            ->orderBy('cantidad', 'desc')
+            ->get();
+
+        // Contar total de documentos
+        $totalDocumentos = DB::table('equipo_archivo')
+            ->where('equipo_id', $id)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_documentos' => $totalDocumentos,
+                'por_tipo' => $estadisticas,
+                'equipo_id' => $id,
+                'equipo_nombre' => $equipo->name
+            ]
+        ])->header('Access-Control-Allow-Origin', '*');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener estadísticas: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Buscar equipos para compartir documentos
+Route::get('v1/equipos/search', function (Request $request) {
+    try {
+        $search = $request->query('q', '');
+        $limit = $request->query('limit', 20);
+
+        $query = DB::table('equipos')
+            ->select('id', 'name', 'code', 'serial', 'marca', 'modelo')
+            ->where('status', '!=', 0);
+
+        if (!empty($search)) {
+            $searchTerm = trim($search);
+            $query->where(function($subQuery) use ($searchTerm) {
+                $subQuery->where('name', 'like', "%{$searchTerm}%")
+                         ->orWhere('code', 'like', "%{$searchTerm}%")
+                         ->orWhere('serial', 'like', "%{$searchTerm}%")
+                         ->orWhere('marca', 'like', "%{$searchTerm}%")
+                         ->orWhere('modelo', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $equipos = $query->orderBy('name')->limit($limit)->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $equipos,
+            'total' => $equipos->count()
+        ])->header('Access-Control-Allow-Origin', '*');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al buscar equipos: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Obtener audit trail de documentos (historial de cambios)
+Route::get('v1/equipos/{id}/documents/audit', function ($id) {
+    try {
+        // Verificar que el equipo existe
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Equipo no encontrado'
+            ], 404);
+        }
+
+        // Obtener historial de documentos
+        $auditTrail = DB::table('equipo_archivo')
+            ->join('archivos', 'equipo_archivo.archivo_id', '=', 'archivos.id')
+            ->where('equipo_archivo.equipo_id', $id)
+            ->select(
+                'equipo_archivo.id',
+                'equipo_archivo.vinculo as archivo',
+                'equipo_archivo.created_at as fecha_accion',
+                'archivos.name as tipo_documento',
+                DB::raw("'upload' as accion"),
+                DB::raw("'Sistema' as usuario")
+            )
+            ->orderBy('equipo_archivo.created_at', 'desc')
+            ->limit(50)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $auditTrail,
+            'equipo_id' => $id,
+            'equipo_nombre' => $equipo->name
+        ])->header('Access-Control-Allow-Origin', '*');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener audit trail: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+// INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
+include __DIR__ . '/equipos-modal.php';

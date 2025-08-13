@@ -673,7 +673,7 @@ class ModalInteraction
             'apellido' => 'required|string|max:100', // Corregido: 'apellido' no 'apellidos'
             'email' => 'required|email|unique:usuarios,email',
             'username' => 'required|string|max:45|unique:usuarios,username',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => 'required|string',
             'rol_id' => 'required|integer|exists:roles,id'
         ];
     }

@@ -73,7 +73,7 @@ class User extends Authenticatable
         'apellido' => 'required|string|max:100',
         'email' => 'required|email|unique:usuarios,email',
         'username' => 'required|string|max:45|unique:usuarios,username',
-        'password' => 'required|string|min:8',
+        'password' => 'required|string',
         'telefono' => 'nullable|string|max:20',
         'rol_id' => 'required|integer|exists:roles,id',
         'servicio_id' => 'nullable|integer|exists:servicios,id',
@@ -90,7 +90,7 @@ class User extends Authenticatable
     protected $messages = [
         'email.unique' => 'Este email ya está registrado en el sistema.',
         'username.unique' => 'Este nombre de usuario ya está en uso.',
-        'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+
         'rol_id.exists' => 'El rol seleccionado no es válido.',
         'servicio_id.exists' => 'El servicio seleccionado no es válido.'];
 

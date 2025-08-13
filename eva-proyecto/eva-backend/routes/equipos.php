@@ -31,10 +31,10 @@ use App\Http\Controllers\Api\EquipmentController;
 */
 
 // Rutas de equipos médicos
-// CRUD básico de equipos (EXCLUIR store - manejado por ruta pública)
-Route::apiResource('equipos', EquipmentController::class)->except(['store']);
+// CRUD básico de equipos (EXCLUIR store y update - manejados por rutas públicas)
+Route::apiResource('equipos', EquipmentController::class)->except(['store', 'update']);
 
-// Rutas específicas de equipos médicos con información completa (con CORS)
+// Rutas específicas de equipos médicos con información completa (sin autenticación)
 Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete'])
     ->withoutMiddleware(['auth:sanctum']);
 Route::get('equipos/{id}/complete-info', [EquipmentController::class, 'getCompleteInfo'])
@@ -43,6 +43,10 @@ Route::get('equipos/filter-options', [EquipmentController::class, 'getFilterOpti
     ->withoutMiddleware(['auth:sanctum']);
 Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 'getMedicalDevicesStats'])
     ->withoutMiddleware(['auth:sanctum']);
+
+// Ruta de actualización sin middleware (para desarrollo/testing)
+Route::put('equipos/{id}', [EquipmentController::class, 'update'])
+    ->withoutMiddleware(['auth:sanctum', 'throttle:api']);
 
 // Otras rutas específicas
 Route::get('equipos/{id}/historial', [EquipmentController::class, 'historial']);

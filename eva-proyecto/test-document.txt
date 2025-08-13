@@ -1,0 +1,14 @@
+Manual de operación del equipo biomédico
+
+Este es un documento de prueba para probar la funcionalidad de subida de documentos
+al sistema de gestión de equipos médicos.
+
+Contenido del manual:
+1. Instalación
+2. Configuración inicial
+3. Operación básica
+4. Mantenimiento preventivo
+5. Solución de problemas
+
+Fecha de creación: 11 de agosto de 2025
+Versión: 1.0

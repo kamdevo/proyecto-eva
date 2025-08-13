@@ -14,7 +14,8 @@ class StoreEquipmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        // Permitir acceso sin autenticación para el modal de registro
+        return true;
     }
 
     /**
@@ -154,12 +155,28 @@ class StoreEquipmentRequest extends FormRequest
      */
     protected function prepareForValidation()
     {
-        // Limpiar y preparar datos antes de la validación
-        $this->merge([
-            'code' => strtoupper(trim($this->code ?? '')),
-            'serial' => strtoupper(trim($this->serial ?? '')),
-            'marca' => ucwords(strtolower(trim($this->marca ?? ''))),
-            'modelo' => trim($this->modelo ?? ''),
-        ]);
+        // Limpiar y preparar datos antes de la validación - SOLO si existen
+        $mergeData = [];
+
+        if ($this->has('code') && !is_null($this->code)) {
+            $mergeData['code'] = strtoupper(trim($this->code));
+        }
+
+        if ($this->has('serial') && !is_null($this->serial)) {
+            $mergeData['serial'] = strtoupper(trim($this->serial));
+        }
+
+        if ($this->has('marca') && !is_null($this->marca)) {
+            $mergeData['marca'] = ucwords(strtolower(trim($this->marca)));
+        }
+
+        if ($this->has('modelo') && !is_null($this->modelo)) {
+            $mergeData['modelo'] = trim($this->modelo);
+        }
+
+        // Solo hacer merge si hay datos para procesar
+        if (!empty($mergeData)) {
+            $this->merge($mergeData);
+        }
     }
 }

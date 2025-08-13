@@ -391,8 +391,9 @@ class EquipmentDebuggingController extends Controller
                 foreach ($selectedNames as $oldName) {
                     Log::info('Processing name change', ['old_name' => $oldName, 'new_name' => $newName]);
 
-                    // Obtener equipos con este nombre
-                    $equipos = Equipo::where('name', $oldName)
+                    // Obtener equipos con este nombre y cargar relaciones
+                    $equipos = Equipo::with(['servicio', 'area'])
+                        ->where('name', $oldName)
                         ->where('status', 1)
                         ->get();
 
