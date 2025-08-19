@@ -83,15 +83,17 @@ class AdvancedRateLimit
     {
         $retryAfter = Cache::get($key . ':timer') ?? $decayMinutes * 60;
         
-        return response()->json([
+        $response = response()->json([
             'error' => 'Too Many Attempts',
             'message' => 'Rate limit exceeded. Try again later.',
             'retry_after' => $retryAfter
-        ], 429)->withHeaders([
-            'Retry-After' => $retryAfter,
-            'X-RateLimit-Limit' => $maxAttempts,
-            'X-RateLimit-Remaining' => 0,
-        ]);
+        ], 429);
+        
+        $response->headers->set('Retry-After', $retryAfter);
+        $response->headers->set('X-RateLimit-Limit', $maxAttempts);
+        $response->headers->set('X-RateLimit-Remaining', 0);
+        
+        return $response;
     }
 
     /**
@@ -99,10 +101,10 @@ class AdvancedRateLimit
      */
     protected function addHeaders(Response $response, int $maxAttempts, int $remainingAttempts): Response
     {
-        return $response->withHeaders([
-            'X-RateLimit-Limit' => $maxAttempts,
-            'X-RateLimit-Remaining' => $remainingAttempts,
-        ]);
+        $response->headers->set('X-RateLimit-Limit', $maxAttempts);
+        $response->headers->set('X-RateLimit-Remaining', $remainingAttempts);
+        
+        return $response;
     }
 
     /**

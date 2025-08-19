@@ -1,19 +1,19 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Configuración base de la API
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = "http://localhost:8000/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Interceptor para agregar token de autenticación
 api.interceptors.request.use(
   (config) => {
-    const user = localStorage.getItem('usuario');
+    const user = localStorage.getItem("usuario");
     if (user) {
       const userData = JSON.parse(user);
       config.headers.Authorization = `Bearer ${userData.token}`;
@@ -32,8 +32,8 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('usuario');
-      window.location.href = '/';
+      localStorage.removeItem("usuario");
+      window.location.href = "/";
     }
     return Promise.reject(error);
   }
@@ -43,32 +43,32 @@ api.interceptors.response.use(
 export const authService = {
   login: async (credentials) => {
     const formData = new URLSearchParams();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
-    
+    formData.append("username", credentials.username);
+    formData.append("password", credentials.password);
+
     const response = await fetch(`${API_BASE_URL}/login.php`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString()
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString(),
     });
-    
+
     return await response.json();
   },
 
   register: async (userData) => {
     const formData = new URLSearchParams();
-    Object.keys(userData).forEach(key => {
+    Object.keys(userData).forEach((key) => {
       formData.append(key, userData[key]);
     });
-    
+
     const response = await fetch(`${API_BASE_URL}/register.php`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString()
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString(),
     });
-    
+
     return await response.json();
-  }
+  },
 };
 
 // Servicios generales para CRUD
@@ -101,7 +101,7 @@ export const crudService = {
   delete: async (table, id) => {
     const response = await api.delete(`/${table}.php?id=${id}`);
     return response.data;
-  }
+  },
 };
 
 export default api;

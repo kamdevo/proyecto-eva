@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, X, Calendar, Clock, FileType } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  X,
+  Calendar,
+  Clock,
+  FileType,
+  CloudUpload,
+} from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
 import { API_CONFIG } from "@/config/api";
@@ -29,6 +37,8 @@ export function DocumentUploadModal({
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [documentTypes, setDocumentTypes] = useState([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     archivo_id: "",
     document: null,
@@ -85,13 +95,74 @@ export function DocumentUploadModal({
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      console.log(
-        "📁 [DOCUMENT MODAL] Archivo seleccionado:",
-        file.name,
-        `(${(file.size / 1024).toFixed(1)} KB)`
-      );
-      handleInputChange("document", file);
+      validateAndSetFile(file);
     }
+  };
+
+  const validateAndSetFile = (file) => {
+    // Validar tamaño (10MB máximo)
+    const maxSize = 10 * 1024 * 1024; // 10MB en bytes
+    if (file.size > maxSize) {
+      toast.error("El archivo es demasiado grande. Máximo 10MB permitido.");
+      return;
+    }
+
+    // Validar tipo de archivo
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(
+        "Tipo de archivo no permitido. Use PDF, DOC, DOCX, XLS, XLSX, TXT, JPG, JPEG o PNG."
+      );
+      return;
+    }
+
+    console.log(
+      "📁 [DOCUMENT MODAL] Archivo seleccionado:",
+      file.name,
+      `(${(file.size / 1024).toFixed(1)} KB)`
+    );
+    handleInputChange("document", file);
+    toast.success(`Archivo "${file.name}" seleccionado correctamente`);
+  };
+
+  // Funciones para Drag & Drop
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      validateAndSetFile(file);
+    }
+  };
+
+  const handleDropZoneClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleUpload = async () => {
@@ -199,43 +270,35 @@ export function DocumentUploadModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[80vw] max-w-4xl max-h-[85vh] overflow-y-auto p-4"
+        className="w-[90vw] max-w-2xl max-h-[90vh] overflow-y-auto p-0"
         style={{
-          width: "80vw",
-          maxWidth: "1024px",
-          height: "85vh",
+          width: "90vw",
+          maxWidth: "768px",
+          maxHeight: "90vh",
         }}
       >
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
+        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-blue-100">
+          <DialogTitle className="text-lg font-semibold text-blue-700 flex items-center gap-2">
             📎 Subir Documento al Equipo
           </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6 p-4">
-          {/* Información del Equipo */}
+          {/* Información del Equipo - Compacta */}
           {equipment && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-blue-800 mb-2">
-                🔧 Equipo Seleccionado:
-              </h3>
-              <p className="text-sm text-blue-700">
-                <strong>ID:</strong> {equipment.id} | <strong>Código:</strong>{" "}
-                {equipment.code} | <strong>Nombre:</strong> {equipment.name}
-              </p>
-              {equipment.serial && (
-                <p className="text-sm text-blue-600">
-                  <strong>Serie:</strong> {equipment.serial}
-                </p>
-              )}
+            <div className="text-sm text-blue-600 mt-2">
+              <span className="font-medium">🔧 {equipment.name}</span>
+              <span className="ml-2 text-blue-500">
+                #{equipment.id} | {equipment.code}
+                {equipment.serial && ` | Serie: ${equipment.serial}`}
+              </span>
             </div>
           )}
+        </DialogHeader>
 
-          {/* Formulario de Subida */}
+        <div className="px-6 py-4">
+          {/* Formulario de Subida - Layout optimizado */}
           <div className="space-y-4">
             {/* Tipo de Documento */}
             <div>
-              <Label className="text-sm font-medium flex items-center gap-2">
+              <Label className="text-sm font-medium flex items-center gap-2 mb-2">
                 <FileType className="h-4 w-4" />
                 Tipo de Documento *
               </Label>
@@ -245,7 +308,7 @@ export function DocumentUploadModal({
                   handleInputChange("archivo_id", value)
                 }
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleccionar tipo de documento..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -258,7 +321,7 @@ export function DocumentUploadModal({
               </Select>
               {selectedDocType && (
                 <p className="text-xs text-gray-600 mt-1">
-                  📋 Tipo seleccionado: <strong>{selectedDocType.name}</strong>
+                  📋 <strong>{selectedDocType.name}</strong>
                 </p>
               )}
             </div>
@@ -266,29 +329,28 @@ export function DocumentUploadModal({
             {/* Campo especial para "Otro documento" */}
             {isOtherDocument && (
               <div>
-                <Label className="text-sm font-medium">
+                <Label className="text-sm font-medium mb-2 block">
                   Especificar tipo de documento
                 </Label>
                 <Input
                   value={formData.otro}
                   onChange={(e) => handleInputChange("otro", e.target.value)}
-                  placeholder="Ej: Manual de instalación, Certificado ISO, etc."
-                  className="mt-1"
+                  placeholder="Ej: Manual de instalación, Certificado ISO..."
                 />
               </div>
             )}
 
             {/* Campos especiales para Capacitaciones */}
             {isTrainingDocument && (
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <h4 className="font-medium text-yellow-800 mb-3 flex items-center gap-2">
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h4 className="font-medium text-amber-800 mb-3 flex items-center gap-2">
                   🎓 Información de Capacitación
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium flex items-center gap-2">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
                       <Calendar className="h-4 w-4" />
-                      Fecha de Capacitación *
+                      Fecha *
                     </Label>
                     <Input
                       type="date"
@@ -296,14 +358,13 @@ export function DocumentUploadModal({
                       onChange={(e) =>
                         handleInputChange("fecha_capacitacion", e.target.value)
                       }
-                      className="mt-1"
                       required
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium flex items-center gap-2">
+                    <Label className="text-sm font-medium flex items-center gap-2 mb-2">
                       <Clock className="h-4 w-4" />
-                      Hora de Capacitación *
+                      Hora *
                     </Label>
                     <Input
                       type="time"
@@ -311,7 +372,6 @@ export function DocumentUploadModal({
                       onChange={(e) =>
                         handleInputChange("hora_capacitacion", e.target.value)
                       }
-                      className="mt-1"
                       required
                     />
                   </div>
@@ -319,65 +379,168 @@ export function DocumentUploadModal({
               </div>
             )}
 
-            {/* Selección de Archivo */}
+            {/* Área de Drag & Drop para Archivo */}
             <div>
-              <Label className="text-sm font-medium flex items-center gap-2">
+              <Label className="text-sm font-medium flex items-center gap-2 mb-2">
                 <Upload className="h-4 w-4" />
                 Seleccionar Archivo *
               </Label>
-              <Input
-                type="file"
-                onChange={handleFileSelect}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
-                className="mt-1"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                📋 Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, TXT, JPG,
-                JPEG, PNG (máximo 10MB)
-              </p>
 
-              {/* Información del archivo seleccionado */}
-              {formData.document && (
-                <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                  <div className="flex items-center gap-2 text-sm text-green-800">
-                    <FileText className="h-4 w-4" />
-                    <span>
-                      <strong>{formData.document.name}</strong>
-                    </span>
-                    <span className="text-green-600">
-                      ({(formData.document.size / 1024).toFixed(1)} KB)
-                    </span>
-                  </div>
-                </div>
-              )}
+              {/* Zona de Drag & Drop */}
+              <div
+                className={`
+                  relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
+                  transition-all duration-300 ease-in-out
+                  ${
+                    isDragOver
+                      ? "border-blue-500 bg-blue-50 scale-105"
+                      : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+                  }
+                  ${formData.document ? "border-green-500 bg-green-50" : ""}
+                `}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleDropZoneClick}
+              >
+                {/* Input oculto */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                  className="hidden"
+                />
+
+                {!formData.document ? (
+                  <>
+                    {/* Icono y texto cuando no hay archivo */}
+                    <div className="flex flex-col items-center gap-4">
+                      <div
+                        className={`
+                        p-4 rounded-full transition-colors duration-300
+                        ${isDragOver ? "bg-blue-200" : "bg-gray-100"}
+                      `}
+                      >
+                        <CloudUpload
+                          className={`
+                          h-8 w-8 transition-colors duration-300
+                          ${isDragOver ? "text-blue-600" : "text-gray-500"}
+                        `}
+                        />
+                      </div>
+
+                      <div>
+                        <p
+                          className={`
+                          text-lg font-medium transition-colors duration-300
+                          ${isDragOver ? "text-blue-700" : "text-gray-700"}
+                        `}
+                        >
+                          {isDragOver
+                            ? "¡Suelta el archivo aquí!"
+                            : "Arrastra tu archivo aquí"}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          o{" "}
+                          <span className="text-blue-600 font-medium">
+                            haz clic para seleccionar
+                          </span>
+                        </p>
+                      </div>
+
+                      <div className="text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-lg">
+                        <p className="font-medium mb-1">Formatos permitidos:</p>
+                        <p>PDF, DOC, DOCX, XLS, XLSX, TXT, JPG, JPEG, PNG</p>
+                        <p className="mt-1 text-gray-400">
+                          Tamaño máximo: 10MB
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Información del archivo seleccionado */}
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="p-4 bg-green-200 rounded-full">
+                        <FileText className="h-8 w-8 text-green-700" />
+                      </div>
+
+                      <div className="text-center">
+                        <p className="text-lg font-medium text-green-700">
+                          ✅ Archivo Seleccionado
+                        </p>
+                        <p className="text-sm font-medium text-gray-700 mt-1">
+                          {formData.document.name}
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          {(formData.document.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInputChange("document", null);
+                            toast.info("Archivo removido");
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Remover
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Upload className="h-4 w-4 mr-1" />
+                          Cambiar
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Botones de Acción */}
-        <div className="flex justify-between p-4 border-t bg-gray-50">
+        <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isUploading}
+            className="flex items-center gap-2"
           >
-            ❌ Cancelar
+            <X className="h-4 w-4" />
+            Cancelar
           </Button>
 
           <Button
             onClick={handleUpload}
             disabled={!formData.archivo_id || !formData.document || isUploading}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
           >
             {isUploading ? (
               <>
-                <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                 Subiendo...
               </>
             ) : (
               <>
-                <Upload className="h-4 w-4 mr-2" />
-                📤 Subir Documento
+                <Upload className="h-4 w-4" />
+                Subir Documento
               </>
             )}
           </Button>

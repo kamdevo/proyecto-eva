@@ -39,7 +39,7 @@ return [
             // Desarrollo - Servidores locales
             'http://localhost:3000',      // React dev server (Create React App)
             'http://localhost:5173',      // Vite dev server
-            'http://localhost:5174',      // Vite dev server (puerto alternativo)
+            'http://localhost:5174',      // Vite dev server (puerto actual)
             'http://localhost:5175',      // Vite dev server (puerto alternativo)
             'http://localhost:4173',      // Vite preview server
             'http://localhost:8080',      // Webpack dev server
@@ -49,12 +49,13 @@ return [
             // IPv4 localhost
             'http://127.0.0.1:3000',
             'http://127.0.0.1:5173',
-            'http://127.0.0.1:5174',      // Puerto alternativo
+            'http://127.0.0.1:5174',      // Vite dev server (puerto actual)
             'http://127.0.0.1:5175',      // Puerto alternativo
             'http://127.0.0.1:4173',
             'http://127.0.0.1:8080',
             'http://127.0.0.1:3001',
             'http://127.0.0.1:6006',
+            'http://127.0.0.1:8001',      // Backend Laravel
 
             // IPv6 localhost
             'http://[::1]:3000',
@@ -63,14 +64,17 @@ return [
             'http://[::1]:5175',          // Puerto alternativo
             'http://[::1]:4173',
             'http://[::1]:8080',
+            'http://[::1]:8001',          // Backend Laravel
 
             // Red local (para testing en dispositivos móviles)
             'http://192.168.1.100:3000',
             'http://192.168.1.100:5173',
             'http://192.168.1.100:5175',  // Puerto alternativo
+            'http://192.168.1.100:8001',  // Backend Laravel
             'http://10.0.0.100:3000',
             'http://10.0.0.100:5173',
             'http://10.0.0.100:5175',     // Puerto alternativo
+            'http://10.0.0.100:8001',     // Backend Laravel
 
             // Herramientas de desarrollo
             'http://localhost:9090',      // Webpack Bundle Analyzer

@@ -37,7 +37,7 @@ class CorrectivoGeneral extends Model
     
     protected $table = 'correctivos_generales';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false; // La tabla no tiene timestamps
 
     /**
      * Campos que pueden ser asignados masivamente

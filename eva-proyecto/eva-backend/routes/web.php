@@ -19,6 +19,11 @@
  */
 
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
+
+// Rutas de Sanctum para CSRF Token
+Route::get('/sanctum/csrf-cookie', [CsrfCookieController::class, 'show'])
+    ->middleware(['web']);
 
 // Página de pruebas para el modal (sin middleware)
 Route::get('/test-modal', function () {

@@ -1046,6 +1046,22 @@ Route::get('v1/equipos/estadisticas/medical-devices', function () {
     ]);
 });
 
+// Rutas públicas para Correctivos Generales (sin autenticación)
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
+    // Correctivos Generales - Rutas específicas PRIMERO (antes de {id})
+    Route::get('correctivos-generales/export-excel', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'exportAllToExcel']);
+    Route::post('correctivos-generales/export-custom', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'exportCustom']);
+    Route::post('correctivos-generales/export', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'export']);
+    Route::get('correctivos-generales/estadisticas/dashboard', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'estadisticas']);
+    
+    // Correctivos Generales - API Resource Routes (rutas dinámicas al final)
+    Route::get('correctivos-generales', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'index']);
+    Route::post('correctivos-generales', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'store']);
+    Route::get('correctivos-generales/{id}', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'show']);
+    Route::put('correctivos-generales/{id}', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'update']);
+    Route::delete('correctivos-generales/{id}', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'destroy']);
+});
+
 // RUTAS DIRECTAS PARA IMÁGENES (FUERA DEL GRUPO v1)
 Route::get('storage/equipos/images/{filename}', function($filename) {
     try {

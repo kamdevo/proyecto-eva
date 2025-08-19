@@ -6,8 +6,8 @@
 // Configuración base de la API
 export const API_CONFIG = {
   // URLs base
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
-  API_URL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8001",
+  API_URL: import.meta.env.VITE_API_URL || "http://localhost:8001/api",
 
   // Configuración de timeouts
   TIMEOUT: parseInt(import.meta.env.VITE_REQUEST_TIMEOUT) || 30000,

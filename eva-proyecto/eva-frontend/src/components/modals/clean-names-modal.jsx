@@ -33,7 +33,7 @@ import {
   Database,
   TrendingUp,
   Filter,
-  Download
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,8 +43,8 @@ export function CleanNamesModal({ open, onOpenChange }) {
   const [data, setData] = useState([]);
   const [stats, setStats] = useState(null);
   const [selectedNames, setSelectedNames] = useState([]);
-  const [newName, setNewName] = useState('');
-  const [description, setDescription] = useState('');
+  const [newName, setNewName] = useState("");
+  const [description, setDescription] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [applying, setApplying] = useState(false);
@@ -52,10 +52,10 @@ export function CleanNamesModal({ open, onOpenChange }) {
   // Estados de filtros y paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [minCount, setMinCount] = useState(1);
-  const [sortBy, setSortBy] = useState('count');
-  const [sortDirection, setSortDirection] = useState('desc');
+  const [sortBy, setSortBy] = useState("count");
+  const [sortDirection, setSortDirection] = useState("desc");
   const [pagination, setPagination] = useState(null);
 
   // Estados de UI
@@ -74,12 +74,12 @@ export function CleanNamesModal({ open, onOpenChange }) {
 
   const resetModal = () => {
     setSelectedNames([]);
-    setNewName('');
-    setDescription('');
+    setNewName("");
+    setDescription("");
     setShowPreview(false);
     setPreviewData(null);
     setCurrentPage(1);
-    setSearch('');
+    setSearch("");
     setMinCount(1);
   };
 
@@ -93,25 +93,27 @@ export function CleanNamesModal({ open, onOpenChange }) {
         search: search,
         min_count: minCount,
         sort_by: sortBy,
-        sort_direction: sortDirection
+        sort_direction: sortDirection,
       };
 
-      console.log('🔍 Cargando análisis de nombres:', params);
+      console.log("🔍 Cargando análisis de nombres:", params);
 
       // Construir URL con parámetros
-      const url = new URL('http://localhost:8000/api/v1/equipos/debugging/name-analysis');
-      Object.keys(params).forEach(key => {
+      const url = new URL(
+        "http://localhost:8000/api/v1/equipos/debugging/name-analysis"
+      );
+      Object.keys(params).forEach((key) => {
         if (params[key] !== undefined && params[key] !== null) {
           url.searchParams.append(key, params[key]);
         }
       });
 
       const response = await fetch(url, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       });
 
       if (!response.ok) {
@@ -125,16 +127,16 @@ export function CleanNamesModal({ open, onOpenChange }) {
         setStats(responseData.data.stats || {});
         setPagination(responseData.data.pagination || {});
 
-        console.log('✅ Datos cargados:', {
+        console.log("✅ Datos cargados:", {
           items: responseData.data.data?.length || 0,
           stats: responseData.data.stats,
-          pagination: responseData.data.pagination
+          pagination: responseData.data.pagination,
         });
       } else {
-        throw new Error(responseData.message || 'Error al cargar datos');
+        throw new Error(responseData.message || "Error al cargar datos");
       }
     } catch (error) {
-      console.error('❌ Error cargando análisis:', error);
+      console.error("❌ Error cargando análisis:", error);
 
       // Fallback con datos de ejemplo si falla la API
       const fallbackData = [
@@ -149,37 +151,41 @@ export function CleanNamesModal({ open, onOpenChange }) {
             has_extra_spaces: false,
             is_mixed_case: false,
             length: 24,
-            word_count: 4
-          }
+            word_count: 4,
+          },
         },
         {
           name: "MONITOR SIGNOS VITALES",
           count: 8,
           normalized_name: "Monitor Signos Vitales",
-          potential_duplicates: [{ name: "Monitor de Signos Vitales", count: 15 }],
+          potential_duplicates: [
+            { name: "Monitor de Signos Vitales", count: 15 },
+          ],
           suggested_name: "Monitor de Signos Vitales",
           analysis: {
             has_special_chars: false,
             has_extra_spaces: false,
             is_mixed_case: true,
             length: 21,
-            word_count: 3
-          }
+            word_count: 3,
+          },
         },
         {
           name: "monitor signos vitales",
           count: 3,
           normalized_name: "Monitor Signos Vitales",
-          potential_duplicates: [{ name: "Monitor de Signos Vitales", count: 15 }],
+          potential_duplicates: [
+            { name: "Monitor de Signos Vitales", count: 15 },
+          ],
           suggested_name: "Monitor de Signos Vitales",
           analysis: {
             has_special_chars: false,
             has_extra_spaces: false,
             is_mixed_case: true,
             length: 21,
-            word_count: 3
-          }
-        }
+            word_count: 3,
+          },
+        },
       ];
 
       setData(fallbackData);
@@ -190,7 +196,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
         potential_issues: 8,
         cleanup_potential: 26.67,
         last_updated: new Date().toISOString(),
-        error: 'Usando datos de ejemplo - API no disponible'
+        error: "Usando datos de ejemplo - API no disponible",
       });
       setPagination({
         current_page: 1,
@@ -198,11 +204,11 @@ export function CleanNamesModal({ open, onOpenChange }) {
         per_page: 10,
         total: 3,
         from: 1,
-        to: 3
+        to: 3,
       });
 
-      toast.error('Error al cargar datos reales. Mostrando datos de ejemplo.', {
-        description: error.response?.data?.message || error.message
+      toast.error("Error al cargar datos reales. Mostrando datos de ejemplo.", {
+        description: error.response?.data?.message || error.message,
       });
     } finally {
       setLoading(false);
@@ -214,36 +220,39 @@ export function CleanNamesModal({ open, onOpenChange }) {
     if (checked) {
       setSelectedNames([...selectedNames, name]);
     } else {
-      setSelectedNames(selectedNames.filter(n => n !== name));
+      setSelectedNames(selectedNames.filter((n) => n !== name));
     }
   };
 
   // Generar vista previa de cambios
   const generatePreview = async () => {
     if (selectedNames.length === 0) {
-      toast.error('Seleccione al menos un nombre para cambiar');
+      toast.error("Seleccione al menos un nombre para cambiar");
       return;
     }
 
     if (!newName.trim()) {
-      toast.error('Ingrese el nuevo nombre estándar');
+      toast.error("Ingrese el nuevo nombre estándar");
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await fetch('http://localhost:8000/api/v1/equipos/debugging/preview-changes', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          selected_names: selectedNames,
-          new_name: newName.trim()
-        })
-      });
+      const response = await fetch(
+        "http://localhost:8000/api/v1/equipos/debugging/preview-changes",
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            selected_names: selectedNames,
+            new_name: newName.trim(),
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -254,33 +263,33 @@ export function CleanNamesModal({ open, onOpenChange }) {
       if (responseData.success) {
         setPreviewData(responseData.data);
         setShowPreview(true);
-        toast.success('Vista previa generada exitosamente');
+        toast.success("Vista previa generada exitosamente");
       } else {
-        throw new Error(responseData.message || 'Error generando vista previa');
+        throw new Error(responseData.message || "Error generando vista previa");
       }
     } catch (error) {
-      console.error('❌ Error generando vista previa:', error);
+      console.error("❌ Error generando vista previa:", error);
 
       // Fallback con vista previa simulada
       const mockPreview = {
-        preview: selectedNames.map(oldName => ({
+        preview: selectedNames.map((oldName) => ({
           old_name: oldName,
           new_name: newName.trim(),
           affected_count: Math.floor(Math.random() * 10) + 1,
-          equipment: []
+          equipment: [],
         })),
         summary: {
           total_names_to_change: selectedNames.length,
           total_equipment_affected: selectedNames.length * 5,
-          new_standard_name: newName.trim()
-        }
+          new_standard_name: newName.trim(),
+        },
       };
 
       setPreviewData(mockPreview);
       setShowPreview(true);
 
-      toast.warning('Vista previa simulada - API no disponible', {
-        description: error.response?.data?.message || error.message
+      toast.warning("Vista previa simulada - API no disponible", {
+        description: error.response?.data?.message || error.message,
       });
     } finally {
       setLoading(false);
@@ -290,37 +299,41 @@ export function CleanNamesModal({ open, onOpenChange }) {
   // Aplicar cambios
   const applyChanges = async () => {
     if (!previewData) {
-      toast.error('Genere una vista previa primero');
+      toast.error("Genere una vista previa primero");
       return;
     }
 
     try {
       setApplying(true);
 
-      const response = await fetch('http://localhost:8000/api/v1/equipos/debugging/apply-cleaning', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          selected_names: selectedNames,
-          new_name: newName.trim(),
-          description: description.trim()
-        })
-      });
+      const response = await fetch(
+        "http://localhost:8000/api/v1/equipos/debugging/apply-cleaning",
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            selected_names: selectedNames,
+            new_name: newName.trim(),
+            description: description.trim(),
+          }),
+        }
+      );
 
       const responseData = await response.json();
 
       if (!response.ok) {
         // Manejo específico de errores HTTP
-        const errorMessage = responseData.message || `Error HTTP ${response.status}`;
+        const errorMessage =
+          responseData.message || `Error HTTP ${response.status}`;
         throw new Error(errorMessage);
       }
 
       if (responseData.success) {
         toast.success(`✅ Cambios aplicados exitosamente`, {
-          description: `${responseData.data.updated_count} equipos actualizados`
+          description: `${responseData.data.updated_count} equipos actualizados`,
         });
 
         // Reset y recargar datos
@@ -328,22 +341,23 @@ export function CleanNamesModal({ open, onOpenChange }) {
         loadNameAnalysis();
         setShowPreview(false);
       } else {
-        throw new Error(responseData.message || 'Error aplicando cambios');
+        throw new Error(responseData.message || "Error aplicando cambios");
       }
     } catch (error) {
-      console.error('❌ Error aplicando cambios:', error);
+      console.error("❌ Error aplicando cambios:", error);
 
       // Logging detallado para debugging
-      console.error('Error details:', {
+      console.error("Error details:", {
         message: error.message,
         stack: error.stack,
         selectedNames,
         newName,
-        description
+        description,
       });
 
-      toast.error('Error al aplicar cambios', {
-        description: error.message || 'Error desconocido al procesar la solicitud'
+      toast.error("Error al aplicar cambios", {
+        description:
+          error.message || "Error desconocido al procesar la solicitud",
       });
     } finally {
       setApplying(false);
@@ -422,7 +436,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
                   disabled={loading}
                   className="text-green-600"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`}
+                  />
                   Actualizar
                 </Button>
               </div>
@@ -431,13 +447,31 @@ export function CleanNamesModal({ open, onOpenChange }) {
             {/* Panel de instrucciones expandible */}
             {showInstructions && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-medium text-blue-800 mb-2">📋 Instrucciones de Uso</h4>
+                <h4 className="font-medium text-blue-800 mb-2">
+                  📋 Instrucciones de Uso
+                </h4>
                 <div className="text-sm text-blue-700 space-y-1">
-                  <p>1. <strong>Revisar nombres:</strong> Identifique nombres similares que representen el mismo equipo</p>
-                  <p>2. <strong>Seleccionar variantes:</strong> Marque los nombres que desea cambiar (deje sin marcar el nombre estándar)</p>
-                  <p>3. <strong>Definir nombre nuevo:</strong> Escriba el nombre estándar que se aplicará</p>
-                  <p>4. <strong>Vista previa:</strong> Revise los cambios antes de aplicar</p>
-                  <p>5. <strong>Aplicar cambios:</strong> Confirme para actualizar todos los equipos seleccionados</p>
+                  <p>
+                    1. <strong>Revisar nombres:</strong> Identifique nombres
+                    similares que representen el mismo equipo
+                  </p>
+                  <p>
+                    2. <strong>Seleccionar variantes:</strong> Marque los
+                    nombres que desea cambiar (deje sin marcar el nombre
+                    estándar)
+                  </p>
+                  <p>
+                    3. <strong>Definir nombre nuevo:</strong> Escriba el nombre
+                    estándar que se aplicará
+                  </p>
+                  <p>
+                    4. <strong>Vista previa:</strong> Revise los cambios antes
+                    de aplicar
+                  </p>
+                  <p>
+                    5. <strong>Aplicar cambios:</strong> Confirme para
+                    actualizar todos los equipos seleccionados
+                  </p>
                 </div>
               </div>
             )}
@@ -445,23 +479,41 @@ export function CleanNamesModal({ open, onOpenChange }) {
             {/* Panel de estadísticas expandible */}
             {showStats && stats && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h4 className="font-medium text-green-800 mb-2">📊 Estadísticas del Sistema</h4>
+                <h4 className="font-medium text-green-800 mb-2">
+                  📊 Estadísticas del Sistema
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="text-green-700 font-medium">Total Equipos:</span>
-                    <div className="text-lg font-bold text-green-800">{stats.total_equipment}</div>
+                    <span className="text-green-700 font-medium">
+                      Total Equipos:
+                    </span>
+                    <div className="text-lg font-bold text-green-800">
+                      {stats.total_equipment}
+                    </div>
                   </div>
                   <div>
-                    <span className="text-green-700 font-medium">Nombres Únicos:</span>
-                    <div className="text-lg font-bold text-green-800">{stats.unique_names}</div>
+                    <span className="text-green-700 font-medium">
+                      Nombres Únicos:
+                    </span>
+                    <div className="text-lg font-bold text-green-800">
+                      {stats.unique_names}
+                    </div>
                   </div>
                   <div>
-                    <span className="text-green-700 font-medium">Nombres Duplicados:</span>
-                    <div className="text-lg font-bold text-green-800">{stats.duplicate_names}</div>
+                    <span className="text-green-700 font-medium">
+                      Nombres Duplicados:
+                    </span>
+                    <div className="text-lg font-bold text-green-800">
+                      {stats.duplicate_names}
+                    </div>
                   </div>
                   <div>
-                    <span className="text-green-700 font-medium">Problemas Potenciales:</span>
-                    <div className="text-lg font-bold text-green-800">{stats.potential_issues}</div>
+                    <span className="text-green-700 font-medium">
+                      Problemas Potenciales:
+                    </span>
+                    <div className="text-lg font-bold text-green-800">
+                      {stats.potential_issues}
+                    </div>
                   </div>
                 </div>
                 {stats.error && (
@@ -489,7 +541,10 @@ export function CleanNamesModal({ open, onOpenChange }) {
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-400" />
                 <span className="text-sm">Mín. cantidad:</span>
-                <Select value={minCount.toString()} onValueChange={(value) => setMinCount(parseInt(value))}>
+                <Select
+                  value={minCount.toString()}
+                  onValueChange={(value) => setMinCount(parseInt(value))}
+                >
                   <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>
@@ -504,7 +559,10 @@ export function CleanNamesModal({ open, onOpenChange }) {
 
               <div className="flex items-center gap-2">
                 <span className="text-sm">Mostrar:</span>
-                <Select value={perPage.toString()} onValueChange={(value) => setPerPage(parseInt(value))}>
+                <Select
+                  value={perPage.toString()}
+                  onValueChange={(value) => setPerPage(parseInt(value))}
+                >
                   <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>
@@ -532,9 +590,11 @@ export function CleanNamesModal({ open, onOpenChange }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+                  onClick={() =>
+                    setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+                  }
                 >
-                  {sortDirection === 'asc' ? '↑' : '↓'}
+                  {sortDirection === "asc" ? "↑" : "↓"}
                 </Button>
               </div>
             </div>
@@ -547,15 +607,21 @@ export function CleanNamesModal({ open, onOpenChange }) {
                 <div className="flex items-center justify-center h-64">
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-blue-600" />
-                    <p className="text-sm text-gray-600">Cargando análisis de nombres...</p>
+                    <p className="text-sm text-gray-600">
+                      Cargando análisis de nombres...
+                    </p>
                   </div>
                 </div>
               ) : data.length === 0 ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-center">
                     <Database className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-lg font-medium text-gray-600">No se encontraron datos</p>
-                    <p className="text-sm text-gray-500">Ajuste los filtros o verifique la conexión</p>
+                    <p className="text-lg font-medium text-gray-600">
+                      No se encontraron datos
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Ajuste los filtros o verifique la conexión
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -574,14 +640,18 @@ export function CleanNamesModal({ open, onOpenChange }) {
                     <div
                       key={index}
                       className={`grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50 transition-colors ${
-                        selectedNames.includes(item.name) ? 'bg-blue-50 border-blue-200' : ''
+                        selectedNames.includes(item.name)
+                          ? "bg-blue-50 border-blue-200"
+                          : ""
                       }`}
                     >
                       {/* Checkbox de selección */}
                       <div className="col-span-1 flex justify-center">
                         <Checkbox
                           checked={selectedNames.includes(item.name)}
-                          onCheckedChange={(checked) => handleNameSelection(item.name, checked)}
+                          onCheckedChange={(checked) =>
+                            handleNameSelection(item.name, checked)
+                          }
                         />
                       </div>
 
@@ -597,7 +667,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
 
                       {/* Cantidad */}
                       <div className="col-span-1 text-center">
-                        <Badge variant={item.count > 5 ? "default" : "secondary"}>
+                        <Badge
+                          variant={item.count > 5 ? "default" : "secondary"}
+                        >
                           {item.count}
                         </Badge>
                       </div>
@@ -649,7 +721,8 @@ export function CleanNamesModal({ open, onOpenChange }) {
           {/* Información de paginación */}
           {pagination && (
             <div className="px-6 py-3 bg-gray-50 border-t text-sm text-gray-600">
-              Mostrando {pagination.from || 0} al {pagination.to || 0} de {pagination.total || 0} registros
+              Mostrando {pagination.from || 0} al {pagination.to || 0} de{" "}
+              {pagination.total || 0} registros
             </div>
           )}
 
@@ -666,20 +739,25 @@ export function CleanNamesModal({ open, onOpenChange }) {
                   Anterior
                 </Button>
 
-                {Array.from({ length: Math.min(5, pagination.last_page) }, (_, i) => {
-                  const page = i + 1;
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className={currentPage === page ? "bg-blue-600 text-white" : ""}
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
+                {Array.from(
+                  { length: Math.min(5, pagination.last_page) },
+                  (_, i) => {
+                    const page = i + 1;
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className={
+                          currentPage === page ? "bg-blue-600 text-white" : ""
+                        }
+                      >
+                        {page}
+                      </Button>
+                    );
+                  }
+                )}
 
                 {pagination.last_page > 5 && (
                   <>
@@ -691,7 +769,11 @@ export function CleanNamesModal({ open, onOpenChange }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(Math.min(pagination.last_page, currentPage + 1))}
+                  onClick={() =>
+                    setCurrentPage(
+                      Math.min(pagination.last_page, currentPage + 1)
+                    )
+                  }
                   disabled={currentPage >= pagination.last_page}
                 >
                   Siguiente
@@ -706,7 +788,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
           <div className="px-6 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <Label className="text-sm font-medium">Nombre Nuevo Estándar:</Label>
+                <Label className="text-sm font-medium">
+                  Nombre Nuevo Estándar:
+                </Label>
                 <Input
                   placeholder="Ingrese el nombre estándar que se aplicará"
                   value={newName}
@@ -715,7 +799,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium">Descripción Adicional (Opcional):</Label>
+                <Label className="text-sm font-medium">
+                  Descripción Adicional (Opcional):
+                </Label>
                 <Textarea
                   placeholder="Descripción adicional para los equipos"
                   value={description}
@@ -733,7 +819,11 @@ export function CleanNamesModal({ open, onOpenChange }) {
                   <strong>{selectedNames.length} nombres seleccionados:</strong>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {selectedNames.map((name, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="text-xs"
+                      >
                         {name}
                       </Badge>
                     ))}
@@ -748,7 +838,9 @@ export function CleanNamesModal({ open, onOpenChange }) {
             <div className="flex gap-2">
               <Button
                 onClick={generatePreview}
-                disabled={selectedNames.length === 0 || !newName.trim() || loading}
+                disabled={
+                  selectedNames.length === 0 || !newName.trim() || loading
+                }
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Eye className="h-4 w-4 mr-2" />
@@ -808,31 +900,42 @@ export function CleanNamesModal({ open, onOpenChange }) {
                       <div className="text-3xl font-bold text-green-800 mb-1">
                         {previewData.summary?.total_names_to_change || 0}
                       </div>
-                      <div className="text-sm font-medium">Nombres diferentes</div>
+                      <div className="text-sm font-medium">
+                        Nombres diferentes
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-white rounded-lg border shadow-sm">
                       <div className="text-3xl font-bold text-green-800 mb-1">
                         {previewData.summary?.total_equipment_affected || 0}
                       </div>
-                      <div className="text-sm font-medium">Equipos afectados</div>
+                      <div className="text-sm font-medium">
+                        Equipos afectados
+                      </div>
                     </div>
                     <div className="text-center p-4 bg-white rounded-lg border shadow-sm">
                       <div className="text-lg font-bold text-green-800 mb-1 truncate">
                         "{previewData.summary?.new_standard_name}"
                       </div>
-                      <div className="text-sm font-medium">Nuevo nombre estándar</div>
+                      <div className="text-sm font-medium">
+                        Nuevo nombre estándar
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded-lg">
                   <div className="px-6 py-4 border-b bg-gray-50">
-                    <h4 className="font-semibold text-gray-800 text-lg">Cambios Detallados</h4>
+                    <h4 className="font-semibold text-gray-800 text-lg">
+                      Cambios Detallados
+                    </h4>
                   </div>
                   <div className="p-6">
                     <div className="space-y-3 max-h-64 overflow-y-auto">
                       {previewData.preview?.map((change, index) => (
-                        <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div
+                          key={index}
+                          className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
@@ -845,10 +948,14 @@ export function CleanNamesModal({ open, onOpenChange }) {
                                 </span>
                               </div>
                               <div className="text-sm text-gray-500">
-                                Este cambio afectará a {change.affected_count} equipo{change.affected_count !== 1 ? 's' : ''}
+                                Este cambio afectará a {change.affected_count}{" "}
+                                equipo{change.affected_count !== 1 ? "s" : ""}
                               </div>
                             </div>
-                            <Badge variant="secondary" className="ml-4 px-3 py-1">
+                            <Badge
+                              variant="secondary"
+                              className="ml-4 px-3 py-1"
+                            >
                               {change.affected_count} equipos
                             </Badge>
                           </div>
@@ -861,7 +968,8 @@ export function CleanNamesModal({ open, onOpenChange }) {
                 <div className="flex justify-between items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="text-sm text-yellow-800 flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4" />
-                    Esta acción modificará permanentemente los nombres de los equipos en la base de datos
+                    Esta acción modificará permanentemente los nombres de los
+                    equipos en la base de datos
                   </div>
                   <div className="flex gap-3">
                     <Button
