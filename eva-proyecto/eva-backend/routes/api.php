@@ -979,6 +979,8 @@ Route::get('v1/test/seed-basic-data', function () {
 Route::get('v1/equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete'])
     ->withoutMiddleware(['auth:sanctum']);
 
+
+
 Route::get('v1/equipos/filter-options', function () {
     return response()->json([
         'success' => true,

@@ -57,7 +57,7 @@ class CorrectivoGeneralController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'page' => 'nullable|integer|min:1',
-                'per_page' => 'nullable|integer|min:1|max:100',
+                'per_page' => 'nullable|integer|min:1|max:10000',
                 'search' => 'nullable|string|max:255',
                 'status' => 'nullable|in:all,active,completed,in_progress,pending',
                 'sort_by' => 'nullable|string|in:fecha_creacion,codigo_orden,equipo,marca,sede',
@@ -151,7 +151,8 @@ class CorrectivoGeneralController extends Controller
             $query->orderBy($actualSortBy, $sortDirection);
 
             // Ejecutar la consulta con paginación manual
-            $perPage = $request->get('per_page', 10);
+            // Cambiar el valor por defecto de 10 a 1000 para mostrar todos los correctivos
+            $perPage = $request->get('per_page', 1000);
             $page = $request->get('page', 1);
             $offset = ($page - 1) * $perPage;
 

@@ -944,6 +944,18 @@ class EquipmentController extends ApiController
             $sortBy = $request->get('sort_by', 'equipos.name');
             $sortOrder = $request->get('sort_order', 'asc');
 
+            // Debug: Log todos los filtros recibidos
+            $activeFilters = array_filter($request->all(), function($value, $key) {
+                return !empty($value) && !in_array($key, ['page', 'per_page', 'sort_by', 'sort_order']);
+            }, ARRAY_FILTER_USE_BOTH);
+
+            if (!empty($activeFilters)) {
+                \Log::info('🔍 Backend: Filtros activos recibidos', [
+                    'active_filters' => $activeFilters,
+                    'total_filters' => count($activeFilters)
+                ]);
+            }
+
             // Consulta SQL completa como se especificó
             $query = DB::table('equipos')
                 ->select([
@@ -1006,17 +1018,24 @@ class EquipmentController extends ApiController
                 ->where('equipos.status', '!=', 0)
                 ->where('equipos.tipo_id', 1); // Solo equipos médicos
 
-            // Aplicar filtros de búsqueda
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('equipos.name', 'like', "%{$search}%")
-                        ->orWhere('equipos.code', 'like', "%{$search}%")
-                        ->orWhere('equipos.marca', 'like', "%{$search}%")
-                        ->orWhere('equipos.modelo', 'like', "%{$search}%")
-                        ->orWhere('equipos.serial', 'like', "%{$search}%")
-                        ->orWhere('servicios.name', 'like', "%{$search}%")
-                        ->orWhere('areas.name', 'like', "%{$search}%");
-                });
+            // FILTRO POR ID ESPECÍFICO (consulta_id) - Debe ser exacto y único
+            if ($request->has('consulta_id') && !empty($request->consulta_id)) {
+                $equipmentId = (int) $request->consulta_id;
+                $query->where('equipos.id', $equipmentId);
+                // Cuando se busca por ID específico, no aplicar otros filtros de búsqueda
+            } else {
+                // Aplicar filtros de búsqueda solo si no se está buscando por ID específico
+                if (!empty($search)) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('equipos.name', 'like', "%{$search}%")
+                            ->orWhere('equipos.code', 'like', "%{$search}%")
+                            ->orWhere('equipos.marca', 'like', "%{$search}%")
+                            ->orWhere('equipos.modelo', 'like', "%{$search}%")
+                            ->orWhere('equipos.serial', 'like', "%{$search}%")
+                            ->orWhere('servicios.name', 'like', "%{$search}%")
+                            ->orWhere('areas.name', 'like', "%{$search}%");
+                    });
+                }
             }
 
             // FILTROS ESPECÍFICOS SEGÚN EL INFORME
@@ -1089,7 +1108,15 @@ class EquipmentController extends ApiController
 
             // Sección 5: Parámetros Temporales
             if ($request->has('anio_plan') && !empty($request->anio_plan)) {
-                $query->whereYear('equipos.created_at', $request->anio_plan);
+                // Filtrar por fecha específica o año
+                $dateValue = $request->anio_plan;
+                if (strlen($dateValue) === 4) {
+                    // Si es solo año (4 dígitos)
+                    $query->whereYear('equipos.created_at', $dateValue);
+                } else {
+                    // Si es fecha completa
+                    $query->whereDate('equipos.created_at', $dateValue);
+                }
             }
 
             // Filtros adicionales de compatibilidad
@@ -1117,11 +1144,31 @@ class EquipmentController extends ApiController
                 $query->where('equipos.propietario_id', $request->propietario_id);
             }
 
+            // Filtro por estado del equipo (estadoequipo_id)
+            if ($request->has('estadoequipo_id') && !empty($request->estadoequipo_id)) {
+                $query->where('equipos.estadoequipo_id', $request->estadoequipo_id);
+            }
+
+            // Filtro por estado general del equipo
+            if ($request->has('estado_id') && !empty($request->estado_id)) {
+                $query->where('equipos.estadoequipo_id', $request->estado_id);
+            }
+
             // Ordenamiento
             $query->orderBy($sortBy, $sortOrder);
 
             // Obtener total de registros para paginación
             $total = $query->count();
+
+            // Debug: Log resultados de la consulta
+            if ($request->has('consulta_id')) {
+                \Log::info('📊 Backend: Resultados de búsqueda por ID', [
+                    'consulta_id' => $request->consulta_id,
+                    'total_found' => $total,
+                    'page' => $page,
+                    'per_page' => $perPage
+                ]);
+            }
 
             // Aplicar paginación
             $offset = ($page - 1) * $perPage;

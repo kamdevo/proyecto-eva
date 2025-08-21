@@ -37,6 +37,22 @@ export const useMedicalDevices = () => {
     clasificacion_id: "",
     riesgo_id: "",
     propietario_id: "",
+    // Nuevos filtros del modal avanzado
+    filtro_code: "",
+    filtro_name: "",
+    filtro_serial: "",
+    filtro_marca: "",
+    filtro_modelo: "",
+    filtro_zona: "",
+    servicio_id_auxiliar: "",
+    area_id_auxiliar: "",
+    filtro_estadoequipo_id: "",
+    filtro_estadom: "",
+    proveedor_mantenimiento: "",
+    tipo_id: "",
+    estado_id_cg: "",
+    anio_plan: "",
+    consulta_id: "",
     page: 1,
     per_page: 15,
     sort_by: "name",
@@ -141,6 +157,8 @@ export const useMedicalDevices = () => {
   const updateFilters = useCallback(
     (newFilters) => {
       const updatedFilters = { ...filters, ...newFilters, page: 1 };
+      console.log("🔄 Hook updateFilters called with:", newFilters);
+      console.log("📝 Updated filters:", updatedFilters);
       setFilters(updatedFilters);
       // Recargar datos inmediatamente con los nuevos filtros
       loadDevices(updatedFilters);
@@ -172,6 +190,22 @@ export const useMedicalDevices = () => {
       clasificacion_id: "",
       riesgo_id: "",
       propietario_id: "",
+      // Nuevos filtros del modal avanzado
+      filtro_code: "",
+      filtro_name: "",
+      filtro_serial: "",
+      filtro_marca: "",
+      filtro_modelo: "",
+      filtro_zona: "",
+      servicio_id_auxiliar: "",
+      area_id_auxiliar: "",
+      filtro_estadoequipo_id: "",
+      filtro_estadom: "",
+      proveedor_mantenimiento: "",
+      tipo_id: "",
+      estado_id_cg: "",
+      anio_plan: "",
+      consulta_id: "",
       page: 1,
       per_page: 15,
       sort_by: "name",

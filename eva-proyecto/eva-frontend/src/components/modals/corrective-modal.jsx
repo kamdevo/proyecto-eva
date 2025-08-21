@@ -22,9 +22,6 @@ import {
   Download,
   FileSpreadsheet,
   Eye,
-  Edit,
-  Trash2,
-  Plus,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -42,28 +39,50 @@ import { toast } from "sonner";
 import httpService from "@/services/httpService";
 
 /**
- * Enterprise Corrective Maintenance Modal Component
+ * Modal de Correctivos Generales - Versión Simplificada
  *
- * Features:
- * - Complete corrective listing with database integration
- * - Global search across all fields
- * - Excel/CSV export functionality
- * - Advanced filtering and sorting
- * - Pagination with configurable page sizes
- * - CRUD operations (Create, Read, Update, Delete)
- * - Real-time data synchronization
- * - Responsive design with optimized performance
+ * Funcionalidades principales:
+ * - Lista completa de correctivos con integración a base de datos
+ * - Búsqueda global en todos los campos
+ * - Funcionalidad de exportación Excel/CSV
+ * - Filtrado y ordenamiento avanzado
+ * - Paginación con tamaños configurables
+ * - Vista de detalles de correctivos
+ * - Diseño responsivo y optimizado
  *
- * Database Integration:
- * - correctivos_generales: Main corrective records
- * - equipos: Equipment information and relationships
- * - usuarios: User assignments and responsibilities
+ * Integración con base de datos:
+ * - correctivos_generales: Registros principales de correctivos
+ * - equipos: Información y relaciones de equipos
+ * - usuarios: Asignaciones y responsabilidades
  *
- * @param {Object} props - Component props
- * @param {boolean} props.open - Modal visibility state
- * @param {function} props.onOpenChange - Modal state change handler
+ * @param {Object} props - Propiedades del componente
+ * @param {boolean} props.open - Estado de visibilidad del modal
+ * @param {function} props.onOpenChange - Función para cambiar el estado del modal
  */
 export function CorrectiveModal({ open, onOpenChange }) {
+  // Agregar estilos CSS para sobrescribir limitaciones globales
+  React.useEffect(() => {
+    if (open) {
+      const style = document.createElement("style");
+      style.textContent = `
+        [data-radix-dialog-content] {
+          max-width: 95vw !important;
+          width: 95vw !important;
+        }
+        .corrective-modal-wide [data-radix-dialog-content] {
+          max-width: 95vw !important;
+          width: 95vw !important;
+        }
+        .corrective-modal-detail [data-radix-dialog-content] {
+          max-width: 90vw !important;
+          width: 90vw !important;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => document.head.removeChild(style);
+    }
+  }, [open]);
+
   // State Management
   const [correctiveData, setCorrectiveData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -76,62 +95,128 @@ export function CorrectiveModal({ open, onOpenChange }) {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25); // Paginación funcional
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal State
   const [selectedCorrective, setSelectedCorrective] = useState(null);
-  const [viewMode, setViewMode] = useState("list"); // 'list', 'view', 'edit', 'create'
+  const [viewMode, setViewMode] = useState("list"); // 'list', 'view'
 
   /**
    * Load corrective data from API
    * Integrates with correctivos_generales table and related equipment/user data
    */
-  const loadCorrectiveData = useCallback(async () => {
-    setLoading(true);
-    try {
-      console.log("🔄 [CORRECTIVE] Cargando datos de correctivos...");
+  const loadCorrectiveData = useCallback(
+    async (
+      page = 1,
+      perPage = itemsPerPage,
+      search = searchTerm,
+      status = statusFilter
+    ) => {
+      setLoading(true);
+      try {
+        console.log("🔄 [CORRECTIVE] Cargando datos de correctivos...", {
+          page,
+          perPage,
+          search,
+          status,
+        });
 
-      const response = await httpService.get("/v1/correctivos-generales");
+        const response = await httpService.get("/v1/correctivos-generales", {
+          params: {
+            page: page,
+            per_page: perPage,
+            search: search || undefined,
+            status: status !== "all" ? status : undefined,
+            sort_by: sortConfig.key,
+            sort_direction: sortConfig.direction,
+          },
+        });
 
-      console.log("✅ [CORRECTIVE] Datos cargados:", response.data);
+        console.log("✅ [CORRECTIVE] Datos cargados:", response.data);
 
-      // Extract correctivos from the nested structure
-      let dataToSet = [];
-      if (
-        response.data &&
-        response.data.data &&
-        response.data.data.correctivos
-      ) {
-        dataToSet = response.data.data.correctivos;
-      } else if (response.data && response.data.correctivos) {
-        dataToSet = response.data.correctivos;
-      } else if (response.data && Array.isArray(response.data)) {
-        dataToSet = response.data;
+        // Extract correctivos and pagination from the nested structure
+        let dataToSet = [];
+        let paginationInfo = null;
+
+        if (response.data && response.data.data) {
+          if (response.data.data.correctivos) {
+            dataToSet = response.data.data.correctivos;
+            paginationInfo = response.data.data.pagination;
+          } else if (Array.isArray(response.data.data)) {
+            dataToSet = response.data.data;
+          }
+        } else if (response.data && response.data.correctivos) {
+          dataToSet = response.data.correctivos;
+          paginationInfo = response.data.pagination;
+        } else if (response.data && Array.isArray(response.data)) {
+          dataToSet = response.data;
+        }
+
+        console.log(
+          "🔍 [CORRECTIVE] Datos extraídos para mostrar:",
+          dataToSet,
+          "Total:",
+          dataToSet.length,
+          "Paginación:",
+          paginationInfo
+        );
+
+        // Set data and pagination info
+        setCorrectiveData(Array.isArray(dataToSet) ? dataToSet : []);
+
+        if (paginationInfo) {
+          setTotalItems(paginationInfo.total || 0);
+          setTotalPages(paginationInfo.last_page || 1);
+          setCurrentPage(paginationInfo.current_page || 1);
+        }
+
+        // Success feedback
+        toast.success("Correctivos cargados exitosamente");
+      } catch (error) {
+        console.error("❌ [CORRECTIVE] Error loading corrective data:", error);
+        toast.error("Error al cargar los correctivos");
+
+        // Fallback sample data for development/demo
+        const sampleData = getSampleCorrectiveData();
+        setCorrectiveData(Array.isArray(sampleData) ? sampleData : []);
+        setTotalItems(sampleData.length);
+        setTotalPages(1);
+      } finally {
+        setLoading(false);
       }
+    },
+    [itemsPerPage, sortConfig]
+  );
 
-      console.log(
-        "🔍 [CORRECTIVE] Datos extraídos para mostrar:",
-        dataToSet,
-        "Total:",
-        dataToSet.length
-      );
-
-      // Ensure we always set an array
-      setCorrectiveData(Array.isArray(dataToSet) ? dataToSet : []);
-
-      // Success feedback
-      toast.success("Correctivos cargados exitosamente");
-    } catch (error) {
-      console.error("❌ [CORRECTIVE] Error loading corrective data:", error);
-      toast.error("Error al cargar los correctivos");
-
-      // Fallback sample data for development/demo
-      const sampleData = getSampleCorrectiveData();
-      setCorrectiveData(Array.isArray(sampleData) ? sampleData : []);
-    } finally {
-      setLoading(false);
+  // Load data when modal opens
+  useEffect(() => {
+    if (open) {
+      loadCorrectiveData(1, itemsPerPage, searchTerm, statusFilter);
     }
-  }, []);
+  }, [open, loadCorrectiveData]);
+
+  // Reload data when search term or status filter changes
+  useEffect(() => {
+    if (open) {
+      setCurrentPage(1); // Reset to first page
+      loadCorrectiveData(1, itemsPerPage, searchTerm, statusFilter);
+    }
+  }, [searchTerm, statusFilter, open, loadCorrectiveData]);
+
+  // Handle page changes
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    loadCorrectiveData(newPage, itemsPerPage, searchTerm, statusFilter);
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+    loadCorrectiveData(1, newItemsPerPage, searchTerm, statusFilter);
+  };
 
   /**
    * Sample corrective data structure matching Excel format
@@ -319,15 +404,11 @@ export function CorrectiveModal({ open, onOpenChange }) {
   }, [correctiveData, searchTerm, statusFilter, sortConfig]);
 
   /**
-   * Pagination calculations
+   * Los datos ya vienen paginados del backend, no necesitamos paginación local
    */
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredAndSortedData.slice(startIndex, endIndex);
-  }, [filteredAndSortedData, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
+  const displayData = useMemo(() => {
+    return Array.isArray(correctiveData) ? correctiveData : [];
+  }, [correctiveData]);
 
   /**
    * Export functionality - TODOS los correctivos (sin filtros)
@@ -394,11 +475,11 @@ export function CorrectiveModal({ open, onOpenChange }) {
       console.log(
         "🔄 [EXPORT] Exportando correctivos FILTRADOS...",
         "Total filtrados:",
-        filteredAndSortedData.length
+        displayData.length
       );
 
       // Enviar solo los IDs para que el backend consulte los datos reales
-      const exportData = filteredAndSortedData.map((item) => ({
+      const exportData = displayData.map((item) => ({
         id: item.id,
       }));
 
@@ -528,13 +609,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
   }, [open, loadCorrectiveData]);
 
   /**
-   * Reset pagination when filters change
-   */
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
-
-  /**
    * Handle document viewing
    */
   const handleViewDocument = (fileName) => {
@@ -559,337 +633,345 @@ export function CorrectiveModal({ open, onOpenChange }) {
   if (viewMode === "view" && selectedCorrective) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-3">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-semibold text-blue-700 flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Detalle del Correctivo
-              </DialogTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className="flex items-center gap-2"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Volver
-              </Button>
-            </div>
-            <Separator />
-          </DialogHeader>
+        <div className="corrective-modal-detail">
+          <DialogContent
+            className="!max-w-none w-[90vw] max-h-[95vh] overflow-y-auto"
+            style={{ maxWidth: "90vw !important", width: "90vw !important" }}
+          >
+            <DialogHeader className="space-y-3">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-xl font-semibold text-blue-700 flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Detalle del Correctivo
+                </DialogTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Volver
+                </Button>
+              </div>
+              <Separator />
+            </DialogHeader>
 
-          <div className="space-y-6 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg text-blue-600">
-                    Información General
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <span className="font-medium text-gray-600">
-                      Código de Orden:
-                    </span>
-                    <p className="text-gray-900">
-                      {selectedCorrective.codigo_orden}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">
-                      Descripción:
-                    </span>
-                    <p className="text-gray-900">
-                      {selectedCorrective.descripcion_orden}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">
-                      Responsable:
-                    </span>
-                    <p className="text-gray-900">
-                      {selectedCorrective.responsable_mantenimiento}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Estado:</span>
-                    <div className="mt-1">
-                      {getStatusBadge(selectedCorrective)}
+            <div className="space-y-6 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg text-blue-600">
+                      Información General
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Código de Orden:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.codigo_orden}
+                      </p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Descripción:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.descripcion_orden}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Responsable:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.responsable_mantenimiento}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Estado:</span>
+                      <div className="mt-1">
+                        {getStatusBadge(selectedCorrective)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg text-blue-600">
+                      Información del Equipo
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <span className="font-medium text-gray-600">Equipo:</span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.equipo}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Código:</span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.codigo_equipo}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Marca/Modelo:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.marca} - {selectedCorrective.modelo}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Serie:</span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.serie}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg text-blue-600">
-                    Información del Equipo
+                    Ubicación y Servicio
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <span className="font-medium text-gray-600">Equipo:</span>
-                    <p className="text-gray-900">{selectedCorrective.equipo}</p>
+                    <span className="font-medium text-gray-600">Sede:</span>
+                    <p className="text-gray-900">{selectedCorrective.sede}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600">Código:</span>
+                    <span className="font-medium text-gray-600">Servicio:</span>
                     <p className="text-gray-900">
-                      {selectedCorrective.codigo_equipo}
+                      {selectedCorrective.servicio}
                     </p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600">
-                      Marca/Modelo:
-                    </span>
+                    <span className="font-medium text-gray-600">Área:</span>
                     <p className="text-gray-900">
-                      {selectedCorrective.marca} - {selectedCorrective.modelo}
+                      {selectedCorrective.area || "No especificada"}
                     </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">Serie:</span>
-                    <p className="text-gray-900">{selectedCorrective.serie}</p>
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg text-blue-600">
-                  Ubicación y Servicio
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <span className="font-medium text-gray-600">Sede:</span>
-                  <p className="text-gray-900">{selectedCorrective.sede}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Servicio:</span>
-                  <p className="text-gray-900">{selectedCorrective.servicio}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Área:</span>
-                  <p className="text-gray-900">
-                    {selectedCorrective.area || "No especificada"}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+              {selectedCorrective.archivo && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg text-blue-600 flex items-center gap-2">
+                      📄 Documento Adjunto
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                          📄
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {selectedCorrective.archivo}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Documento del correctivo
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() =>
+                          handleViewDocument(selectedCorrective.archivo)
+                        }
+                        className="flex items-center gap-2"
+                      >
+                        👁️ Ver e Imprimir
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-            {selectedCorrective.archivo && (
+              {(selectedCorrective.fecha_avance ||
+                selectedCorrective.fecha_avance2 ||
+                selectedCorrective.fecha_avance3) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg text-blue-600">
+                      Avances del Trabajo
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {selectedCorrective.fecha_avance && (
+                      <div className="border-l-4 border-blue-500 pl-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">
+                            {selectedCorrective.titulo_avance1}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {selectedCorrective.fecha_avance}
+                          </span>
+                        </div>
+                        <p className="text-gray-700">
+                          {selectedCorrective.descripcion_avance}
+                        </p>
+                      </div>
+                    )}
+                    {selectedCorrective.fecha_avance2 && (
+                      <div className="border-l-4 border-blue-500 pl-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">
+                            {selectedCorrective.titulo_avance2}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {selectedCorrective.fecha_avance2}
+                          </span>
+                        </div>
+                        <p className="text-gray-700">
+                          {selectedCorrective.descripcion_avance2}
+                        </p>
+                      </div>
+                    )}
+                    {selectedCorrective.fecha_avance3 && (
+                      <div className="border-l-4 border-blue-500 pl-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium">
+                            {selectedCorrective.titulo_avance3}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {selectedCorrective.fecha_avance3}
+                          </span>
+                        </div>
+                        <p className="text-gray-700">
+                          {selectedCorrective.descripcion_avance3}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {selectedCorrective.fecha_cierre && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg text-green-600 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5" />
+                      Cierre del Trabajo
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Fecha de Cierre:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.fecha_cierre}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Retroalimentación:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.retro_cierre}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Descripción del Cierre:
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedCorrective.descripcion_cierre}
+                      </p>
+                    </div>
+                    {selectedCorrective.repuesto_instalado && (
+                      <div>
+                        <span className="font-medium text-gray-600">
+                          Repuestos Instalados:
+                        </span>
+                        <p className="text-gray-900">
+                          {selectedCorrective.repuesto_instalado}
+                        </p>
+                      </div>
+                    )}
+                    {selectedCorrective.costo_equipo > 0 && (
+                      <div>
+                        <span className="font-medium text-gray-600">
+                          Costo:
+                        </span>
+                        <p className="text-gray-900">
+                          ${selectedCorrective.costo_equipo.toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Sección de Documentos */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg text-blue-600 flex items-center gap-2">
-                    📄 Documento Adjunto
+                  <CardTitle className="text-lg text-purple-600 flex items-center gap-2">
+                    📄 Documentos Adjuntos
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  {selectedCorrective.archivo ? (
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          📄
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {selectedCorrective.archivo}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Documento del correctivo
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() =>
+                          handleViewDocument(selectedCorrective.archivo)
+                        }
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        👀 Ver e Imprimir
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                         📄
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {selectedCorrective.archivo}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Documento del correctivo
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() =>
-                        handleViewDocument(selectedCorrective.archivo)
-                      }
-                      className="flex items-center gap-2"
-                    >
-                      👁️ Ver e Imprimir
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {(selectedCorrective.fecha_avance ||
-              selectedCorrective.fecha_avance2 ||
-              selectedCorrective.fecha_avance3) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg text-blue-600">
-                    Avances del Trabajo
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {selectedCorrective.fecha_avance && (
-                    <div className="border-l-4 border-blue-500 pl-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-4 w-4 text-blue-500" />
-                        <span className="font-medium">
-                          {selectedCorrective.titulo_avance1}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {selectedCorrective.fecha_avance}
-                        </span>
-                      </div>
-                      <p className="text-gray-700">
-                        {selectedCorrective.descripcion_avance}
-                      </p>
-                    </div>
-                  )}
-                  {selectedCorrective.fecha_avance2 && (
-                    <div className="border-l-4 border-blue-500 pl-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-4 w-4 text-blue-500" />
-                        <span className="font-medium">
-                          {selectedCorrective.titulo_avance2}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {selectedCorrective.fecha_avance2}
-                        </span>
-                      </div>
-                      <p className="text-gray-700">
-                        {selectedCorrective.descripcion_avance2}
-                      </p>
-                    </div>
-                  )}
-                  {selectedCorrective.fecha_avance3 && (
-                    <div className="border-l-4 border-blue-500 pl-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-4 w-4 text-blue-500" />
-                        <span className="font-medium">
-                          {selectedCorrective.titulo_avance3}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {selectedCorrective.fecha_avance3}
-                        </span>
-                      </div>
-                      <p className="text-gray-700">
-                        {selectedCorrective.descripcion_avance3}
-                      </p>
+                      <p>No hay documentos adjuntos para este correctivo</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            )}
+            </div>
 
-            {selectedCorrective.fecha_cierre && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg text-green-600 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    Cierre del Trabajo
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <span className="font-medium text-gray-600">
-                      Fecha de Cierre:
-                    </span>
-                    <p className="text-gray-900">
-                      {selectedCorrective.fecha_cierre}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">
-                      Retroalimentación:
-                    </span>
-                    <p className="text-gray-900">
-                      {selectedCorrective.retro_cierre}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-600">
-                      Descripción del Cierre:
-                    </span>
-                    <p className="text-gray-900">
-                      {selectedCorrective.descripcion_cierre}
-                    </p>
-                  </div>
-                  {selectedCorrective.repuesto_instalado && (
-                    <div>
-                      <span className="font-medium text-gray-600">
-                        Repuestos Instalados:
-                      </span>
-                      <p className="text-gray-900">
-                        {selectedCorrective.repuesto_instalado}
-                      </p>
-                    </div>
-                  )}
-                  {selectedCorrective.costo_equipo > 0 && (
-                    <div>
-                      <span className="font-medium text-gray-600">Costo:</span>
-                      <p className="text-gray-900">
-                        ${selectedCorrective.costo_equipo.toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Sección de Documentos */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg text-purple-600 flex items-center gap-2">
-                  📄 Documentos Adjuntos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedCorrective.archivo ? (
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        📄
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {selectedCorrective.archivo}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Documento del correctivo
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() =>
-                        handleViewDocument(selectedCorrective.archivo)
-                      }
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      👀 Ver e Imprimir
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                      📄
-                    </div>
-                    <p>No hay documentos adjuntos para este correctivo</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex justify-end p-4 border-t gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setViewMode("edit")}
-              className="flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cerrar
-            </Button>
-          </div>
-        </DialogContent>
+            <div className="flex justify-end p-4 border-t gap-2">
+              <Button variant="outline" onClick={() => setViewMode("list")}>
+                Volver a la Lista
+              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </DialogContent>
+        </div>
       </Dialog>
     );
   }
@@ -897,395 +979,397 @@ export function CorrectiveModal({ open, onOpenChange }) {
   // Main list view
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader className="space-y-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-semibold text-blue-700 flex items-center gap-2">
-              🔧 Correctivos Generales
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              {/* Botón para exportar TODOS los correctivos */}
-              <Button
-                onClick={() => handleExportAll("excel")}
-                variant="default"
-                size="sm"
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-                disabled={loading}
-                title="Exportar TODOS los correctivos reales de la base de datos"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                📊 Exportar TODOS
-              </Button>
+      <div className="corrective-modal-wide">
+        <DialogContent
+          className="!max-w-none w-[95vw] max-h-[95vh] overflow-hidden flex flex-col"
+          style={{ maxWidth: "95vw !important", width: "95vw !important" }}
+        >
+          <DialogHeader className="space-y-3 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-semibold text-blue-700 flex items-center gap-2">
+                🔧 Correctivos Generales
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {/* Botón para exportar TODOS los correctivos */}
+                <Button
+                  onClick={() => handleExportAll("excel")}
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  disabled={loading}
+                  title="Exportar TODOS los correctivos reales de la base de datos"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  📊 Exportar TODOS
+                </Button>
 
-              {/* Botón para exportar solo FILTRADOS */}
-              <Button
-                onClick={() => handleExportFiltered("excel")}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50"
-                disabled={loading || filteredAndSortedData.length === 0}
-                title={`Exportar solo los ${filteredAndSortedData.length} correctivos filtrados/visibles`}
-              >
-                <Download className="h-4 w-4" />
-                🔍 Exportar Filtrados ({filteredAndSortedData.length})
-              </Button>
+                {/* Botón para exportar solo FILTRADOS */}
+                <Button
+                  onClick={() => handleExportFiltered("excel")}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+                  disabled={loading || displayData.length === 0}
+                  title={`Exportar solo los ${displayData.length} correctivos filtrados/visibles`}
+                >
+                  <Download className="h-4 w-4" />
+                  🔍 Exportar Filtrados ({displayData.length})
+                </Button>
 
-              {/* Botón de actualizar */}
-              <Button
-                onClick={loadCorrectiveData}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-                disabled={loading}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                />
-                Actualizar
-              </Button>
-            </div>
-          </div>
-          <Separator />
-        </DialogHeader>
-
-        <div className="flex-1 overflow-hidden flex flex-col space-y-4 p-4">
-          {/* Search and Filters */}
-          <Card className="flex-shrink-0">
-            <CardContent className="pt-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Buscar en todos los campos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                {/* Botón de actualizar */}
+                <Button
+                  onClick={() =>
+                    loadCorrectiveData(
+                      currentPage,
+                      itemsPerPage,
+                      searchTerm,
+                      statusFilter
+                    )
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  disabled={loading}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                   />
-                </div>
-                <div className="flex gap-2">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="active">Activos</SelectItem>
-                      <SelectItem value="completed">Completados</SelectItem>
-                      <SelectItem value="in_progress">En Proceso</SelectItem>
-                      <SelectItem value="pending">Pendientes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => setItemsPerPage(Number(value))}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  Actualizar
+                </Button>
               </div>
-              <div className="mt-3 text-sm text-gray-600">
-                Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
-                {Math.min(
-                  currentPage * itemsPerPage,
-                  filteredAndSortedData.length
-                )}{" "}
-                de {filteredAndSortedData.length} entradas
-                {filteredAndSortedData.length !== correctiveData.length && (
-                  <span className="text-blue-600">
-                    {" "}
-                    (filtrado de {correctiveData.length} total)
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <Separator />
+          </DialogHeader>
 
-          {/* Data Table */}
-          <Card className="flex-1 overflow-hidden">
-            <CardContent className="p-0 h-full overflow-auto">
-              {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5 animate-spin" />
-                    <span>Cargando correctivos...</span>
-                  </div>
-                </div>
-              ) : paginatedData.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                  <AlertCircle className="h-12 w-12 mb-4" />
-                  <p className="text-lg font-medium">
-                    No se encontraron correctivos
-                  </p>
-                  <p className="text-sm">
-                    Intenta ajustar los filtros de búsqueda
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
-                      <tr>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <button
-                            onClick={() => handleSort("fecha_creacion")}
-                            className="flex items-center gap-1 hover:text-gray-700"
-                          >
-                            Fecha
-                            {sortConfig.key === "fecha_creacion" &&
-                              (sortConfig.direction === "asc" ? (
-                                <SortAsc className="h-3 w-3" />
-                              ) : (
-                                <SortDesc className="h-3 w-3" />
-                              ))}
-                          </button>
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <button
-                            onClick={() => handleSort("codigo_orden")}
-                            className="flex items-center gap-1 hover:text-gray-700"
-                          >
-                            Código
-                            {sortConfig.key === "codigo_orden" &&
-                              (sortConfig.direction === "asc" ? (
-                                <SortAsc className="h-3 w-3" />
-                              ) : (
-                                <SortDesc className="h-3 w-3" />
-                              ))}
-                          </button>
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Equipo
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Marca/Modelo
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Estado
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Prioridad
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Sede
-                        </th>
-                        <th className="border border-gray-200 p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Responsable
-                        </th>
-                        <th className="border border-gray-200 p-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Documentos
-                        </th>
-                        <th className="border border-gray-200 p-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedData.map((item) => (
-                        <tr
-                          key={item.id}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="border border-gray-200 p-3 text-sm text-gray-900">
-                            {item.fecha_creacion}
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm">
-                            <div className="font-medium text-blue-600">
-                              {item.codigo_orden}
-                            </div>
-                            <div
-                              className="text-xs text-gray-500 truncate max-w-32"
-                              title={item.descripcion_orden}
-                            >
-                              {item.descripcion_orden}
-                            </div>
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm">
-                            <div className="font-medium text-gray-900">
-                              {item.equipo}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {item.codigo_equipo}
-                            </div>
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm text-gray-900">
-                            <div>{item.marca}</div>
-                            <div className="text-xs text-gray-500">
-                              {item.modelo}
-                            </div>
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm">
-                            {getStatusBadge(item)}
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm">
-                            {getPriorityBadge(item)}
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm">
-                            <div className="text-gray-900">{item.sede}</div>
-                            <div
-                              className="text-xs text-gray-500 truncate max-w-32"
-                              title={item.servicio}
-                            >
-                              {item.servicio}
-                            </div>
-                          </td>
-                          <td className="border border-gray-200 p-3 text-sm text-gray-900">
-                            {item.responsable_mantenimiento || "No asignado"}
-                          </td>
-                          <td className="border border-gray-200 p-3 text-center">
-                            {item.archivo ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewDocument(item.archivo)}
-                                className="h-8 px-3 text-xs"
-                                title="Ver documento"
-                              >
-                                📄 Ver
-                              </Button>
-                            ) : (
-                              <span className="text-gray-400 text-xs">
-                                Sin documento
-                              </span>
-                            )}
-                          </td>
-                          <td className="border border-gray-200 p-3 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedCorrective(item);
-                                  setViewMode("view");
-                                }}
-                                className="h-8 w-8 p-0"
-                                title="Ver detalles"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedCorrective(item);
-                                  setViewMode("edit");
-                                }}
-                                className="h-8 w-8 p-0"
-                                title="Editar"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
+          <div className="flex-1 overflow-hidden flex flex-col space-y-6 p-8">
+            {/* Search and Filters */}
             <Card className="flex-shrink-0">
               <CardContent className="pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Página {currentPage} de {totalPages}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Buscar en todos los campos..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(1)}
-                      disabled={currentPage === 1}
+                  <div className="flex gap-2">
+                    <Select
+                      value={statusFilter}
+                      onValueChange={setStatusFilter}
                     >
-                      <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="active">Activos</SelectItem>
+                        <SelectItem value="completed">Completados</SelectItem>
+                        <SelectItem value="in_progress">En Proceso</SelectItem>
+                        <SelectItem value="pending">Pendientes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(value) =>
+                        handleItemsPerPageChange(Number(value))
                       }
-                      disabled={currentPage === 1}
                     >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-
-                    {/* Page numbers */}
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const page =
-                        Math.max(1, Math.min(totalPages - 4, currentPage - 2)) +
-                        i;
-                      if (page <= totalPages) {
-                        return (
-                          <Button
-                            key={page}
-                            variant={
-                              currentPage === page ? "default" : "outline"
-                            }
-                            size="sm"
-                            onClick={() => setCurrentPage(page)}
-                            className={
-                              currentPage === page
-                                ? "bg-blue-600 text-white"
-                                : ""
-                            }
-                          >
-                            {page}
-                          </Button>
-                        );
-                      }
-                      return null;
-                    })}
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(totalPages)}
-                      disabled={currentPage === totalPages}
-                    >
-                      <ChevronsRight className="h-4 w-4" />
-                    </Button>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+                <div className="mt-3 text-sm text-gray-600">
+                  Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                  {Math.min(currentPage * itemsPerPage, totalItems)} de{" "}
+                  {totalItems} entradas
+                  {searchTerm || statusFilter !== "all" ? (
+                    <span className="text-blue-600"> (filtrado)</span>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
-          )}
-        </div>
 
-        <div className="flex justify-end p-4 border-t gap-2 flex-shrink-0">
-          <Button
-            onClick={() => setViewMode("create")}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Nuevo Correctivo
-          </Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-        </div>
-      </DialogContent>
+            {/* Data Table */}
+            <Card className="flex-1 overflow-hidden">
+              <CardContent className="p-0 h-full overflow-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-5 w-5 animate-spin" />
+                      <span>Cargando correctivos...</span>
+                    </div>
+                  </div>
+                ) : displayData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                    <AlertCircle className="h-12 w-12 mb-4" />
+                    <p className="text-lg font-medium">
+                      No se encontraron correctivos
+                    </p>
+                    <p className="text-sm">
+                      Intenta ajustar los filtros de búsqueda
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse table-auto">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <button
+                              onClick={() => handleSort("fecha_creacion")}
+                              className="flex items-center gap-1 hover:text-gray-700"
+                            >
+                              Fecha
+                              {sortConfig.key === "fecha_creacion" &&
+                                (sortConfig.direction === "asc" ? (
+                                  <SortAsc className="h-3 w-3" />
+                                ) : (
+                                  <SortDesc className="h-3 w-3" />
+                                ))}
+                            </button>
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <button
+                              onClick={() => handleSort("codigo_orden")}
+                              className="flex items-center gap-1 hover:text-gray-700"
+                            >
+                              Código
+                              {sortConfig.key === "codigo_orden" &&
+                                (sortConfig.direction === "asc" ? (
+                                  <SortAsc className="h-3 w-3" />
+                                ) : (
+                                  <SortDesc className="h-3 w-3" />
+                                ))}
+                            </button>
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Equipo
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Marca/Modelo
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Estado
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Prioridad
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sede
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Responsable
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Documentos
+                          </th>
+                          <th className="border border-gray-200 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Acciones
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {displayData.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                              {item.fecha_creacion}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              <div className="font-medium text-blue-600">
+                                {item.codigo_orden}
+                              </div>
+                              <div
+                                className="text-xs text-gray-500 truncate max-w-48"
+                                title={item.descripcion_orden}
+                              >
+                                {item.descripcion_orden}
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              <div className="font-medium text-gray-900">
+                                {item.equipo}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {item.codigo_equipo}
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">
+                              <div>{item.marca}</div>
+                              <div className="text-xs text-gray-500">
+                                {item.modelo}
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              {getStatusBadge(item)}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              {getPriorityBadge(item)}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm">
+                              <div className="text-gray-900">{item.sede}</div>
+                              <div
+                                className="text-xs text-gray-500 truncate max-w-40"
+                                title={item.servicio}
+                              >
+                                {item.servicio}
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">
+                              {item.responsable_mantenimiento || "No asignado"}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-center">
+                              {item.archivo ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleViewDocument(item.archivo)
+                                  }
+                                  className="h-8 px-3 text-xs"
+                                  title="Ver documento"
+                                >
+                                  📄 Ver
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">
+                                  Sin documento
+                                </span>
+                              )}
+                            </td>
+                            <td className="border border-gray-200 px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedCorrective(item);
+                                    setViewMode("view");
+                                  }}
+                                  className="h-8 w-8 p-0"
+                                  title="Ver detalles"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Card className="flex-shrink-0">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Página {currentPage} de {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handlePageChange(Math.max(1, currentPage - 1))
+                        }
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      {/* Page numbers */}
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          const page =
+                            Math.max(
+                              1,
+                              Math.min(totalPages - 4, currentPage - 2)
+                            ) + i;
+                          if (page <= totalPages) {
+                            return (
+                              <Button
+                                key={page}
+                                variant={
+                                  currentPage === page ? "default" : "outline"
+                                }
+                                size="sm"
+                                onClick={() => handlePageChange(page)}
+                                className={
+                                  currentPage === page
+                                    ? "bg-blue-600 text-white"
+                                    : ""
+                                }
+                              >
+                                {page}
+                              </Button>
+                            );
+                          }
+                          return null;
+                        }
+                      )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handlePageChange(
+                            Math.min(totalPages, currentPage + 1)
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <div className="flex justify-end p-8 border-t gap-4 flex-shrink-0">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </div>
     </Dialog>
   );
 }

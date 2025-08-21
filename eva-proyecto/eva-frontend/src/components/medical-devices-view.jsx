@@ -71,7 +71,6 @@ export function MedicalDevicesView() {
     selectAll,
     stats,
     criticalDevices,
-    filterOptions,
     updateFilters,
     clearFilters,
     changePage,
@@ -103,11 +102,31 @@ export function MedicalDevicesView() {
   const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [equipmentId, setEquipmentId] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
-  // Sync globalSearch with filters from hook
+  // Sync local states with filters from hook
   useEffect(() => {
     setGlobalSearch(filters.search || "");
-  }, [filters.search]);
+    setEquipmentId(filters.consulta_id || "");
+    setDateFilter(filters.anio_plan || "");
+  }, [filters]);
+
+  // Count active filters
+  useEffect(() => {
+    let count = 0;
+    if (globalSearch.trim()) count++;
+    if (equipmentId.trim()) count++;
+    if (dateFilter) count++;
+
+    setActiveFiltersCount(count);
+  }, [globalSearch, equipmentId, dateFilter]);
+
+  // Debug filters changes
+  useEffect(() => {
+    console.log("🔄 Filters changed:", filters);
+    console.log("📊 Current devices count:", devices.length);
+  }, [filters, devices]);
 
   // Estados para filtros avanzados
   const [appliedFilters, setAppliedFilters] = useState({});
@@ -153,6 +172,55 @@ export function MedicalDevicesView() {
     } else {
       updateFilters({ search: "" });
     }
+  };
+
+  // Handle Equipment ID search
+  const handleEquipmentIdSearch = () => {
+    const trimmedId = equipmentId.trim();
+
+    // Validación mejorada
+    if (trimmedId) {
+      // Verificar que sea solo números
+      if (!/^\d+$/.test(trimmedId)) {
+        alert("Por favor ingrese un ID válido (solo números enteros)");
+        return;
+      }
+
+      // Verificar que sea un número positivo
+      const numericId = parseInt(trimmedId, 10);
+      if (numericId <= 0) {
+        alert("Por favor ingrese un ID válido (número mayor a 0)");
+        return;
+      }
+    }
+
+    console.log("🔍 Frontend: Searching for equipment ID:", trimmedId);
+
+    if (trimmedId) {
+      // Limpiar otros filtros cuando se busca por ID específico
+      updateFilters({
+        consulta_id: trimmedId,
+        search: "", // Limpiar búsqueda general
+        page: 1, // Resetear a primera página
+      });
+      console.log("✅ Frontend: Filter updated with consulta_id:", trimmedId);
+    } else {
+      updateFilters({ consulta_id: "" });
+      console.log("🧹 Frontend: Cleared consulta_id filter");
+    }
+  };
+
+  const handleDateChange = (value) => {
+    setDateFilter(value);
+    updateFilters({ anio_plan: value });
+  };
+
+  // Clear all filters
+  const handleClearAllFilters = () => {
+    setGlobalSearch("");
+    setEquipmentId("");
+    setDateFilter("");
+    clearFilters();
   };
 
   return (
@@ -237,7 +305,7 @@ export function MedicalDevicesView() {
               {/* Clear Filters Button - only show when filters are active */}
               {activeFiltersCount > 0 && (
                 <Button
-                  onClick={handleClearFilters}
+                  onClick={handleClearAllFilters}
                   variant="ghost"
                   size="sm"
                   className="text-white hover:bg-red-600 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
@@ -366,19 +434,6 @@ export function MedicalDevicesView() {
             <div className="flex flex-col lg:flex-row lg:items-center gap-2 sm:gap-3 md:gap-4 flex-wrap">
               <div className="flex items-center gap-1 sm:gap-2">
                 <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
-                  Limpiar Filtros:
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 p-0 bg-white/80 hover:bg-white"
-                >
-                  <Filter className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-teal-600" />
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
                   Sede Hospitalaria:
                 </span>
                 <Select defaultValue="TODOS">
@@ -394,20 +449,41 @@ export function MedicalDevicesView() {
 
               <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
                 <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
-                  Consultar Equipo:
+                  Consultar Equipo por ID:
                 </span>
                 <div className="flex gap-1 sm:gap-2 flex-1 min-w-0">
                   <Input
-                    placeholder="Ingrese código de equipo médico"
+                    placeholder="Ingrese ID del equipo médico"
+                    value={equipmentId}
+                    onChange={(e) => setEquipmentId(e.target.value)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleEquipmentIdSearch()
+                    }
                     className="flex-1 min-w-0 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200 px-1 sm:px-2"
                   />
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={handleEquipmentIdSearch}
                     className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 bg-white/80 hover:bg-white"
+                    title="Buscar por ID"
                   >
                     <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-teal-600" />
                   </Button>
+                  {equipmentId && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEquipmentId("");
+                        updateFilters({ consulta_id: "" });
+                      }}
+                      className="h-6 sm:h-7 md:h-8 px-1 text-slate-400 hover:text-slate-600"
+                      title="Limpiar búsqueda por ID"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -417,89 +493,25 @@ export function MedicalDevicesView() {
                 </span>
                 <Input
                   type="date"
-                  defaultValue="2024-06-18"
+                  value={dateFilter}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   className="w-24 sm:w-28 md:w-32 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200 px-1 sm:px-2"
+                  placeholder="Fecha inicio"
                 />
-                <span className="text-slate-500 text-xs sm:text-sm">—</span>
-                <Input
-                  type="date"
-                  defaultValue="2024-06-18"
-                  className="w-24 sm:w-28 md:w-32 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200 px-1 sm:px-2"
-                />
-              </div>
-            </div>
-
-            {/* Bottom Filter Grid */}
-            <div className="border-t border-teal-100 pt-2 sm:pt-3 md:pt-4">
-              <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Servicio Clínico:
-                  </label>
-                  <Select>
-                    <SelectTrigger className="h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200">
-                      <SelectValue placeholder="Seleccionar servicio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="radioterapia">
-                        Radioterapia Oncológica
-                      </SelectItem>
-                      <SelectItem value="cardiologia">Cardiología</SelectItem>
-                      <SelectItem value="neurologia">Neurología</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Área Hospitalaria:
-                  </label>
-                  <Select>
-                    <SelectTrigger className="h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200">
-                      <SelectValue placeholder="Seleccionar área" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="radioterapia">
-                        Unidad de Radioterapia
-                      </SelectItem>
-                      <SelectItem value="uci">
-                        Unidad de Cuidados Intensivos
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Órdenes de Trabajo:
-                  </label>
-                  <Select>
-                    <SelectTrigger className="h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200">
-                      <SelectValue placeholder="Estado de órdenes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">Pendientes</SelectItem>
-                      <SelectItem value="proceso">En Proceso</SelectItem>
-                      <SelectItem value="completado">Completadas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1 sm:space-y-2">
-                  <label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Mantenimientos:
-                  </label>
-                  <Select>
-                    <SelectTrigger className="h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200">
-                      <SelectValue placeholder="Tipo de mantenimiento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="preventivo">Preventivo</SelectItem>
-                      <SelectItem value="correctivo">Correctivo</SelectItem>
-                      <SelectItem value="calibracion">Calibración</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {dateFilter && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setDateFilter("");
+                      updateFilters({ anio_plan: "" });
+                    }}
+                    className="h-6 sm:h-7 md:h-8 px-1 text-slate-400 hover:text-slate-600"
+                    title="Limpiar filtro de fecha"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -509,15 +521,42 @@ export function MedicalDevicesView() {
         <div className="p-2 sm:p-3 md:p-4 text-xs sm:text-sm text-slate-600 bg-slate-50 border-b">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <span>
-              Mostrando registros de equipos médicos: 1 a 2 de un total de 2
-              registros
+              {loading
+                ? "Cargando equipos médicos..."
+                : filters.consulta_id
+                ? devices.length > 0
+                  ? `✅ Equipo encontrado con ID: ${filters.consulta_id}`
+                  : `❌ No se encontró equipo con ID: ${filters.consulta_id}`
+                : `Mostrando ${devices.length} de ${
+                    pagination.total || 0
+                  } equipos médicos`}
+              {activeFiltersCount > 0 && !filters.consulta_id && (
+                <span className="ml-2 text-teal-600 font-medium">
+                  ({activeFiltersCount} filtro
+                  {activeFiltersCount !== 1 ? "s" : ""} activo
+                  {activeFiltersCount !== 1 ? "s" : ""})
+                </span>
+              )}
             </span>
-            <Badge
-              variant="secondary"
-              className="bg-teal-100 text-teal-800 text-xs w-fit"
-            >
-              Base de Datos Actualizada
-            </Badge>
+            <div className="flex items-center gap-2">
+              {activeFiltersCount > 0 && (
+                <Button
+                  onClick={handleClearAllFilters}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-6 px-2 border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Limpiar filtros
+                </Button>
+              )}
+              <Badge
+                variant="secondary"
+                className="bg-teal-100 text-teal-800 text-xs w-fit"
+              >
+                Base de Datos Actualizada
+              </Badge>
+            </div>
           </div>
         </div>
 
