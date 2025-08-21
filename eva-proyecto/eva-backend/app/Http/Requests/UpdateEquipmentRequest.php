@@ -43,6 +43,12 @@ class UpdateEquipmentRequest extends FormRequest
                 'max:100',
                 Rule::unique('equipos', 'serial')->ignore($equipoId)
             ],
+            'codigo_antiguo' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('equipos', 'codigo_antiguo')->ignore($equipoId)
+            ],
             'descripcion' => 'nullable|string|max:1000',
             'costo' => 'nullable|numeric|min:0|max:999999999.99',
             'fecha_fabricacion' => 'nullable|date|before_or_equal:today',
@@ -90,6 +96,7 @@ class UpdateEquipmentRequest extends FormRequest
             'area_id.required' => 'Debe seleccionar un área.',
             'area_id.exists' => 'El área seleccionada no existe.',
             'serial.unique' => 'Ya existe otro equipo con este número de serie.',
+            'codigo_antiguo.unique' => 'Ya existe otro equipo con este código antiguo.',
             'costo.numeric' => 'El costo debe ser un valor numérico.',
             'costo.min' => 'El costo no puede ser negativo.',
             'fecha_fabricacion.date' => 'La fecha de fabricación debe ser una fecha válida.',

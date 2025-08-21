@@ -1901,9 +1901,28 @@ export function EditEquipmentModal({
       console.error("🚨 [EDIT MODAL] Error response:", error.response);
       console.error("🚨 [EDIT MODAL] Error data:", error.response?.data);
 
-      toast.error(
-        error.response?.data?.message || "Error al actualizar el equipo"
-      );
+      // Manejar errores de validación específicos
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors;
+        const newErrors = {};
+
+        // Mapear errores de validación del backend al frontend
+        Object.keys(validationErrors).forEach((field) => {
+          const messages = validationErrors[field];
+          if (Array.isArray(messages) && messages.length > 0) {
+            newErrors[field] = messages[0]; // Tomar el primer mensaje de error
+          }
+        });
+
+        setErrors(newErrors);
+
+        // Mostrar mensaje general de validación
+        toast.error("Por favor, corrija los errores de validación");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Error al actualizar el equipo"
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }

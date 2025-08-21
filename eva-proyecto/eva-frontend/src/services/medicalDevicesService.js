@@ -423,7 +423,10 @@ class MedicalDevicesService {
       try {
         response = await api.get("/v1/equipos/filter-options");
       } catch (authError) {
-        console.warn("Error con endpoint original, usando endpoint de prueba:", authError);
+        console.warn(
+          "Error con endpoint original, usando endpoint de prueba:",
+          authError
+        );
         response = await api.get("/v1/test/equipos/filter-options");
       }
       return response.data;

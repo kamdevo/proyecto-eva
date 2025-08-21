@@ -1405,6 +1405,107 @@ class EquipmentController extends ApiController
                 $equipoData['file_url'] = url('storage/' . $equipo->file);
             }
 
+            // ===== OBTENER DATOS RELACIONADOS PARA PDF =====
+
+            // 1. Mantenimientos Preventivos (últimos 5)
+            try {
+                $mantenimientos = DB::table('mantenimiento')
+                    ->leftJoin('usuarios', 'mantenimiento.usuario_id', '=', 'usuarios.id')
+                    ->where('mantenimiento.equipo_id', $id)
+                    ->select(
+                        'mantenimiento.*',
+                        'usuarios.nombre as tecnico_nombre',
+                        'usuarios.apellido as tecnico_apellido'
+                    )
+                    ->orderBy('mantenimiento.fecha_programada', 'desc')
+                    ->limit(5)
+                    ->get();
+                $equipoData['mantenimientos_preventivos'] = $mantenimientos;
+            } catch (\Exception $e) {
+                $equipoData['mantenimientos_preventivos'] = [];
+            }
+
+            // 2. Contingencias/Mantenimientos Correctivos (últimos 5)
+            try {
+                $contingencias = DB::table('contingencias')
+                    ->leftJoin('usuarios', 'contingencias.usuario_id', '=', 'usuarios.id')
+                    ->where('contingencias.equipo_id', $id)
+                    ->select(
+                        'contingencias.*',
+                        'usuarios.nombre as usuario_nombre',
+                        'usuarios.apellido as usuario_apellido'
+                    )
+                    ->orderBy('contingencias.fecha_reporte', 'desc')
+                    ->limit(5)
+                    ->get();
+                $equipoData['contingencias'] = $contingencias;
+            } catch (\Exception $e) {
+                $equipoData['contingencias'] = [];
+            }
+
+            // 3. Calibraciones (últimas 3)
+            try {
+                $calibraciones = DB::table('calibracion')
+                    ->where('equipo_id', $id)
+                    ->orderBy('fecha_calibracion', 'desc')
+                    ->limit(3)
+                    ->get();
+                $equipoData['calibraciones'] = $calibraciones;
+            } catch (\Exception $e) {
+                $equipoData['calibraciones'] = [];
+            }
+
+            // 4. Documentos Asociados (hasta 6)
+            try {
+                $documentos = DB::table('archivos')
+                    ->leftJoin('equipo_archivo', 'archivos.id', '=', 'equipo_archivo.archivo_id')
+                    ->where('equipo_archivo.equipo_id', $id)
+                    ->select(
+                        'archivos.*',
+                        'equipo_archivo.vinculo',
+                        'equipo_archivo.otro'
+                    )
+                    ->orderBy('archivos.created_at', 'desc')
+                    ->limit(6)
+                    ->get();
+                $equipoData['documentos'] = $documentos;
+            } catch (\Exception $e) {
+                $equipoData['documentos'] = [];
+            }
+
+            // 5. Contactos Técnicos (hasta 4)
+            try {
+                $contactos = DB::table('contacto')
+                    ->leftJoin('equipo_contacto', 'contacto.id', '=', 'equipo_contacto.contacto_id')
+                    ->where('equipo_contacto.equipo_id', $id)
+                    ->where('equipo_contacto.status', 1)
+                    ->select('contacto.*')
+                    ->orderBy('contacto.nombre')
+                    ->limit(4)
+                    ->get();
+                $equipoData['contactos_tecnicos'] = $contactos;
+            } catch (\Exception $e) {
+                $equipoData['contactos_tecnicos'] = [];
+            }
+
+            // 6. Observaciones Recientes (últimas 3)
+            try {
+                $observaciones = DB::table('observaciones')
+                    ->leftJoin('usuarios', 'observaciones.usuario_id', '=', 'usuarios.id')
+                    ->where('observaciones.equipo_id', $id)
+                    ->select(
+                        'observaciones.*',
+                        'usuarios.nombre as usuario_nombre',
+                        'usuarios.apellido as usuario_apellido'
+                    )
+                    ->orderBy('observaciones.created_at', 'desc')
+                    ->limit(3)
+                    ->get();
+                $equipoData['observaciones_recientes'] = $observaciones;
+            } catch (\Exception $e) {
+                $equipoData['observaciones_recientes'] = [];
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Información completa del equipo obtenida exitosamente',

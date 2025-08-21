@@ -1202,8 +1202,56 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     Route::get('equipos/filter-options', [\App\Http\Controllers\Api\EquipmentController::class, 'getFilterOptions']);
     Route::post('equipos/export', [\App\Http\Controllers\Api\EquipmentController::class, 'exportFilteredEquipment']);
     Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
+    Route::get('equipos/{id}/complete-info', [\App\Http\Controllers\Api\EquipmentController::class, 'getCompleteInfo']);
     // Endpoint para crear equipos usando el controlador con validaciones completas
     Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
+
+    // Endpoint para validar unicidad de campos de equipos
+    Route::get('equipos/validate-unique', function(Request $request) {
+        try {
+            $field = $request->query('field');
+            $value = $request->query('value');
+            $equipoId = $request->query('equipo_id'); // Para edición
+
+            if (!$field || !$value) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Campo y valor son requeridos'
+                ], 400);
+            }
+
+            // Campos permitidos para validación
+            $allowedFields = ['code', 'serial', 'codigo_antiguo'];
+            if (!in_array($field, $allowedFields)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Campo no válido para validación'
+                ], 400);
+            }
+
+            // Construir consulta
+            $query = DB::table('equipos')->where($field, $value);
+
+            // Si es edición, excluir el equipo actual
+            if ($equipoId) {
+                $query->where('id', '!=', $equipoId);
+            }
+
+            $exists = $query->exists();
+
+            return response()->json([
+                'success' => true,
+                'unique' => !$exists,
+                'message' => $exists ? 'El valor ya existe' : 'El valor es único'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al validar unicidad: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 
     // ENDPOINT PERSONALIZADO DESHABILITADO - USAR CONTROLADOR OFICIAL
     /*Route::post('equipos-custom', function(Request $request) {
