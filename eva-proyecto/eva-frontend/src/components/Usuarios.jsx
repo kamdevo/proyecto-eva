@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Pencil, Trash2, X, Eye } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw } from "lucide-react";
+import { useUsuarios } from "../hooks/useUsuarios";
+import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
+import { useCentrosCosto } from "../hooks/useCentrosCosto";
+import { usePermisos } from "../hooks/usePermisos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -43,6 +47,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function Usuarios() {
+  // Hooks para datos reales
+  const {
+    usuarios,
+    loading: usuariosLoading,
+    error: usuariosError,
+    pagination,
+    createUsuario,
+    updateUsuario,
+    deleteUsuario,
+    getUsuario,
+    changePage,
+    changePageSize,
+    searchUsuarios,
+    refresh: refreshUsuarios,
+  } = useUsuarios();
+
+  const { roles, loading: rolesLoading } = useRoles();
+  const { empresas, loading: empresasLoading } = useEmpresas();
+  const { sedes, loading: sedesLoading } = useSedes();
+  const { centros, loading: centrosLoading } = useCentrosCosto();
+  const {
+    modulos,
+    fetchUserPermissions,
+    updatePermission,
+    createDefaultPermissions,
+    resetModulePermissions,
+    fetchModuleStats,
+  } = usePermisos();
+
+  // Estados para modales y UI
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRelationModalOpen, setIsRelationModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -53,6 +87,9 @@ export default function Usuarios() {
   const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
   const [isAddRelationModalOpen, setIsAddRelationModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [moduleStats, setModuleStats] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [addUserForm, setAddUserForm] = useState({
     nombre: "",
     apellidos: "",
@@ -105,49 +142,38 @@ export default function Usuarios() {
     },
   });
 
-  // Datos de usuarios principales
-  const usersData = [
-    {
-      id: 1,
-      nombre: "coordinador y apellidos",
-      cambio_clave: "mantenimiento biomedico",
-      login: "admin",
-      rol: "administrador",
-      opciones: ["edit", "delete"],
-    },
-    {
-      id: 2,
-      nombre: "administrador",
-      cambio_clave: "mantenimiento biomedico",
-      login: "usuario",
-      rol: "usuario",
-      opciones: ["edit", "delete"],
-    },
-    {
-      id: 3,
-      nombre: "juan sebastian gonzalez betancourt",
-      cambio_clave: "mantenimiento biomedico",
-      login: "juansebastian",
-      rol: "usuario",
-      opciones: ["edit", "delete"],
-    },
-    {
-      id: 4,
-      nombre: "sara maria garcia calvache",
-      cambio_clave: "mantenimiento biomedico",
-      login: "saramaria",
-      rol: "usuario",
-      opciones: ["edit", "delete"],
-    },
-    {
-      id: 5,
-      nombre: "angelica maria cabrera m",
-      cambio_clave: "mantenimiento biomedico",
-      login: "angelicamaria",
-      rol: "admin",
-      opciones: ["edit", "delete"],
-    },
-  ];
+  // Cargar estadísticas de módulos al montar el componente
+  useEffect(() => {
+    const loadModuleStats = async () => {
+      try {
+        const stats = await fetchModuleStats();
+        setModuleStats(stats);
+      } catch (error) {
+        console.error("Error loading module stats:", error);
+      }
+    };
+
+    loadModuleStats();
+  }, [fetchModuleStats]);
+
+  // Funciones para manejar usuarios
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    if (value.trim()) {
+      searchUsuarios(value);
+    } else {
+      refreshUsuarios();
+    }
+  };
+
+  const handlePageChange = (page) => {
+    changePage(page);
+  };
+
+  const handlePageSizeChange = (size) => {
+    changePageSize(parseInt(size));
+  };
 
   // Datos de relación zonas-usuarios
   const zoneRelationsData = [
@@ -477,10 +503,17 @@ export default function Usuarios() {
   ];
 
   const getRoleColor = (rol) => {
-    switch (rol) {
+    const roleName = typeof rol === "object" ? rol.nombre : rol;
+    switch (roleName?.toLowerCase()) {
       case "administrador":
       case "admin":
         return "bg-red-100 text-red-800";
+      case "técnico":
+      case "tecnico":
+        return "bg-green-100 text-green-800";
+      case "supervisor":
+        return "bg-yellow-100 text-yellow-800";
+      case "usuario normal":
       case "usuario":
         return "bg-blue-100 text-blue-800";
       default:
@@ -496,9 +529,16 @@ export default function Usuarios() {
     setRelationToDelete(relation);
   };
 
-  const confirmDeleteUser = () => {
-    console.log("Eliminando usuario:", userToDelete);
-    setUserToDelete(null);
+  const confirmDeleteUser = async () => {
+    if (userToDelete) {
+      try {
+        await deleteUsuario(userToDelete.id);
+        setUserToDelete(null);
+      } catch (error) {
+        console.error("Error eliminando usuario:", error);
+        alert("Error al eliminar usuario: " + error.message);
+      }
+    }
   };
 
   const confirmDeleteRelation = () => {
@@ -514,53 +554,124 @@ export default function Usuarios() {
     setAddRelationForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handlePermissionChange = (module, permission, checked) => {
-    setPermissions((prev) => ({
-      ...prev,
-      [module]: { ...prev[module], [permission]: checked },
-    }));
+  const handlePermissionChange = async (
+    accionId,
+    permissionType,
+    currentValue
+  ) => {
+    try {
+      const newValue = currentValue === 1 ? 0 : 1;
+      await updatePermission(accionId, permissionType, newValue);
+
+      // Actualizar permisos locales
+      setUserPermissions((prev) =>
+        prev.map((perm) =>
+          perm.id === accionId ? { ...perm, [permissionType]: newValue } : perm
+        )
+      );
+    } catch (error) {
+      console.error("Error updating permission:", error);
+      alert("Error al actualizar permiso: " + error.message);
+    }
   };
 
-  const handleViewUser = (user) => {
-    setSelectedUser(user);
-    setIsViewUserModalOpen(true);
+  const handleViewUser = async (user) => {
+    try {
+      const fullUser = await getUsuario(user.id);
+      setSelectedUser(fullUser);
+      setIsViewUserModalOpen(true);
+    } catch (error) {
+      console.error("Error obteniendo usuario:", error);
+      alert("Error al obtener detalles del usuario");
+    }
   };
 
-  const handleEditUser = (user) => {
-    setSelectedUser(user);
-    setAddUserForm({
-      nombre: user.nombre.split(" ")[0] || "",
-      apellidos: user.nombre.split(" ").slice(1).join(" ") || "",
-      telefono: "",
-      email: "",
-      username: user.login,
-      password: "",
-      rol: user.rol,
-      centroCosto: "",
-      empresa: "",
-    });
-    setIsEditUserModalOpen(true);
+  const handleEditUser = async (user) => {
+    try {
+      const fullUser = await getUsuario(user.id);
+      setSelectedUser(fullUser);
+
+      // Cargar permisos del usuario
+      const permissions = await fetchUserPermissions(user.id);
+      setUserPermissions(permissions);
+
+      setAddUserForm({
+        nombre: fullUser.nombre || "",
+        apellidos: fullUser.apellido || "",
+        telefono: fullUser.telefono || "",
+        email: fullUser.email || "",
+        username: fullUser.username || "",
+        password: "",
+        rol: fullUser.rol_id || "",
+        centroCosto: fullUser.centro_id || "",
+        empresa: fullUser.id_empresa || "",
+      });
+      setIsEditUserModalOpen(true);
+    } catch (error) {
+      console.error("Error obteniendo usuario:", error);
+      alert("Error al obtener detalles del usuario");
+    }
   };
 
-  const handleSubmitAddUser = () => {
-    console.log("Agregando usuario:", addUserForm);
-    setIsAddUserModalOpen(false);
-    setAddUserForm({
-      nombre: "",
-      apellidos: "",
-      telefono: "",
-      email: "",
-      username: "",
-      password: "",
-      rol: "",
-      centroCosto: "",
-      empresa: "",
-    });
+  const handleSubmitAddUser = async () => {
+    try {
+      const userData = {
+        nombre: addUserForm.nombre,
+        apellido: addUserForm.apellidos,
+        telefono: addUserForm.telefono,
+        email: addUserForm.email,
+        username: addUserForm.username,
+        password: addUserForm.password,
+        rol_id: parseInt(addUserForm.rol),
+        centro_id: addUserForm.centroCosto,
+        id_empresa: parseInt(addUserForm.empresa) || 1,
+        estado: 1,
+        active: "true",
+      };
+
+      await createUsuario(userData);
+
+      setIsAddUserModalOpen(false);
+      setAddUserForm({
+        nombre: "",
+        apellidos: "",
+        telefono: "",
+        email: "",
+        username: "",
+        password: "",
+        rol: "",
+        centroCosto: "",
+        empresa: "",
+      });
+    } catch (error) {
+      console.error("Error creando usuario:", error);
+      alert("Error al crear usuario: " + error.message);
+    }
   };
 
-  const handleSubmitEditUser = () => {
-    console.log("Actualizando usuario:", addUserForm, permissions);
-    setIsEditUserModalOpen(false);
+  const handleSubmitEditUser = async () => {
+    try {
+      const userData = {
+        nombre: addUserForm.nombre,
+        apellido: addUserForm.apellidos,
+        telefono: addUserForm.telefono,
+        email: addUserForm.email,
+        username: addUserForm.username,
+        rol_id: parseInt(addUserForm.rol),
+        centro_id: addUserForm.centroCosto,
+        id_empresa: parseInt(addUserForm.empresa) || 1,
+      };
+
+      if (addUserForm.password) {
+        userData.password = addUserForm.password;
+      }
+
+      await updateUsuario(selectedUser.id, userData);
+      setIsEditUserModalOpen(false);
+    } catch (error) {
+      console.error("Error actualizando usuario:", error);
+      alert("Error al actualizar usuario: " + error.message);
+    }
   };
 
   const handleSubmitAddRelation = () => {
@@ -757,32 +868,56 @@ export default function Usuarios() {
                             <SelectValue placeholder="Seleccione un rol" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="administrador">
-                              Administrador
-                            </SelectItem>
-                            <SelectItem value="usuario">Usuario</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
+                            {rolesLoading ? (
+                              <SelectItem value="" disabled>
+                                Cargando roles...
+                              </SelectItem>
+                            ) : (
+                              roles.map((rol) => (
+                                <SelectItem
+                                  key={rol.id}
+                                  value={rol.id.toString()}
+                                >
+                                  {rol.nombre}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
 
-                      {/* Centro de Costo Input */}
+                      {/* Centro de Costo Select */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium text-gray-700">
                           Centro de Costo{" "}
-                          <span className="text-gray-400">(Opcional)</span>
+                          <span className="text-red-500">*</span>
                         </Label>
-                        <Input
-                          placeholder="Código del centro de costo"
+                        <Select
                           value={addUserForm.centroCosto}
-                          onChange={(e) =>
-                            handleAddUserInputChange(
-                              "centroCosto",
-                              e.target.value
-                            )
+                          onValueChange={(value) =>
+                            handleAddUserInputChange("centroCosto", value)
                           }
-                          className="h-11 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all duration-200"
-                        />
+                        >
+                          <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
+                            <SelectValue placeholder="Seleccione un centro de costo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {centrosLoading ? (
+                              <SelectItem value="" disabled>
+                                Cargando centros...
+                              </SelectItem>
+                            ) : (
+                              centros.map((centro) => (
+                                <SelectItem
+                                  key={centro.id}
+                                  value={centro.id.toString()}
+                                >
+                                  {centro.nombre}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {/* Empresa Select */}
@@ -800,11 +935,20 @@ export default function Usuarios() {
                             <SelectValue placeholder="Seleccione una empresa" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="hlv">HLV</SelectItem>
-                            <SelectItem value="sysmed">SYSMED</SelectItem>
-                            <SelectItem value="hcv">
-                              HCV MANTENIMIENTO BIOMEDICO
-                            </SelectItem>
+                            {empresasLoading ? (
+                              <SelectItem value="" disabled>
+                                Cargando empresas...
+                              </SelectItem>
+                            ) : (
+                              empresas.map((empresa) => (
+                                <SelectItem
+                                  key={empresa.id}
+                                  value={empresa.id.toString()}
+                                >
+                                  {empresa.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -831,10 +975,22 @@ export default function Usuarios() {
             </div>
 
             {/* Search and Pagination Controls */}
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar usuarios..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="w-64"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">Mostrar</span>
-                <Select defaultValue="5">
+                <Select
+                  value={pagination.per_page.toString()}
+                  onValueChange={handlePageSizeChange}
+                >
                   <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>
@@ -842,17 +998,194 @@ export default function Usuarios() {
                     <SelectItem value="5">5</SelectItem>
                     <SelectItem value="10">10</SelectItem>
                     <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
                   </SelectContent>
                 </Select>
                 <span className="text-sm text-gray-600">
                   registros por página
                 </span>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshUsuarios}
+                className="ml-auto"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Actualizar
+              </Button>
             </div>
           </CardHeader>
 
           <CardContent>
+            {/* Loading State */}
+            {usuariosLoading && (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600">Cargando usuarios...</span>
+              </div>
+            )}
+
+            {/* Error State */}
+            {usuariosError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800">Error: {usuariosError}</p>
+              </div>
+            )}
+
             {/* Users Table */}
+            {!usuariosLoading && !usuariosError && (
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead className="font-semibold text-gray-900">
+                        ID
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900">
+                        Nombre y Apellidos
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900">
+                        Centro de Costo
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900">
+                        Login
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900">
+                        Rol
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
+                        Acciones
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {usuarios.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center py-8 text-gray-500"
+                        >
+                          No se encontraron usuarios
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      usuarios.map((user) => (
+                        <TableRow key={user.id} className="hover:bg-gray-50">
+                          <TableCell className="text-gray-600">
+                            {user.id}
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900">
+                            {user.nombre} {user.apellido}
+                          </TableCell>
+                          <TableCell className="text-gray-600">
+                            {user.centro?.name || user.centro || "Sin asignar"}
+                          </TableCell>
+                          <TableCell className="text-gray-600">
+                            {user.username}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getRoleColor(user.rol)}>
+                              {typeof user.rol === "object"
+                                ? user.rol.nombre
+                                : user.rol || "Sin rol"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                                className="w-8 h-8 p-0 bg-orange-500 hover:bg-orange-600 rounded-lg transition-all duration-200 hover:shadow-md"
+                                title="Editar usuario"
+                              >
+                                <Pencil className="h-4 w-4 text-white" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleViewUser(user)}
+                                className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg transition-all duration-200 hover:shadow-md"
+                                title="Examinar usuario"
+                              >
+                                <Eye className="h-4 w-4 text-white" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeleteUser(user)}
+                                className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-lg transition-all duration-200 hover:shadow-md"
+                                title="Eliminar usuario"
+                              >
+                                <Trash2 className="h-4 w-4 text-white" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!usuariosLoading && !usuariosError && usuarios.length > 0 && (
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-gray-500">
+                  Mostrando{" "}
+                  {(pagination.current_page - 1) * pagination.per_page + 1} a{" "}
+                  {Math.min(
+                    pagination.current_page * pagination.per_page,
+                    pagination.total
+                  )}{" "}
+                  de {pagination.total} usuarios
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handlePageChange(pagination.current_page - 1)
+                    }
+                    disabled={pagination.current_page <= 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    Página {pagination.current_page} de {pagination.last_page}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      handlePageChange(pagination.current_page + 1)
+                    }
+                    disabled={pagination.current_page >= pagination.last_page}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Modules Management Section */}
+        <Card className="shadow-sm border-0">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-semibold text-gray-900">
+                  Gestión de Módulos
+                </CardTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  Administra permisos por módulo del sistema
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {/* Modules Table */}
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <Table>
                 <TableHeader className="bg-gray-50">
@@ -861,16 +1194,10 @@ export default function Usuarios() {
                       ID
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900">
-                      nombre y apellidos
+                      Módulo
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900">
-                      cambio de clave
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
-                      login
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
-                      rol
+                      Usuarios con Acceso
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 text-center">
                       Acciones
@@ -878,80 +1205,51 @@ export default function Usuarios() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {usersData.map((user) => (
-                    <TableRow key={user.id} className="hover:bg-gray-50">
-                      <TableCell className="text-gray-600">{user.id}</TableCell>
-                      <TableCell className="font-medium text-gray-900">
-                        {user.nombre}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {user.cambio_clave}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {user.login}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getRoleColor(user.rol)}>
-                          {user.rol}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                            className="w-8 h-8 p-0 bg-orange-500 hover:bg-orange-600 rounded-lg transition-all duration-200 hover:shadow-md"
-                            title="Editar usuario"
-                          >
-                            <Pencil className="h-4 w-4 text-white" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleViewUser(user)}
-                            className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg transition-all duration-200 hover:shadow-md"
-                            title="Examinar usuario"
-                          >
-                            <Eye className="h-4 w-4 text-white" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleDeleteUser(user)}
-                            className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-lg transition-all duration-200 hover:shadow-md"
-                            title="Eliminar usuario"
-                          >
-                            <Trash2 className="h-4 w-4 text-white" />
-                          </Button>
-                        </div>
+                  {modulos.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center py-8 text-gray-500"
+                      >
+                        No se encontraron módulos
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    modulos.map((modulo) => {
+                      const stats =
+                        moduleStats.find((s) => s.id === modulo.id) || {};
+                      return (
+                        <TableRow key={modulo.id} className="hover:bg-gray-50">
+                          <TableCell className="text-gray-600">
+                            {modulo.id}
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900">
+                            {modulo.name}
+                          </TableCell>
+                          <TableCell className="text-gray-600">
+                            {stats.usuarios_con_acceso || 0} usuarios
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  resetModulePermissions(modulo.id)
+                                }
+                                className="w-auto h-8 px-3 bg-yellow-500 hover:bg-yellow-600 rounded-lg transition-all duration-200 hover:shadow-md"
+                                title="Restablecer permisos del módulo"
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Restablecer
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-gray-500">
-                Mostrando registros del 1 al 5 de un total de 5 registros
-                filtrados de un total de 5 registros
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled>
-                  Anterior
-                </Button>
-                <div className="flex gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-blue-600 text-white"
-                  >
-                    1
-                  </Button>
-                </div>
-                <Button variant="outline" size="sm" disabled>
-                  Siguiente
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>

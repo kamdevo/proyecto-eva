@@ -2,7 +2,7 @@
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import useFormValidation from "../hooks/useFormValidation";
-import useCentrosCosto from "../hooks/useCentrosCosto";
+import { useCentrosCosto } from "../hooks/useCentrosCosto";
 import AlertMessage from "./ui/AlertMessage";
 import "../assets/css/Login.css";
 import logo from "../assets/Img/lgoLogin-removebg-preview.png";

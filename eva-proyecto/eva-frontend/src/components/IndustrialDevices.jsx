@@ -1,4 +1,10 @@
 import { useState } from "react";
+import { useEquipment } from "../hooks/useEquipment";
+import { MainActionButtons } from "./equipment/MainActionButtons";
+import { StatsActionButtons } from "./equipment/StatsActionButtons";
+import { EquipmentPagination } from "./equipment/EquipmentPagination";
+import { RowActionButtons } from "./equipment/RowActionButtons";
+import { useEquipmentSearch } from "../contexts/EquipmentSearchContext";
 import {
   Search,
   Eye,
@@ -114,6 +120,32 @@ const equipmentData = [
 ];
 
 function IndustrialDevicesView() {
+  // Hook para gestión de equipos industriales
+  const {
+    devices,
+    loading,
+    error,
+    hasError,
+    isEmpty,
+    pagination,
+    currentPage,
+    totalPages,
+    totalItems,
+    showingFrom,
+    showingTo,
+    stats,
+    updateFilters,
+    changePage,
+    changePageSize,
+    search,
+    clearFilters,
+    refresh,
+  } = useEquipment("industrial");
+
+  // Global search context
+  const { registerSearchCallback, setResultCount } = useEquipmentSearch();
+
+  // Estados para modales
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [cleanNamesModalOpen, setCleanNamesModalOpen] = useState(false);
@@ -130,7 +162,60 @@ function IndustrialDevicesView() {
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState("");
+
+  // Register search callback for global search
+  useEffect(() => {
+    registerSearchCallback((searchTerm) => {
+      search(searchTerm);
+    });
+  }, [registerSearchCallback, search]);
+
+  // Update result count when devices change
+  useEffect(() => {
+    setResultCount(devices.length);
+  }, [devices, setResultCount]);
+
+  // Handlers
+  const handlePageSizeChange = (newSize) => {
+    changePageSize(parseInt(newSize));
+  };
+
+  // Handle opening maintenance documents
+  const handleOpenMaintenanceDocument = async (equipmentId) => {
+    try {
+      // Fetch maintenance data for the equipment
+      const response = await fetch(
+        `http://127.0.0.1:8001/api/v1/mantenimiento?equipo_id=${equipmentId}&limit=1&order=desc`
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al obtener datos de mantenimiento");
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.length > 0) {
+        const maintenance = data.data[0];
+
+        if (maintenance.file) {
+          // Construct the file URL
+          const fileUrl = `http://127.0.0.1:8001/storage/${maintenance.file}`;
+
+          // Open in new tab
+          window.open(fileUrl, "_blank");
+        } else {
+          alert(
+            "No hay documento de mantenimiento disponible para este equipo"
+          );
+        }
+      } else {
+        alert("No se encontraron registros de mantenimiento para este equipo");
+      }
+    } catch (error) {
+      console.error("Error al abrir documento de mantenimiento:", error);
+      alert("Error al acceder al documento de mantenimiento");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
@@ -140,118 +225,29 @@ function IndustrialDevicesView() {
           Sistema de Gestión de Equipos Industriales
         </h1>
         <p className="text-slate-600 text-sm sm:text-base">
-          Control y seguimiento integral de equipamiento biomédico hospitalario
+          Control y seguimiento integral de equipamiento industrial hospitalario
         </p>
       </div>
 
-      {/* Global Search Input */}
-      <div className="mb-3 sm:mb-4">
-        <div className="space-y-1 sm:space-y-2">
-          <label className="text-xs sm:text-sm font-medium text-slate-700 block">
-            Consulta Global:
-          </label>
-          <div className="relative">
-            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3 sm:w-4 sm:h-4" />
-            <Input
-              type="text"
-              placeholder="Buscar registros..."
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              className="w-full h-8 sm:h-9 md:h-10 pl-7 sm:pl-9 pr-3 text-xs sm:text-sm bg-white border border-slate-200 rounded focus:border-teal-500 focus:ring-1 focus:ring-teal-200 transition-all duration-200 placeholder:text-slate-400"
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Action Buttons - Ultra Compact Side by Side */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
         {/* Main Action Buttons */}
-        <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
-          <CardContent className="p-1">
-            <div className="flex gap-0.5">
-              <Button
-                onClick={() => setFilterModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <Filter className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Filtrar</span>
-              </Button>
-              <Button
-                onClick={() => setAddModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <Plus className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Registrar</span>
-              </Button>
-              <Button
-                onClick={() => setCleanNamesModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <FileSpreadsheet className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Depurar</span>
-              </Button>
-              <Button
-                onClick={() => setMergeModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <Merge className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Consolidar</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <MainActionButtons
+          onFilterClick={() => setFilterModalOpen(true)}
+          onAddClick={() => setAddModalOpen(true)}
+          onCleanNamesClick={() => setCleanNamesModalOpen(true)}
+          onMergeClick={() => setMergeModalOpen(true)}
+          equipmentType="industrial"
+        />
 
         {/* Stats Buttons */}
-        <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
-          <CardContent className="p-1">
-            <div className="flex gap-0.5">
-              <Button
-                onClick={() => setPreventiveModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <span className="mr-1 text-sm">🔧</span>
-                <span className="truncate">Preventivos</span>
-              </Button>
-              <Button
-                onClick={() => setCalibrationModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <span className="mr-1 text-sm">⚖️</span>
-                <span className="truncate">Calibraciones</span>
-              </Button>
-              <Button
-                onClick={() => setLifeModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <span className="mr-1 text-sm">🔧</span>
-                <span className="truncate">Obsoletos por vida útil</span>
-              </Button>
-              <Button
-                onClick={() => setMonthModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0"
-              >
-                <span className="mr-1 text-sm">📊</span>
-                <span className="truncate">Correctivos</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <StatsActionButtons
+          onPreventiveClick={() => setPreventiveModalOpen(true)}
+          onCalibrationClick={() => setCalibrationModalOpen(true)}
+          onCorrectiveClick={() => setCorrectiveModalOpen(true)}
+          onMonthClick={() => setMonthModalOpen(true)}
+          equipmentType="industrial"
+        />
       </div>
       {/* Main Content Card */}
       <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
@@ -491,351 +487,350 @@ function IndustrialDevicesView() {
               </tr>
             </thead>
             <tbody>
-              {equipmentData.map((equipment) => (
-                <tr
-                  key={equipment.id}
-                  className="border-b hover:bg-slate-50/50 transition-colors"
-                >
-                  {/* Equipment Column */}
-                  <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="space-y-2 sm:space-y-3">
-                      {/* Título del equipo */}
-                      <div className="font-semibold text-slate-900 text-sm mb-1">
-                        {equipment.equipo.name}
-                      </div>
-
-                      {/* Imagen del equipo - responsive y grande */}
-                      <div className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden">
-                        <img
-                          src={notFoundImg}
-                          alt={equipment.equipo.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-all duration-300 opacity-80"
-                        />
-                      </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+                      <span className="ml-2 text-slate-600">
+                        Cargando equipos industriales...
+                      </span>
                     </div>
                   </td>
-
-                  {/* ID Column */}
-                  <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="text-sm">
-                      <div className="flex items-center gap-1 mb-2">
-                        <Badge
-                          variant="outline"
-                          className="bg-orange-50 text-orange-700 border-orange-200"
-                        >
-                          {equipment.equipo.code}
-                        </Badge>
-                        <Files
-                          onClick={setCopyEquipmentModalOpen}
-                          size={20}
-                          color="#CD410E"
-                          className="cursor-pointer"
-                        />
-                      </div>
-                      <div className="text-xs text-slate-600">
-                        <span className="font-medium">Registro Sanitario:</span>
-                        <div className="text-xs bg-slate-100 px-2 py-1 rounded mt-1 border">
-                          {equipment.data.registroSanitario}
-                        </div>
-                      </div>
-                      <div className="mt-4 xs:mt-2">
-                        <div>
-                          <span className="font-medium text-slate-700">
-                            Codigo:
-                          </span>
-                          <span className="font-medium text-slate-700">
-                            {equipment.equipo.code || "SIN CODIGO"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-slate-700">
-                            Marca:
-                          </span>
-                          <span className="font-medium text-slate-700">
-                            {equipment.equipo.brand || "SIN MARCA"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-slate-700">
-                            Modelo:
-                          </span>
-                          <span className="font-medium text-slate-700">
-                            {equipment.equipo.model || "SIN MODELO"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-slate-700">
-                            Serie:
-                          </span>
-                          <span className="font-medium text-slate-700">
-                            {equipment.equipo.series || "SIN SERIE"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 xs:gap-2">
-                          <span className="font-medium text-slate-700">
-                            Preventivos:
-                          </span>
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                            {equipment.data.preventivos || "SIN PREVENTIVOS"}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1 xs:gap-2">
-                          <span className="font-medium text-slate-700">
-                            Calibraciones:
-                          </span>
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                            {equipment.data.calibraciones ||
-                              "SIN CALIBRACIONES"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Location Column */}
-                  <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="text-xs space-y-2 max-w-xs">
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Servicio:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.servicio}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Área:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.area}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Zona:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.zona}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Sede:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.sede}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Localización actual:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.localizacion}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Estado del equipo:
-                        </span>
-                        <span className="ml-1 text-slate-900">
-                          {equipment.ubicacion.estado || "SIN ESTADO  "}
-                        </span>
-                      </div>
-                      <div className="mt-3 pt-2 border-t border-slate-100">
-                        <span className="font-medium text-slate-700">
-                          Propietario:
-                        </span>
-                        <div className="text-xs text-slate-600 leading-tight bg-slate-50 p-2 rounded border">
-                          {equipment.ubicacion.hospital}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Execution Plan Column */}
-                  <td className="p-4 border-r border-slate-200 align-top">
-                    <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-900 font-medium">
-                          {equipment.ejecucionPlan.frecuencia}
-                        </span>
-                        <span className="text-teal-500">🔄</span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Último Preventivo:
-                        </span>
-                      </div>
-                      <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
-                        {equipment.ejecucionPlan.ultimoMantenimiento}
-                        <Link size={15} />
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-700">
-                          Próximo Mantenimiento:
-                        </span>
-                      </div>
-                      <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
-                        {equipment.ejecucionPlan.proximoMantenimiento}
-                      </div>
-                      <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
-                        <div>
-                          <span className="font-medium text-teal-700">
-                            Información de tickets
-                          </span>
-                        </div>
-                        <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
-                          <div>
-                            <div className="font-medium text-slate-700">
-                              Fecha de creación del ultimo ticket:
-                            </div>
-                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                              {equipment.ultimaAccion.tipo}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-slate-700">
-                              Fecha de ultimo cierre de tickets:
-                            </div>
-                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                              {equipment.ultimaAccion.fechaCreacion}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium text-slate-700">
-                              Fecha de Finalización:
-                            </div>
-                            <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                              {equipment.ultimaAccion.fechaCierre}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Options Column */}
-                  <td className="p-4 align-top">
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        size="sm"
-                        className="bg-cyan-500 hover:bg-cyan-600 text-white h-8 w-8 p-0"
-                        title="Consultar Equipo"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setViewEquipmentModalOpen(true);
-                        }}
-                      >
-                        <Eye className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-blue-500 hover:bg-blue-600 text-white h-8 w-8 p-0"
-                        title="Editar Información"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setEditEquipmentModalOpen(true);
-                        }}
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-purple-500 hover:bg-purple-600 text-white h-8 w-8 p-0"
-                        title="Documentos Técnicos"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setDocumentListModalOpen(true);
-                        }}
-                      >
-                        <Paperclip className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-orange-500 hover:bg-orange-600 text-white h-8 w-8 p-0"
-                        title="Cargar Documentos"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setDocumentUploadModalOpen(true);
-                        }}
-                      >
-                        <FileText className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-red-500 hover:bg-red-600 text-white h-8 w-8 p-0"
-                        title="Eliminar Registro"
-                        onClick={() => {
-                          setSelectedEquipment(equipment);
-                          setDeleteConfirmModalOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3" />
+                </tr>
+              ) : hasError ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8">
+                    <div className="text-red-600">
+                      <p>Error al cargar equipos: {error}</p>
+                      <Button onClick={refresh} className="mt-2" size="sm">
+                        Reintentar
                       </Button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : isEmpty ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8">
+                    <div className="text-slate-500">
+                      <p>No se encontraron equipos industriales</p>
+                      <Button
+                        onClick={clearFilters}
+                        className="mt-2"
+                        size="sm"
+                        variant="outline"
+                      >
+                        Limpiar filtros
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                devices.map((equipment) => (
+                  <tr
+                    key={equipment.id}
+                    className="border-b hover:bg-slate-50/50 transition-colors"
+                  >
+                    {/* Equipment Column */}
+                    <td className="p-4 border-r border-slate-200 align-top">
+                      <div className="space-y-2 sm:space-y-3">
+                        {/* Título del equipo */}
+                        <div className="font-semibold text-slate-900 text-sm mb-1">
+                          {equipment.name}
+                        </div>
+
+                        {/* Imagen del equipo - responsive y grande */}
+                        <div className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center border border-teal-200 overflow-hidden">
+                          <img
+                            src={
+                              equipment.image
+                                ? `/storage/equipos/images/${equipment.image}`
+                                : notFoundImg
+                            }
+                            alt={equipment.name}
+                            className="w-full h-full object-cover hover:scale-105 transition-all duration-300 opacity-80"
+                            onError={(e) => {
+                              e.target.src = notFoundImg;
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* ID Column */}
+                    <td className="p-4 border-r border-slate-200 align-top">
+                      <div className="text-sm">
+                        <div className="flex items-center gap-1 mb-2">
+                          <Badge
+                            variant="outline"
+                            className="bg-orange-50 text-orange-700 border-orange-200"
+                          >
+                            {equipment.code || "Sin código"}
+                          </Badge>
+                          <Files
+                            onClick={setCopyEquipmentModalOpen}
+                            size={20}
+                            color="#CD410E"
+                            className="cursor-pointer"
+                          />
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          <span className="font-medium">
+                            Registro Sanitario:
+                          </span>
+                          <div className="text-xs bg-slate-100 px-2 py-1 rounded mt-1 border">
+                            {equipment.registro_sanitario || "Sin registro"}
+                          </div>
+                        </div>
+                        <div className="mt-4 xs:mt-2">
+                          <div>
+                            <span className="font-medium text-slate-700">
+                              Codigo:
+                            </span>
+                            <span className="font-medium text-slate-700">
+                              {equipment.code || "SIN CODIGO"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">
+                              Marca:
+                            </span>
+                            <span className="font-medium text-slate-700">
+                              {equipment.marca || "SIN MARCA"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">
+                              Modelo:
+                            </span>
+                            <span className="font-medium text-slate-700">
+                              {equipment.modelo || "SIN MODELO"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-700">
+                              Serie:
+                            </span>
+                            <span className="font-medium text-slate-700">
+                              {equipment.serial || "SIN SERIE"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 xs:gap-2">
+                            <span className="font-medium text-slate-700">
+                              Servicio:
+                            </span>
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
+                              {equipment.servicios || "SIN SERVICIO"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1 xs:gap-2">
+                            <span className="font-medium text-slate-700">
+                              Estado:
+                            </span>
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
+                              {equipment.estadoequipo || "SIN ESTADO"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Location Column */}
+                    <td className="p-4 border-r border-slate-200 align-top">
+                      <div className="text-xs space-y-2 max-w-xs">
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Servicio:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {equipment.servicios || "Sin servicio"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Área:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {equipment.area || "Sin área"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Sede:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {equipment.sede || "Sin sede"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Clasificación:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {equipment.clasificacion || "Sin clasificación"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Riesgo:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {equipment.riesgo || "Sin clasificar"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Estado del equipo:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {equipment.estadoequipo || "SIN ESTADO"}
+                          </span>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-slate-100">
+                          <span className="font-medium text-slate-700">
+                            Propietario:
+                          </span>
+                          <div className="text-xs text-slate-600 leading-tight bg-slate-50 p-2 rounded border">
+                            {equipment.propietario || "Sin propietario"}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Execution Plan Column */}
+                    <td className="p-4 border-r border-slate-200 align-top">
+                      <div className="text-[9px] xs:text-[10px] sm:text-xs space-y-1 xs:space-y-2 max-w-xs">
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-900 font-medium">
+                            Mantenimiento Industrial
+                          </span>
+                          <span className="text-teal-500">🔄</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Último Mantenimiento:
+                          </span>
+                        </div>
+                        <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
+                          {equipment.ultimo_mantenimiento || "Sin registro"}
+                          <Link
+                            size={15}
+                            className="cursor-pointer hover:text-teal-600 transition-colors"
+                            onClick={() =>
+                              handleOpenMaintenanceDocument(equipment.id)
+                            }
+                            title="Abrir documento de mantenimiento"
+                          />
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Última Calibración:
+                          </span>
+                        </div>
+                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
+                          {equipment.ultima_calibracion || "Sin registro"}
+                        </div>
+                        <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
+                          <div>
+                            <span className="font-medium text-teal-700">
+                              Información de tickets
+                            </span>
+                          </div>
+                          <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Último Correctivo:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {equipment.ultimo_correctivo || "Sin registro"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Último Ticket:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {equipment.fecha_inicio_ultimo_ticket ||
+                                  "Sin registro"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Archivos:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {equipment.cuenta_archivos || 0} documentos
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Actions Column */}
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 align-top">
+                      <RowActionButtons
+                        equipment={equipment}
+                        onViewClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setViewEquipmentModalOpen(true);
+                        }}
+                        onEditClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setEditEquipmentModalOpen(true);
+                        }}
+                        onDocumentsClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentListModalOpen(true);
+                        }}
+                        onUploadClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentUploadModalOpen(true);
+                        }}
+                        onDeleteClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDeleteConfirmModalOpen(true);
+                        }}
+                        onCopyClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCopyEquipmentModalOpen(true);
+                        }}
+                        equipmentType="industrial"
+                        showCopyButton={true}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Results Info Bottom */}
-        <div className="p-4 text-sm text-slate-600 border-t bg-slate-50">
-          <div className="flex items-center justify-between">
-            <span>Total de equipos médicos registrados: 2 equipos</span>
-            <span className="text-xs text-slate-500">
-              Última actualización: {new Date().toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Enhanced Pagination Bottom */}
-        <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-700">Mostrar</span>
-            <Select defaultValue="2">
-              <SelectTrigger className="w-16 h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2">2</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-slate-700">equipos por página</span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-8 px-3 text-sm">
-              Anterior
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-teal-600 hover:bg-teal-700 h-8 px-3 text-sm"
-            >
-              1
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-3 text-sm">
-              2
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-3 text-sm">
-              3
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 px-3 text-sm">
-              Siguiente
-            </Button>
-          </div>
-        </div>
+        {/* Pagination Component */}
+        <EquipmentPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          showingFrom={showingFrom}
+          showingTo={showingTo}
+          perPage={pagination.per_page}
+          loading={loading}
+          onPageChange={changePage}
+          onPageSizeChange={handlePageSizeChange}
+          equipmentType="industrial"
+        />
       </Card>
       {/* Modals */}
-      <FilterModal open={filterModalOpen} onOpenChange={setFilterModalOpen} />
-      <AddEquipmentModal open={addModalOpen} onOpenChange={setAddModalOpen} />
+      <FilterModal
+        open={filterModalOpen}
+        onOpenChange={setFilterModalOpen}
+        equipmentType="industrial"
+      />
+      <AddEquipmentModal
+        open={addModalOpen}
+        onOpenChange={setAddModalOpen}
+        equipmentType="industrial"
+      />
       <CleanNamesModal
         open={cleanNamesModalOpen}
         onOpenChange={setCleanNamesModalOpen}
@@ -878,11 +873,13 @@ function IndustrialDevicesView() {
         open={viewEquipmentModalOpen}
         onOpenChange={setViewEquipmentModalOpen}
         equipment={selectedEquipment}
+        equipmentType="industrial"
       />
       <DeleteConfirmModal
         open={deleteConfirmModalOpen}
         onOpenChange={setDeleteConfirmModalOpen}
         equipment={selectedEquipment}
+        equipmentType="industrial"
       />
 
       <CopyEquipmentModal

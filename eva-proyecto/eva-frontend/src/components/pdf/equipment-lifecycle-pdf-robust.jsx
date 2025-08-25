@@ -237,7 +237,7 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
               HOSPITAL UNIVERSITARIO DEL VALLE EVARISTO GARCÍA
             </Text>
             <Text style={styles.hospitalName}>
-              Sistema EVA - Gestión de Equipos Médicos
+              Sistema EVA - Gestión de Equipos Médicos (v2.0 - Formato Tabla)
             </Text>
           </View>
         </View>
@@ -271,34 +271,50 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
         {/* Section 1: Basic Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. IDENTIFICACIÓN PRINCIPAL</Text>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>ID:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.id)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Marca:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.marca)}
-                </Text>
-              </View>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 2 }]}
+              >
+                Campo
+              </Text>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 3 }]}
+              >
+                Valor
+              </Text>
             </View>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Modelo:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.modelo)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Código Anterior:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.codigo_antiguo)}
-                </Text>
-              </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                ID Equipo:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.id)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Marca:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.marca)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Modelo:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.modelo)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Código Anterior:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.codigo_antiguo)}
+              </Text>
             </View>
           </View>
         </View>
@@ -306,139 +322,207 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
         {/* Section 2: Technical Information */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>2. INFORMACIÓN TÉCNICA</Text>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Fecha Fabricación:</Text>
-                <Text style={styles.value}>
-                  {getSafeDate(safeEquipment.fecha_fabricacion)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Voltaje:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.v1)} V
-                </Text>
-              </View>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 2 }]}
+              >
+                Especificación
+              </Text>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 3 }]}
+              >
+                Detalle
+              </Text>
             </View>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Movilidad:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.movilidad)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Clasificación:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.clasificacion_nombre)}
-                </Text>
-              </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Fecha Fabricación:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeDate(safeEquipment.fecha_fabricacion)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Voltaje Principal:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.v1)} V
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Movilidad:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.movilidad)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Clasificación:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.clasificacion_nombre)}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Section 3: Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. UBICACIÓN</Text>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Sede:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.sede_nombre)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Servicio:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.servicio_nombre)}
-                </Text>
-              </View>
+          <Text style={styles.sectionTitle}>3. UBICACIÓN Y LOCALIZACIÓN</Text>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 2 }]}
+              >
+                Ubicación
+              </Text>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 3 }]}
+              >
+                Descripción
+              </Text>
             </View>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Área:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.area_nombre)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Localización:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.localizacion_actual)}
-                </Text>
-              </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Sede:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.sede_nombre)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Servicio:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.servicio_nombre)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Área:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.area_nombre)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Localización Actual:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.localizacion_actual)}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Section 4: Financial Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. INFORMACIÓN FINANCIERA</Text>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Costo:</Text>
-                <Text style={styles.value}>
-                  ${getSafeValue(safeEquipment.costo, "0")}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Vida Útil:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.vida_util)} años
-                </Text>
-              </View>
+          <Text style={styles.sectionTitle}>
+            4. INFORMACIÓN FINANCIERA Y PATRIMONIAL
+          </Text>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 2 }]}
+              >
+                Concepto
+              </Text>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 3 }]}
+              >
+                Valor
+              </Text>
             </View>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Garantía:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.garantia)} meses
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Propietario:</Text>
-                <Text style={styles.value}>
-                  {getSafeValue(safeEquipment.propietario_nombre)}
-                </Text>
-              </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Costo de Adquisición:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                ${getSafeValue(safeEquipment.costo, "0")}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Vida Útil:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.vida_util)} años
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Garantía:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.garantia)} meses
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Propietario:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeValue(safeEquipment.propietario_nombre)}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Section 5: Dates */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. FECHAS IMPORTANTES</Text>
-          <View style={styles.grid}>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Adquisición:</Text>
-                <Text style={styles.value}>
-                  {getSafeDate(safeEquipment.fecha_ad)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Instalación:</Text>
-                <Text style={styles.value}>
-                  {getSafeDate(safeEquipment.fecha_instalacion)}
-                </Text>
-              </View>
+          <Text style={styles.sectionTitle}>
+            5. CRONOLOGÍA DE FECHAS IMPORTANTES
+          </Text>
+          <View style={styles.table}>
+            <View style={styles.tableHeader}>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 2 }]}
+              >
+                Evento
+              </Text>
+              <Text
+                style={[styles.tableCell, styles.tableCellHeader, { flex: 3 }]}
+              >
+                Fecha
+              </Text>
             </View>
-            <View style={styles.gridItem}>
-              <View style={styles.row}>
-                <Text style={styles.label}>Inicio Operación:</Text>
-                <Text style={styles.value}>
-                  {getSafeDate(safeEquipment.fecha_inicio_operacion)}
-                </Text>
-              </View>
-              <View style={styles.row}>
-                <Text style={styles.label}>Acta Recibo:</Text>
-                <Text style={styles.value}>
-                  {getSafeDate(safeEquipment.fecha_acta_recibo)}
-                </Text>
-              </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Fecha de Adquisición:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeDate(safeEquipment.fecha_ad)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Fecha de Instalación:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeDate(safeEquipment.fecha_instalacion)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Inicio de Operación:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeDate(safeEquipment.fecha_inicio_operacion)}
+              </Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
+                Acta de Recibo:
+              </Text>
+              <Text style={[styles.tableCell, { flex: 3 }]}>
+                {getSafeDate(safeEquipment.fecha_acta_recibo)}
+              </Text>
             </View>
           </View>
         </View>
@@ -459,7 +543,7 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     { flex: 2 },
                   ]}
                 >
-                  Fecha
+                  Fecha Programada
                 </Text>
                 <Text
                   style={[
@@ -477,16 +561,16 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     { flex: 2 },
                   ]}
                 >
-                  Técnico
+                  Fecha Realizada
                 </Text>
                 <Text
                   style={[
                     styles.tableCell,
                     styles.tableCellHeader,
-                    { flex: 1 },
+                    { flex: 2 },
                   ]}
                 >
-                  Estado
+                  Proveedor
                 </Text>
               </View>
               {safeEquipment.mantenimientos_preventivos
@@ -498,15 +582,15 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     </Text>
                     <Text style={[styles.tableCell, { flex: 3 }]}>
                       {getSafeValue(
-                        mant.descripcion,
+                        mant.description,
                         "Mantenimiento preventivo"
                       )}
                     </Text>
                     <Text style={[styles.tableCell, { flex: 2 }]}>
-                      {getSafeValue(mant.tecnico_nombre, "No asignado")}
+                      {getSafeDate(mant.fecha_mantenimiento)}
                     </Text>
-                    <Text style={[styles.tableCell, { flex: 1 }]}>
-                      {getSafeValue(mant.estado, "Pendiente")}
+                    <Text style={[styles.tableCell, { flex: 2 }]}>
+                      {getSafeValue(mant.tecnico_nombre, "No asignado")}
                     </Text>
                   </View>
                 ))}
@@ -532,16 +616,16 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     { flex: 2 },
                   ]}
                 >
-                  Fecha
+                  Fecha Reporte
                 </Text>
                 <Text
                   style={[
                     styles.tableCell,
                     styles.tableCellHeader,
-                    { flex: 3 },
+                    { flex: 4 },
                   ]}
                 >
-                  Problema
+                  Observación/Problema
                 </Text>
                 <Text
                   style={[
@@ -550,31 +634,19 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     { flex: 2 },
                   ]}
                 >
-                  Solución
-                </Text>
-                <Text
-                  style={[
-                    styles.tableCell,
-                    styles.tableCellHeader,
-                    { flex: 1 },
-                  ]}
-                >
-                  Estado
+                  Usuario
                 </Text>
               </View>
               {safeEquipment.contingencias.slice(0, 5).map((cont, index) => (
                 <View key={index} style={styles.tableRow}>
                   <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeDate(cont.fecha_reporte)}
+                    {getSafeDate(cont.fecha)}
                   </Text>
-                  <Text style={[styles.tableCell, { flex: 3 }]}>
-                    {getSafeValue(cont.descripcion_problema)}
+                  <Text style={[styles.tableCell, { flex: 4 }]}>
+                    {getSafeValue(cont.observacion, "Sin descripción")}
                   </Text>
                   <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeValue(cont.solucion_aplicada, "En proceso")}
-                  </Text>
-                  <Text style={[styles.tableCell, { flex: 1 }]}>
-                    {getSafeValue(cont.estado, "Abierto")}
+                    {getSafeValue(cont.usuario_nombre, "No especificado")}
                   </Text>
                 </View>
               ))}
@@ -600,7 +672,16 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     { flex: 2 },
                   ]}
                 >
-                  Fecha
+                  Fecha Calibración
+                </Text>
+                <Text
+                  style={[
+                    styles.tableCell,
+                    styles.tableCellHeader,
+                    { flex: 3 },
+                  ]}
+                >
+                  Descripción
                 </Text>
                 <Text
                   style={[
@@ -609,25 +690,16 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                     { flex: 2 },
                   ]}
                 >
-                  Tipo
+                  Fecha Programada
                 </Text>
                 <Text
                   style={[
                     styles.tableCell,
                     styles.tableCellHeader,
-                    { flex: 2 },
+                    { flex: 1 },
                   ]}
                 >
-                  Resultado
-                </Text>
-                <Text
-                  style={[
-                    styles.tableCell,
-                    styles.tableCellHeader,
-                    { flex: 2 },
-                  ]}
-                >
-                  Próxima
+                  Estado
                 </Text>
               </View>
               {safeEquipment.calibraciones.slice(0, 3).map((cal, index) => (
@@ -635,14 +707,17 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                   <Text style={[styles.tableCell, { flex: 2 }]}>
                     {getSafeDate(cal.fecha_calibracion)}
                   </Text>
-                  <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeValue(cal.tipo_calibracion, "Estándar")}
+                  <Text style={[styles.tableCell, { flex: 3 }]}>
+                    {getSafeValue(cal.description, "Calibración estándar")}
                   </Text>
                   <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeValue(cal.resultado, "Conforme")}
+                    {getSafeDate(cal.fecha_programada)}
                   </Text>
-                  <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeDate(cal.proxima_calibracion)}
+                  <Text style={[styles.tableCell, { flex: 1 }]}>
+                    {getSafeValue(
+                      cal.status === 1 ? "Activo" : "Inactivo",
+                      "Activo"
+                    )}
                   </Text>
                 </View>
               ))}
@@ -700,13 +775,13 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
               {safeEquipment.documentos.slice(0, 6).map((doc, index) => (
                 <View key={index} style={styles.tableRow}>
                   <Text style={[styles.tableCell, { flex: 3 }]}>
-                    {getSafeValue(doc.nombre_archivo)}
+                    {getSafeValue(doc.name, "Documento sin nombre")}
                   </Text>
                   <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeValue(doc.tipo_documento, "Documento")}
+                    {getSafeValue(doc.vinculo, "Documento")}
                   </Text>
                   <Text style={[styles.tableCell, { flex: 2 }]}>
-                    {getSafeDate(doc.fecha_subida)}
+                    {getSafeDate(doc.created_at)}
                   </Text>
                   <Text style={[styles.tableCell, { flex: 1 }]}>
                     {getSafeValue(doc.tamano_archivo, "N/A")}
@@ -831,10 +906,10 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
                 .map((obs, index) => (
                   <View key={index} style={styles.tableRow}>
                     <Text style={[styles.tableCell, { flex: 2 }]}>
-                      {getSafeDate(obs.fecha)}
+                      {getSafeDate(obs.created_at)}
                     </Text>
                     <Text style={[styles.tableCell, { flex: 4 }]}>
-                      {getSafeValue(obs.observacion)}
+                      {getSafeValue(obs.description)}
                     </Text>
                     <Text style={[styles.tableCell, { flex: 2 }]}>
                       {getSafeValue(obs.usuario_nombre)}

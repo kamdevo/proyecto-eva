@@ -1,6 +1,6 @@
 /**
  * WebSocket Manager Empresarial - EVA
- * 
+ *
  * Características:
  * - Reconexión automática con backoff exponencial
  * - Múltiples endpoints WebSocket con failover
@@ -10,27 +10,27 @@
  * - Real-time updates con garantía de entrega
  */
 
-import logger, { LOG_CATEGORIES } from '../utils/logger.js';
-import smartCache from '../utils/smartCache.js';
+import logger, { LOG_CATEGORIES } from "../utils/logger.js";
+import smartCache from "../utils/smartCache.js";
 
 // Estados de WebSocket
 export const WS_STATES = {
-  CONNECTING: 'CONNECTING',
-  CONNECTED: 'CONNECTED',
-  DISCONNECTED: 'DISCONNECTED',
-  RECONNECTING: 'RECONNECTING',
-  FAILED: 'FAILED'
+  CONNECTING: "CONNECTING",
+  CONNECTED: "CONNECTED",
+  DISCONNECTED: "DISCONNECTED",
+  RECONNECTING: "RECONNECTING",
+  FAILED: "FAILED",
 };
 
 // Tipos de mensajes
 export const MESSAGE_TYPES = {
-  HEARTBEAT: 'heartbeat',
-  AUTH: 'auth',
-  SUBSCRIBE: 'subscribe',
-  UNSUBSCRIBE: 'unsubscribe',
-  DATA: 'data',
-  ERROR: 'error',
-  ACK: 'ack'
+  HEARTBEAT: "heartbeat",
+  AUTH: "auth",
+  SUBSCRIBE: "subscribe",
+  UNSUBSCRIBE: "unsubscribe",
+  DATA: "data",
+  ERROR: "error",
+  ACK: "ack",
 };
 
 class WebSocketManager {
@@ -38,31 +38,31 @@ class WebSocketManager {
     this.config = {
       // Endpoints WebSocket con prioridades
       endpoints: [
-        'ws://localhost:6001',
-        'ws://localhost:6002',
-        'ws://localhost:6003'
+        "ws://localhost:6001",
+        "ws://localhost:6002",
+        "ws://localhost:6003",
       ],
-      
+
       // Configuración de reconexión
       maxReconnectAttempts: 10,
       reconnectInterval: 1000,
       maxReconnectInterval: 30000,
       reconnectDecay: 1.5,
-      
+
       // Heartbeat
       heartbeatInterval: 30000,
       heartbeatTimeout: 5000,
-      
+
       // Configuración de mensajes
       messageTimeout: 10000,
       maxQueueSize: 1000,
       enableCompression: true,
-      
+
       // Autenticación
       authToken: null,
       autoAuth: true,
-      
-      ...config
+
+      ...config,
     };
 
     // Estado del manager
@@ -71,25 +71,25 @@ class WebSocketManager {
     this.reconnectAttempts = 0;
     this.websocket = null;
     this.isReconnecting = false;
-    
+
     // Gestión de mensajes
     this.messageQueue = [];
     this.pendingMessages = new Map();
     this.subscriptions = new Set();
     this.messageId = 0;
-    
+
     // Timers
     this.heartbeatTimer = null;
     this.reconnectTimer = null;
     this.heartbeatTimeoutTimer = null;
-    
+
     // Callbacks
     this.onConnect = null;
     this.onDisconnect = null;
     this.onMessage = null;
     this.onError = null;
     this.onReconnect = null;
-    
+
     // Métricas
     this.metrics = {
       totalConnections: 0,
@@ -100,7 +100,7 @@ class WebSocketManager {
       messagesQueued: 0,
       averageLatency: 0,
       connectionUptime: 0,
-      lastConnectedAt: null
+      lastConnectedAt: null,
     };
 
     this.initializeManager();
@@ -110,17 +110,17 @@ class WebSocketManager {
    * Inicializar WebSocket Manager
    */
   initializeManager() {
-    logger.info(LOG_CATEGORIES.NETWORK, 'Initializing WebSocket Manager', {
+    logger.info(LOG_CATEGORIES.NETWORK, "Initializing WebSocket Manager", {
       endpoints: this.config.endpoints.length,
-      heartbeatInterval: this.config.heartbeatInterval
+      heartbeatInterval: this.config.heartbeatInterval,
     });
 
     // Configurar listeners de visibilidad
     this.setupVisibilityHandlers();
-    
+
     // Configurar listeners de conectividad
     this.setupConnectivityHandlers();
-    
+
     // Conectar automáticamente
     this.connect();
   }
@@ -129,20 +129,23 @@ class WebSocketManager {
    * Conectar WebSocket
    */
   async connect() {
-    if (this.state === WS_STATES.CONNECTING || this.state === WS_STATES.CONNECTED) {
+    if (
+      this.state === WS_STATES.CONNECTING ||
+      this.state === WS_STATES.CONNECTED
+    ) {
       return;
     }
 
     this.state = WS_STATES.CONNECTING;
-    
+
     try {
       await this.attemptConnection();
     } catch (error) {
-      logger.error(LOG_CATEGORIES.NETWORK, 'WebSocket connection failed', {
+      logger.error(LOG_CATEGORIES.NETWORK, "WebSocket connection failed", {
         error: error.message,
-        endpoint: this.getCurrentEndpoint()
+        endpoint: this.getCurrentEndpoint(),
       });
-      
+
       this.handleConnectionFailure();
     }
   }
@@ -152,20 +155,20 @@ class WebSocketManager {
    */
   async attemptConnection() {
     const endpoint = this.getCurrentEndpoint();
-    
-    logger.debug(LOG_CATEGORIES.NETWORK, 'Attempting WebSocket connection', {
+
+    logger.debug(LOG_CATEGORIES.NETWORK, "Attempting WebSocket connection", {
       endpoint,
-      attempt: this.reconnectAttempts + 1
+      attempt: this.reconnectAttempts + 1,
     });
 
     return new Promise((resolve, reject) => {
       try {
         this.websocket = new WebSocket(endpoint);
-        
+
         // Configurar timeout de conexión
         const connectionTimeout = setTimeout(() => {
           this.websocket.close();
-          reject(new Error('Connection timeout'));
+          reject(new Error("Connection timeout"));
         }, 10000);
 
         this.websocket.onopen = () => {
@@ -188,7 +191,6 @@ class WebSocketManager {
           this.handleConnectionError(error);
           reject(error);
         };
-
       } catch (error) {
         reject(error);
       }
@@ -204,10 +206,10 @@ class WebSocketManager {
     this.isReconnecting = false;
     this.metrics.totalConnections++;
     this.metrics.lastConnectedAt = Date.now();
-    
-    logger.info(LOG_CATEGORIES.NETWORK, 'WebSocket connected successfully', {
+
+    logger.info(LOG_CATEGORIES.NETWORK, "WebSocket connected successfully", {
       endpoint: this.getCurrentEndpoint(),
-      totalConnections: this.metrics.totalConnections
+      totalConnections: this.metrics.totalConnections,
     });
 
     // Autenticar si está configurado
@@ -217,13 +219,13 @@ class WebSocketManager {
 
     // Iniciar heartbeat
     this.startHeartbeat();
-    
+
     // Procesar cola de mensajes
     this.processMessageQueue();
-    
+
     // Reestablecer suscripciones
     this.reestablishSubscriptions();
-    
+
     // Callback de conexión
     if (this.onConnect) {
       this.onConnect();
@@ -236,20 +238,21 @@ class WebSocketManager {
   handleConnectionClose(event) {
     this.state = WS_STATES.DISCONNECTED;
     this.metrics.totalDisconnections++;
-    
+
     // Calcular uptime
     if (this.metrics.lastConnectedAt) {
-      this.metrics.connectionUptime += Date.now() - this.metrics.lastConnectedAt;
+      this.metrics.connectionUptime +=
+        Date.now() - this.metrics.lastConnectedAt;
     }
-    
+
     // Detener heartbeat
     this.stopHeartbeat();
-    
-    logger.warn(LOG_CATEGORIES.NETWORK, 'WebSocket disconnected', {
+
+    logger.warn(LOG_CATEGORIES.NETWORK, "WebSocket disconnected", {
       code: event.code,
       reason: event.reason,
       wasClean: event.wasClean,
-      endpoint: this.getCurrentEndpoint()
+      endpoint: this.getCurrentEndpoint(),
     });
 
     // Callback de desconexión
@@ -267,9 +270,9 @@ class WebSocketManager {
    * Manejar error de conexión
    */
   handleConnectionError(error) {
-    logger.error(LOG_CATEGORIES.NETWORK, 'WebSocket error', {
-      error: error.message || 'Unknown error',
-      endpoint: this.getCurrentEndpoint()
+    logger.error(LOG_CATEGORIES.NETWORK, "WebSocket error", {
+      error: error.message || "Unknown error",
+      endpoint: this.getCurrentEndpoint(),
     });
 
     if (this.onError) {
@@ -283,7 +286,7 @@ class WebSocketManager {
   handleMessage(event) {
     try {
       let data;
-      
+
       // Descomprimir si es necesario
       if (this.config.enableCompression && this.isCompressed(event.data)) {
         data = JSON.parse(this.decompress(event.data));
@@ -292,33 +295,36 @@ class WebSocketManager {
       }
 
       this.metrics.messagesReceived++;
-      
+
       // Manejar tipos de mensajes especiales
       switch (data.type) {
         case MESSAGE_TYPES.HEARTBEAT:
           this.handleHeartbeatResponse(data);
           break;
-          
+
         case MESSAGE_TYPES.ACK:
           this.handleAcknowledgment(data);
           break;
-          
+
         case MESSAGE_TYPES.ERROR:
           this.handleServerError(data);
           break;
-          
+
         default:
           // Mensaje de datos normal
           if (this.onMessage) {
             this.onMessage(data);
           }
       }
-
     } catch (error) {
-      logger.error(LOG_CATEGORIES.NETWORK, 'Failed to parse WebSocket message', {
-        error: error.message,
-        rawData: event.data
-      });
+      logger.error(
+        LOG_CATEGORIES.NETWORK,
+        "Failed to parse WebSocket message",
+        {
+          error: error.message,
+          rawData: event.data,
+        }
+      );
     }
   }
 
@@ -331,7 +337,7 @@ class WebSocketManager {
       type: options.type || MESSAGE_TYPES.DATA,
       data,
       timestamp: Date.now(),
-      requiresAck: options.requiresAck || false
+      requiresAck: options.requiresAck || false,
     };
 
     // Si no está conectado, agregar a cola
@@ -355,11 +361,11 @@ class WebSocketManager {
    */
   async sendMessage(message) {
     if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket not connected');
+      throw new Error("WebSocket not connected");
     }
 
     let payload = JSON.stringify(message);
-    
+
     // Comprimir si está habilitado y el mensaje es grande
     if (this.config.enableCompression && payload.length > 1024) {
       payload = this.compress(payload);
@@ -367,7 +373,7 @@ class WebSocketManager {
 
     this.websocket.send(payload);
     this.metrics.messagesSent++;
-    
+
     // Si requiere ACK, agregar a pendientes
     if (message.requiresAck) {
       this.pendingMessages.set(message.id, {
@@ -375,14 +381,14 @@ class WebSocketManager {
         sentAt: Date.now(),
         timeout: setTimeout(() => {
           this.handleMessageTimeout(message.id);
-        }, this.config.messageTimeout)
+        }, this.config.messageTimeout),
       });
     }
 
-    logger.debug(LOG_CATEGORIES.NETWORK, 'Message sent', {
+    logger.debug(LOG_CATEGORIES.NETWORK, "Message sent", {
       messageId: message.id,
       type: message.type,
-      size: payload.length
+      size: payload.length,
     });
   }
 
@@ -393,17 +399,21 @@ class WebSocketManager {
     if (this.messageQueue.length >= this.config.maxQueueSize) {
       // Remover mensaje más antiguo
       const oldMessage = this.messageQueue.shift();
-      logger.warn(LOG_CATEGORIES.NETWORK, 'Message queue full, dropping oldest message', {
-        droppedMessageId: oldMessage.id
-      });
+      logger.warn(
+        LOG_CATEGORIES.NETWORK,
+        "Message queue full, dropping oldest message",
+        {
+          droppedMessageId: oldMessage.id,
+        }
+      );
     }
 
     this.messageQueue.push(message);
     this.metrics.messagesQueued++;
-    
-    logger.debug(LOG_CATEGORIES.NETWORK, 'Message queued', {
+
+    logger.debug(LOG_CATEGORIES.NETWORK, "Message queued", {
       messageId: message.id,
-      queueSize: this.messageQueue.length
+      queueSize: this.messageQueue.length,
     });
   }
 
@@ -412,9 +422,9 @@ class WebSocketManager {
    */
   async processMessageQueue() {
     if (this.messageQueue.length === 0) return;
-    
-    logger.info(LOG_CATEGORIES.NETWORK, 'Processing message queue', {
-      queueSize: this.messageQueue.length
+
+    logger.info(LOG_CATEGORIES.NETWORK, "Processing message queue", {
+      queueSize: this.messageQueue.length,
     });
 
     const messages = [...this.messageQueue];
@@ -435,11 +445,18 @@ class WebSocketManager {
    * Programar reconexión
    */
   scheduleReconnection() {
-    if (this.isReconnecting || this.reconnectAttempts >= this.config.maxReconnectAttempts) {
+    if (
+      this.isReconnecting ||
+      this.reconnectAttempts >= this.config.maxReconnectAttempts
+    ) {
       this.state = WS_STATES.FAILED;
-      logger.error(LOG_CATEGORIES.NETWORK, 'Max reconnection attempts reached', {
-        attempts: this.reconnectAttempts
-      });
+      logger.error(
+        LOG_CATEGORIES.NETWORK,
+        "Max reconnection attempts reached",
+        {
+          attempts: this.reconnectAttempts,
+        }
+      );
       return;
     }
 
@@ -449,14 +466,15 @@ class WebSocketManager {
 
     // Calcular delay con backoff exponencial
     const delay = Math.min(
-      this.config.reconnectInterval * Math.pow(this.config.reconnectDecay, this.reconnectAttempts - 1),
+      this.config.reconnectInterval *
+        Math.pow(this.config.reconnectDecay, this.reconnectAttempts - 1),
       this.config.maxReconnectInterval
     );
 
-    logger.info(LOG_CATEGORIES.NETWORK, 'Scheduling reconnection', {
+    logger.info(LOG_CATEGORIES.NETWORK, "Scheduling reconnection", {
       attempt: this.reconnectAttempts,
       delay,
-      nextEndpoint: this.getNextEndpoint()
+      nextEndpoint: this.getNextEndpoint(),
     });
 
     this.reconnectTimer = setTimeout(() => {
@@ -470,16 +488,15 @@ class WebSocketManager {
   async attemptReconnection() {
     // Rotar al siguiente endpoint
     this.rotateEndpoint();
-    
+
     this.metrics.totalReconnections++;
-    
+
     try {
       await this.attemptConnection();
-      
+
       if (this.onReconnect) {
         this.onReconnect();
       }
-      
     } catch (error) {
       this.scheduleReconnection();
     }
@@ -510,7 +527,7 @@ class WebSocketManager {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
-    
+
     if (this.heartbeatTimeoutTimer) {
       clearTimeout(this.heartbeatTimeoutTimer);
       this.heartbeatTimeoutTimer = null;
@@ -526,21 +543,20 @@ class WebSocketManager {
     const heartbeat = {
       id: this.generateMessageId(),
       type: MESSAGE_TYPES.HEARTBEAT,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     try {
       this.sendMessage(heartbeat);
-      
+
       // Configurar timeout para respuesta
       this.heartbeatTimeoutTimer = setTimeout(() => {
-        logger.warn(LOG_CATEGORIES.NETWORK, 'Heartbeat timeout');
+        logger.warn(LOG_CATEGORIES.NETWORK, "Heartbeat timeout");
         this.websocket.close();
       }, this.config.heartbeatTimeout);
-      
     } catch (error) {
-      logger.error(LOG_CATEGORIES.NETWORK, 'Failed to send heartbeat', {
-        error: error.message
+      logger.error(LOG_CATEGORIES.NETWORK, "Failed to send heartbeat", {
+        error: error.message,
       });
     }
   }
@@ -557,9 +573,9 @@ class WebSocketManager {
     // Calcular latencia
     const latency = Date.now() - data.timestamp;
     this.updateLatencyMetrics(latency);
-    
-    logger.debug(LOG_CATEGORIES.NETWORK, 'Heartbeat response received', {
-      latency
+
+    logger.debug(LOG_CATEGORIES.NETWORK, "Heartbeat response received", {
+      latency,
     });
   }
 
@@ -568,13 +584,16 @@ class WebSocketManager {
    */
   authenticate(token) {
     this.config.authToken = token;
-    
-    this.send({
-      token
-    }, {
-      type: MESSAGE_TYPES.AUTH,
-      requiresAck: true
-    });
+
+    this.send(
+      {
+        token,
+      },
+      {
+        type: MESSAGE_TYPES.AUTH,
+        requiresAck: true,
+      }
+    );
   }
 
   /**
@@ -582,13 +601,16 @@ class WebSocketManager {
    */
   subscribe(channel) {
     this.subscriptions.add(channel);
-    
+
     if (this.state === WS_STATES.CONNECTED) {
-      this.send({
-        channel
-      }, {
-        type: MESSAGE_TYPES.SUBSCRIBE
-      });
+      this.send(
+        {
+          channel,
+        },
+        {
+          type: MESSAGE_TYPES.SUBSCRIBE,
+        }
+      );
     }
   }
 
@@ -597,13 +619,16 @@ class WebSocketManager {
    */
   unsubscribe(channel) {
     this.subscriptions.delete(channel);
-    
+
     if (this.state === WS_STATES.CONNECTED) {
-      this.send({
-        channel
-      }, {
-        type: MESSAGE_TYPES.UNSUBSCRIBE
-      });
+      this.send(
+        {
+          channel,
+        },
+        {
+          type: MESSAGE_TYPES.UNSUBSCRIBE,
+        }
+      );
     }
   }
 
@@ -612,11 +637,14 @@ class WebSocketManager {
    */
   reestablishSubscriptions() {
     for (const channel of this.subscriptions) {
-      this.send({
-        channel
-      }, {
-        type: MESSAGE_TYPES.SUBSCRIBE
-      });
+      this.send(
+        {
+          channel,
+        },
+        {
+          type: MESSAGE_TYPES.SUBSCRIBE,
+        }
+      );
     }
   }
 
@@ -626,12 +654,14 @@ class WebSocketManager {
   }
 
   getNextEndpoint() {
-    const nextIndex = (this.currentEndpointIndex + 1) % this.config.endpoints.length;
+    const nextIndex =
+      (this.currentEndpointIndex + 1) % this.config.endpoints.length;
     return this.config.endpoints[nextIndex];
   }
 
   rotateEndpoint() {
-    this.currentEndpointIndex = (this.currentEndpointIndex + 1) % this.config.endpoints.length;
+    this.currentEndpointIndex =
+      (this.currentEndpointIndex + 1) % this.config.endpoints.length;
   }
 
   generateMessageId() {
@@ -643,7 +673,7 @@ class WebSocketManager {
     if (pending) {
       clearTimeout(pending.timeout);
       this.pendingMessages.delete(data.messageId);
-      
+
       const latency = Date.now() - pending.sentAt;
       this.updateLatencyMetrics(latency);
     }
@@ -653,32 +683,33 @@ class WebSocketManager {
     const pending = this.pendingMessages.get(messageId);
     if (pending) {
       this.pendingMessages.delete(messageId);
-      
-      logger.warn(LOG_CATEGORIES.NETWORK, 'Message timeout', {
+
+      logger.warn(LOG_CATEGORIES.NETWORK, "Message timeout", {
         messageId,
-        type: pending.message.type
+        type: pending.message.type,
       });
     }
   }
 
   handleServerError(data) {
-    logger.error(LOG_CATEGORIES.NETWORK, 'Server error received', {
+    logger.error(LOG_CATEGORIES.NETWORK, "Server error received", {
       error: data.error,
-      code: data.code
+      code: data.code,
     });
   }
 
   updateLatencyMetrics(latency) {
     const currentAvg = this.metrics.averageLatency;
     const totalMessages = this.metrics.messagesReceived;
-    
-    this.metrics.averageLatency = totalMessages > 1
-      ? ((currentAvg * (totalMessages - 1)) + latency) / totalMessages
-      : latency;
+
+    this.metrics.averageLatency =
+      totalMessages > 1
+        ? (currentAvg * (totalMessages - 1) + latency) / totalMessages
+        : latency;
   }
 
   setupVisibilityHandlers() {
-    document.addEventListener('visibilitychange', () => {
+    document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         // Página oculta - reducir actividad
         this.stopHeartbeat();
@@ -694,15 +725,15 @@ class WebSocketManager {
   }
 
   setupConnectivityHandlers() {
-    window.addEventListener('online', () => {
-      logger.info(LOG_CATEGORIES.NETWORK, 'Network connectivity restored');
+    window.addEventListener("online", () => {
+      logger.info(LOG_CATEGORIES.NETWORK, "Network connectivity restored");
       if (this.state === WS_STATES.DISCONNECTED) {
         this.connect();
       }
     });
 
-    window.addEventListener('offline', () => {
-      logger.warn(LOG_CATEGORIES.NETWORK, 'Network connectivity lost');
+    window.addEventListener("offline", () => {
+      logger.warn(LOG_CATEGORIES.NETWORK, "Network connectivity lost");
     });
   }
 
@@ -731,19 +762,19 @@ class WebSocketManager {
    */
   disconnect() {
     this.isReconnecting = false;
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     this.stopHeartbeat();
-    
+
     if (this.websocket) {
-      this.websocket.close(1000, 'Client disconnect');
+      this.websocket.close(1000, "Client disconnect");
       this.websocket = null;
     }
-    
+
     this.state = WS_STATES.DISCONNECTED;
   }
 
@@ -759,9 +790,9 @@ class WebSocketManager {
       queueSize: this.messageQueue.length,
       pendingMessages: this.pendingMessages.size,
       subscriptions: this.subscriptions.size,
-      uptime: this.metrics.lastConnectedAt 
-        ? Date.now() - this.metrics.lastConnectedAt 
-        : 0
+      uptime: this.metrics.lastConnectedAt
+        ? Date.now() - this.metrics.lastConnectedAt
+        : 0,
     };
   }
 
@@ -769,13 +800,18 @@ class WebSocketManager {
    * Obtener estado de salud
    */
   getHealthStatus() {
-    const uptime = this.metrics.connectionUptime + (
-      this.metrics.lastConnectedAt ? Date.now() - this.metrics.lastConnectedAt : 0
-    );
-    
-    const uptimePercentage = this.metrics.totalConnections > 0
-      ? (uptime / (Date.now() - (this.metrics.lastConnectedAt || Date.now()))) * 100
-      : 0;
+    const uptime =
+      this.metrics.connectionUptime +
+      (this.metrics.lastConnectedAt
+        ? Date.now() - this.metrics.lastConnectedAt
+        : 0);
+
+    const uptimePercentage =
+      this.metrics.totalConnections > 0
+        ? (uptime /
+            (Date.now() - (this.metrics.lastConnectedAt || Date.now()))) *
+          100
+        : 0;
 
     return {
       status: this.state,
@@ -786,7 +822,7 @@ class WebSocketManager {
       averageLatency: this.metrics.averageLatency.toFixed(2),
       messagesSent: this.metrics.messagesSent,
       messagesReceived: this.metrics.messagesReceived,
-      reconnections: this.metrics.totalReconnections
+      reconnections: this.metrics.totalReconnections,
     };
   }
 }
@@ -795,4 +831,3 @@ class WebSocketManager {
 const websocketManager = new WebSocketManager();
 
 export default websocketManager;
-export { WebSocketManager, WS_STATES, MESSAGE_TYPES };

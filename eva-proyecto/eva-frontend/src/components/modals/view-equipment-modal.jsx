@@ -28,7 +28,12 @@ import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
 
-export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
+export function ViewEquipmentModal({
+  open,
+  onOpenChange,
+  equipment,
+  equipmentType = "biomedical", // "biomedical" | "industrial"
+}) {
   const [equipmentDetails, setEquipmentDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -46,7 +51,7 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
   // Define fetchEquipmentDetailsPublic function first
   const fetchEquipmentDetailsPublic = async (equipmentId) => {
     const response = await fetch(
-      `http://localhost:8000/api/v1/equipos/${equipmentId}/complete-info`,
+      `http://localhost:8001/api/v1/equipos/${equipmentId}/complete-info`,
       {
         headers: {
           Accept: "application/json",
@@ -198,7 +203,10 @@ export function ViewEquipmentModal({ open, onOpenChange, equipment }) {
               </div>
               <div>
                 <DialogTitle className="text-xl font-bold text-blue-700">
-                  FORMATO DE HOJA DE VIDA PARA EQUIPOS BIOMÉDICOS
+                  FORMATO DE HOJA DE VIDA PARA EQUIPOS{" "}
+                  {equipmentType === "industrial"
+                    ? "INDUSTRIALES"
+                    : "BIOMÉDICOS"}
                 </DialogTitle>
                 <p className="text-sm text-gray-600">
                   Hospital Universitario del Valle Evaristo García

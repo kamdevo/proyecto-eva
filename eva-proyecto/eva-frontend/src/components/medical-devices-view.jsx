@@ -15,7 +15,12 @@ import {
   Link,
   X,
 } from "lucide-react";
-import { useMedicalDevices } from "@/hooks/useMedicalDevices";
+import { useEquipment } from "@/hooks/useEquipment";
+import { MainActionButtons } from "./equipment/MainActionButtons";
+import { StatsActionButtons } from "./equipment/StatsActionButtons";
+import { EquipmentPagination } from "./equipment/EquipmentPagination";
+import { RowActionButtons } from "./equipment/RowActionButtons";
+import { useEquipmentSearch } from "@/contexts/EquipmentSearchContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,25 +70,26 @@ export function MedicalDevicesView() {
     devices,
     loading,
     error,
+    hasError,
+    isEmpty,
     pagination,
-    filters,
-    selectedDevices,
-    selectAll,
+    currentPage,
+    totalPages,
+    totalItems,
+    showingFrom,
+    showingTo,
     stats,
-    criticalDevices,
+    filters,
     updateFilters,
-    clearFilters,
     changePage,
-    changePerPage,
-    searchDevices,
-    toggleDeviceSelection,
-    toggleSelectAll,
-    deleteDevice,
-    toggleDeviceStatus,
-    bulkUpdateDevices,
-    bulkDeleteDevices,
-    refreshDevices,
-  } = useMedicalDevices();
+    changePageSize,
+    search,
+    clearFilters,
+    refresh,
+  } = useEquipment("biomedical");
+
+  // Global search context
+  const { registerSearchCallback, setResultCount } = useEquipmentSearch();
 
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -101,13 +107,65 @@ export function MedicalDevicesView() {
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
-  const [globalSearch, setGlobalSearch] = useState("");
   const [equipmentId, setEquipmentId] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
+  // Handlers
+  const handlePageSizeChange = (newSize) => {
+    changePageSize(parseInt(newSize));
+  };
+
+  // Handle opening maintenance documents
+  const handleOpenMaintenanceDocument = async (equipmentId) => {
+    try {
+      // Fetch maintenance data for the equipment
+      const response = await fetch(
+        `http://127.0.0.1:8001/api/v1/mantenimiento?equipo_id=${equipmentId}&limit=1&order=desc`
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al obtener datos de mantenimiento");
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.length > 0) {
+        const maintenance = data.data[0];
+
+        if (maintenance.file) {
+          // Construct the file URL
+          const fileUrl = `http://127.0.0.1:8001/storage/${maintenance.file}`;
+
+          // Open in new tab
+          window.open(fileUrl, "_blank");
+        } else {
+          alert(
+            "No hay documento de mantenimiento disponible para este equipo"
+          );
+        }
+      } else {
+        alert("No se encontraron registros de mantenimiento para este equipo");
+      }
+    } catch (error) {
+      console.error("Error al abrir documento de mantenimiento:", error);
+      alert("Error al acceder al documento de mantenimiento");
+    }
+  };
+
+  // Register search callback for global search
+  useEffect(() => {
+    registerSearchCallback((searchTerm) => {
+      search(searchTerm);
+    });
+  }, [registerSearchCallback, search]);
+
+  // Update result count when devices change
+  useEffect(() => {
+    setResultCount(devices.length);
+  }, [devices, setResultCount]);
+
   // Sync local states with filters from hook
   useEffect(() => {
-    setGlobalSearch(filters.search || "");
     setEquipmentId(filters.consulta_id || "");
     setDateFilter(filters.anio_plan || "");
   }, [filters]);
@@ -115,12 +173,12 @@ export function MedicalDevicesView() {
   // Count active filters
   useEffect(() => {
     let count = 0;
-    if (globalSearch.trim()) count++;
+    if (filters.search && filters.search.trim()) count++;
     if (equipmentId.trim()) count++;
     if (dateFilter) count++;
 
     setActiveFiltersCount(count);
-  }, [globalSearch, equipmentId, dateFilter]);
+  }, [filters.search, equipmentId, dateFilter]);
 
   // Debug filters changes
   useEffect(() => {
@@ -156,7 +214,7 @@ export function MedicalDevicesView() {
   const handleEquipmentDeleted = (equipmentId) => {
     console.log("🔄 Equipo eliminado, refrescando lista:", equipmentId);
     // Refrescar la lista de equipos después de eliminar
-    refreshDevices();
+    refresh();
     // Limpiar el equipo seleccionado
     setSelectedEquipment(null);
   };
@@ -164,15 +222,7 @@ export function MedicalDevicesView() {
   // Use backend search instead of local filtering
   const filteredDevices = devices && devices.length > 0 ? devices : [];
 
-  // Handle search with backend
-  const handleSearch = (searchValue) => {
-    setGlobalSearch(searchValue);
-    if (searchValue.trim()) {
-      updateFilters({ search: searchValue.trim() });
-    } else {
-      updateFilters({ search: "" });
-    }
-  };
+  // Handle search with backend (removed duplicate)
 
   // Handle Equipment ID search
   const handleEquipmentIdSearch = () => {
@@ -217,7 +267,6 @@ export function MedicalDevicesView() {
 
   // Clear all filters
   const handleClearAllFilters = () => {
-    setGlobalSearch("");
     setEquipmentId("");
     setDateFilter("");
     clearFilters();
@@ -235,183 +284,28 @@ export function MedicalDevicesView() {
         </p>
       </div>
 
-      {/* Global Search Input */}
-      <div className="mb-3 sm:mb-4">
-        <div className="space-y-1 sm:space-y-2">
-          <label className="text-xs sm:text-sm font-medium text-slate-700 block">
-            Consulta Global:
-          </label>
-          <div className="relative">
-            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-3 h-3 sm:w-4 sm:h-4" />
-            <Input
-              type="text"
-              placeholder="Buscar equipos por nombre..."
-              value={globalSearch}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full h-8 sm:h-9 md:h-10 pl-7 sm:pl-9 pr-3 text-xs sm:text-sm bg-white border border-slate-200 rounded focus:border-teal-500 focus:ring-1 focus:ring-teal-200 transition-all duration-200 placeholder:text-slate-400"
-            />
-            {globalSearch.trim() && (
-              <div className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSearch("")}
-                  className="h-6 w-6 p-0 hover:bg-slate-100"
-                  title="Limpiar búsqueda"
-                >
-                  <X className="w-3 h-3 text-slate-400" />
-                </Button>
-              </div>
-            )}
-          </div>
-          {globalSearch.trim() && (
-            <div className="text-xs text-slate-600 mt-1">
-              Buscando: "{globalSearch}" - {filteredDevices.length} resultado
-              {filteredDevices.length !== 1 ? "s" : ""} encontrado
-              {filteredDevices.length !== 1 ? "s" : ""}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Action Buttons - Ultra Compact Side by Side */}
       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
         {/* Main Action Buttons */}
-        <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
-          <CardContent className="p-0.5 sm:p-1">
-            <div className="flex gap-0.5">
-              <Button
-                onClick={() => setFilterModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 relative ${
-                  activeFiltersCount > 0 ? "bg-teal-600 hover:bg-teal-700" : ""
-                }`}
-              >
-                <Filter className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Filtrar
-                </span>
-                {activeFiltersCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[8px] bg-orange-500 text-white border-0 flex items-center justify-center"
-                  >
-                    {activeFiltersCount}
-                  </Badge>
-                )}
-              </Button>
-
-              {/* Clear Filters Button - only show when filters are active */}
-              {activeFiltersCount > 0 && (
-                <Button
-                  onClick={handleClearAllFilters}
-                  variant="ghost"
-                  size="sm"
-                  className="text-white hover:bg-red-600 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-                >
-                  <X className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
-                  <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                    Limpiar
-                  </span>
-                </Button>
-              )}
-              <Button
-                onClick={() => setAddModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <Plus className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Registrar
-                </span>
-              </Button>
-              <Button
-                onClick={() => setCleanNamesModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <FileSpreadsheet className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Depurar
-                </span>
-              </Button>
-              <Button
-                onClick={() => setMergeModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <Merge className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Consolidar
-                </span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <MainActionButtons
+          onFilterClick={() => setFilterModalOpen(true)}
+          onAddClick={() => setAddModalOpen(true)}
+          onCleanNamesClick={() => setCleanNamesModalOpen(true)}
+          onMergeClick={() => setMergeModalOpen(true)}
+          onClearFiltersClick={handleClearAllFilters}
+          activeFiltersCount={activeFiltersCount}
+          showClearFilters={true}
+          equipmentType="biomedical"
+        />
 
         {/* Stats Buttons */}
-        <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
-          <CardContent className="p-0.5 sm:p-1">
-            <div className="flex gap-0.5">
-              <Button
-                onClick={() => setPreventiveModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <span className="mr-0.5 xs:mr-1 text-xs xs:text-sm sm:text-base">
-                  🔧
-                </span>
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Preventivos
-                </span>
-              </Button>
-              <Button
-                onClick={() => setCalibrationModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <span className="mr-0.5 xs:mr-1 text-xs xs:text-sm sm:text-base">
-                  ⚖️
-                </span>
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Calibraciones
-                </span>
-              </Button>
-              <Button
-                onClick={() => setCorrectiveModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <span className="mr-0.5 xs:mr-1 text-xs xs:text-sm sm:text-base">
-                  🔧
-                </span>
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Correctivos
-                </span>
-              </Button>
-              <Button
-                onClick={() => setMonthModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-              >
-                <span className="mr-0.5 xs:mr-1 text-xs xs:text-sm sm:text-base">
-                  📊
-                </span>
-                <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-                  Reportes
-                </span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <StatsActionButtons
+          onPreventiveClick={() => setPreventiveModalOpen(true)}
+          onCalibrationClick={() => setCalibrationModalOpen(true)}
+          onCorrectiveClick={() => setCorrectiveModalOpen(true)}
+          onMonthClick={() => setMonthModalOpen(true)}
+          equipmentType="biomedical"
+        />
       </div>
       {/* Main Content Card */}
       <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
@@ -946,7 +840,14 @@ export function MedicalDevicesView() {
                                 device.mantenimiento.ultimoMantenimiento
                               ).toLocaleDateString()
                             : "Sin registros"}
-                          <Link size={15} />
+                          <Link
+                            size={15}
+                            className="cursor-pointer hover:text-teal-600 transition-colors"
+                            onClick={() =>
+                              handleOpenMaintenanceDocument(device.id)
+                            }
+                            title="Abrir documento de mantenimiento"
+                          />
                         </div>
                         <div>
                           <span className="font-medium text-slate-700">
@@ -1033,63 +934,35 @@ export function MedicalDevicesView() {
 
                     {/* Actions Column */}
                     <td className="p-1 xs:p-2 sm:p-3 md:p-4 align-top">
-                      <div className="flex flex-col gap-0.5 xs:gap-1">
-                        <Button
-                          size="sm"
-                          className="bg-cyan-500 hover:bg-cyan-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                          title="Consultar Equipo"
-                          onClick={() => {
-                            setSelectedEquipment(device);
-                            setViewEquipmentModalOpen(true);
-                          }}
-                        >
-                          <Eye className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-blue-500 hover:bg-blue-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                          title="Editar Información"
-                          onClick={() => {
-                            setSelectedEquipment(device);
-                            setEditEquipmentModalOpen(true);
-                          }}
-                        >
-                          <Edit className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-purple-500 hover:bg-purple-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                          title="Documentos Técnicos"
-                          onClick={() => {
-                            setSelectedEquipment(device);
-                            setDocumentListModalOpen(true);
-                          }}
-                        >
-                          <Paperclip className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-orange-500 hover:bg-orange-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                          title="Cargar Documentos"
-                          onClick={() => {
-                            setSelectedEquipment(device);
-                            setDocumentUploadModalOpen(true);
-                          }}
-                        >
-                          <FileText className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="bg-red-500 hover:bg-red-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
-                          title="Eliminar Registro"
-                          onClick={() => {
-                            setSelectedEquipment(device);
-                            setDeleteConfirmModalOpen(true);
-                          }}
-                        >
-                          <Trash2 className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
-                        </Button>
-                      </div>
+                      <RowActionButtons
+                        equipment={device}
+                        onViewClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setViewEquipmentModalOpen(true);
+                        }}
+                        onEditClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setEditEquipmentModalOpen(true);
+                        }}
+                        onDocumentsClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentListModalOpen(true);
+                        }}
+                        onUploadClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentUploadModalOpen(true);
+                        }}
+                        onDeleteClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDeleteConfirmModalOpen(true);
+                        }}
+                        onCopyClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCopyEquipmentModalOpen(true);
+                        }}
+                        equipmentType="biomedical"
+                        showCopyButton={false}
+                      />
                     </td>
                   </tr>
                 ))
@@ -1104,16 +977,17 @@ export function MedicalDevicesView() {
                       </div>
                     ) : (
                       <div>
-                        {globalSearch.trim() ? (
+                        {filters.search && filters.search.trim() ? (
                           <>
                             <p>No se encontraron equipos</p>
                             <p className="text-sm">
-                              No hay equipos que coincidan con "{globalSearch}"
+                              No hay equipos que coincidan con "{filters.search}
+                              "
                             </p>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setGlobalSearch("")}
+                              onClick={() => search("")}
                               className="mt-2"
                             >
                               Limpiar búsqueda
@@ -1142,8 +1016,8 @@ export function MedicalDevicesView() {
             <span>
               {loading ? (
                 <Skeleton className="h-4 w-48" />
-              ) : globalSearch.trim() ? (
-                `Mostrando ${filteredDevices.length} de ${
+              ) : filters.search && filters.search.trim() ? (
+                `Mostrando ${devices.length} de ${
                   pagination.total || 0
                 } equipos`
               ) : (
@@ -1164,7 +1038,7 @@ export function MedicalDevicesView() {
             <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
             <Select
               value={pagination.per_page.toString()}
-              onValueChange={(value) => changePerPage(parseInt(value))}
+              onValueChange={(value) => changePageSize(parseInt(value))}
             >
               <SelectTrigger className="w-12 sm:w-14 md:w-16 h-6 sm:h-7 md:h-8 text-xs sm:text-sm">
                 <SelectValue />
@@ -1271,7 +1145,7 @@ export function MedicalDevicesView() {
       <AddEquipmentModal
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
-        onEquipmentAdded={refreshDevices}
+        onEquipmentAdded={refresh}
       />
       <CleanNamesModal
         open={cleanNamesModalOpen}
@@ -1310,7 +1184,7 @@ export function MedicalDevicesView() {
         equipment={selectedEquipment}
         onDocumentUploaded={() => {
           // Refresh the equipment data after uploading document
-          refreshDevices();
+          refresh();
         }}
       />
       <EditEquipmentModal
@@ -1319,7 +1193,7 @@ export function MedicalDevicesView() {
         equipment={selectedEquipment}
         onEquipmentUpdated={() => {
           // Refresh the equipment data after updating
-          refreshDevices();
+          refresh();
         }}
       />
       <ViewEquipmentModal
@@ -1340,7 +1214,7 @@ export function MedicalDevicesView() {
         equipmentName={selectedEquipment?.equipo?.name || "Equipo sin nombre"}
         onObservationAdded={() => {
           // Refresh the equipment data after adding observation
-          refreshDevices();
+          refresh();
         }}
       />
     </div>

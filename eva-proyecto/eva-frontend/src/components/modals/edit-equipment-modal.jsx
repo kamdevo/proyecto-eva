@@ -38,6 +38,7 @@ export function EditEquipmentModal({
   onOpenChange,
   equipment,
   onEquipmentUpdated,
+  equipmentType = "biomedical", // "biomedical" | "industrial"
 }) {
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1124,7 +1125,7 @@ export function EditEquipmentModal({
     }
 
     // Construir URL del archivo de observación
-    const fileUrl = `${API_CONFIG.BASE_URL}/api/storage/observaciones/${filename}`;
+    const fileUrl = `/storage/observaciones/${filename}`;
 
     // Abrir en nueva ventana optimizada para visualización e impresión empresarial
     const newWindow = window.open(
@@ -1287,7 +1288,7 @@ export function EditEquipmentModal({
     }
 
     // Construir URL del archivo de correctivo
-    const fileUrl = `${API_CONFIG.BASE_URL}/api/storage/correctivos/${filename}`;
+    const fileUrl = `/storage/correctivos/${filename}`;
 
     // Abrir en nueva ventana optimizada para visualización e impresión empresarial
     const newWindow = window.open(
@@ -1457,7 +1458,7 @@ export function EditEquipmentModal({
     }
 
     // Construir URL del archivo de repuesto
-    const fileUrl = `${API_CONFIG.BASE_URL}/api/storage/repuestos/${filename}`;
+    const fileUrl = `/storage/repuestos/${filename}`;
 
     // Abrir en nueva ventana optimizada para visualización e impresión empresarial
     const newWindow = window.open(

@@ -47,7 +47,7 @@ class ProveedorMantenimiento extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'proveedor_mantenimientos';
+    protected $table = 'proveedores_mantenimiento';
     protected $primaryKey = 'id';
     public $timestamps = true;
 

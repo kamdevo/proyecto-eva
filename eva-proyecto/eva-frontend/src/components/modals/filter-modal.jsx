@@ -26,6 +26,7 @@ export function FilterModal({
   onFiltersApply,
   onFiltersClear,
   currentFilters = {},
+  equipmentType = "biomedical", // "biomedical" | "industrial"
 }) {
   // Estados para filtros
   const [filters, setFilters] = useState({
@@ -273,7 +274,8 @@ export function FilterModal({
           <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filtros Avanzados de Equipos
+              Filtros Avanzados de Equipos{" "}
+              {equipmentType === "industrial" ? "Industriales" : "Biomédicos"}
               {activeFiltersCount > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {activeFiltersCount} activos

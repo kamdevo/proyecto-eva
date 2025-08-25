@@ -37,11 +37,15 @@ Route::apiResource('equipos', EquipmentController::class)->except(['store', 'upd
 // Rutas específicas de equipos médicos con información completa (sin autenticación)
 Route::get('equipos/medical-devices-complete', [EquipmentController::class, 'getMedicalDevicesComplete'])
     ->withoutMiddleware(['auth:sanctum']);
+Route::get('equipos/industrial-devices-complete', [EquipmentController::class, 'getIndustrialDevicesComplete'])
+    ->withoutMiddleware(['auth:sanctum']);
 Route::get('equipos/{id}/complete-info', [EquipmentController::class, 'getCompleteInfo'])
     ->withoutMiddleware(['auth:sanctum']);
 Route::get('equipos/filter-options', [EquipmentController::class, 'getFilterOptions'])
     ->withoutMiddleware(['auth:sanctum']);
 Route::get('equipos/estadisticas/medical-devices', [EquipmentController::class, 'getMedicalDevicesStats'])
+    ->withoutMiddleware(['auth:sanctum']);
+Route::get('equipos/estadisticas/industrial-devices', [EquipmentController::class, 'getIndustrialDevicesStats'])
     ->withoutMiddleware(['auth:sanctum']);
 
 // Ruta de actualización sin middleware (para desarrollo/testing)

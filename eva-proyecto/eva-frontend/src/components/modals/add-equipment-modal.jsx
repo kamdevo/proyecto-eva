@@ -36,7 +36,12 @@ import { toast } from "sonner";
 import axios from "axios";
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
 
-export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
+export function AddEquipmentModal({
+  open,
+  onOpenChange,
+  onEquipmentAdded,
+  equipmentType = "biomedical", // "biomedical" | "industrial"
+}) {
   // Estado del formulario
   const [formData, setFormData] = useState({
     // Identificación del equipo
@@ -111,7 +116,7 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
 
     // Campos adicionales
     invima: "",
-    tipo_id: "1", // Default biomédico
+    tipo_id: equipmentType === "industrial" ? "2" : "1", // 1=biomédico, 2=industrial
   });
 
   // Estados para catálogos
@@ -846,8 +851,9 @@ export function AddEquipmentModal({ open, onOpenChange, onEquipmentAdded }) {
           <Card>
             <CardHeader className="bg-gray-100 py-3">
               <CardTitle className="text-sm font-medium text-center">
-                REGISTRO DE EQUIPOS BIOMÉDICOS HOSPITAL UNIVERSITARIO DEL VALLE
-                "EVARISTO GARCÍA"
+                REGISTRO DE EQUIPOS{" "}
+                {equipmentType === "industrial" ? "INDUSTRIALES" : "BIOMÉDICOS"}{" "}
+                HOSPITAL UNIVERSITARIO DEL VALLE "EVARISTO GARCÍA"
               </CardTitle>
               <div className="text-center text-xs text-gray-600 mt-1">
                 IDENTIFICACIÓN DEL EQUIPO

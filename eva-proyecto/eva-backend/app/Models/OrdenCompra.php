@@ -47,35 +47,23 @@ class OrdenCompra extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'orden_compras';
+    protected $table = 'ordenes_compra';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false;
 
     /**
      * Campos que pueden ser asignados masivamente
      * Configurados con máxima seguridad empresarial
      */
     protected $fillable = [
-        'name',
-        'nombre',
-        'title',
-        'descripcion',
-        'description',
-        'codigo',
-        'code',
-        'activo',
-        'estado',
-        'status',
-        'tipo',
-        'categoria',
-        'valor',
+        'orden',
+        'file',
         'fecha',
-        'observaciones',
-        'notas',
-        'usuario_id',
-        'equipo_id',
-        'servicio_id',
-        'area_id'
+        'status',
+        'proveedor_id',
+        'tipo_compra_id',
+        'secop_id',
+        'url_secop'
     ];
 
     /**
@@ -92,18 +80,39 @@ class OrdenCompra extends Model
      */
     protected $casts = [
         'id' => 'integer',
-        'activo' => 'boolean',
-        'estado' => 'boolean',
-        'status' => 'boolean',
         'fecha' => 'date',
-        'valor' => 'decimal:2',
-        'usuario_id' => 'integer',
-        'equipo_id' => 'integer',
-        'servicio_id' => 'integer',
-        'area_id' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'status' => 'integer',
+        'proveedor_id' => 'integer',
+        'tipo_compra_id' => 'integer'
     ];
+
+    // ==========================================
+    // RELACIONES ELOQUENT
+    // ==========================================
+
+    /**
+     * Relación con proveedor de mantenimiento
+     */
+    public function proveedor()
+    {
+        return $this->belongsTo(ProveedorMantenimiento::class, 'proveedor_id');
+    }
+
+    /**
+     * Relación con tipo de compra
+     */
+    public function tipoCompra()
+    {
+        return $this->belongsTo(TipoCompra::class, 'tipo_compra_id');
+    }
+
+    /**
+     * Relación con equipos que usan esta orden de compra
+     */
+    public function equipos()
+    {
+        return $this->hasMany(Equipo::class, 'orden_compra_id');
+    }
 
     // ==========================================
     // CONSTANTES EMPRESARIALES

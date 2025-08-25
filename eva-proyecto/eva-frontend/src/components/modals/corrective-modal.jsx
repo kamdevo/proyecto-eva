@@ -615,7 +615,7 @@ export function CorrectiveModal({ open, onOpenChange }) {
     if (!fileName) return;
 
     // Construct the URL for the document in Laravel storage
-    const documentUrl = `http://localhost:8001/storage/correctivos/${fileName}`;
+    const documentUrl = `/storage/correctivos/${fileName}`;
 
     // Open document in new window with print functionality
     const newWindow = window.open(documentUrl, "_blank");

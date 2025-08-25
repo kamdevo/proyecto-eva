@@ -485,9 +485,45 @@ Route::post('test-register', function (Request $request) {
     return response()->json(['message' => 'Endpoint de registro funcionando', 'data' => $request->all()]);
 });
 
-// Rutas de autenticación directas (para prueba)
-Route::post('v1/register-direct', [App\Http\Controllers\Api\AuthController::class, 'register']);
-Route::post('v1/login-direct', [App\Http\Controllers\Api\AuthController::class, 'login']);
+// Rutas de autenticación directas (para prueba) - SIN MIDDLEWARE
+Route::post('v1/register-direct', [App\Http\Controllers\Api\AuthController::class, 'register'])->withoutMiddleware(['auth:sanctum', 'auth']);
+Route::post('v1/login-direct', [App\Http\Controllers\Api\AuthController::class, 'login'])->withoutMiddleware(['auth:sanctum', 'auth']);
+
+// Test registration endpoint
+Route::post('v1/test-register-simple', function (Request $request) {
+    try {
+        $data = $request->validate([
+            'nombre' => 'required|string',
+            'email' => 'required|email|unique:usuarios,email',
+            'username' => 'required|string|unique:usuarios,username',
+            'password' => 'required|string',
+            'centro_id' => 'nullable|string'
+        ]);
+
+        $user = \App\Models\Usuario::create([
+            'nombre' => $data['nombre'],
+            'email' => $data['email'],
+            'username' => $data['username'],
+            'password' => \Hash::make($data['password']),
+            'centro_id' => $data['centro_id'] ?? '1',
+            'rol_id' => 4,
+            'estado' => 1,
+            'sede_id' => '1'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario registrado exitosamente',
+            'user' => $user
+        ], 201);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al registrar usuario: ' . $e->getMessage()
+        ], 400);
+    }
+});
 
 // Health check endpoint (público)
 Route::get('v1/health', function () {
@@ -1195,13 +1231,15 @@ Route::post('v1/equipos', function(Request $request) {
     }
 });
 
-// Rutas públicas de equipos biomédicos (sin autenticación)
+// Rutas públicas de equipos biomédicos e industriales (sin autenticación)
 Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     // Endpoints específicos sin autenticación
     Route::get('equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete']);
+    Route::get('equipos/industrial-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getIndustrialDevicesComplete']);
     Route::get('equipos/filter-options', [\App\Http\Controllers\Api\EquipmentController::class, 'getFilterOptions']);
     Route::post('equipos/export', [\App\Http\Controllers\Api\EquipmentController::class, 'exportFilteredEquipment']);
     Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
+    Route::get('equipos/estadisticas/industrial-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getIndustrialDevicesStats']);
     Route::get('equipos/{id}/complete-info', [\App\Http\Controllers\Api\EquipmentController::class, 'getCompleteInfo']);
     // Endpoint para crear equipos usando el controlador con validaciones completas
     Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
@@ -1538,6 +1576,601 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             return response()->json([
                 'success' => false,
                 'message' => 'Error obteniendo servicios: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('centros', function() {
+        try {
+            $centros = DB::table('centros')->where('status', 1)->get(['id', 'code', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $centros
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo centros: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('roles', function() {
+        try {
+            $roles = DB::table('roles')->get(['id', 'nombre']);
+            return response()->json([
+                'success' => true,
+                'data' => $roles
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo roles: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('modulos', function() {
+        try {
+            $modulos = DB::table('modulos')->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $modulos
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo módulos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('empresas', function() {
+        try {
+            $empresas = DB::table('empresas')->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $empresas
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo empresas: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('sedes', function() {
+        try {
+            $sedes = DB::table('sedes')->get(['id', 'name']);
+            return response()->json([
+                'success' => true,
+                'data' => $sedes
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo sedes: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Endpoint público para testing de usuarios (solo para desarrollo)
+    Route::get('usuarios-public', function() {
+        try {
+            $page = request('page', 1);
+            $perPage = request('per_page', 10);
+            $search = request('search', '');
+
+            $query = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('centros', 'usuarios.centro_id', '=', 'centros.id')
+                ->select([
+                    'usuarios.id',
+                    'usuarios.nombre',
+                    'usuarios.apellido',
+                    'usuarios.username',
+                    'usuarios.email',
+                    'usuarios.telefono',
+                    'usuarios.estado',
+                    'roles.nombre as rol',
+                    'centros.name as centro'
+                ])
+                ->where('usuarios.estado', '!=', 0);
+
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('usuarios.nombre', 'like', "%{$search}%")
+                      ->orWhere('usuarios.apellido', 'like', "%{$search}%")
+                      ->orWhere('usuarios.username', 'like', "%{$search}%");
+                });
+            }
+
+            $total = $query->count();
+            $usuarios = $query->offset(($page - 1) * $perPage)
+                            ->limit($perPage)
+                            ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $usuarios,
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$perPage,
+                    'total' => $total,
+                    'last_page' => ceil($total / $perPage)
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo usuarios: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // ==========================================
+    // COMPLETE PURCHASE ORDERS API ENDPOINTS
+    // ==========================================
+
+    // Get all purchase orders with pagination and search
+    Route::get('ordenes-compra', function() {
+        try {
+            $page = request('page', 1);
+            $perPage = request('per_page', 10);
+            $search = request('search', '');
+
+            $query = DB::table('ordenes_compra')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->select([
+                    'ordenes_compra.*',
+                    'tipos_compra.tipo_compra as tipo_compra_nombre',
+                    'contacto.name as proveedor_nombre'
+                ]);
+
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('ordenes_compra.orden', 'like', "%{$search}%")
+                      ->orWhere('contacto.name', 'like', "%{$search}%")
+                      ->orWhere('tipos_compra.tipo_compra', 'like', "%{$search}%");
+                });
+            }
+
+            $total = $query->count();
+            $ordenes = $query->orderBy('ordenes_compra.created_at', 'desc')
+                           ->offset(($page - 1) * $perPage)
+                           ->limit($perPage)
+                           ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $ordenes,
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$perPage,
+                    'total' => $total,
+                    'last_page' => ceil($total / $perPage)
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo órdenes de compra: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Create new purchase order with file upload
+    Route::post('ordenes-compra', function() {
+        try {
+            $validator = Validator::make(request()->all(), [
+                'orden' => 'required|string|max:255|unique:ordenes_compra,orden',
+                'fecha' => 'required|date',
+                'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
+                'proveedor_id' => 'nullable|integer|exists:contacto,id',
+                'monto' => 'nullable|numeric|min:0',
+                'descripcion' => 'nullable|string',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240' // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $data = [
+                'orden' => request('orden'),
+                'fecha' => request('fecha'),
+                'tipo_compra_id' => request('tipo_compra_id'),
+                'proveedor_id' => request('proveedor_id'),
+                'monto' => request('monto', 0),
+                'descripcion' => request('descripcion'),
+                'status' => request('status', 1),
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+
+            // Handle file upload
+            if (request()->hasFile('file')) {
+                $file = request()->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('purchase_orders', $fileName, 'public');
+                $data['archivo_adjunto'] = $filePath;
+                $data['nombre_archivo'] = $file->getClientOriginalName();
+            }
+
+            $ordenId = DB::table('ordenes_compra')->insertGetId($data);
+
+            $orden = DB::table('ordenes_compra')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->select([
+                    'ordenes_compra.*',
+                    'tipos_compra.tipo_compra as tipo_compra_nombre',
+                    'contacto.name as proveedor_nombre'
+                ])
+                ->where('ordenes_compra.id', $ordenId)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden de compra creada exitosamente',
+                'data' => $orden
+            ], 201);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creando orden de compra: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Get single purchase order
+    Route::get('ordenes-compra/{id}', function($id) {
+        try {
+            $orden = DB::table('ordenes_compra')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->select([
+                    'ordenes_compra.*',
+                    'tipos_compra.tipo_compra as tipo_compra_nombre',
+                    'contacto.name as proveedor_nombre'
+                ])
+                ->where('ordenes_compra.id', $id)
+                ->first();
+
+            if (!$orden) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Orden de compra no encontrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $orden
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo orden de compra: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Update purchase order
+    Route::put('ordenes-compra/{id}', function($id) {
+        try {
+            $orden = DB::table('ordenes_compra')->where('id', $id)->first();
+
+            if (!$orden) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Orden de compra no encontrada'
+                ], 404);
+            }
+
+            $validator = Validator::make(request()->all(), [
+                'orden' => 'required|string|max:255|unique:ordenes_compra,orden,' . $id,
+                'fecha' => 'required|date',
+                'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
+                'proveedor_id' => 'nullable|integer|exists:contacto,id',
+                'monto' => 'nullable|numeric|min:0',
+                'descripcion' => 'nullable|string',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $data = [
+                'orden' => request('orden'),
+                'fecha' => request('fecha'),
+                'tipo_compra_id' => request('tipo_compra_id'),
+                'proveedor_id' => request('proveedor_id'),
+                'monto' => request('monto', 0),
+                'descripcion' => request('descripcion'),
+                'status' => request('status', $orden->status),
+                'updated_at' => now()
+            ];
+
+            // Handle file upload
+            if (request()->hasFile('file')) {
+                // Delete old file if exists
+                if ($orden->archivo_adjunto && Storage::disk('public')->exists($orden->archivo_adjunto)) {
+                    Storage::disk('public')->delete($orden->archivo_adjunto);
+                }
+
+                $file = request()->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('purchase_orders', $fileName, 'public');
+                $data['archivo_adjunto'] = $filePath;
+                $data['nombre_archivo'] = $file->getClientOriginalName();
+            }
+
+            DB::table('ordenes_compra')->where('id', $id)->update($data);
+
+            $updatedOrden = DB::table('ordenes_compra')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->select([
+                    'ordenes_compra.*',
+                    'tipos_compra.tipo_compra as tipo_compra_nombre',
+                    'contacto.name as proveedor_nombre'
+                ])
+                ->where('ordenes_compra.id', $id)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden de compra actualizada exitosamente',
+                'data' => $updatedOrden
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error actualizando orden de compra: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Delete purchase order
+    Route::delete('ordenes-compra/{id}', function($id) {
+        try {
+            $orden = DB::table('ordenes_compra')->where('id', $id)->first();
+
+            if (!$orden) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Orden de compra no encontrada'
+                ], 404);
+            }
+
+            // Delete associated file if exists
+            if ($orden->archivo_adjunto && Storage::disk('public')->exists($orden->archivo_adjunto)) {
+                Storage::disk('public')->delete($orden->archivo_adjunto);
+            }
+
+            DB::table('ordenes_compra')->where('id', $id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden de compra eliminada exitosamente'
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error eliminando orden de compra: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Advanced search for purchase orders
+    Route::get('ordenes-compra/search/advanced', function() {
+        try {
+            $query = DB::table('ordenes_compra')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->select([
+                    'ordenes_compra.*',
+                    'tipos_compra.tipo_compra as tipo_compra_nombre',
+                    'contacto.name as proveedor_nombre'
+                ]);
+
+            // Apply filters
+            if (request('codigo')) {
+                $query->where('ordenes_compra.orden', 'like', '%' . request('codigo') . '%');
+            }
+
+            if (request('fecha')) {
+                $query->whereDate('ordenes_compra.fecha', request('fecha'));
+            }
+
+            if (request('fecha_desde')) {
+                $query->whereDate('ordenes_compra.fecha', '>=', request('fecha_desde'));
+            }
+
+            if (request('fecha_hasta')) {
+                $query->whereDate('ordenes_compra.fecha', '<=', request('fecha_hasta'));
+            }
+
+            if (request('proveedor')) {
+                $query->where('contacto.name', 'like', '%' . request('proveedor') . '%');
+            }
+
+            if (request('tipo_compra')) {
+                $query->where('ordenes_compra.tipo_compra_id', request('tipo_compra'));
+            }
+
+            if (request('estado')) {
+                $query->where('ordenes_compra.status', request('estado'));
+            }
+
+            if (request('monto_min')) {
+                $query->where('ordenes_compra.monto', '>=', request('monto_min'));
+            }
+
+            if (request('monto_max')) {
+                $query->where('ordenes_compra.monto', '<=', request('monto_max'));
+            }
+
+            $ordenes = $query->orderBy('ordenes_compra.created_at', 'desc')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $ordenes
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error en búsqueda avanzada: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Export purchase orders to Excel
+    Route::get('ordenes-compra/export/excel', function() {
+        try {
+            $ordenes = DB::table('ordenes_compra')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->select([
+                    'ordenes_compra.id',
+                    'ordenes_compra.orden',
+                    'ordenes_compra.fecha',
+                    'tipos_compra.tipo_compra as tipo_compra',
+                    'contacto.name as proveedor',
+                    'ordenes_compra.monto',
+                    'ordenes_compra.descripcion',
+                    'ordenes_compra.status',
+                    'ordenes_compra.created_at'
+                ])
+                ->orderBy('ordenes_compra.created_at', 'desc')
+                ->get();
+
+            // Create CSV content (simpler than Excel for this implementation)
+            $csvContent = "ID,Orden,Fecha,Tipo de Compra,Proveedor,Monto,Descripcion,Estado,Fecha Creacion\n";
+
+            foreach ($ordenes as $orden) {
+                $status = $orden->status == 1 ? 'Activo' : 'Inactivo';
+                $monto = number_format($orden->monto ?? 0, 2);
+                $descripcion = str_replace(['"', "\n", "\r"], ['""', ' ', ' '], $orden->descripcion ?? '');
+
+                $csvContent .= sprintf(
+                    "%d,\"%s\",\"%s\",\"%s\",\"%s\",%s,\"%s\",\"%s\",\"%s\"\n",
+                    $orden->id,
+                    $orden->orden,
+                    $orden->fecha,
+                    $orden->tipo_compra ?? '',
+                    $orden->proveedor ?? '',
+                    $monto,
+                    $descripcion,
+                    $status,
+                    $orden->created_at
+                );
+            }
+
+            $fileName = 'ordenes_compra_' . date('Y-m-d_H-i-s') . '.csv';
+
+            return response($csvContent, 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error exportando a Excel: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // SECOP integration endpoint
+    Route::get('secop/consultar', function() {
+        try {
+            // Simulate SECOP consultation (in real implementation, this would call SECOP API)
+            $secopData = [
+                'total_contratos' => 1250,
+                'contratos_activos' => 890,
+                'monto_total' => 15750000000,
+                'ultima_actualizacion' => now()->format('Y-m-d H:i:s'),
+                'contratos_recientes' => [
+                    [
+                        'numero_contrato' => 'SECOP-2024-001',
+                        'entidad' => 'Hospital Universitario',
+                        'objeto' => 'Suministro de equipos médicos',
+                        'valor' => 250000000,
+                        'fecha_firma' => '2024-01-15',
+                        'estado' => 'Vigente'
+                    ],
+                    [
+                        'numero_contrato' => 'SECOP-2024-002',
+                        'entidad' => 'Clínica Central',
+                        'objeto' => 'Mantenimiento de equipos biomédicos',
+                        'valor' => 180000000,
+                        'fecha_firma' => '2024-01-20',
+                        'estado' => 'En ejecución'
+                    ]
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Consulta SECOP realizada exitosamente',
+                'data' => $secopData
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error consultando SECOP: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('tipos-compra', function() {
+        try {
+            $tipos = DB::table('tipos_compra')->get(['id', 'tipo_compra as nombre']);
+            return response()->json([
+                'success' => true,
+                'data' => $tipos
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo tipos de compra: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('contacto', function() {
+        try {
+            $contactos = DB::table('contacto')->where('status', 1)->get(['id', 'name as nombre']);
+            return response()->json([
+                'success' => true,
+                'data' => $contactos
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo contactos: ' . $e->getMessage()
             ], 500);
         }
     });
@@ -2043,6 +2676,10 @@ Route::prefix('v1')->group(function () {
     // Repuestos e inventario
     require __DIR__.'/repuestos.php';
 
+    // Órdenes de compra y tipos de compra
+    require __DIR__.'/ordencompra.php';
+    require __DIR__.'/tipocompra.php';
+
     // Capacitación y guías
     require __DIR__.'/capacitacion.php';
 
@@ -2297,6 +2934,20 @@ Route::get('observaciones/test', function () {
             'GET /api/observaciones/equipo/{id}'
         ]
     ]);
+});
+
+// Purchase Orders routes (PUBLIC - no authentication required)
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
+    // Purchase Orders - Basic CRUD
+    Route::get('ordencompra', [\App\Http\Controllers\Api\OrdenCompraController::class, 'index']);
+    Route::get('ordencompra/{id}', [\App\Http\Controllers\Api\OrdenCompraController::class, 'show']);
+    Route::get('ordencompra/search/{term}', [\App\Http\Controllers\Api\OrdenCompraController::class, 'search']);
+    Route::get('ordencompra/stats', [\App\Http\Controllers\Api\OrdenCompraController::class, 'stats']);
+
+    // Purchase Types - Basic read operations
+    Route::get('tipocompra', [\App\Http\Controllers\Api\TipoCompraController::class, 'index']);
+    Route::get('tipocompra/{id}', [\App\Http\Controllers\Api\TipoCompraController::class, 'show']);
+    Route::get('tipocompra/search/{term}', [\App\Http\Controllers\Api\TipoCompraController::class, 'search']);
 });
 
 // Test login endpoint without middleware
@@ -3008,11 +3659,11 @@ Route::get('v1/equipos/{id}/documents', function ($id) {
     }
 });
 
-// Ruta para acceder a los archivos
+// Ruta para acceder a los archivos de equipos
 Route::get('storage/equipos/archivos/{filename}', function($filename) {
     try {
         $filePath = storage_path('app/public/equipos/archivos/' . $filename);
-        
+
         if (!file_exists($filePath)) {
             return response()->json([
                 'success' => false,
@@ -3025,6 +3676,84 @@ Route::get('storage/equipos/archivos/{filename}', function($filename) {
         return response()->json([
             'success' => false,
             'message' => 'Error al acceder al archivo'
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Ruta para acceder a archivos de correctivos
+Route::get('storage/correctivos/{filename}', function($filename) {
+    try {
+        $filePath = storage_path('app/public/correctivos/' . $filename);
+
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo de correctivo no encontrado'
+            ], 404);
+        }
+
+        return response()->file($filePath);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al acceder al archivo de correctivo'
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Ruta para acceder a archivos de observaciones
+Route::get('storage/observaciones/{filename}', function($filename) {
+    try {
+        $filePath = storage_path('app/public/observaciones/' . $filename);
+
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo de observación no encontrado'
+            ], 404);
+        }
+
+        return response()->file($filePath);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al acceder al archivo de observación'
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Ruta para acceder a archivos de repuestos
+Route::get('storage/repuestos/{filename}', function($filename) {
+    try {
+        $filePath = storage_path('app/public/repuestos/' . $filename);
+
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo de repuesto no encontrado'
+            ], 404);
+        }
+
+        return response()->file($filePath);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al acceder al archivo de repuesto'
         ], 500);
     }
 })->withoutMiddleware([

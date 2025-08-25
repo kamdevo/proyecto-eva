@@ -35,14 +35,14 @@ class ConnectionPool {
       // Endpoints múltiples con prioridades
       endpoints: [
         {
-          url: "http://localhost:8000",
+          url: "http://localhost:8001",
           priority: 1,
           weight: 100,
           maxConnections: 10,
           timeout: 5000,
         },
         {
-          url: "http://localhost:8001",
+          url: "http://localhost:8000",
           priority: 2,
           weight: 80,
           maxConnections: 8,

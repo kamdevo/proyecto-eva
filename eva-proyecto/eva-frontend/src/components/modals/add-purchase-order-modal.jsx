@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,10 +17,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
+import { useOrdenesCompra } from "../../hooks/useOrdenesCompra";
+import { useTiposCompra, useProveedores } from "../../hooks/useTiposCompra";
 
 export function AddPurchaseOrderModal({ open, onOpenChange }) {
   const [dragActive, setDragActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Hooks para datos reales
+  const { createOrden } = useOrdenesCompra();
+  const { tipos, loading: tiposLoading } = useTiposCompra();
+  const { proveedores, loading: proveedoresLoading } = useProveedores();
+
+  // Estado del formulario
+  const [formData, setFormData] = useState({
+    orden: "",
+    fecha: "",
+    proveedor_id: "",
+    tipo_compra_id: "",
+    status: 1,
+  });
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -36,7 +54,85 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
   };
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.orden || !formData.fecha || !formData.tipo_compra_id) {
+      alert("Por favor complete todos los campos obligatorios");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const submitData = new FormData();
+      submitData.append("orden", formData.orden);
+      submitData.append("fecha", formData.fecha);
+      submitData.append("tipo_compra_id", formData.tipo_compra_id);
+      submitData.append("status", formData.status);
+
+      if (formData.proveedor_id) {
+        submitData.append("proveedor_id", formData.proveedor_id);
+      }
+
+      if (selectedFile) {
+        submitData.append("file", selectedFile);
+      }
+
+      await createOrden(submitData);
+
+      // Limpiar formulario y cerrar modal
+      setFormData({
+        orden: "",
+        fecha: "",
+        proveedor_id: "",
+        tipo_compra_id: "",
+        status: 1,
+      });
+      setSelectedFile(null);
+      onOpenChange(false);
+
+      alert("Orden de compra creada exitosamente");
+    } catch (error) {
+      console.error("Error creating order:", error);
+      alert("Error al crear orden de compra: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Limpiar formulario al cerrar modal
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        orden: "",
+        fecha: "",
+        proveedor_id: "",
+        tipo_compra_id: "",
+        status: 1,
+      });
+      setSelectedFile(null);
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,7 +154,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
           <div className="h-1 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4">
             Soporte de compra
           </h3>
@@ -74,7 +170,10 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               <Input
                 id="codigo"
                 placeholder="INGRESE EL NÚMERO"
+                value={formData.orden}
+                onChange={(e) => handleInputChange("orden", e.target.value)}
                 className="h-8 sm:h-9 text-xs sm:text-sm"
+                required
               />
             </div>
 
@@ -88,8 +187,10 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               <Input
                 id="fecha"
                 type="date"
-                defaultValue="2024-06-18"
+                value={formData.fecha}
+                onChange={(e) => handleInputChange("fecha", e.target.value)}
                 className="h-8 sm:h-9 text-xs sm:text-sm"
+                required
               />
             </div>
 
@@ -98,17 +199,33 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
                 htmlFor="proveedor"
                 className="text-xs sm:text-sm font-medium text-slate-700"
               >
-                Proveedor<span className="text-destructive">*</span>
+                Proveedor
               </Label>
-              <Select>
+              <Select
+                value={formData.proveedor_id}
+                onValueChange={(value) =>
+                  handleInputChange("proveedor_id", value)
+                }
+                disabled={proveedoresLoading}
+              >
                 <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
                   <SelectValue placeholder="----------" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="varian">Varian Medical Systems</SelectItem>
-                  <SelectItem value="medtronic">Medtronic Colombia</SelectItem>
-                  <SelectItem value="siemens">Siemens Healthcare</SelectItem>
-                  <SelectItem value="philips">Philips Healthcare</SelectItem>
+                  {proveedoresLoading ? (
+                    <SelectItem value="" disabled>
+                      Cargando proveedores...
+                    </SelectItem>
+                  ) : (
+                    proveedores.map((proveedor) => (
+                      <SelectItem
+                        key={proveedor.id}
+                        value={proveedor.id.toString()}
+                      >
+                        {proveedor.nombre || proveedor.empresa}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -121,15 +238,28 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             >
               Tipo de compra<span className="text-destructive">*</span>
             </Label>
-            <Select>
+            <Select
+              value={formData.tipo_compra_id}
+              onValueChange={(value) =>
+                handleInputChange("tipo_compra_id", value)
+              }
+              disabled={tiposLoading}
+            >
               <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
                 <SelectValue placeholder="-----" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="equipos">Equipos Médicos</SelectItem>
-                <SelectItem value="suministros">Suministros Médicos</SelectItem>
-                <SelectItem value="mantenimiento">Mantenimiento</SelectItem>
-                <SelectItem value="servicios">Servicios</SelectItem>
+                {tiposLoading ? (
+                  <SelectItem value="" disabled>
+                    Cargando tipos...
+                  </SelectItem>
+                ) : (
+                  tipos.map((tipo) => (
+                    <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                      {tipo.nombre}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -151,41 +281,52 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             >
               <Upload className="w-6 sm:w-8 h-6 sm:h-8 text-slate-400 mx-auto mb-2 sm:mb-3" />
               <div className="text-slate-500 text-xs sm:text-sm mb-1 sm:mb-2">
-                Drag & drop files here
+                Arrastra y suelta tu archivo aquí, o{" "}
+                <label className="text-teal-600 font-medium cursor-pointer">
+                  haz clic para seleccionar
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleFileSelect}
+                  />
+                </label>
               </div>
               <div className="text-slate-400 text-xs">
-                (or click to select file)
+                Formatos soportados: PDF, DOC, DOCX (Máx. 10MB)
               </div>
+              {selectedFile && (
+                <div className="text-xs text-green-600 mt-2">
+                  Archivo seleccionado: {selectedFile.name}
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full sm:flex-1 h-8 sm:h-9 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200"
-            >
-              SELECT FILE
-            </Button>
-            <Button
-              size="sm"
-              className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
-            >
-              📁 Browse...
-            </Button>
-          </div>
-        </div>
+        </form>
 
         <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
           <Button
+            type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
+            disabled={loading}
           >
-            Close
+            Cancelar
           </Button>
-          <Button className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm">
-            Insertar
+          <Button
+            type="submit"
+            className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creando...
+              </>
+            ) : (
+              "Crear Orden"
+            )}
           </Button>
         </div>
       </DialogContent>

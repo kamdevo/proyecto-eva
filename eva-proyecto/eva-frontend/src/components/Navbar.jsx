@@ -41,6 +41,7 @@ import {
   AlignJustify,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
+import GlobalEquipmentSearch from "./GlobalEquipmentSearch";
 
 const Header = () => {
   const { toast } = useToast();
@@ -67,6 +68,12 @@ const Header = () => {
           EVA APLICATIVO
         </h1>
       </div>
+
+      {/* Global Equipment Search - Center */}
+      <div className="flex-1 max-w-md mx-4 hidden md:block">
+        <GlobalEquipmentSearch />
+      </div>
+
       <NavLink>
         <DropdownMenu>
           <DropdownMenuTrigger>

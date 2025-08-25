@@ -44,11 +44,11 @@ class TipoCompraController extends Controller
             $query = TipoCompra::query();
 
             if ($request->search) {
-                $query->buscar($request->search);
+                $query->where('tipo_compra', 'LIKE', "%{$request->search}%");
             }
 
-            $data = $query->activos()
-                          ->orderBy('created_at', 'desc')
+            $data = $query->where('status', 1)
+                          ->orderBy('id', 'desc')
                           ->paginate($request->per_page ?? 15);
 
             return ResponseFormatter::success($data, 'Lista obtenida exitosamente');
@@ -160,6 +160,86 @@ class TipoCompraController extends Controller
         } catch (Exception $e) {
             Log::error('Error en TipoCompraController::destroy', ['error' => $e->getMessage()]);
             return ResponseFormatter::error(null, 'Error al eliminar', 500);
+        }
+    }
+
+    /**
+     * Search purchase types by term
+     */
+    public function search(Request $request, $term): JsonResponse
+    {
+        try {
+            $query = TipoCompra::where('tipo_compra', 'LIKE', "%{$term}%");
+            $data = $query->where('status', 1)->orderBy('tipo_compra', 'asc')->limit(20)->get();
+
+            return ResponseFormatter::success($data, 'Búsqueda completada exitosamente');
+
+        } catch (Exception $e) {
+            Log::error('Error en TipoCompraController::search', ['error' => $e->getMessage()]);
+            return ResponseFormatter::error(null, 'Error en la búsqueda', 500);
+        }
+    }
+
+    /**
+     * Get purchase types statistics
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        try {
+            $stats = [
+                'total' => TipoCompra::count(),
+                'activos' => TipoCompra::where('status', 1)->count(),
+                'inactivos' => TipoCompra::where('status', 0)->count(),
+                'con_ordenes' => TipoCompra::has('ordenesCompra')->count(),
+                'sin_ordenes' => TipoCompra::doesntHave('ordenesCompra')->count(),
+            ];
+
+            // Most used purchase types
+            $masUsados = TipoCompra::withCount('ordenesCompra')
+                ->orderBy('ordenes_compra_count', 'desc')
+                ->limit(5)
+                ->get()
+                ->map(function($tipo) {
+                    return [
+                        'id' => $tipo->id,
+                        'tipo_compra' => $tipo->tipo_compra,
+                        'total_ordenes' => $tipo->ordenes_compra_count
+                    ];
+                });
+
+            $stats['mas_usados'] = $masUsados;
+
+            return ResponseFormatter::success($stats, 'Estadísticas obtenidas exitosamente');
+
+        } catch (Exception $e) {
+            Log::error('Error en TipoCompraController::stats', ['error' => $e->getMessage()]);
+            return ResponseFormatter::error(null, 'Error al obtener estadísticas', 500);
+        }
+    }
+
+    /**
+     * Toggle purchase type status
+     */
+    public function toggle(Request $request, $id): JsonResponse
+    {
+        try {
+            $tipo = TipoCompra::findOrFail($id);
+
+            // Toggle between active (1) and inactive (0)
+            $newStatus = $tipo->status == 1 ? 0 : 1;
+            $tipo->update(['status' => $newStatus]);
+
+            $message = $newStatus == 1 ? 'Tipo de compra activado exitosamente' : 'Tipo de compra desactivado exitosamente';
+
+            return ResponseFormatter::success([
+                'id' => $tipo->id,
+                'status' => $newStatus,
+                'status_text' => $newStatus == 1 ? 'Activo' : 'Inactivo'
+            ], $message);
+
+        } catch (Exception $e) {
+            Log::error('Error en TipoCompraController::toggle', ['error' => $e->getMessage()]);
+            return ResponseFormatter::error(null, 'Error al cambiar estado', 500);
         }
     }
 }

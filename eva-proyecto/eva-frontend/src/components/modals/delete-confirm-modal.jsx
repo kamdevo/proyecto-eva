@@ -15,6 +15,7 @@ export function DeleteConfirmModal({
   onOpenChange,
   equipment,
   onEquipmentDeleted,
+  equipmentType = "biomedical", // "biomedical" | "industrial"
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
 

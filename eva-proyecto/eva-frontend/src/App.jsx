@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Importa tus vistas
@@ -300,7 +301,9 @@ export default function App() {
     <Router>
       <ToastProvider>
         <AuthProvider>
-          <AppContent />
+          <EquipmentSearchProvider>
+            <AppContent />
+          </EquipmentSearchProvider>
         </AuthProvider>
       </ToastProvider>
     </Router>

@@ -47,35 +47,17 @@ class TipoCompra extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'tipo_compras';
+    protected $table = 'tipos_compra';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false;
 
     /**
      * Campos que pueden ser asignados masivamente
      * Configurados con máxima seguridad empresarial
      */
     protected $fillable = [
-        'name',
-        'nombre',
-        'title',
-        'descripcion',
-        'description',
-        'codigo',
-        'code',
-        'activo',
-        'estado',
-        'status',
-        'tipo',
-        'categoria',
-        'valor',
-        'fecha',
-        'observaciones',
-        'notas',
-        'usuario_id',
-        'equipo_id',
-        'servicio_id',
-        'area_id'
+        'tipo_compra',
+        'status'
     ];
 
     /**
@@ -92,17 +74,7 @@ class TipoCompra extends Model
      */
     protected $casts = [
         'id' => 'integer',
-        'activo' => 'boolean',
-        'estado' => 'boolean',
-        'status' => 'boolean',
-        'fecha' => 'date',
-        'valor' => 'decimal:2',
-        'usuario_id' => 'integer',
-        'equipo_id' => 'integer',
-        'servicio_id' => 'integer',
-        'area_id' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'status' => 'integer'
     ];
 
     // ==========================================
@@ -186,6 +158,14 @@ class TipoCompra extends Model
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class, 'area_id');
+    }
+
+    /**
+     * Relación con órdenes de compra
+     */
+    public function ordenesCompra()
+    {
+        return $this->hasMany(OrdenCompra::class, 'tipo_compra_id');
     }
 
     // ==========================================
