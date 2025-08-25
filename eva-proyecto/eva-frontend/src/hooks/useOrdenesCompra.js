@@ -12,6 +12,7 @@ export const useOrdenesCompra = () => {
     total: 0,
     last_page: 1,
   });
+  const [secopData, setSecopData] = useState(null);
 
   // Obtener lista de órdenes de compra
   const fetchOrdenes = useCallback(
@@ -72,13 +73,23 @@ export const useOrdenesCompra = () => {
         setLoading(true);
         setError(null);
 
+        // Crear FormData para soporte de archivos
+        const formData = new FormData();
+
+        // Agregar campos del formulario
+        Object.keys(ordenData).forEach((key) => {
+          if (ordenData[key] !== null && ordenData[key] !== undefined) {
+            formData.append(key, ordenData[key]);
+          }
+        });
+
         const response = await fetch(`${API_BASE_URL}/ordenes-compra`, {
           method: "POST",
           headers: {
             Accept: "application/json",
-            "Content-Type": "application/json",
+            // No incluir Content-Type para FormData
           },
-          body: JSON.stringify(ordenData),
+          body: formData,
         });
 
         if (!response.ok) {
@@ -235,13 +246,15 @@ export const useOrdenesCompra = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/ordenes-compra/export`, {
-        method: "GET",
-        headers: {
-          Accept:
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/ordenes-compra/export/excel`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "text/csv",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -253,7 +266,9 @@ export const useOrdenesCompra = () => {
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;
-      a.download = "Adquisiciones.xlsx";
+      a.download = `ordenes_compra_${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -360,15 +375,51 @@ export const useOrdenesCompra = () => {
     fetchOrdenes();
   }, [fetchOrdenes]);
 
+  // Obtener orden específica
+  const getOrden = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`${API_BASE_URL}/ordenes-compra/${id}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        return data.data;
+      } else {
+        throw new Error(data.message || "Error al obtener orden de compra");
+      }
+    } catch (err) {
+      console.error("Error getting orden:", err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     ordenes,
     loading,
     error,
     pagination,
+    secopData,
     fetchOrdenes,
     createOrden,
     updateOrden,
     deleteOrden,
+    getOrden,
     consultarSECOP,
     exportToExcel,
     changePage,

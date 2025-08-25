@@ -1580,17 +1580,107 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
+    // ==========================================
+    // COMPLETE USER REGISTRATION SYSTEM
+    // ==========================================
+
+    // Get all centros de costo for registration
     Route::get('centros', function() {
         try {
-            $centros = DB::table('centros')->where('status', 1)->get(['id', 'code', 'name']);
+            $centros = DB::table('centros')
+                ->where('status', 1)
+                ->orderBy('name', 'asc')
+                ->get(['id', 'code', 'name', 'descripcion']);
+
             return response()->json([
                 'success' => true,
-                'data' => $centros
+                'data' => $centros,
+                'total' => $centros->count()
             ]);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error obteniendo centros: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Register new user with complete validation
+    Route::post('auth/register', function() {
+        try {
+            $validator = Validator::make(request()->all(), [
+                'nombre' => 'required|string|max:255',
+                'apellido' => 'required|string|max:255',
+                'username' => 'required|string|max:255|unique:usuarios,username',
+                'email' => 'required|email|max:255|unique:usuarios,email',
+                'password' => 'required|string|min:8|confirmed',
+                'telefono' => 'nullable|string|max:20',
+                'centro_id' => 'required|integer|exists:centros,id',
+                'rol_id' => 'nullable|integer|exists:roles,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verificar que el centro de costo esté activo
+            $centro = DB::table('centros')->where('id', request('centro_id'))->where('status', 1)->first();
+            if (!$centro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Centro de costo no válido o inactivo'
+                ], 422);
+            }
+
+            // Crear usuario
+            $userData = [
+                'nombre' => request('nombre'),
+                'apellido' => request('apellido'),
+                'username' => request('username'),
+                'email' => request('email'),
+                'password' => Hash::make(request('password')),
+                'telefono' => request('telefono'),
+                'centro_id' => request('centro_id'),
+                'rol_id' => request('rol_id', 2), // Rol por defecto: Usuario
+                'estado' => 1, // Activo por defecto
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+
+            $userId = DB::table('usuarios')->insertGetId($userData);
+
+            // Obtener usuario creado con relaciones
+            $user = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('centros', 'usuarios.centro_id', '=', 'centros.id')
+                ->select([
+                    'usuarios.id',
+                    'usuarios.nombre',
+                    'usuarios.apellido',
+                    'usuarios.username',
+                    'usuarios.email',
+                    'usuarios.telefono',
+                    'usuarios.estado',
+                    'roles.nombre as rol',
+                    'centros.name as centro'
+                ])
+                ->where('usuarios.id', $userId)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario registrado exitosamente',
+                'data' => $user
+            ], 201);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error registrando usuario: ' . $e->getMessage()
             ], 500);
         }
     });

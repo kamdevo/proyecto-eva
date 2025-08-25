@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X, Loader2 } from "lucide-react";
+import { Upload, X, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useOrdenesCompra } from "../../hooks/useOrdenesCompra";
 import { useTiposCompra, useProveedores } from "../../hooks/useTiposCompra";
 
@@ -25,6 +26,8 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   // Hooks para datos reales
   const { createOrden } = useOrdenesCompra();
@@ -34,9 +37,11 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
   // Estado del formulario
   const [formData, setFormData] = useState({
     orden: "",
-    fecha: "",
+    fecha: new Date().toISOString().split("T")[0], // Fecha actual por defecto
     proveedor_id: "",
     tipo_compra_id: "",
+    monto: "",
+    descripcion: "",
     status: 1,
   });
 

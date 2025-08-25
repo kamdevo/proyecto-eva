@@ -410,7 +410,7 @@ const LoginForm = () => {
                     <option value="">--Seleccione--</option>
                     {centros.map((centro) => (
                       <option key={centro.id} value={centro.id}>
-                        {centro.nombre}
+                        {centro.name}
                       </option>
                     ))}
                   </select>

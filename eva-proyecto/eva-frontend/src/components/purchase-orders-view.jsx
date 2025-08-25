@@ -35,6 +35,7 @@ import { AddPurchaseOrderModal } from "@/components/modals/add-purchase-order-mo
 import { QueryPurchaseOrderModal } from "@/components/modals/query-purchase-order-modal";
 import { DownloadPdfModal } from "@/components/modals/download-pdf-modal";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
+import { useOrdenesCompra } from "../hooks/useOrdenesCompra";
 
 export function PurchaseOrdersView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -61,6 +62,9 @@ export function PurchaseOrdersView() {
     showingTo,
   } = usePurchaseOrders();
 
+  // Hook for Excel export functionality
+  const { exportToExcel, loading: exportLoading } = useOrdenesCompra();
+
   // Handle search
   const handleSearch = () => {
     search(searchTerm);
@@ -69,6 +73,15 @@ export function PurchaseOrdersView() {
   // Handle page size change
   const handlePageSizeChange = (size) => {
     changePageSize(parseInt(size));
+  };
+
+  // Handle Excel export
+  const handleExportToExcel = async () => {
+    try {
+      await exportToExcel();
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+    }
   };
 
   return (
@@ -113,6 +126,20 @@ export function PurchaseOrdersView() {
               >
                 <Download className="w-3 h-3 mr-1 flex-shrink-0" />
                 <span className="truncate">Agregar PDF</span>
+              </Button>
+              <Button
+                onClick={handleExportToExcel}
+                variant="ghost"
+                size="sm"
+                disabled={exportLoading}
+                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
+              >
+                {exportLoading ? (
+                  <Loader2 className="w-3 h-3 mr-1 flex-shrink-0 animate-spin" />
+                ) : (
+                  <Download className="w-3 h-3 mr-1 flex-shrink-0" />
+                )}
+                <span className="truncate">Excel</span>
               </Button>
             </div>
           </CardContent>
