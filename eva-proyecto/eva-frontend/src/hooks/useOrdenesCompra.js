@@ -251,7 +251,8 @@ export const useOrdenesCompra = () => {
         {
           method: "GET",
           headers: {
-            Accept: "text/csv",
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           },
         }
       );
@@ -268,7 +269,7 @@ export const useOrdenesCompra = () => {
       a.href = url;
       a.download = `ordenes_compra_${
         new Date().toISOString().split("T")[0]
-      }.csv`;
+      }.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

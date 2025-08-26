@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +148,9 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             <DialogTitle className="text-base sm:text-lg font-semibold text-slate-800">
               Agregar
             </DialogTitle>
+            <DialogDescription>
+              Complete el formulario para crear una nueva orden de compra
+            </DialogDescription>
             <Button
               variant="ghost"
               size="sm"
@@ -218,7 +222,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
                 </SelectTrigger>
                 <SelectContent>
                   {proveedoresLoading ? (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="loading" disabled>
                       Cargando proveedores...
                     </SelectItem>
                   ) : (
@@ -255,7 +259,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               </SelectTrigger>
               <SelectContent>
                 {tiposLoading ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="loading" disabled>
                     Cargando tipos...
                   </SelectItem>
                 ) : (

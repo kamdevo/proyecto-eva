@@ -11,21 +11,21 @@ import {
 // Importar el logo del hospital
 const HuvLogo = "/images/logo_huv.jpg";
 
-// Robust styles with no complex properties
+// Enhanced styles with improved formatting for better visibility
 const styles = StyleSheet.create({
   page: {
     flexDirection: "column",
     backgroundColor: "#ffffff",
-    padding: 30,
+    padding: 25,
     fontFamily: "Helvetica",
-    fontSize: 10,
+    fontSize: 11,
   },
   header: {
     flexDirection: "row",
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: "#2563eb",
+    marginBottom: 25,
+    paddingBottom: 20,
+    borderBottomWidth: 3,
+    borderBottomColor: "#1e40af",
     borderBottomStyle: "solid",
   },
   logoSection: {
@@ -34,65 +34,79 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 150,
-    height: 150,
+    width: 180,
+    height: 180,
     objectFit: "contain",
   },
   titleSection: {
     flex: 4,
-    paddingLeft: 20,
+    paddingLeft: 25,
+    justifyContent: "center",
   },
   mainTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1e40af",
+    textAlign: "center",
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  subtitle: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#1e40af",
     textAlign: "center",
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#1e40af",
-    textAlign: "center",
-    marginBottom: 3,
+    marginBottom: 6,
   },
   hospitalName: {
-    fontSize: 10,
+    fontSize: 12,
+    fontWeight: "bold",
     color: "#6b7280",
     textAlign: "center",
   },
   section: {
-    marginBottom: 15,
-    padding: 12,
+    marginBottom: 18,
+    padding: 15,
     backgroundColor: "#f8fafc",
-    borderRadius: 5,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#d1d5db",
     borderStyle: "solid",
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#374151",
-    marginBottom: 8,
-    paddingBottom: 3,
-    borderBottomWidth: 1,
-    borderBottomColor: "#d1d5db",
+    color: "#1e40af",
+    marginBottom: 12,
+    paddingBottom: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: "#3b82f6",
     borderBottomStyle: "solid",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   row: {
     flexDirection: "row",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   label: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "bold",
-    color: "#4b5563",
+    color: "#1e40af",
     flex: 2,
+    marginBottom: 2,
   },
   value: {
-    fontSize: 9,
-    color: "#111827",
+    fontSize: 11,
+    color: "#374151",
     flex: 3,
+    fontWeight: "normal",
+  },
+  boldValue: {
+    fontSize: 11,
+    color: "#1e40af",
+    flex: 3,
+    fontWeight: "bold",
   },
   grid: {
     flexDirection: "row",
@@ -118,10 +132,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   equipmentName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#1e40af",
-    marginBottom: 8,
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   statusBadge: {
     backgroundColor: "#dcfce7",
@@ -145,46 +161,95 @@ const styles = StyleSheet.create({
     borderTopColor: "#e5e7eb",
     borderTopStyle: "solid",
   },
-  // Table styles
+  // Enhanced table styles with better visibility
   table: {
     marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderWidth: 2,
+    borderColor: "#1e40af",
     borderStyle: "solid",
+    borderRadius: 4,
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#f3f4f6",
-    borderBottomWidth: 1,
-    borderBottomColor: "#d1d5db",
+    backgroundColor: "#1e40af",
+    borderBottomWidth: 2,
+    borderBottomColor: "#3b82f6",
     borderBottomStyle: "solid",
   },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#d1d5db",
     borderBottomStyle: "solid",
-    minHeight: 25,
+    minHeight: 30,
+    backgroundColor: "#ffffff",
   },
   tableCell: {
-    padding: 5,
-    fontSize: 8,
+    padding: 8,
+    fontSize: 10,
     textAlign: "left",
     borderRightWidth: 1,
-    borderRightColor: "#e5e7eb",
+    borderRightColor: "#d1d5db",
     borderRightStyle: "solid",
+    fontWeight: "normal",
   },
   tableCellHeader: {
     fontWeight: "bold",
-    backgroundColor: "#f3f4f6",
+    fontSize: 11,
+    color: "#ffffff",
+    backgroundColor: "#1e40af",
+    textAlign: "center",
+  },
+  tableCellBold: {
+    fontWeight: "bold",
+    color: "#1e40af",
   },
   noData: {
-    fontSize: 9,
+    fontSize: 11,
     color: "#6b7280",
     fontStyle: "italic",
     textAlign: "center",
-    marginTop: 10,
-    padding: 10,
+    marginTop: 15,
+    padding: 15,
+    fontWeight: "normal",
+  },
+  // Enhanced equipment image section
+  equipmentImageSection: {
+    alignItems: "center",
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    borderStyle: "solid",
+  },
+  equipmentImageTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1e40af",
+    marginBottom: 12,
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  equipmentImage: {
+    width: 220,
+    height: 220,
+    objectFit: "contain",
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#1e40af",
+    borderStyle: "solid",
+    backgroundColor: "#ffffff",
+  },
+  noImageText: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontStyle: "italic",
+    textAlign: "center",
+    padding: 25,
+    fontWeight: "normal",
   },
 });
 
@@ -250,13 +315,13 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
             </Text>
             <View style={styles.row}>
               <Text style={styles.label}>Código:</Text>
-              <Text style={styles.value}>
+              <Text style={styles.boldValue}>
                 {getSafeValue(safeEquipment.code)}
               </Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>Serie:</Text>
-              <Text style={styles.value}>
+              <Text style={styles.boldValue}>
                 {getSafeValue(safeEquipment.serial)}
               </Text>
             </View>
@@ -266,6 +331,21 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* Equipment Image Section */}
+        <View style={styles.equipmentImageSection}>
+          <Text style={styles.equipmentImageTitle}>IMAGEN DEL EQUIPO</Text>
+          {safeEquipment.imagen ? (
+            <Image
+              style={styles.equipmentImage}
+              src={`http://localhost:3001/uploads/equipos/${safeEquipment.imagen}`}
+            />
+          ) : (
+            <Text style={styles.noImageText}>
+              No hay imagen disponible para este equipo
+            </Text>
+          )}
         </View>
 
         {/* Section 1: Basic Information */}
@@ -288,7 +368,9 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
               <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
                 ID Equipo:
               </Text>
-              <Text style={[styles.tableCell, { flex: 3 }]}>
+              <Text
+                style={[styles.tableCell, styles.tableCellBold, { flex: 3 }]}
+              >
                 {getSafeValue(safeEquipment.id)}
               </Text>
             </View>
@@ -296,7 +378,9 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
               <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
                 Marca:
               </Text>
-              <Text style={[styles.tableCell, { flex: 3 }]}>
+              <Text
+                style={[styles.tableCell, styles.tableCellBold, { flex: 3 }]}
+              >
                 {getSafeValue(safeEquipment.marca)}
               </Text>
             </View>
@@ -304,7 +388,9 @@ export const EquipmentLifecyclePDFRobust = ({ equipment }) => {
               <Text style={[styles.tableCell, { flex: 2, fontWeight: "bold" }]}>
                 Modelo:
               </Text>
-              <Text style={[styles.tableCell, { flex: 3 }]}>
+              <Text
+                style={[styles.tableCell, styles.tableCellBold, { flex: 3 }]}
+              >
                 {getSafeValue(safeEquipment.modelo)}
               </Text>
             </View>

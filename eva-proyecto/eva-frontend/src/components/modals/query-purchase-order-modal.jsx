@@ -32,8 +32,8 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
     codigo: "",
     fecha: "",
     proveedor: "",
-    tipo_compra: "",
-    estado: "",
+    tipo_compra: "ALL",
+    estado: "ALL",
     monto_min: "",
     monto_max: "",
   });
@@ -75,8 +75,8 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
       codigo: "",
       fecha: "",
       proveedor: "",
-      tipo_compra: "",
-      estado: "",
+      tipo_compra: "ALL",
+      estado: "ALL",
       monto_min: "",
       monto_max: "",
     });
@@ -180,9 +180,9 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                 <SelectValue placeholder="-----" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los Tipos</SelectItem>
+                <SelectItem value="ALL">Todos los Tipos</SelectItem>
                 {tiposLoading ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="LOADING" disabled>
                     Cargando tipos...
                   </SelectItem>
                 ) : (
@@ -211,7 +211,7 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                 <SelectValue placeholder="Seleccionar estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los Estados</SelectItem>
+                <SelectItem value="ALL">Todos los Estados</SelectItem>
                 <SelectItem value="1">Activo</SelectItem>
                 <SelectItem value="0">Inactivo</SelectItem>
                 <SelectItem value="2">Pendiente</SelectItem>

@@ -71,7 +71,7 @@ class UsuarioController extends Controller
                 'apellido' => 'required|string|max:255',
                 'email' => 'required|email|unique:usuarios,email',
                 'username' => 'required|string|unique:usuarios,username',
-                'password' => 'required|string|min:6',
+                'password' => 'required|string',
                 'rol_id' => 'required|integer',
                 'telefono' => 'nullable|string|max:20',
                 'servicio_id' => 'nullable|integer',

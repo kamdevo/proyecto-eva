@@ -848,9 +848,6 @@ export default function Usuarios() {
                             className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                           />
                         </div>
-                        <p className="text-xs text-gray-500">
-                          Mínimo 8 caracteres con mayúsculas y números
-                        </p>
                       </div>
 
                       {/* Rol Select */}
@@ -1562,9 +1559,6 @@ export default function Usuarios() {
                   placeholder="Nueva contraseña (opcional)"
                 />
               </div>
-              <p className="text-xs text-gray-500">
-                Deje en blanco para mantener la contraseña actual
-              </p>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">

@@ -4,6 +4,7 @@ import { useToast } from "../contexts/ToastContext";
 import useFormValidation from "../hooks/useFormValidation";
 import { useCentrosCosto } from "../hooks/useCentrosCosto";
 import AlertMessage from "./ui/AlertMessage";
+import SearchableSelect from "./ui/searchable-select";
 import "../assets/css/Login.css";
 import logo from "../assets/Img/lgoLogin-removebg-preview.png";
 import ParticlesBackground from "./ParticlesBg";
@@ -52,6 +53,21 @@ const LoginForm = () => {
 
   const [loginAlert, setLoginAlert] = useState(null);
   const [registerAlert, setRegisterAlert] = useState(null);
+
+  // Transform centros data for SearchableSelect
+  const centrosForSelect = centros
+    .filter((centro) => centro && centro.id && centro.nombre) // Filter out invalid entries
+    .map((centro) => {
+      // Extract codigo from nombre if it follows the pattern "CODIGO - NOMBRE"
+      const parts = centro.nombre.split(" - ");
+      const codigo = parts.length > 1 ? parts[0] : "";
+
+      return {
+        id: centro.id,
+        nombre: centro.nombre, // Keep original format for display
+        codigo: codigo, // Add codigo for search
+      };
+    });
 
   const toggleVisibility = () => setIsVisible((prevState) => !prevState);
   const toggleConfirmVisibility = () =>
@@ -392,28 +408,19 @@ const LoginForm = () => {
                 <fieldset>
                   <legend>Información de usuario</legend>
 
-                  <label>Seleccione su centro de costo</label>
-                  <select
-                    required
+                  <Label>Seleccione su centro de costo</Label>
+                  <SearchableSelect
+                    placeholder="Buscar o seleccionar centro de costo..."
+                    options={centrosForSelect}
                     value={registerForm.centro_id}
-                    onChange={(e) =>
-                      handleRegisterChange("centro_id", e.target.value)
-                    }
-                    onBlur={() => handleRegisterBlur("centro_id")}
+                    onValueChange={(value) => {
+                      handleRegisterChange("centro_id", value);
+                      handleRegisterBlur("centro_id");
+                    }}
                     disabled={isLoading || centrosLoading}
-                    className={
-                      registerValidation.hasError("centro_id")
-                        ? "border-red-500"
-                        : ""
-                    }
-                  >
-                    <option value="">--Seleccione--</option>
-                    {centros.map((centro) => (
-                      <option key={centro.id} value={centro.id}>
-                        {centro.name}
-                      </option>
-                    ))}
-                  </select>
+                    loading={centrosLoading}
+                    className="w-full"
+                  />
                   {registerValidation.hasError("centro_id") && (
                     <p className="text-red-500 text-xs mt-1">
                       {registerValidation.getError("centro_id")}
@@ -606,97 +613,6 @@ const LoginForm = () => {
                           <p className="text-red-500 text-xs mt-1">
                             {registerValidation.getError("password")}
                           </p>
-                        )}
-
-                        {/* Indicador de fortaleza de contraseña */}
-                        {registerForm.password && (
-                          <div className="mt-2 space-y-1">
-                            <div className="text-xs text-gray-600">
-                              Requisitos de contraseña:
-                            </div>
-                            <div className="grid grid-cols-2 gap-1 text-xs">
-                              <div
-                                className={`flex items-center gap-1 ${
-                                  registerForm.password.length >= 8
-                                    ? "text-green-600"
-                                    : "text-gray-400"
-                                }`}
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    registerForm.password.length >= 8
-                                      ? "bg-green-600"
-                                      : "bg-gray-300"
-                                  }`}
-                                ></div>
-                                8+ caracteres
-                              </div>
-                              <div
-                                className={`flex items-center gap-1 ${
-                                  /[a-z]/.test(registerForm.password)
-                                    ? "text-green-600"
-                                    : "text-gray-400"
-                                }`}
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    /[a-z]/.test(registerForm.password)
-                                      ? "bg-green-600"
-                                      : "bg-gray-300"
-                                  }`}
-                                ></div>
-                                Minúscula
-                              </div>
-                              <div
-                                className={`flex items-center gap-1 ${
-                                  /[A-Z]/.test(registerForm.password)
-                                    ? "text-green-600"
-                                    : "text-gray-400"
-                                }`}
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    /[A-Z]/.test(registerForm.password)
-                                      ? "bg-green-600"
-                                      : "bg-gray-300"
-                                  }`}
-                                ></div>
-                                Mayúscula
-                              </div>
-                              <div
-                                className={`flex items-center gap-1 ${
-                                  /\d/.test(registerForm.password)
-                                    ? "text-green-600"
-                                    : "text-gray-400"
-                                }`}
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    /\d/.test(registerForm.password)
-                                      ? "bg-green-600"
-                                      : "bg-gray-300"
-                                  }`}
-                                ></div>
-                                Número
-                              </div>
-                              <div
-                                className={`flex items-center gap-1 col-span-2 ${
-                                  /[@$!%*?&]/.test(registerForm.password)
-                                    ? "text-green-600"
-                                    : "text-gray-400"
-                                }`}
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    /[@$!%*?&]/.test(registerForm.password)
-                                      ? "bg-green-600"
-                                      : "bg-gray-300"
-                                  }`}
-                                ></div>
-                                Carácter especial (@$!%*?&)
-                              </div>
-                            </div>
-                          </div>
                         )}
                       </div>
                     </div>
