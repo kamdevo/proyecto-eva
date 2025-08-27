@@ -632,4 +632,3 @@ class Logger {
 const logger = new Logger();
 
 export default logger;
-export { LOG_LEVELS, LOG_CATEGORIES };

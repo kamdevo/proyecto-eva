@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import HomeImg from "../assets/Img/imagenes/home-img.jpg";
+import PermissionTest from "./PermissionTest";
 
 export default function EvaDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false); // Changed from true to false for mobile
@@ -75,6 +76,9 @@ export default function EvaDashboard() {
 
         {/* Main Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col">
+          {/* Permission Test Component (Development Only) */}
+          <PermissionTest />
+
           {/* Main Heading */}
           <div className="text-center mb-8 sm:mb-12">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-700 mb-4 sm:mb-8 tracking-wide">

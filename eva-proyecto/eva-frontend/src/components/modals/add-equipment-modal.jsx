@@ -166,7 +166,7 @@ export function AddEquipmentModal({
       const response = await axios.get(`/api/v1/equipos/validate-unique`, {
         params: { field, value },
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("eva_auth_token")}`,
           Accept: "application/json",
         },
       });

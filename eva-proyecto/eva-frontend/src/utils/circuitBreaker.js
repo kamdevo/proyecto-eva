@@ -503,4 +503,4 @@ class CircuitBreakerManager {
 const circuitBreakerManager = new CircuitBreakerManager();
 
 export default circuitBreakerManager;
-export { CircuitBreaker, CircuitBreakerError, CIRCUIT_STATES };
+export { CircuitBreaker, CircuitBreakerError };

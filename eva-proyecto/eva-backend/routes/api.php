@@ -19,6 +19,7 @@
  */
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 use Illuminate\Http\Request;
@@ -1608,18 +1609,28 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     // Modulos stats endpoint
     Route::get('modulos/stats', function() {
         try {
-            $stats = [
-                'total_modulos' => 30,
-                'modulos_activos' => 28,
-                'usuarios_con_permisos' => 45,
-                'permisos_totales' => 150
-            ];
+            // Get all modules with their user access stats
+            $moduleStats = DB::table('modulos')
+                ->leftJoin('acciones', 'modulos.id', '=', 'acciones.modulo_id')
+                ->select([
+                    'modulos.id',
+                    'modulos.name',
+                    DB::raw('COUNT(DISTINCT acciones.usuario_id) as usuarios_con_acceso')
+                ])
+                ->whereNotNull('modulos.name')
+                ->groupBy('modulos.id', 'modulos.name')
+                ->orderBy('modulos.name')
+                ->get();
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $moduleStats
             ]);
         } catch (Exception $e) {
+            \Log::error('Error in modulos/stats endpoint: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error obteniendo estadísticas: ' . $e->getMessage()
@@ -1667,8 +1678,12 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'password' => Hash::make(request('password')),
                 'telefono' => request('telefono'),
                 'centro_id' => request('centro_id'),
-                'rol_id' => request('rol_id', 2), // Rol por defecto: Usuario
-                'estado' => 1 // Activo por defecto
+                'rol_id' => request('rol_id', 4), // Rol por defecto: Basic User (4)
+                'estado' => 1, // Usuario creado pero...
+                'active' => 'false', // NUEVO: Inactivo por defecto - requiere activación por admin
+                'sede_id' => '1',
+                'id_empresa' => 1,
+                'fecha_registro' => now()
             ];
 
             $userId = DB::table('usuarios')->insertGetId($userData);
@@ -1693,8 +1708,9 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
             return response()->json([
                 'success' => true,
-                'message' => 'Usuario registrado exitosamente',
-                'data' => $user
+                'message' => 'Usuario registrado exitosamente. Tu cuenta está pendiente de activación por un administrador.',
+                'data' => $user,
+                'activation_required' => true
             ], 201);
 
         } catch (Exception $e) {
@@ -1704,6 +1720,642 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             ], 500);
         }
     });
+
+    // ==========================================
+    // USER AUTHENTICATION ENDPOINTS
+    // ==========================================
+
+    // Get current authenticated user info
+    Route::get('v1/user', function() {
+        try {
+            $user = auth('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no autenticado'
+                ], 401);
+            }
+
+            // Get user with role and center information
+            $userInfo = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('centros', 'usuarios.centro_id', '=', 'centros.id')
+                ->where('usuarios.id', $user->id)
+                ->select([
+                    'usuarios.id',
+                    'usuarios.nombre',
+                    'usuarios.apellido',
+                    'usuarios.username',
+                    'usuarios.email',
+                    'usuarios.telefono',
+                    'usuarios.rol_id',
+                    'usuarios.centro_id',
+                    'usuarios.estado',
+                    'usuarios.active',
+                    'roles.nombre as rol_nombre',
+                    'centros.name as centro_nombre'
+                ])
+                ->first();
+
+            if (!$userInfo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $userInfo
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo información del usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // ==========================================
+    // ADMIN USER MANAGEMENT ENDPOINTS
+    // ==========================================
+
+    // Get all users (Super Admin only)
+    Route::get('admin/users', function() {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden acceder.'
+                ], 403);
+            }
+
+            $users = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('centros', 'usuarios.centro_id', '=', 'centros.id')
+                ->select([
+                    'usuarios.id',
+                    'usuarios.nombre',
+                    'usuarios.apellido',
+                    'usuarios.username',
+                    'usuarios.email',
+                    'usuarios.telefono',
+                    'usuarios.estado',
+                    'usuarios.active',
+                    'usuarios.fecha_registro',
+                    'usuarios.rol_id',
+                    'roles.nombre as rol_nombre',
+                    'centros.name as centro_nombre'
+                ])
+                ->orderBy('usuarios.fecha_registro', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $users
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo usuarios: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Toggle user activation status (Super Admin only)
+    Route::post('admin/users/{id}/toggle-activation', function($id) {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden activar usuarios.'
+                ], 403);
+            }
+
+            $user = DB::table('usuarios')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Prevent deactivating super admins
+            if ($user->rol_id == 1 && $user->active === 'true') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede desactivar a un super administrador'
+                ], 403);
+            }
+
+            // Toggle activation status
+            $newStatus = $user->active === 'true' ? 'false' : 'true';
+
+            DB::table('usuarios')
+                ->where('id', $id)
+                ->update(['active' => $newStatus]);
+
+            $action = $newStatus === 'true' ? 'activado' : 'desactivado';
+
+            return response()->json([
+                'success' => true,
+                'message' => "Usuario $action exitosamente",
+                'data' => [
+                    'id' => $id,
+                    'active' => $newStatus,
+                    'action' => $action
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error cambiando estado de activación: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Fix user status data integrity (Super Admin only)
+    Route::post('admin/users/fix-status-integrity', function() {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden ejecutar esta acción.'
+                ], 403);
+            }
+
+            // Fix users with null active field - set to 'false' by default
+            $nullActiveCount = DB::table('usuarios')
+                ->whereNull('active')
+                ->update(['active' => 'false']);
+
+            // Fix users with invalid active values (not 'true' or 'false')
+            $invalidActiveCount = DB::table('usuarios')
+                ->whereNotIn('active', ['true', 'false'])
+                ->whereNotNull('active')
+                ->update(['active' => 'false']);
+
+            // Get summary of current status
+            $totalUsers = DB::table('usuarios')->count();
+            $activeUsers = DB::table('usuarios')->where('active', 'true')->count();
+            $inactiveUsers = DB::table('usuarios')->where('active', 'false')->count();
+            $estadoActiveUsers = DB::table('usuarios')->where('estado', 1)->count();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Integridad de datos de usuarios corregida exitosamente',
+                'data' => [
+                    'fixed_null_active' => $nullActiveCount,
+                    'fixed_invalid_active' => $invalidActiveCount,
+                    'summary' => [
+                        'total_users' => $totalUsers,
+                        'active_users' => $activeUsers,
+                        'inactive_users' => $inactiveUsers,
+                        'estado_active_users' => $estadoActiveUsers
+                    ]
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            \Log::error('Error fixing user status integrity: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error corrigiendo integridad de datos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Fix user status data integrity (Super Admin only)
+    Route::post('admin/users/fix-status-integrity', function() {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden ejecutar esta acción.'
+                ], 403);
+            }
+
+            // Fix users with null active field - set to 'true' for existing users
+            $nullActiveCount = DB::table('usuarios')
+                ->whereNull('active')
+                ->update(['active' => 'true']);
+
+            // Fix users with invalid active values (not 'true' or 'false')
+            $invalidActiveCount = DB::table('usuarios')
+                ->whereNotIn('active', ['true', 'false'])
+                ->whereNotNull('active')
+                ->update(['active' => 'true']);
+
+            // Get summary of current status
+            $totalUsers = DB::table('usuarios')->count();
+            $activeUsers = DB::table('usuarios')->where('active', 'true')->count();
+            $inactiveUsers = DB::table('usuarios')->where('active', 'false')->count();
+            $estadoActiveUsers = DB::table('usuarios')->where('estado', 1)->count();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Integridad de datos de usuarios corregida exitosamente',
+                'data' => [
+                    'fixed_null_active' => $nullActiveCount,
+                    'fixed_invalid_active' => $invalidActiveCount,
+                    'summary' => [
+                        'total_users' => $totalUsers,
+                        'active_users' => $activeUsers,
+                        'inactive_users' => $inactiveUsers,
+                        'estado_active_users' => $estadoActiveUsers
+                    ]
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            \Log::error('Error fixing user status integrity: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error corrigiendo integridad de datos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Get user permissions (Super Admin only)
+    Route::get('admin/users/{id}/permissions', function($id) {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden ver permisos.'
+                ], 403);
+            }
+
+            // Get user info
+            $user = DB::table('usuarios')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Get all modules
+            $modules = DB::table('modulos')->where('estado', 1)->get();
+
+            // Get user permissions
+            $permissions = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $id)
+                ->select([
+                    'modulos.id as modulo_id',
+                    'modulos.name as modulo_name',
+                    'acciones.leer',
+                    'acciones.insertar',
+                    'acciones.editar',
+                    'acciones.eliminar'
+                ])
+                ->get()
+                ->keyBy('modulo_id');
+
+            // Format response
+            $formattedPermissions = [];
+            foreach ($modules as $module) {
+                $permission = $permissions->get($module->id);
+                $formattedPermissions[] = [
+                    'modulo_id' => $module->id,
+                    'modulo_name' => $module->name,
+                    'leer' => $permission ? (bool)$permission->leer : false,
+                    'insertar' => $permission ? (bool)$permission->insertar : false,
+                    'editar' => $permission ? (bool)$permission->editar : false,
+                    'eliminar' => $permission ? (bool)$permission->eliminar : false,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => $user,
+                    'permissions' => $formattedPermissions
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Update user permissions (Super Admin only)
+    Route::post('admin/users/{id}/permissions', function($id) {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden modificar permisos.'
+                ], 403);
+            }
+
+            // Validate request
+            $validator = Validator::make(request()->all(), [
+                'permissions' => 'required|array',
+                'permissions.*.modulo_id' => 'required|integer|exists:modulos,id',
+                'permissions.*.leer' => 'required|boolean',
+                'permissions.*.insertar' => 'required|boolean',
+                'permissions.*.editar' => 'required|boolean',
+                'permissions.*.eliminar' => 'required|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Check if user exists
+            $user = DB::table('usuarios')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Prevent modifying super admin permissions
+            if ($user->rol_id == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden modificar los permisos de un super administrador'
+                ], 403);
+            }
+
+            $permissions = request('permissions');
+            $updatedCount = 0;
+
+            foreach ($permissions as $permission) {
+                // Check if permission exists
+                $existingPermission = DB::table('acciones')
+                    ->where('usuario_id', $id)
+                    ->where('modulo_id', $permission['modulo_id'])
+                    ->first();
+
+                if ($existingPermission) {
+                    // Update existing permission
+                    DB::table('acciones')
+                        ->where('usuario_id', $id)
+                        ->where('modulo_id', $permission['modulo_id'])
+                        ->update([
+                            'leer' => $permission['leer'],
+                            'insertar' => $permission['insertar'],
+                            'editar' => $permission['editar'],
+                            'eliminar' => $permission['eliminar']
+                        ]);
+                } else {
+                    // Create new permission
+                    DB::table('acciones')->insert([
+                        'usuario_id' => $id,
+                        'modulo_id' => $permission['modulo_id'],
+                        'leer' => $permission['leer'],
+                        'insertar' => $permission['insertar'],
+                        'editar' => $permission['editar'],
+                        'eliminar' => $permission['eliminar']
+                    ]);
+                }
+                $updatedCount++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Permisos actualizados exitosamente ($updatedCount módulos)",
+                'data' => [
+                    'user_id' => $id,
+                    'updated_permissions' => $updatedCount
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error actualizando permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Get all modules (for permission management)
+    Route::get('admin/modules', function() {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden ver módulos.'
+                ], 403);
+            }
+
+            $modules = DB::table('modulos')
+                ->where('estado', 1)
+                ->select(['id', 'name'])
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $modules
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo módulos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Bulk user operations (Super Admin only)
+    Route::post('admin/users/bulk-activate', function() {
+        try {
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden realizar operaciones masivas.'
+                ], 403);
+            }
+
+            $userIds = request('user_ids', []);
+            if (empty($userIds) || !is_array($userIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Se requiere un array de IDs de usuario'
+                ], 422);
+            }
+
+            // Prevent bulk operations on super admins
+            $superAdminCount = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->where('rol_id', 1)
+                ->count();
+
+            if ($superAdminCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden realizar operaciones masivas en super administradores'
+                ], 403);
+            }
+
+            $updatedCount = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->update(['active' => 'true']);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se activaron $updatedCount usuarios exitosamente",
+                'data' => ['updated_count' => $updatedCount]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error en operación masiva: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    Route::post('admin/users/bulk-deactivate', function() {
+        try {
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden realizar operaciones masivas.'
+                ], 403);
+            }
+
+            $userIds = request('user_ids', []);
+            if (empty($userIds) || !is_array($userIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Se requiere un array de IDs de usuario'
+                ], 422);
+            }
+
+            // Prevent bulk operations on super admins
+            $superAdminCount = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->where('rol_id', 1)
+                ->count();
+
+            if ($superAdminCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden realizar operaciones masivas en super administradores'
+                ], 403);
+            }
+
+            $updatedCount = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->update(['active' => 'false']);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se desactivaron $updatedCount usuarios exitosamente",
+                'data' => ['updated_count' => $updatedCount]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error en operación masiva: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // User role management (Super Admin only)
+    Route::post('admin/users/{id}/change-role', function($id) {
+        try {
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden cambiar roles.'
+                ], 403);
+            }
+
+            $newRoleId = request('rol_id');
+            if (!$newRoleId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Se requiere el ID del nuevo rol'
+                ], 422);
+            }
+
+            // Check if user exists
+            $user = DB::table('usuarios')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Prevent changing super admin role
+            if ($user->rol_id == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede cambiar el rol de un super administrador'
+                ], 403);
+            }
+
+            // Check if role exists
+            $roleExists = DB::table('roles')->where('id', $newRoleId)->exists();
+            if (!$roleExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El rol especificado no existe'
+                ], 404);
+            }
+
+            // Update user role
+            DB::table('usuarios')
+                ->where('id', $id)
+                ->update(['rol_id' => $newRoleId]);
+
+            // Get role name for response
+            $roleName = DB::table('roles')->where('id', $newRoleId)->value('nombre');
+
+            return response()->json([
+                'success' => true,
+                'message' => "Rol de usuario actualizado exitosamente a: $roleName",
+                'data' => [
+                    'user_id' => $id,
+                    'new_role_id' => $newRoleId,
+                    'new_role_name' => $roleName
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error cambiando rol de usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
 
     Route::get('roles', function() {
         try {
@@ -1783,17 +2435,25 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     'usuarios.email',
                     'usuarios.telefono',
                     'usuarios.estado',
+                    'usuarios.active',
+                    'usuarios.rol_id',
+                    'usuarios.fecha_registro',
                     'roles.nombre as rol',
                     'centros.name as centro'
                 ])
                 ->where('usuarios.estado', '!=', 0);
 
             if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('usuarios.nombre', 'like', "%{$search}%")
-                      ->orWhere('usuarios.apellido', 'like', "%{$search}%")
-                      ->orWhere('usuarios.username', 'like', "%{$search}%")
-                      ->orWhere('usuarios.email', 'like', "%{$search}%");
+                $searchTerm = trim($search);
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('usuarios.nombre', 'like', "%{$searchTerm}%")
+                      ->orWhere('usuarios.apellido', 'like', "%{$searchTerm}%")
+                      ->orWhere('usuarios.username', 'like', "%{$searchTerm}%")
+                      ->orWhere('usuarios.email', 'like', "%{$searchTerm}%")
+                      ->orWhere('usuarios.telefono', 'like', "%{$searchTerm}%")
+                      ->orWhere('roles.nombre', 'like', "%{$searchTerm}%")
+                      ->orWhere('centros.name', 'like', "%{$searchTerm}%")
+                      ->orWhere(DB::raw("CONCAT(usuarios.nombre, ' ', usuarios.apellido)"), 'like', "%{$searchTerm}%");
                 });
             }
 
@@ -1870,6 +2530,9 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     'usuarios.email',
                     'usuarios.telefono',
                     'usuarios.estado',
+                    'usuarios.active',
+                    'usuarios.rol_id',
+                    'usuarios.fecha_registro',
                     'roles.nombre as rol',
                     'centros.name as centro'
                 ])
@@ -1888,10 +2551,29 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                             ->limit($perPage)
                             ->get();
 
+            // Ensure consistent object format for frontend
+            $usuariosFormatted = [];
+            foreach ($usuarios as $usuario) {
+                $usuariosFormatted[] = (object) [
+                    'id' => (int)$usuario->id,
+                    'nombre' => $usuario->nombre ?? '',
+                    'apellido' => $usuario->apellido ?? '',
+                    'username' => $usuario->username ?? '',
+                    'email' => $usuario->email ?? '',
+                    'telefono' => $usuario->telefono ?? '',
+                    'estado' => (int)$usuario->estado,
+                    'active' => $usuario->active ?? 'true',
+                    'rol_id' => (int)$usuario->rol_id,
+                    'fecha_registro' => $usuario->fecha_registro,
+                    'rol' => $usuario->rol ?? '',
+                    'centro' => $usuario->centro ?? ''
+                ];
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'data' => $usuarios,
+                    'data' => $usuariosFormatted,
                     'current_page' => (int)$page,
                     'per_page' => (int)$perPage,
                     'total' => $total,
@@ -1905,6 +2587,216 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             ], 500);
         }
     });
+
+    // User activation endpoints (require super admin)
+    Route::post('usuarios/{id}/activate', function($id) {
+        try {
+            $user = auth('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autenticado'
+                ], 401);
+            }
+
+            // Check if user is super admin (rol_id = 1)
+            if ($user->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo los super administradores pueden activar usuarios'
+                ], 403);
+            }
+
+            // Find the user to activate
+            $targetUser = DB::table('usuarios')->where('id', $id)->first();
+
+            if (!$targetUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Activate the user
+            DB::table('usuarios')
+                ->where('id', $id)
+                ->update(['active' => 'true']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario activado exitosamente'
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error activando usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    Route::post('usuarios/{id}/deactivate', function($id) {
+        try {
+            $user = auth('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autenticado'
+                ], 401);
+            }
+
+            // Check if user is super admin (rol_id = 1)
+            if ($user->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo los super administradores pueden desactivar usuarios'
+                ], 403);
+            }
+
+            // Find the user to deactivate
+            $targetUser = DB::table('usuarios')->where('id', $id)->first();
+
+            if (!$targetUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Prevent deactivating super admin
+            if ($targetUser->rol_id == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede desactivar un super administrador'
+                ], 403);
+            }
+
+            // Deactivate the user
+            DB::table('usuarios')
+                ->where('id', $id)
+                ->update(['active' => 'false']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario desactivado exitosamente'
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error desactivando usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    // Bulk activation endpoints
+    Route::post('usuarios/bulk-activate', function() {
+        try {
+            $user = auth('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autenticado'
+                ], 401);
+            }
+
+            // Check if user is super admin (rol_id = 1)
+            if ($user->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo los super administradores pueden activar usuarios'
+                ], 403);
+            }
+
+            $userIds = request('user_ids', []);
+
+            if (empty($userIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se proporcionaron IDs de usuarios'
+                ], 422);
+            }
+
+            // Activate the users
+            $updated = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->update(['active' => 'true']);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se activaron $updated usuarios exitosamente"
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error activando usuarios: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    Route::post('usuarios/bulk-deactivate', function() {
+        try {
+            $user = auth('sanctum')->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autenticado'
+                ], 401);
+            }
+
+            // Check if user is super admin (rol_id = 1)
+            if ($user->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo los super administradores pueden desactivar usuarios'
+                ], 403);
+            }
+
+            $userIds = request('user_ids', []);
+
+            if (empty($userIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se proporcionaron IDs de usuarios'
+                ], 422);
+            }
+
+            // Prevent deactivating super admins
+            $superAdmins = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->where('rol_id', 1)
+                ->count();
+
+            if ($superAdmins > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden desactivar super administradores'
+                ], 403);
+            }
+
+            // Deactivate the users
+            $updated = DB::table('usuarios')
+                ->whereIn('id', $userIds)
+                ->where('rol_id', '!=', 1) // Extra safety check
+                ->update(['active' => 'false']);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se desactivaron $updated usuarios exitosamente"
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error desactivando usuarios: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
 
     // ==========================================
     // COMPLETE PURCHASE ORDERS API ENDPOINTS
@@ -2333,47 +3225,14 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
-    // SECOP integration endpoint
-    Route::get('secop/consultar', function() {
-        try {
-            // Simulate SECOP consultation (in real implementation, this would call SECOP API)
-            $secopData = [
-                'total_contratos' => 1250,
-                'contratos_activos' => 890,
-                'monto_total' => 15750000000,
-                'ultima_actualizacion' => now()->format('Y-m-d H:i:s'),
-                'contratos_recientes' => [
-                    [
-                        'numero_contrato' => 'SECOP-2024-001',
-                        'entidad' => 'Hospital Universitario',
-                        'objeto' => 'Suministro de equipos médicos',
-                        'valor' => 250000000,
-                        'fecha_firma' => '2024-01-15',
-                        'estado' => 'Vigente'
-                    ],
-                    [
-                        'numero_contrato' => 'SECOP-2024-002',
-                        'entidad' => 'Clínica Central',
-                        'objeto' => 'Mantenimiento de equipos biomédicos',
-                        'valor' => 180000000,
-                        'fecha_firma' => '2024-01-20',
-                        'estado' => 'En ejecución'
-                    ]
-                ]
-            ];
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Consulta SECOP realizada exitosamente',
-                'data' => $secopData
-            ]);
-
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error consultando SECOP: ' . $e->getMessage()
-            ], 500);
-        }
+    // SECOP integration endpoints
+    Route::prefix('secop')->group(function () {
+        Route::get('consultar', [\App\Http\Controllers\Api\SecopController::class, 'consultar']);
+        Route::get('buscar', [\App\Http\Controllers\Api\SecopController::class, 'buscar']);
+        Route::get('proceso/{uid}', [\App\Http\Controllers\Api\SecopController::class, 'obtenerProceso']);
+        Route::get('estadisticas', [\App\Http\Controllers\Api\SecopController::class, 'estadisticas']);
+        Route::post('limpiar-cache', [\App\Http\Controllers\Api\SecopController::class, 'limpiarCache'])
+            ->middleware('auth:sanctum');
     });
 
     Route::get('tipos-compra', function() {
@@ -3244,12 +4103,24 @@ Route::post('/auth/login', function (Request $request) {
     try {
         $email = $request->input('email') ?? $request->input('username');
         $password = $request->input('password');
-        
+
         if (!$email || !$password) {
             return response()->json([
                 'success' => false,
                 'message' => 'Email/username y contraseña son requeridos'
             ], 422);
+        }
+
+        // Basic brute force protection
+        $clientIp = $request->ip();
+        $cacheKey = "login_attempts_{$clientIp}";
+        $attempts = Cache::get($cacheKey, 0);
+
+        if ($attempts >= 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Demasiados intentos fallidos. Intente nuevamente en 15 minutos.'
+            ], 429);
         }
         
         // Find user
@@ -3266,23 +4137,117 @@ Route::post('/auth/login', function (Request $request) {
         
         // Check password
         if (!\Illuminate\Support\Facades\Hash::check($password, $usuario->password)) {
+            // Increment failed attempts
+            Cache::put($cacheKey, $attempts + 1, 900); // 15 minutes
+
             return response()->json([
                 'success' => false,
                 'message' => 'Credenciales incorrectas'
             ], 401);
         }
         
-        // Check if user is active (solo estado, no 'active')
+        // Check if user is active - both 'estado' and 'active' fields
         if (!$usuario->estado || $usuario->estado != 1) {
             return response()->json([
                 'success' => false,
-                'message' => 'Usuario inactivo'
+                'message' => 'Usuario deshabilitado por el administrador'
+            ], 401);
+        }
+
+        // NEW: Check if user account is activated
+        if ($usuario->active !== 'true') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu cuenta está pendiente de activación. Contacta al administrador.',
+                'activation_required' => true
             ], 401);
         }
         
+        // Load user permissions
+        $permissions = [];
+        try {
+            // Si es Super Administrador (Role ID 1), dar acceso completo a todos los módulos
+            if ($usuario->rol_id == 1) {
+                \Log::info('Super Administrator login detected, granting full permissions', [
+                    'user_id' => $usuario->id,
+                    'role_id' => $usuario->rol_id
+                ]);
+
+                // Crear permisos completos para módulos comunes
+                $permissions = [
+                    'equipos' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'usuarios' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'mantenimiento' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'reportes' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'configuracion' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'ordencompra' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ]
+                ];
+            } else {
+                // Para otros usuarios, cargar permisos específicos desde la tabla acciones
+                $permisos = \Illuminate\Support\Facades\DB::table('acciones')
+                    ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                    ->where('acciones.usuario_id', $usuario->id)
+                    ->select([
+                        'modulos.name as modulo',
+                        'acciones.leer',
+                        'acciones.insertar',
+                        'acciones.editar',
+                        'acciones.eliminar'
+                    ])
+                    ->get();
+
+                foreach ($permisos as $permiso) {
+                    $permissions[$permiso->modulo] = [
+                        'leer' => (bool) $permiso->leer,
+                        'insertar' => (bool) $permiso->insertar,
+                        'editar' => (bool) $permiso->editar,
+                        'eliminar' => (bool) $permiso->eliminar,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error loading user permissions during login', [
+                'user_id' => $usuario->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // Clear failed login attempts on successful login
+        Cache::forget($cacheKey);
+
         // Create token
         $token = $usuario->createToken('eva-token')->plainTextToken;
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Login exitoso',
@@ -3293,7 +4258,8 @@ Route::post('/auth/login', function (Request $request) {
                 'email' => $usuario->email,
                 'username' => $usuario->username,
                 'rol_id' => $usuario->rol_id,
-                'centro_id' => $usuario->centro_id
+                'centro_id' => $usuario->centro_id,
+                'permissions' => $permissions
             ],
             'token' => $token
         ]);
@@ -3343,10 +4309,11 @@ Route::post('auth/register', function (Request $request) {
             'email' => $request->email,
             'username' => $request->username,
             'password' => \Hash::make($request->password),
-            'rol_id' => 4, // Rol por defecto (usuario)
+            'rol_id' => 4, // Rol por defecto (usuario básico)
             'centro_id' => $request->centro_id,
             'id_empresa' => $request->id_empresa ?? 0,
-            'estado' => 1, // Activo
+            'estado' => 1, // Usuario creado
+            'active' => 'false', // NUEVO: Inactivo por defecto - requiere activación
             'sede_id' => '1', // Sede por defecto
             'anio_plan' => date('Y')
         ]);
@@ -3374,7 +4341,8 @@ Route::post('auth/register', function (Request $request) {
         return response()->json([
             'success' => true,
             'data' => $response,
-            'message' => 'Usuario registrado exitosamente (interceptado)'
+            'message' => 'Usuario registrado exitosamente. Tu cuenta está pendiente de activación por un administrador.',
+            'activation_required' => true
         ], 201);
 
     } catch (\Exception $e) {

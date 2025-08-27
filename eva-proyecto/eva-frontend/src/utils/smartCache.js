@@ -761,4 +761,4 @@ class SmartCache {
 const smartCache = new SmartCache();
 
 export default smartCache;
-export { CACHE_STRATEGIES, CACHE_LEVELS, SmartCache };
+export { SmartCache };

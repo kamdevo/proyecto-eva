@@ -1021,26 +1021,145 @@ class EquipmentController extends ApiController
             // Apply the same filtering logic as medical devices
             // [The filtering logic will be added in the next chunk]
 
-            // Aplicar búsqueda global si se proporciona
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('equipos.name', 'like', "%{$search}%")
-                        ->orWhere('equipos.code', 'like', "%{$search}%")
-                        ->orWhere('equipos.marca', 'like', "%{$search}%")
-                        ->orWhere('equipos.modelo', 'like', "%{$search}%")
-                        ->orWhere('equipos.serial', 'like', "%{$search}%")
-                        ->orWhere('servicios.name', 'like', "%{$search}%")
-                        ->orWhere('areas.name', 'like', "%{$search}%");
-                });
+            // FILTRO POR ID ESPECÍFICO (consulta_id) - actúa como búsqueda exacta por ID
+            if ($request->has('consulta_id') && !empty($request->consulta_id)) {
+                $equipmentId = (int) $request->consulta_id;
+                $query->where('equipos.id', $equipmentId);
+                // No aplicar búsqueda global cuando se busca por ID exacto
+            } else {
+                // Aplicar búsqueda global si se proporciona
+                if (!empty($search)) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('equipos.name', 'like', "%{$search}%")
+                            ->orWhere('equipos.code', 'like', "%{$search}%")
+                            ->orWhere('equipos.marca', 'like', "%{$search}%")
+                            ->orWhere('equipos.modelo', 'like', "%{$search}%")
+                            ->orWhere('equipos.serial', 'like', "%{$search}%")
+                            ->orWhere('servicios.name', 'like', "%{$search}%")
+                            ->orWhere('areas.name', 'like', "%{$search}%");
+                    });
+                }
             }
 
             // Aplicar ordenamiento
             $query->orderBy($sortBy, $sortOrder);
 
-            // Ejecutar consulta con paginación
-            $equipos = $query->paginate($perPage, ['*'], 'page', $page);
+            // Obtener total antes de paginar
+            $total = $query->count();
 
-            return ResponseFormatter::success($equipos, 'Equipos industriales obtenidos exitosamente');
+            // Debug: Log resultados si se buscó por ID
+            if ($request->has('consulta_id')) {
+                \Log::info('📊 Backend: Resultados de búsqueda por ID (industrial)', [
+                    'consulta_id' => $request->consulta_id,
+                    'total_found' => $total,
+                    'page' => $page,
+                    'per_page' => $perPage
+                ]);
+            }
+
+            // Aplicar paginación manual para luego formatear los items
+            $offset = ($page - 1) * $perPage;
+            $equipos = $query->skip($offset)->take($perPage)->get();
+
+            // Formatear datos para que coincidan con getMedicalDevicesComplete
+            $formattedEquipos = collect($equipos)->map(function ($equipo) {
+                // Campos top-level para compatibilidad con frontend (vistas antiguas)
+                $topPropietario = $equipo->propietario ?: null;
+                $topClasificacion = $equipo->clasificacion ?: null;
+                $topRiesgo = $equipo->riesgo ?: null;
+                $topEstadoEquipo = $equipo->estadoequipo ?: null;
+
+                return [
+                    'id' => $equipo->id,
+                    // Compatibilidad: algunos componentes esperan propiedades al nivel superior
+                    'propietario' => $topPropietario,
+                    'clasificacion' => $topClasificacion,
+                    'riesgo' => $topRiesgo,
+                    'estadoequipo' => $topEstadoEquipo,
+
+                    'equipo' => [
+                        'id' => $equipo->id,
+                        'name' => $equipo->name,
+                        'code' => $equipo->code,
+                        'brand' => $equipo->marca,
+                        'model' => $equipo->modelo,
+                        'series' => $equipo->serial,
+                        'image' => $equipo->image ? url('storage/equipos/images/' . $equipo->image) : null,
+                        'hasImage' => !empty($equipo->image),
+                    ],
+
+                    'data' => [
+                        'status' => $equipo->estadoequipo,
+                        'registroSanitario' => $equipo->registro_sanitario ?: ($equipo->numero_invima ?: null),
+                        'numeroInvima' => $equipo->numero_invima,
+                        'fechaVencimientoInvima' => $equipo->fecha_vencimiento_invima,
+                        'estadoInvima' => $equipo->estado_invima,
+                        'archivoInvima' => $equipo->archivo_invima,
+                        'clasificacion' => $equipo->clasificacion,
+                        'riesgo' => $equipo->riesgo,
+                        'archivos' => (int) $equipo->cuenta_archivos,
+                        'planesMantenimiento' => (int) $equipo->cuenta_planes_mantenimientos,
+                    ],
+
+                    'ubicacion' => [
+                        'servicio' => $equipo->servicios,
+                        'area' => $equipo->area,
+                        'sede' => $equipo->sede,
+                    ],
+
+                    // Información adicional agrupada para la UI
+                    'informacion_adicional' => [
+                        'ultimo_mantenimiento' => $equipo->ultimo_mantenimiento,
+                        'ultima_calibracion' => $equipo->ultima_calibracion,
+                        'ultimo_correctivo' => $equipo->ultimo_correctivo,
+                        'fecha_inicio_ultimo_ticket' => $equipo->fecha_inicio_ultimo_ticket,
+                        'cuenta_archivos' => (int) $equipo->cuenta_archivos,
+                    ],
+
+                    'mantenimiento' => [
+                        'ultimoMantenimiento' => $equipo->ultimo_mantenimiento,
+                        'ultimaCalibración' => $equipo->ultima_calibracion,
+                        'ultimoCorrectivo' => $equipo->ultimo_correctivo,
+                    ],
+
+                    'propietario' => [
+                        'nombre' => $equipo->propietario,
+                        'logo' => $equipo->propietario_logo,
+                    ],
+
+                    'compra' => [
+                        'orden' => $equipo->orden_compra,
+                        'propietario' => $equipo->propietario,
+                        'tipo' => $equipo->tipo_compra,
+                    ],
+
+                    'observaciones' => [
+                        'ultima' => $equipo->ultima_observacion,
+                    ],
+
+                    'tickets' => [
+                        'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket,
+                    ],
+                ];
+            });
+
+            $responseData = [
+                'current_page' => (int) $page,
+                'data' => $formattedEquipos,
+                'per_page' => (int) $perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage),
+                'from' => $offset + 1,
+                'to' => min($offset + $perPage, $total),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipos industriales obtenidos exitosamente',
+                'data' => $responseData
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
         } catch (\Exception $e) {
             \Log::error('Error en getIndustrialDevicesComplete: ' . $e->getMessage());

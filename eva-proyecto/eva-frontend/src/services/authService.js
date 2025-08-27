@@ -20,7 +20,8 @@ class AuthService {
    */
   async login(credentials) {
     try {
-      console.log("🔐 [AUTH] Iniciando sesión...");
+      // Debug logging disabled for production
+      // console.log("🔐 [AUTH] Iniciando sesión...");
 
       // Obtener CSRF token antes del login
       await getCsrfToken();
@@ -43,8 +44,9 @@ class AuthService {
       localStorage.setItem("eva_user", JSON.stringify(user));
       localStorage.setItem("eva_auth_token", token);
 
-      console.log("✅ [AUTH] Sesión iniciada correctamente:", user);
-      console.log("🔐 [AUTH] Token almacenado:", token ? "Sí" : "No");
+      // Debug logging disabled for production
+      // console.log("✅ [AUTH] Sesión iniciada correctamente:", user);
+      // console.log("🔐 [AUTH] Token almacenado:", token ? "Sí" : "No");
 
       return {
         success: true,
@@ -72,7 +74,8 @@ class AuthService {
    */
   async logout() {
     try {
-      console.log("🔐 [AUTH] Cerrando sesión...");
+      // Debug logging disabled for production
+      // console.log("🔐 [AUTH] Cerrando sesión...");
 
       // Llamar al endpoint de logout
       await httpService.post(AUTH_ENDPOINTS.LOGOUT);
@@ -80,7 +83,8 @@ class AuthService {
       // Limpiar datos locales
       this.clearAuthData();
 
-      console.log("✅ [AUTH] Sesión cerrada correctamente");
+      // Debug logging disabled for production
+      // console.log("✅ [AUTH] Sesión cerrada correctamente");
 
       return {
         success: true,
@@ -104,12 +108,13 @@ class AuthService {
    */
   async register(userData) {
     try {
-      console.log("🔐 [AUTH] Registrando usuario...");
-      console.log(
-        "🔍 [DEBUG] AUTH_ENDPOINTS.REGISTER:",
-        AUTH_ENDPOINTS.REGISTER
-      );
-      console.log("🔍 [DEBUG] Datos del usuario:", userData);
+      // Debug logging disabled for production
+      // console.log("🔐 [AUTH] Registrando usuario...");
+      // console.log(
+      //   "🔍 [DEBUG] AUTH_ENDPOINTS.REGISTER:",
+      //   AUTH_ENDPOINTS.REGISTER
+      // );
+      // console.log("🔍 [DEBUG] Datos del usuario:", userData);
 
       // Obtener CSRF token
       await getCsrfToken();
@@ -128,7 +133,8 @@ class AuthService {
 
       localStorage.setItem("eva_user", JSON.stringify(user));
 
-      console.log("✅ [AUTH] Usuario registrado correctamente:", user);
+      // Debug logging disabled for production
+      // console.log("✅ [AUTH] Usuario registrado correctamente:", user);
 
       return {
         success: true,
@@ -217,11 +223,12 @@ class AuthService {
           return false;
         } else {
           // Para errores del servidor (network, etc.), mantener sesión y permitir reintento
-          console.warn(
-            `⚠️ [AUTH] Error del servidor (${
-              status || "Network"
-            }), manteniendo sesión temporalmente`
-          );
+          // Debug logging disabled for production
+          // console.warn(
+          //   `⚠️ [AUTH] Error del servidor (${
+          //     status || "Network"
+          //   }), manteniendo sesión temporalmente`
+          // );
           // Retornar true temporalmente para no forzar logout por error del servidor
           return true;
         }

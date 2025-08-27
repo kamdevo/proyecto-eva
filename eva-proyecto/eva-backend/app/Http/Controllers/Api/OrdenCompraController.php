@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use App\Models\Equipo;
 use Exception;
 
 /**
@@ -106,21 +108,59 @@ class OrdenCompraController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'required|string|max:255',
+                'orden' => 'required|string|max:255',
+                'fecha' => 'required|date',
+                'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
+                'proveedor_id' => 'nullable|integer|exists:proveedores_mantenimiento,id',
+                'monto' => 'nullable|numeric|min:0',
                 'descripcion' => 'nullable|string|max:1000',
-                'activo' => 'nullable|boolean'
+                'secop_id' => 'nullable|string|max:255',
+                'url_secop' => 'nullable|url|max:500',
+                'status' => 'nullable|integer|in:0,1',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
             ]);
 
-            $data = $request->all();
-            $data['usuario_id'] = auth()->id();
+            $data = $request->only([
+                'orden', 'fecha', 'tipo_compra_id', 'proveedor_id',
+                'monto', 'descripcion', 'secop_id', 'url_secop', 'status'
+            ]);
+
+            // Manejar subida de archivo
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('ordenes_compra', $fileName, 'public');
+                $data['file'] = $filePath;
+            }
+
+            // Establecer valores por defecto
+            $data['status'] = $data['status'] ?? 1;
 
             $item = OrdenCompra::create($data);
 
-            return ResponseFormatter::success($item, 'Creado exitosamente', 201);
+            // Cargar relaciones para la respuesta
+            $item->load(['proveedor', 'tipoCompra']);
 
+            Log::info('Orden de compra creada exitosamente', [
+                'id' => $item->id,
+                'orden' => $item->orden,
+                'secop_id' => $item->secop_id
+            ]);
+
+            return ResponseFormatter::success($item, 'Orden de compra creada exitosamente', 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseFormatter::error(
+                $e->errors(),
+                'Datos de validación incorrectos',
+                422
+            );
         } catch (Exception $e) {
-            Log::error('Error en OrdenCompraController::store', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al crear', 500);
+            Log::error('Error en OrdenCompraController::store', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return ResponseFormatter::error(null, 'Error al crear orden de compra', 500);
         }
     }
 
@@ -337,6 +377,178 @@ class OrdenCompraController extends Controller
         } catch (Exception $e) {
             Log::error('Error en OrdenCompraController::toggle', ['error' => $e->getMessage()]);
             return ResponseFormatter::error(null, 'Error al cambiar estado', 500);
+        }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/ordencompra/{id}/equipos",
+     *     tags={"OrdenCompra"},
+     *     summary="Asociar equipos a orden de compra",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID de la orden de compra",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="equipo_ids", type="array", @OA\Items(type="integer"))
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Equipos asociados exitosamente")
+     * )
+     */
+    public function associateEquipment(Request $request, $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'equipo_ids' => 'required|array',
+                'equipo_ids.*' => 'integer|exists:equipos,id'
+            ]);
+
+            $orden = OrdenCompra::findOrFail($id);
+            $equipoIds = $request->input('equipo_ids');
+
+            // Actualizar equipos para asociarlos con esta orden de compra
+            $equiposActualizados = Equipo::whereIn('id', $equipoIds)
+                ->update(['orden_compra_id' => $orden->id]);
+
+            Log::info('Equipos asociados a orden de compra', [
+                'orden_id' => $orden->id,
+                'equipos_count' => $equiposActualizados,
+                'equipo_ids' => $equipoIds
+            ]);
+
+            return ResponseFormatter::success([
+                'orden_id' => $orden->id,
+                'equipos_asociados' => $equiposActualizados,
+                'equipo_ids' => $equipoIds
+            ], 'Equipos asociados exitosamente');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseFormatter::error(
+                $e->errors(),
+                'Datos de validación incorrectos',
+                422
+            );
+        } catch (Exception $e) {
+            Log::error('Error asociando equipos a orden de compra', [
+                'orden_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return ResponseFormatter::error(null, 'Error al asociar equipos', 500);
+        }
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/ordencompra/{id}/equipos",
+     *     tags={"OrdenCompra"},
+     *     summary="Obtener equipos asociados a orden de compra",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID de la orden de compra",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Equipos obtenidos exitosamente")
+     * )
+     */
+    public function getAssociatedEquipment($id): JsonResponse
+    {
+        try {
+            $orden = OrdenCompra::findOrFail($id);
+
+            $equipos = $orden->equipos()
+                ->with(['servicio', 'area', 'estado'])
+                ->select([
+                    'id', 'nombre', 'modelo', 'serie', 'codigo',
+                    'servicio_id', 'area_id', 'estado_id', 'activo'
+                ])
+                ->get();
+
+            return ResponseFormatter::success([
+                'orden' => [
+                    'id' => $orden->id,
+                    'orden' => $orden->orden,
+                    'fecha' => $orden->fecha
+                ],
+                'equipos' => $equipos,
+                'total_equipos' => $equipos->count()
+            ], 'Equipos asociados obtenidos exitosamente');
+
+        } catch (Exception $e) {
+            Log::error('Error obteniendo equipos asociados', [
+                'orden_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return ResponseFormatter::error(null, 'Error al obtener equipos asociados', 500);
+        }
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/ordencompra/{id}/equipos/{equipoId}",
+     *     tags={"OrdenCompra"},
+     *     summary="Desasociar equipo de orden de compra",
+     *     security={{"sanctum": {}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID de la orden de compra",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="equipoId",
+     *         in="path",
+     *         description="ID del equipo",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Equipo desasociado exitosamente")
+     * )
+     */
+    public function dissociateEquipment($id, $equipoId): JsonResponse
+    {
+        try {
+            $orden = OrdenCompra::findOrFail($id);
+            $equipo = Equipo::findOrFail($equipoId);
+
+            // Verificar que el equipo esté asociado a esta orden
+            if ($equipo->orden_compra_id != $orden->id) {
+                return ResponseFormatter::error(
+                    null,
+                    'El equipo no está asociado a esta orden de compra',
+                    400
+                );
+            }
+
+            // Desasociar equipo
+            $equipo->update(['orden_compra_id' => null]);
+
+            Log::info('Equipo desasociado de orden de compra', [
+                'orden_id' => $orden->id,
+                'equipo_id' => $equipo->id
+            ]);
+
+            return ResponseFormatter::success([
+                'orden_id' => $orden->id,
+                'equipo_id' => $equipo->id
+            ], 'Equipo desasociado exitosamente');
+
+        } catch (Exception $e) {
+            Log::error('Error desasociando equipo', [
+                'orden_id' => $id,
+                'equipo_id' => $equipoId,
+                'error' => $e->getMessage()
+            ]);
+            return ResponseFormatter::error(null, 'Error al desasociar equipo', 500);
         }
     }
 }

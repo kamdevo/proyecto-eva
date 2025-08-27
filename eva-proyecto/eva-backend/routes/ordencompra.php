@@ -19,10 +19,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.v
     
     // Rutas CRUD para OrdenCompra
     Route::apiResource('ordencompra', OrdenCompraController::class);
-    
+
     // Rutas adicionales específicas
     Route::get('ordencompra/search/{term}', [OrdenCompraController::class, 'search']);
     Route::get('ordencompra/stats', [OrdenCompraController::class, 'stats']);
     Route::post('ordencompra/{id}/toggle', [OrdenCompraController::class, 'toggle']);
+
+    // Rutas para asociación de equipos
+    Route::post('ordencompra/{id}/equipos', [OrdenCompraController::class, 'associateEquipment']);
+    Route::get('ordencompra/{id}/equipos', [OrdenCompraController::class, 'getAssociatedEquipment']);
+    Route::delete('ordencompra/{id}/equipos/{equipoId}', [OrdenCompraController::class, 'dissociateEquipment']);
     
 });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "./ui/button";
@@ -107,6 +107,14 @@ const Header = () => {
 
 const AppSidebar = () => {
   const [openSubmenus, setOpenSubmenus] = useState([]);
+  const { permissionService, isAdmin, user } = useAuth();
+
+  // Initialize permissions when user changes
+  useEffect(() => {
+    if (user) {
+      // Permissions are already initialized in AuthContext, no need for debug logging
+    }
+  }, [user]);
 
   const navigationItems = [
     { icon: Home, label: "Inicio", active: true, submenu: [], href: "/home" },
@@ -201,7 +209,7 @@ const AppSidebar = () => {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {navigationItems.map((item, index) => (
+              {permissionService.filterMenuItems(navigationItems).map((item, index) => (
                 <SidebarMenuItem key={index}>
                   {item.href ? (
                     // Item with direct link

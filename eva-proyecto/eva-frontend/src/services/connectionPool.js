@@ -753,4 +753,4 @@ class ConnectionPool {
 const connectionPool = new ConnectionPool();
 
 export default connectionPool;
-export { ConnectionPool, CONNECTION_STATES, LOAD_BALANCE_STRATEGIES };
+export { ConnectionPool };

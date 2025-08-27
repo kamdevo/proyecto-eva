@@ -58,11 +58,12 @@ export const usePermisos = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/usuarios/${userId}/acciones`, {
+      const response = await fetch(`${API_BASE_URL}/v1/admin/users/${userId}/permissions`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
       });
 
@@ -73,7 +74,8 @@ export const usePermisos = () => {
       const data = await response.json();
       
       if (data.success) {
-        return data.data || [];
+        // Admin endpoint returns data.data.permissions
+        return data.data?.permissions || [];
       } else {
         throw new Error(data.message || 'Error al obtener permisos del usuario');
       }

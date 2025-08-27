@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
 import { useCentrosCosto } from "../hooks/useCentrosCosto";
@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +43,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -90,6 +90,10 @@ export default function Usuarios() {
   const [userPermissions, setUserPermissions] = useState([]);
   const [moduleStats, setModuleStats] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState(null);
+  const [goToPage, setGoToPage] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [isBulkOperationModalOpen, setIsBulkOperationModalOpen] = useState(false);
   const [addUserForm, setAddUserForm] = useState({
     nombre: "",
     apellidos: "",
@@ -147,24 +151,56 @@ export default function Usuarios() {
     const loadModuleStats = async () => {
       try {
         const stats = await fetchModuleStats();
-        setModuleStats(stats);
+        // Ensure moduleStats is always an array
+        if (Array.isArray(stats)) {
+          setModuleStats(stats);
+        } else {
+          console.warn("Module stats is not an array, using empty array:", stats);
+          setModuleStats([]);
+        }
       } catch (error) {
         console.error("Error loading module stats:", error);
+        setModuleStats([]); // Set empty array on error
       }
     };
 
     loadModuleStats();
   }, [fetchModuleStats]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
   // Funciones para manejar usuarios
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    if (value.trim()) {
-      searchUsuarios(value);
-    } else {
-      refreshUsuarios();
+
+    // Debounce search to avoid too many API calls
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
+
+    const timeout = setTimeout(() => {
+      if (value.trim()) {
+        searchUsuarios(value.trim());
+      } else {
+        refreshUsuarios();
+      }
+    }, 300); // Wait 300ms after user stops typing
+
+    setSearchTimeout(timeout);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchTerm("");
+    refreshUsuarios();
   };
 
   const handlePageChange = (page) => {
@@ -173,6 +209,15 @@ export default function Usuarios() {
 
   const handlePageSizeChange = (size) => {
     changePageSize(parseInt(size));
+  };
+
+  const handleGoToPage = (e) => {
+    e.preventDefault();
+    const pageNumber = parseInt(goToPage);
+    if (pageNumber >= 1 && pageNumber <= pagination.last_page) {
+      handlePageChange(pageNumber);
+      setGoToPage("");
+    }
   };
 
   // Datos de relación zonas-usuarios
@@ -626,7 +671,7 @@ export default function Usuarios() {
         centro_id: addUserForm.centroCosto,
         id_empresa: parseInt(addUserForm.empresa) || 1,
         estado: 1,
-        active: "true",
+        active: "false", // NUEVO: Usuarios inactivos por defecto
       };
 
       await createUsuario(userData);
@@ -680,6 +725,197 @@ export default function Usuarios() {
     setAddRelationForm({ nombreZona: "", zona: "" });
   };
 
+  // NUEVA FUNCIÓN: Activar/Desactivar usuario
+  const handleToggleUserActivation = async (user) => {
+    try {
+      const action = user.active === 'true' || user.active === true ? 'desactivar' : 'activar';
+
+      if (!confirm(`¿Estás seguro de que quieres ${action} al usuario ${user.nombre} ${user.apellido}?`)) {
+        return;
+      }
+
+      // Determinar endpoint correcto según el estado actual
+      const endpoint = user.active === 'true' || user.active === true ? 'deactivate' : 'activate';
+
+      // Llamar al endpoint de activación correcto
+      const response = await fetch(`http://127.0.0.1:8001/api/v1/usuarios/${user.id}/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('eva_auth_token')}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Usuario ${action}do exitosamente`);
+        // Refrescar la lista de usuarios
+        refreshUsuarios();
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error toggling user activation:", error);
+      alert("Error al cambiar el estado de activación del usuario");
+    }
+  };
+
+  // BULK OPERATIONS
+  const handleSelectUser = (userId, checked) => {
+    if (checked) {
+      setSelectedUsers(prev => [...prev, userId]);
+    } else {
+      setSelectedUsers(prev => prev.filter(id => id !== userId));
+    }
+  };
+
+  const handleSelectAllUsers = (checked) => {
+    if (checked) {
+      setSelectedUsers(usuarios.map(user => user.id));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    try {
+      if (selectedUsers.length === 0) {
+        alert("Selecciona al menos un usuario");
+        return;
+      }
+
+      const response = await fetch('http://127.0.0.1:8001/api/v1/usuarios/bulk-activate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('eva_auth_token')}`
+        },
+        body: JSON.stringify({
+          user_ids: selectedUsers
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(result.message);
+        setSelectedUsers([]);
+        refreshUsuarios();
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error in bulk activate:", error);
+      alert("Error en operación masiva de activación");
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      if (selectedUsers.length === 0) {
+        alert("Selecciona al menos un usuario");
+        return;
+      }
+
+      const response = await fetch('http://127.0.0.1:8001/api/v1/usuarios/bulk-deactivate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('eva_auth_token')}`
+        },
+        body: JSON.stringify({
+          user_ids: selectedUsers
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(result.message);
+        setSelectedUsers([]);
+        refreshUsuarios();
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error in bulk deactivate:", error);
+      alert("Error en operación masiva de desactivación");
+    }
+  };
+
+  // NUEVAS FUNCIONES: Gestión de permisos de usuario
+  const handleUserPermissionChange = (moduloId, permissionType, checked) => {
+    setUserPermissions(prev =>
+      prev.map(permission =>
+        permission.modulo_id === moduloId
+          ? { ...permission, [permissionType]: checked }
+          : permission
+      )
+    );
+  };
+
+  const handleGrantAllPermissions = (moduloId) => {
+    setUserPermissions(prev =>
+      prev.map(permission =>
+        permission.modulo_id === moduloId
+          ? { ...permission, leer: true, insertar: true, editar: true, eliminar: true }
+          : permission
+      )
+    );
+  };
+
+  const handleRevokeAllPermissions = (moduloId) => {
+    setUserPermissions(prev =>
+      prev.map(permission =>
+        permission.modulo_id === moduloId
+          ? { ...permission, leer: false, insertar: false, editar: false, eliminar: false }
+          : permission
+      )
+    );
+  };
+
+  const handleSaveUserPermissions = async () => {
+    try {
+      if (!selectedUser) return;
+
+      const response = await fetch(`http://127.0.0.1:8001/api/v1/admin/users/${selectedUser.id}/permissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('eva_auth_token')}`
+        },
+        body: JSON.stringify({
+          permissions: userPermissions.map(permission => ({
+            modulo_id: permission.modulo_id,
+            leer: permission.leer,
+            insertar: permission.insertar,
+            editar: permission.editar,
+            eliminar: permission.eliminar
+          }))
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert("Permisos actualizados exitosamente");
+        // Refrescar permisos
+        const updatedPermissions = await fetchUserPermissions(selectedUser.id);
+        setUserPermissions(updatedPermissions);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error("Error saving user permissions:", error);
+      alert("Error al guardar los permisos del usuario");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -701,25 +937,27 @@ export default function Usuarios() {
                   Gestiona todos los usuarios del sistema
                 </p>
               </div>
-              <Dialog
-                open={isAddUserModalOpen}
-                onOpenChange={setIsAddUserModalOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                    <Plus className="h-4 w-4" />
-                    Nuevo usuario
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
-                      Agregar
-                    </DialogTitle>
-                    <DialogDescription className="text-lg font-medium text-gray-700 mt-4">
-                      usuario
-                    </DialogDescription>
-                  </DialogHeader>
+              <div className="flex gap-2">
+                <Dialog
+                  open={isAddUserModalOpen}
+                  onOpenChange={setIsAddUserModalOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+                      <Plus className="h-4 w-4" />
+                      Nuevo usuario
+                    </Button>
+                  </DialogTrigger>
+
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
+                        Agregar Nuevo Usuario
+                      </DialogTitle>
+                      <DialogDescription className="text-lg font-medium text-gray-700 mt-4">
+                        Completa la información del nuevo usuario
+                      </DialogDescription>
+                    </DialogHeader>
 
                   <div className="space-y-6 py-4">
                     <div className="grid grid-cols-1 gap-6">
@@ -969,18 +1207,50 @@ export default function Usuarios() {
                   </div>
                 </DialogContent>
               </Dialog>
-            </div>
+
+                {selectedUsers.length > 0 && (
+                  <>
+                    <Button
+                      onClick={handleBulkActivate}
+                      variant="outline"
+                      className="border-green-300 text-green-700 hover:bg-green-50"
+                    >
+                      Activar ({selectedUsers.length})
+                    </Button>
+                    <Button
+                      onClick={handleBulkDeactivate}
+                      variant="outline"
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      Desactivar ({selectedUsers.length})
+                    </Button>
+                  </>
+                )}
+              </div>
 
             {/* Search and Pagination Controls */}
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar usuarios..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="w-64"
-                />
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar por nombre, email, username, teléfono, rol..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="w-80 pr-8"
+                  />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSearch}
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                      title="Limpiar búsqueda"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">Mostrar</span>
@@ -1002,6 +1272,33 @@ export default function Usuarios() {
                   registros por página
                 </span>
               </div>
+
+              {/* Go to Page */}
+              {pagination.last_page > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Ir a página:</span>
+                  <form onSubmit={handleGoToPage} className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      max={pagination.last_page}
+                      value={goToPage}
+                      onChange={(e) => setGoToPage(e.target.value)}
+                      placeholder="1"
+                      className="w-16 h-8 text-center"
+                    />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2"
+                      disabled={!goToPage || parseInt(goToPage) < 1 || parseInt(goToPage) > pagination.last_page}
+                    >
+                      Ir
+                    </Button>
+                  </form>
+                </div>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1012,6 +1309,7 @@ export default function Usuarios() {
                 Actualizar
               </Button>
             </div>
+          </div>
           </CardHeader>
 
           <CardContent>
@@ -1036,6 +1334,12 @@ export default function Usuarios() {
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
+                      <TableHead className="font-semibold text-gray-900 w-12">
+                        <Checkbox
+                          checked={selectedUsers.length === usuarios.length && usuarios.length > 0}
+                          onCheckedChange={handleSelectAllUsers}
+                        />
+                      </TableHead>
                       <TableHead className="font-semibold text-gray-900">
                         ID
                       </TableHead>
@@ -1052,6 +1356,9 @@ export default function Usuarios() {
                         Rol
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900 text-center">
+                        Estado
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
                         Acciones
                       </TableHead>
                     </TableRow>
@@ -1060,7 +1367,7 @@ export default function Usuarios() {
                     {usuarios.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={8}
                           className="text-center py-8 text-gray-500"
                         >
                           No se encontraron usuarios
@@ -1069,6 +1376,12 @@ export default function Usuarios() {
                     ) : (
                       usuarios.map((user) => (
                         <TableRow key={user.id} className="hover:bg-gray-50">
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedUsers.includes(user.id)}
+                              onCheckedChange={(checked) => handleSelectUser(user.id, checked)}
+                            />
+                          </TableCell>
                           <TableCell className="text-gray-600">
                             {user.id}
                           </TableCell>
@@ -1087,6 +1400,37 @@ export default function Usuarios() {
                                 ? user.rol.nombre
                                 : user.rol || "Sin rol"}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Badge
+                                className={
+                                  user.active === 'true' || user.active === true
+                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                    : "bg-red-100 text-red-800 hover:bg-red-200"
+                                }
+                              >
+                                {user.active === 'true' || user.active === true ? "Activo" : "Inactivo"}
+                              </Badge>
+                              {user.rol_id === 1 ? null : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleToggleUserActivation(user)}
+                                  className={`w-8 h-8 p-0 rounded-lg transition-all duration-200 hover:shadow-md ${
+                                    user.active === 'true' || user.active === true
+                                      ? "bg-red-500 hover:bg-red-600"
+                                      : "bg-green-500 hover:bg-green-600"
+                                  }`}
+                                  title={
+                                    user.active === 'true' || user.active === true
+                                      ? "Desactivar usuario"
+                                      : "Activar usuario"
+                                  }
+                                >
+                                  {user.active === 'true' || user.active === true ? "❌" : "✅"}
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-2">
@@ -1124,41 +1468,140 @@ export default function Usuarios() {
               </div>
             )}
 
-            {/* Pagination */}
+            {/* Enhanced Pagination */}
             {!usuariosLoading && !usuariosError && usuarios.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
                 <div className="text-sm text-gray-500">
                   Mostrando{" "}
-                  {(pagination.current_page - 1) * pagination.per_page + 1} a{" "}
-                  {Math.min(
-                    pagination.current_page * pagination.per_page,
-                    pagination.total
-                  )}{" "}
-                  de {pagination.total} usuarios
+                  <span className="font-medium text-gray-900">
+                    {(pagination.current_page - 1) * pagination.per_page + 1}
+                  </span>{" "}
+                  a{" "}
+                  <span className="font-medium text-gray-900">
+                    {Math.min(
+                      pagination.current_page * pagination.per_page,
+                      pagination.total
+                    )}
+                  </span>{" "}
+                  de{" "}
+                  <span className="font-medium text-gray-900">
+                    {pagination.total}
+                  </span>{" "}
+                  usuarios
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-1">
+                  {/* First Page Button */}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      handlePageChange(pagination.current_page - 1)
-                    }
+                    onClick={() => handlePageChange(1)}
                     disabled={pagination.current_page <= 1}
+                    className="h-8 w-8 p-0"
+                    title="Primera página"
                   >
+                    <ChevronFirst className="h-4 w-4" />
+                  </Button>
+
+                  {/* Previous Page Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.current_page - 1)}
+                    disabled={pagination.current_page <= 1}
+                    className="h-8 px-3"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
                     Anterior
                   </Button>
-                  <span className="text-sm text-gray-600">
-                    Página {pagination.current_page} de {pagination.last_page}
-                  </span>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1 mx-2">
+                    {(() => {
+                      const currentPage = pagination.current_page;
+                      const lastPage = pagination.last_page;
+                      const pages = [];
+
+                      // Always show first page
+                      if (currentPage > 3) {
+                        pages.push(
+                          <Button
+                            key={1}
+                            variant={1 === currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(1)}
+                            className="h-8 w-8 p-0"
+                          >
+                            1
+                          </Button>
+                        );
+                        if (currentPage > 4) {
+                          pages.push(<span key="ellipsis1" className="px-2 text-gray-400">...</span>);
+                        }
+                      }
+
+                      // Show pages around current page
+                      const start = Math.max(1, currentPage - 2);
+                      const end = Math.min(lastPage, currentPage + 2);
+
+                      for (let i = start; i <= end; i++) {
+                        pages.push(
+                          <Button
+                            key={i}
+                            variant={i === currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(i)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {i}
+                          </Button>
+                        );
+                      }
+
+                      // Always show last page
+                      if (currentPage < lastPage - 2) {
+                        if (currentPage < lastPage - 3) {
+                          pages.push(<span key="ellipsis2" className="px-2 text-gray-400">...</span>);
+                        }
+                        pages.push(
+                          <Button
+                            key={lastPage}
+                            variant={lastPage === currentPage ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(lastPage)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {lastPage}
+                          </Button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+                  </div>
+
+                  {/* Next Page Button */}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() =>
-                      handlePageChange(pagination.current_page + 1)
-                    }
+                    onClick={() => handlePageChange(pagination.current_page + 1)}
                     disabled={pagination.current_page >= pagination.last_page}
+                    className="h-8 px-3"
                   >
                     Siguiente
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+
+                  {/* Last Page Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.last_page)}
+                    disabled={pagination.current_page >= pagination.last_page}
+                    className="h-8 w-8 p-0"
+                    title="Última página"
+                  >
+                    <ChevronLast className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -1213,8 +1656,10 @@ export default function Usuarios() {
                     </TableRow>
                   ) : (
                     modulos.map((modulo) => {
-                      const stats =
-                        moduleStats.find((s) => s.id === modulo.id) || {};
+                      // Safe access to moduleStats with proper type checking
+                      const stats = Array.isArray(moduleStats)
+                        ? moduleStats.find((s) => s && s.id === modulo.id) || {}
+                        : {};
                       return (
                         <TableRow key={modulo.id} className="hover:bg-gray-50">
                           <TableCell className="text-gray-600">
@@ -1224,7 +1669,9 @@ export default function Usuarios() {
                             {modulo.name}
                           </TableCell>
                           <TableCell className="text-gray-600">
-                            {stats.usuarios_con_acceso || 0} usuarios
+                            {(stats && typeof stats.usuarios_con_acceso === 'number')
+                              ? stats.usuarios_con_acceso
+                              : 0} usuarios
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-2">
@@ -1444,7 +1891,6 @@ export default function Usuarios() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
       {/* Edit User Modal */}
       <Dialog open={isEditUserModalOpen} onOpenChange={setIsEditUserModalOpen}>
@@ -1620,75 +2066,139 @@ export default function Usuarios() {
 
           {/* Permissions Table */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Permisos</h3>
-            <div className="overflow-hidden rounded-lg border border-gray-200">
-              <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-900">
-                      Módulo
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
-                      Leer
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
-                      Escribir
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
-                      Crear
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
-                      Actualizar
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Gestión de Permisos</h3>
+              {selectedUser && selectedUser.rol_id === 1 && (
+                <Badge className="bg-yellow-100 text-yellow-800">
+                  Super Administrador - Acceso Completo
+                </Badge>
+              )}
+            </div>
+
+            {selectedUser && selectedUser.rol_id === 1 ? (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-800">
+                  Los super administradores tienen acceso completo a todos los módulos del sistema.
+                  No es necesario configurar permisos individuales.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead className="font-semibold text-gray-900">
+                        Módulo
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
+                        Leer
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
+                        Insertar
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
+                        Editar
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
+                        Eliminar
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-900 text-center">
+                        Acciones
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
-                  {Object.entries(permissions).map(([module, perms]) => (
-                    <TableRow key={module}>
-                      <TableCell className="font-medium capitalize">
-                        {module}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={perms.leer}
-                          onCheckedChange={(checked) =>
-                            handlePermissionChange(module, "leer", checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={perms.escribir}
-                          onCheckedChange={(checked) =>
-                            handlePermissionChange(module, "escribir", checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={perms.crear}
-                          onCheckedChange={(checked) =>
-                            handlePermissionChange(module, "crear", checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={perms.actualizar}
-                          onCheckedChange={(checked) =>
-                            handlePermissionChange(
-                              module,
-                              "actualizar",
-                              checked
-                            )
-                          }
-                        />
+                  {userPermissions && userPermissions.length > 0 ? (
+                    userPermissions.map((permission) => (
+                      <TableRow key={permission.modulo_id}>
+                        <TableCell className="font-medium capitalize">
+                          {permission.modulo_name}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={permission.leer}
+                            onCheckedChange={(checked) =>
+                              handleUserPermissionChange(permission.modulo_id, "leer", checked)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={permission.insertar}
+                            onCheckedChange={(checked) =>
+                              handleUserPermissionChange(permission.modulo_id, "insertar", checked)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={permission.editar}
+                            onCheckedChange={(checked) =>
+                              handleUserPermissionChange(permission.modulo_id, "editar", checked)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={permission.eliminar}
+                            onCheckedChange={(checked) =>
+                              handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex gap-1 justify-center">
+                            <Button
+                              size="sm"
+                              onClick={() => handleGrantAllPermissions(permission.modulo_id)}
+                              className="w-6 h-6 p-0 bg-green-500 hover:bg-green-600 text-xs"
+                              title="Conceder todos los permisos"
+                            >
+                              ✓
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleRevokeAllPermissions(permission.modulo_id)}
+                              className="w-6 h-6 p-0 bg-red-500 hover:bg-red-600 text-xs"
+                              title="Revocar todos los permisos"
+                            >
+                              ✗
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        No hay permisos configurados para este usuario
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
+              <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  {userPermissions ? userPermissions.length : 0} módulos configurados
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setIsEditUserModalOpen(false)}
+                    variant="outline"
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleSaveUserPermissions}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Guardar Permisos
+                  </Button>
+                </div>
+              </div>
             </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-6">
@@ -1831,6 +2341,7 @@ export default function Usuarios() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }

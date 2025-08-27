@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import authService from "../services/authService";
+import permissionService from "../services/permissionService";
 
 // Estado inicial
 const initialState = {
@@ -37,6 +38,8 @@ const authReducer = (state, action) => {
       };
 
     case AUTH_ACTIONS.LOGIN_SUCCESS:
+      // Inicializar servicio de permisos con los datos del usuario
+      permissionService.initialize(action.payload.user);
       return {
         ...state,
         user: action.payload.user,
@@ -55,6 +58,8 @@ const authReducer = (state, action) => {
       };
 
     case AUTH_ACTIONS.LOGOUT:
+      // Limpiar permisos al hacer logout
+      permissionService.clear();
       return {
         ...state,
         user: null,
@@ -64,6 +69,10 @@ const authReducer = (state, action) => {
       };
 
     case AUTH_ACTIONS.SET_USER:
+      // Inicializar permisos si hay usuario
+      if (action.payload.user) {
+        permissionService.initialize(action.payload.user);
+      }
       return {
         ...state,
         user: action.payload.user,
@@ -373,9 +382,19 @@ export const AuthProvider = ({ children }) => {
     hasRole,
     hasPermission,
 
+    // Verificaciones de permisos específicas
+    canRead: (module) => permissionService.canRead(module),
+    canInsert: (module) => permissionService.canInsert(module),
+    canEdit: (module) => permissionService.canEdit(module),
+    canDelete: (module) => permissionService.canDelete(module),
+    hasAnyPermission: (module) => permissionService.hasAnyPermission(module),
+    canAccessRoute: (route) => permissionService.canAccessRoute(route),
+    isAdmin: () => permissionService.isAdmin(),
+
     // Utilidades
     getToken: () => authService.getToken(),
     isTokenExpiringSoon: () => authService.isTokenExpiringSoon(),
+    permissionService, // Exponer el servicio completo para casos avanzados
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

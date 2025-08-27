@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends ApiController
 {
@@ -125,6 +126,17 @@ class AuthController extends ApiController
                 'user_agent' => $request->userAgent(),
             ]);
 
+            // Cargar permisos del usuario
+            $permisos = $this->getUserPermissionsForLogin($usuario->id);
+
+            // Debug: Log permissions for troubleshooting
+            Log::info('Login permissions loaded', [
+                'user_id' => $usuario->id,
+                'role_id' => $usuario->rol_id,
+                'permissions_count' => count($permisos),
+                'permissions' => $permisos
+            ]);
+
             $response = [
                 'user' => [
                     'id' => $usuario->id,
@@ -133,14 +145,35 @@ class AuthController extends ApiController
                     'email' => $usuario->email,
                     'username' => $usuario->username,
                     'rol' => $usuario->rol?->nombre,
+                    'rol_id' => $usuario->rol_id,
                     'servicio' => $usuario->servicio?->name,
+                    'permissions' => $permisos,
                 ],
                 'token' => $token,
                 'token_type' => 'Bearer',
                 'expires_at' => now()->addHours(24)->toISOString(),
             ];
 
-            return ResponseFormatter::success($response, 'Login exitoso');
+            // Return response directly to match the expected format
+            return response()->json([
+                'success' => true,
+                'message' => 'Login exitoso - UPDATED VERSION',
+                'user' => [
+                    'id' => $usuario->id,
+                    'nombre' => $usuario->nombre,
+                    'apellido' => $usuario->apellido,
+                    'email' => $usuario->email,
+                    'username' => $usuario->username,
+                    'rol' => $usuario->rol?->nombre,
+                    'rol_id' => $usuario->rol_id,
+                    'servicio' => $usuario->servicio?->name,
+                    'permissions' => $permisos,
+                    'debug_permissions_count' => count($permisos),
+                ],
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'expires_at' => now()->addHours(24)->toISOString(),
+            ], 200);
         } catch (\Exception $e) {
             // Log del error sin exponer información sensible
             Log::error('Login error', [
@@ -175,13 +208,29 @@ class AuthController extends ApiController
                 'id_empresa' => $request->id_empresa ?? 0,
                 'estado' => 1, // Activo
                 'sede_id' => '1', // Sede por defecto
-                'anio_plan' => date('Y')
+                'anio_plan' => date('Y'),
+                'active' => 'true' // Activar cuenta por defecto
             ]);
+
+            // Crear permisos por defecto para usuario normal
+            $this->createDefaultPermissions($usuario->id);
 
             $token = $usuario->createToken('eva-token')->plainTextToken;
 
+            // Cargar permisos del usuario recién creado
+            $permisos = $this->getUserPermissionsForLogin($usuario->id);
+
             $response = [
-                'user' => $usuario,
+                'user' => [
+                    'id' => $usuario->id,
+                    'nombre' => $usuario->nombre,
+                    'apellido' => $usuario->apellido,
+                    'email' => $usuario->email,
+                    'username' => $usuario->username,
+                    'rol' => 'Usuario normal',
+                    'rol_id' => 4,
+                    'permissions' => $permisos,
+                ],
                 'token' => $token,
                 'token_type' => 'Bearer'
             ];
@@ -419,6 +468,173 @@ class AuthController extends ApiController
                 'Error ejecutando resetPassword: ' . $e->getMessage(),
                 500
             );
+        }
+    }
+
+    /**
+     * Obtener permisos del usuario para incluir en la respuesta de login
+     *
+     * @param int $userId
+     * @return array
+     */
+    private function getUserPermissionsForLogin(int $userId): array
+    {
+        try {
+            Log::info('getUserPermissions called', ['user_id' => $userId]);
+
+            // Obtener información del usuario para verificar si es Super Admin
+            $usuario = DB::table('usuarios')->where('id', $userId)->first();
+
+            Log::info('User data retrieved', [
+                'user_id' => $userId,
+                'user_found' => !!$usuario,
+                'role_id' => $usuario ? $usuario->rol_id : null
+            ]);
+
+            // Si es Super Administrador (Role ID 1), dar acceso completo a todos los módulos
+            if ($usuario && $usuario->rol_id == 1) {
+                Log::info('Super Administrator detected, granting full permissions', [
+                    'user_id' => $userId,
+                    'role_id' => $usuario->rol_id
+                ]);
+
+                // Crear permisos completos para módulos comunes
+                $fullPermissions = [
+                    'equipos' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'usuarios' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'mantenimiento' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'reportes' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ],
+                    'configuracion' => [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => true,
+                    ]
+                ];
+
+                Log::info('Full permissions granted', ['permissions_count' => count($fullPermissions)]);
+                return $fullPermissions;
+            }
+
+            // Para otros usuarios, cargar permisos específicos desde la tabla acciones
+            $permisos = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $userId)
+                ->select([
+                    'modulos.name as modulo',
+                    'acciones.leer',
+                    'acciones.insertar',
+                    'acciones.editar',
+                    'acciones.eliminar'
+                ])
+                ->get();
+
+            Log::info('Regular user permissions loaded', [
+                'user_id' => $userId,
+                'permissions_count' => $permisos->count()
+            ]);
+
+            // Convertir a formato más fácil de usar en el frontend
+            $permissionsArray = [];
+            foreach ($permisos as $permiso) {
+                $permissionsArray[$permiso->modulo] = [
+                    'leer' => (bool) $permiso->leer,
+                    'insertar' => (bool) $permiso->insertar,
+                    'editar' => (bool) $permiso->editar,
+                    'eliminar' => (bool) $permiso->eliminar,
+                ];
+            }
+
+            return $permissionsArray;
+        } catch (\Exception $e) {
+            Log::error('Error loading user permissions', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Crear permisos por defecto para un usuario normal (rol_id = 4)
+     *
+     * @param int $userId
+     * @return void
+     */
+    private function createDefaultPermissions(int $userId): void
+    {
+        try {
+            // Permisos por defecto para usuario normal según la documentación
+            $defaultPermissions = [
+                'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 0, 'eliminar' => 0],
+                'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'servicios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'bajas equipos biomedicos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'invimas' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'soportes compra' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'repuestos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'estado equipos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'contactos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'reportes' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'planes mantenimiento' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'capacitaciones' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'equipo archivos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'tickets activos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'tickets cerrados' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'observaciones' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'areas' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'contingencias' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'guias rapidas' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'manuales' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            ];
+
+            foreach ($defaultPermissions as $moduleName => $permissions) {
+                // Obtener el ID del módulo
+                $modulo = DB::table('modulos')->where('name', $moduleName)->first();
+
+                if ($modulo) {
+                    DB::table('acciones')->insert([
+                        'usuario_id' => $userId,
+                        'modulo_id' => $modulo->id,
+                        'leer' => $permissions['leer'],
+                        'insertar' => $permissions['insertar'],
+                        'editar' => $permissions['editar'],
+                        'eliminar' => $permissions['eliminar'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            Log::info('Default permissions created for user', ['user_id' => $userId]);
+        } catch (\Exception $e) {
+            Log::error('Error creating default permissions', [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 

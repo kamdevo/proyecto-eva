@@ -35,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'security.headers' => \App\Http\Middleware\SecurityHeaders::class,
             'advanced.throttle' => \App\Http\Middleware\AdvancedRateLimit::class,
             'storage.cors' => \App\Http\Middleware\StorageCorsMiddleware::class,
+            'permission' => \App\Http\Middleware\PermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

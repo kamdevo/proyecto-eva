@@ -19,9 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X, Loader2, FileText, AlertCircle } from "lucide-react";
+import { Upload, X, Loader2, FileText, AlertCircle, Search, ExternalLink } from "lucide-react";
 import { useOrdenesCompra } from "../../hooks/useOrdenesCompra";
 import { useTiposCompra, useProveedores } from "../../hooks/useTiposCompra";
+import { SecopConsultationModal } from "./secop-consultation-modal";
 
 export function AddPurchaseOrderModal({ open, onOpenChange }) {
   const [dragActive, setDragActive] = useState(false);
@@ -29,6 +30,8 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [secopModalOpen, setSecopModalOpen] = useState(false);
+  const [selectedSecopProcess, setSelectedSecopProcess] = useState(null);
 
   // Hooks para datos reales
   const { createOrden } = useOrdenesCompra();
@@ -44,6 +47,8 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
     monto: "",
     descripcion: "",
     status: 1,
+    secop_id: "",
+    url_secop: "",
   });
 
   const handleDrag = (e) => {
@@ -100,6 +105,23 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
         submitData.append("proveedor_id", formData.proveedor_id);
       }
 
+      if (formData.monto) {
+        submitData.append("monto", formData.monto);
+      }
+
+      if (formData.descripcion) {
+        submitData.append("descripcion", formData.descripcion);
+      }
+
+      // Datos SECOP
+      if (formData.secop_id) {
+        submitData.append("secop_id", formData.secop_id);
+      }
+
+      if (formData.url_secop) {
+        submitData.append("url_secop", formData.url_secop);
+      }
+
       if (selectedFile) {
         submitData.append("file", selectedFile);
       }
@@ -109,12 +131,17 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
       // Limpiar formulario y cerrar modal
       setFormData({
         orden: "",
-        fecha: "",
+        fecha: new Date().toISOString().split("T")[0],
         proveedor_id: "",
         tipo_compra_id: "",
+        monto: "",
+        descripcion: "",
         status: 1,
+        secop_id: "",
+        url_secop: "",
       });
       setSelectedFile(null);
+      setSelectedSecopProcess(null);
       onOpenChange(false);
 
       alert("Orden de compra creada exitosamente");
@@ -126,17 +153,34 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
     }
   };
 
+  // Manejar selección de proceso SECOP
+  const handleSecopProcessSelect = (process) => {
+    setSelectedSecopProcess(process);
+    setFormData(prev => ({
+      ...prev,
+      secop_id: process.uid || process.numero_constancia || "",
+      url_secop: process.url_secop || "",
+      descripcion: prev.descripcion || process.objeto || "",
+    }));
+    console.log('🔗 [SECOP] Proceso seleccionado:', process);
+  };
+
   // Limpiar formulario al cerrar modal
   useEffect(() => {
     if (!open) {
       setFormData({
         orden: "",
-        fecha: "",
+        fecha: new Date().toISOString().split("T")[0],
         proveedor_id: "",
         tipo_compra_id: "",
+        monto: "",
+        descripcion: "",
         status: 1,
+        secop_id: "",
+        url_secop: "",
       });
       setSelectedFile(null);
+      setSelectedSecopProcess(null);
     }
   }, [open]);
 
@@ -273,6 +317,96 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             </Select>
           </div>
 
+          {/* Sección SECOP */}
+          <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-blue-800">
+                Integración SECOP
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSecopModalOpen(true)}
+                className="text-xs"
+              >
+                <Search className="w-3 h-3 mr-1" />
+                Consultar SECOP
+              </Button>
+            </div>
+
+            {selectedSecopProcess && (
+              <div className="p-3 bg-white rounded border border-green-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-green-800">
+                    Proceso SECOP Seleccionado
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSecopProcess(null);
+                      setFormData(prev => ({
+                        ...prev,
+                        secop_id: "",
+                        url_secop: "",
+                      }));
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div><strong>Entidad:</strong> {selectedSecopProcess.entidad}</div>
+                  <div><strong>Objeto:</strong> {selectedSecopProcess.objeto}</div>
+                  <div><strong>UID:</strong> {selectedSecopProcess.uid}</div>
+                  {selectedSecopProcess.url_secop && (
+                    <div className="flex items-center gap-1">
+                      <strong>URL:</strong>
+                      <a
+                        href={selectedSecopProcess.url_secop}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        Ver en SECOP <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <Label htmlFor="secop_id" className="text-xs font-medium text-slate-700">
+                  ID SECOP
+                </Label>
+                <Input
+                  id="secop_id"
+                  value={formData.secop_id}
+                  onChange={(e) => handleInputChange("secop_id", e.target.value)}
+                  placeholder="UID o número de constancia SECOP"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label htmlFor="url_secop" className="text-xs font-medium text-slate-700">
+                  URL SECOP
+                </Label>
+                <Input
+                  id="url_secop"
+                  value={formData.url_secop}
+                  onChange={(e) => handleInputChange("url_secop", e.target.value)}
+                  placeholder="URL del proceso en SECOP"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label className="text-xs sm:text-sm font-medium text-slate-700">
               Archivo asociado<span className="text-destructive">*</span>
@@ -339,6 +473,13 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
           </Button>
         </div>
       </DialogContent>
+
+      {/* Modal de consulta SECOP */}
+      <SecopConsultationModal
+        open={secopModalOpen}
+        onOpenChange={setSecopModalOpen}
+        onSelectProcess={handleSecopProcessSelect}
+      />
     </Dialog>
   );
 }

@@ -15,17 +15,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, X, Filter, Loader2 } from "lucide-react";
+import { Search, X, Filter, Loader2, Building, ExternalLink } from "lucide-react";
 import { useOrdenesCompra } from "../../hooks/useOrdenesCompra";
 import { useTiposCompra } from "../../hooks/useTiposCompra";
+import { useSecopService } from "../../hooks/useSecopService";
+import { SecopConsultationModal } from "./secop-consultation-modal";
 
 export function QueryPurchaseOrderModal({ open, onOpenChange }) {
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [secopModalOpen, setSecopModalOpen] = useState(false);
+  const [secopResults, setSecopResults] = useState([]);
+  const [showSecopTab, setShowSecopTab] = useState(false);
 
   // Hooks para datos reales
   const { searchOrdenesAvanzada } = useOrdenesCompra();
   const { tipos, loading: tiposLoading } = useTiposCompra();
+  const { searchProcesses, processes, loading: secopLoading } = useSecopService();
 
   // Estado del formulario de búsqueda
   const [searchForm, setSearchForm] = useState({
@@ -38,8 +44,25 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
     monto_max: "",
   });
 
+  // Estado del formulario de búsqueda SECOP
+  const [secopSearchForm, setSecopSearchForm] = useState({
+    entidad: "",
+    objeto: "",
+    search: "",
+    fecha_inicio: "",
+    fecha_fin: "",
+    valor_minimo: "",
+  });
+
   const handleInputChange = (field, value) => {
     setSearchForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSecopInputChange = (field, value) => {
+    setSecopSearchForm((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -65,6 +88,26 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
     } catch (error) {
       console.error("Error searching orders:", error);
       alert("Error al buscar órdenes: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSecopSearch = async () => {
+    try {
+      setLoading(true);
+
+      // Prepare SECOP search filters
+      const filters = Object.fromEntries(
+        Object.entries(secopSearchForm).filter(([_, value]) => value.trim() !== '')
+      );
+
+      await searchProcesses(filters);
+      setSecopResults(processes || []);
+      console.log('🔍 [SECOP] Search completed:', processes?.length || 0, 'results');
+    } catch (error) {
+      console.error("Error searching SECOP:", error);
+      alert("Error al buscar en SECOP: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -109,10 +152,37 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
           <div className="h-1 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
         </DialogHeader>
 
+        {/* Tabs for switching between Purchase Orders and SECOP */}
+        <div className="flex border-b border-gray-200">
+          <button
+            className={`px-4 py-2 text-sm font-medium ${
+              !showSecopTab
+                ? 'border-b-2 border-teal-500 text-teal-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setShowSecopTab(false)}
+          >
+            Órdenes de Compra
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium ${
+              showSecopTab
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setShowSecopTab(true)}
+          >
+            <Building className="w-4 h-4 inline mr-1" />
+            Consulta SECOP
+          </button>
+        </div>
+
         <div className="space-y-4 py-4">
-          <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4">
-            Buscar orden de compra
-          </h3>
+          {!showSecopTab ? (
+            <>
+              <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4">
+                Buscar orden de compra
+              </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-2">
@@ -276,10 +346,182 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
               />
             </div>
           </div>
+            </>
+          ) : (
+            <>
+              {/* SECOP Search Form */}
+              <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4 flex items-center gap-2">
+                <Building className="w-5 h-5 text-blue-600" />
+                Consulta SECOP - Procesos de Contratación Pública
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
+                    Búsqueda General
+                  </Label>
+                  <Input
+                    placeholder="Buscar por entidad, objeto o número..."
+                    value={secopSearchForm.search}
+                    onChange={(e) => handleSecopInputChange("search", e.target.value)}
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
+                    Entidad
+                  </Label>
+                  <Input
+                    placeholder="Nombre de la entidad"
+                    value={secopSearchForm.entidad}
+                    onChange={(e) => handleSecopInputChange("entidad", e.target.value)}
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
+                    Objeto del Contrato
+                  </Label>
+                  <Input
+                    placeholder="Descripción del objeto"
+                    value={secopSearchForm.objeto}
+                    onChange={(e) => handleSecopInputChange("objeto", e.target.value)}
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
+                    Valor Mínimo
+                  </Label>
+                  <Input
+                    type="number"
+                    placeholder="Valor mínimo en COP"
+                    value={secopSearchForm.valor_minimo}
+                    onChange={(e) => handleSecopInputChange("valor_minimo", e.target.value)}
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
+                    Fecha Inicio
+                  </Label>
+                  <Input
+                    type="date"
+                    value={secopSearchForm.fecha_inicio}
+                    onChange={(e) => handleSecopInputChange("fecha_inicio", e.target.value)}
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
+                    Fecha Fin
+                  </Label>
+                  <Input
+                    type="date"
+                    value={secopSearchForm.fecha_fin}
+                    onChange={(e) => handleSecopInputChange("fecha_fin", e.target.value)}
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* SECOP Search Button */}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSecopSearchForm({
+                      entidad: "",
+                      objeto: "",
+                      search: "",
+                      fecha_inicio: "",
+                      fecha_fin: "",
+                      valor_minimo: "",
+                    });
+                    setSecopResults([]);
+                  }}
+                  className="px-4 h-9 text-sm"
+                  disabled={loading}
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Limpiar
+                </Button>
+                <Button
+                  onClick={handleSecopSearch}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 h-9 text-sm"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Consultando...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Consultar SECOP
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* SECOP Results */}
+              {processes && processes.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <h4 className="text-sm font-medium text-slate-800 mb-3">
+                    Resultados SECOP ({processes.length})
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {processes.map((proceso, index) => (
+                      <div key={proceso.uid || index} className="p-3 border rounded text-xs bg-blue-50">
+                        <div className="font-medium text-blue-800">
+                          {proceso.entidad || 'Entidad no especificada'}
+                        </div>
+                        <div className="text-slate-700 mt-1">
+                          <strong>Objeto:</strong> {proceso.objeto || 'N/A'}
+                        </div>
+                        <div className="text-slate-600 mt-1 flex justify-between items-center">
+                          <span>
+                            <strong>Valor:</strong> {proceso.valor ?
+                              new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(proceso.valor) : 'N/A'}
+                          </span>
+                          <span>
+                            <strong>Fecha:</strong> {proceso.fecha_firma ?
+                              new Date(proceso.fecha_firma).toLocaleDateString('es-CO') : 'N/A'}
+                          </span>
+                        </div>
+                        {proceso.url_secop && (
+                          <div className="mt-2">
+                            <a
+                              href={proceso.url_secop}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs flex items-center gap-1"
+                            >
+                              Ver en SECOP <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Resultados de búsqueda */}
-        {searchResults.length > 0 && (
+        {/* Resultados de búsqueda de órdenes de compra */}
+        {!showSecopTab && searchResults.length > 0 && (
           <div className="mt-4 border-t pt-4">
             <h4 className="text-sm font-medium text-slate-800 mb-3">
               Resultados de búsqueda ({searchResults.length})
@@ -302,45 +544,72 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
-            disabled={loading}
-          >
-            Cerrar
-          </Button>
-          <div className="flex flex-col sm:flex-row gap-2">
+        {/* Buttons - only show for Purchase Orders tab since SECOP has its own buttons */}
+        {!showSecopTab && (
+          <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
             <Button
               variant="outline"
-              onClick={handleClear}
-              className="w-full sm:w-auto px-4 h-9 text-sm"
+              onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
               disabled={loading}
             >
-              <Filter className="w-4 h-4 mr-2" />
-              Limpiar
+              Cerrar
             </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={handleClear}
+                className="w-full sm:w-auto px-4 h-9 text-sm"
+                disabled={loading}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Limpiar
+              </Button>
+              <Button
+                onClick={handleSearch}
+                className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Buscar
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Close button for SECOP tab */}
+        {showSecopTab && (
+          <div className="flex justify-center pt-4 border-t border-slate-200">
             <Button
-              onClick={handleSearch}
-              className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="px-6 h-9 text-sm"
               disabled={loading}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Buscando...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Buscar
-                </>
-              )}
+              Cerrar
             </Button>
           </div>
-        </div>
+        )}
       </DialogContent>
+
+      {/* SECOP Consultation Modal */}
+      <SecopConsultationModal
+        open={secopModalOpen}
+        onOpenChange={setSecopModalOpen}
+        onSelectProcess={(process) => {
+          console.log('🔗 [SECOP] Process selected from consultation modal:', process);
+          // You can add additional logic here if needed
+        }}
+      />
     </Dialog>
   );
 }
