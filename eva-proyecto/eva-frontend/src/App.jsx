@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
+import { RealTimeProvider } from "./contexts/RealTimeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Importa tus vistas
@@ -27,6 +28,12 @@ import Usuarios from "./components/Usuarios";
 import Navbar from "./components/Navbar";
 import IndustrialDevicesView from "./components/IndustrialDevices";
 import GestionTickets from "./components/GestionTickets";
+import TicketDashboard from "./components/TicketDashboard";
+import CreateTicketModal from "./components/modals/CreateTicketModal";
+import VirtualizedTicketList from "./components/VirtualizedTicketList";
+import AdvancedTicketFilters from "./components/AdvancedTicketFilters";
+import NotificationCenter from "./components/NotificationCenter";
+import TestTicketsPage from "./components/TestTicketsPage";
 import Footer from "./components/Footer";
 import EquiposBajas from "./components/EquiposBajas";
 import GuiasRapidas from "./components/GuiasRapidas";
@@ -199,6 +206,30 @@ function AppContent() {
               }
             />
             <Route
+              path="/tickets/dashboard"
+              element={
+                <ProtectedRoute>
+                  <TicketDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets/lista-virtual"
+              element={
+                <ProtectedRoute>
+                  <VirtualizedTicketList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets/test"
+              element={
+                <ProtectedRoute>
+                  <TestTicketsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
@@ -301,9 +332,11 @@ export default function App() {
     <Router>
       <ToastProvider>
         <AuthProvider>
-          <EquipmentSearchProvider>
-            <AppContent />
-          </EquipmentSearchProvider>
+          <RealTimeProvider>
+            <EquipmentSearchProvider>
+              <AppContent />
+            </EquipmentSearchProvider>
+          </RealTimeProvider>
         </AuthProvider>
       </ToastProvider>
     </Router>

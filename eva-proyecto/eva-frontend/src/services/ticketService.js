@@ -9,6 +9,7 @@
 
 import httpClient, { retryRequest } from './httpClient.js';
 import { API_ENDPOINTS, buildUrlWithParams } from '../config/api.js';
+import cacheService from './cacheService.js';
 
 class TicketService {
   constructor() {
@@ -28,9 +29,18 @@ class TicketService {
    */
   async getTickets(params = {}) {
     try {
+      // Generar clave de caché
+      const cacheKey = cacheService.generateKey('tickets:list', params);
+
+      // Intentar obtener del caché
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
       const url = buildUrlWithParams(API_ENDPOINTS.TICKETS.LIST, params);
-      
-      return await retryRequest(async () => {
+
+      const result = await retryRequest(async () => {
         const response = await httpClient.get(url);
         return {
           success: true,
@@ -39,6 +49,12 @@ class TicketService {
           message: response.data.message
         };
       });
+
+      // Guardar en caché
+      const ttl = cacheService.getTTLForType('tickets');
+      cacheService.set(cacheKey, result, ttl);
+
+      return result;
     } catch (error) {
       console.error('Error fetching tickets:', error);
       throw new Error(error.response?.data?.message || 'Error al obtener tickets');
@@ -52,12 +68,27 @@ class TicketService {
    */
   async getTicketById(id) {
     try {
+      // Generar clave de caché
+      const cacheKey = cacheService.generateKey('tickets:detail', { id });
+
+      // Intentar obtener del caché
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
       const response = await httpClient.get(API_ENDPOINTS.TICKETS.SHOW(id));
-      return {
+      const result = {
         success: true,
         data: response.data.data,
         message: response.data.message
       };
+
+      // Guardar en caché
+      const ttl = cacheService.getTTLForType('tickets');
+      cacheService.set(cacheKey, result, ttl);
+
+      return result;
     } catch (error) {
       console.error(`Error fetching ticket ${id}:`, error);
       throw new Error(error.response?.data?.message || 'Error al obtener ticket');
@@ -91,11 +122,17 @@ class TicketService {
         },
       });
 
-      return {
+      const result = {
         success: true,
         data: response.data.data,
         message: response.data.message
       };
+
+      // Invalidar caché de listas de tickets
+      cacheService.invalidatePattern('tickets:list:.*');
+      cacheService.invalidatePattern('tickets:stats:.*');
+
+      return result;
     } catch (error) {
       console.error('Error creating ticket:', error);
       throw new Error(error.response?.data?.message || 'Error al crear ticket');
@@ -111,11 +148,18 @@ class TicketService {
   async updateTicket(id, ticketData) {
     try {
       const response = await httpClient.put(API_ENDPOINTS.TICKETS.UPDATE(id), ticketData);
-      return {
+      const result = {
         success: true,
         data: response.data.data,
         message: response.data.message
       };
+
+      // Invalidar caché relacionado
+      cacheService.delete(cacheService.generateKey('tickets:detail', { id }));
+      cacheService.invalidatePattern('tickets:list:.*');
+      cacheService.invalidatePattern('tickets:stats:.*');
+
+      return result;
     } catch (error) {
       console.error(`Error updating ticket ${id}:`, error);
       throw new Error(error.response?.data?.message || 'Error al actualizar ticket');
@@ -130,10 +174,17 @@ class TicketService {
   async deleteTicket(id) {
     try {
       const response = await httpClient.delete(API_ENDPOINTS.TICKETS.DELETE(id));
-      return {
+      const result = {
         success: true,
         message: response.data.message
       };
+
+      // Invalidar caché relacionado
+      cacheService.delete(cacheService.generateKey('tickets:detail', { id }));
+      cacheService.invalidatePattern('tickets:list:.*');
+      cacheService.invalidatePattern('tickets:stats:.*');
+
+      return result;
     } catch (error) {
       console.error(`Error deleting ticket ${id}:`, error);
       throw new Error(error.response?.data?.message || 'Error al eliminar ticket');

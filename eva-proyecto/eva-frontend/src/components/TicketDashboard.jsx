@@ -8,24 +8,24 @@
  */
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
 import apiService from "../services/apiService";
 import { useToast } from "../contexts/ToastContext";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
+// import {
+//   BarChart,
+//   Bar,
+//   XAxis,
+//   YAxis,
+//   CartesianGrid,
+//   Tooltip,
+//   ResponsiveContainer,
+//   PieChart,
+//   Pie,
+//   Cell,
+//   LineChart,
+//   Line,
+// } from "recharts";
 import {
   Ticket,
   Clock,
@@ -258,7 +258,7 @@ export default function TicketDashboard() {
         </Card>
       </div>
 
-      {/* Gráficos */}
+      {/* Gráficos - Temporalmente deshabilitados */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Distribución por Categoría */}
         <Card>
@@ -266,25 +266,22 @@ export default function TicketDashboard() {
             <CardTitle>Distribución por Categoría</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={currentCategoryData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {currentCategoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+            <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+              <div className="text-center">
+                <p className="text-gray-500 mb-2">Gráfico de distribución</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {currentCategoryData.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded"
+                        style={{ backgroundColor: item.color }}
+                      ></div>
+                      <span>{item.name}: {item.value}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -294,20 +291,19 @@ export default function TicketDashboard() {
             <CardTitle>Tendencia Mensual</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={mockTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="tickets" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+              <div className="text-center">
+                <p className="text-gray-500 mb-2">Gráfico de tendencias</p>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  {mockTrendData.map((item, index) => (
+                    <div key={index} className="text-center">
+                      <div className="font-medium">{item.mes}</div>
+                      <div className="text-blue-600">{item.tickets}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import useTickets from "../hooks/useTickets";
 import TicketsImg from "@/assets/Img/imagenes/mis-tickets-img.jpg";
 
 import {
@@ -51,22 +50,9 @@ import {
 } from "lucide-react";
 
 export default function MyTickets() {
-  // Hook personalizado para gestión de tickets (solo mis tickets)
-  const {
-    tickets: myTickets,
-    loading,
-    error,
-    filters,
-    pagination,
-    search,
-    filterByStatus,
-    filterByPriority,
-    refresh,
-    changePage
-  } = useTickets({ tipo: 'mis_tickets' });
-
-  // Estados para UI
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   const tickets = [
