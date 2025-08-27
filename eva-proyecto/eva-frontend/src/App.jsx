@@ -222,14 +222,6 @@ function AppContent() {
               }
             />
             <Route
-              path="/tickets/test"
-              element={
-                <ProtectedRoute>
-                  <TestTicketsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
