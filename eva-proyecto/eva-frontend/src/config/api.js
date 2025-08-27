@@ -8,6 +8,7 @@ export const API_CONFIG = {
   // URLs base
   BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8001",
   API_URL: import.meta.env.VITE_API_URL || "http://localhost:8001/api",
+  WS_URL: import.meta.env.VITE_WS_URL || "ws://localhost:8001/ws",
 
   // Configuración de timeouts
   TIMEOUT: parseInt(import.meta.env.VITE_REQUEST_TIMEOUT) || 30000,
@@ -159,6 +160,59 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `/areas/${id}`,
     DELETE: (id) => `/areas/${id}`,
     EQUIPOS: (id) => `/areas/${id}/equipos`,
+  },
+
+  // Tickets
+  TICKETS: {
+    BASE: import.meta.env.VITE_TICKETS_URL || "/tickets",
+    LIST: "/tickets",
+    CREATE: "/tickets",
+    SHOW: (id) => `/tickets/${id}`,
+    UPDATE: (id) => `/tickets/${id}`,
+    DELETE: (id) => `/tickets/${id}`,
+
+    // Gestión específica de tickets
+    ASSIGN: (id) => `/tickets/${id}/asignar`,
+    RESOLVE: (id) => `/tickets/${id}/resolver`,
+    CLOSE: (id) => `/tickets/${id}/cerrar`,
+    REOPEN: (id) => `/tickets/${id}/reabrir`,
+    CHANGE_CATEGORY: (id) => `/tickets/${id}/cambiar-categoria`,
+    CHANGE_PRIORITY: (id) => `/tickets/${id}/cambiar-prioridad`,
+
+    // Filtros de tickets
+    FILTER_BY_STATUS: (status) => `/tickets/filtrar/estado/${status}`,
+    FILTER_BY_CATEGORY: (category) => `/tickets/filtrar/categoria/${category}`,
+    FILTER_BY_PRIORITY: (priority) => `/tickets/filtrar/prioridad/${priority}`,
+    FILTER_BY_ASSIGNED: (user) => `/tickets/filtrar/asignado/${user}`,
+
+    // Estados específicos
+    OPEN: "/tickets/abiertos",
+    PENDING: "/tickets/pendientes",
+    RESOLVED: "/tickets/resueltos",
+    OVERDUE: "/tickets/vencidos",
+    MY_TICKETS: "/tickets/mis-tickets",
+
+    // Estadísticas
+    STATS_GENERAL: "/tickets/estadisticas/general",
+    STATS_BY_CATEGORY: "/tickets/estadisticas/por-categoria",
+    STATS_RESOLUTION_TIME: "/tickets/estadisticas/tiempo-resolucion",
+    STATS_SATISFACTION: "/tickets/estadisticas/satisfaccion",
+
+    // Seguimiento
+    HISTORY: (id) => `/tickets/${id}/historial`,
+    COMMENTS: (id) => `/tickets/${id}/comentarios`,
+    ADD_COMMENT: (id) => `/tickets/${id}/comentarios`,
+
+    // Alertas y notificaciones
+    ALERTS: "/tickets/alertas",
+    NOTIFY_OVERDUE: "/tickets/notificar-vencimientos",
+
+    // Configuración
+    CONFIG: "/tickets/configuracion",
+    UPDATE_CONFIG: "/tickets/configuracion",
+
+    // Exportación
+    EXPORT: "/tickets/export",
   },
 
   // Dashboard

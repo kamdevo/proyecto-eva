@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import useTickets from "../hooks/useTickets";
 import {
   Select,
   SelectContent,
@@ -87,6 +88,19 @@ const searchOptions = [
 ];
 
 export default function ClosedTickets() {
+  // Hook personalizado para tickets cerrados
+  const {
+    tickets: closedTickets,
+    loading,
+    error,
+    filters,
+    pagination,
+    search,
+    refresh,
+    changePage
+  } = useTickets({ estado: 'cerrado' });
+
+  // Estados para UI
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("todos");

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import WorkOrderModal from "./modals/work-order-modal";
+import useTickets from "../hooks/useTickets";
 import {
   Search,
   FolderOpen,
@@ -13,15 +14,39 @@ import {
   Calendar,
   User,
   Building,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 export default function GestionTickets() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  // Hook personalizado para gestión de tickets
+  const {
+    tickets,
+    loading,
+    error,
+    filters,
+    pagination,
+    search,
+    filterByStatus,
+    filterByPriority,
+    refresh,
+    changePage
+  } = useTickets();
+
+  // Estados para UI
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
 
-  const ticketsData = [
+  // Funciones de manejo simplificadas
+  const handleSearch = (term) => search(term);
+  const handleStatusFilter = (status) => filterByStatus(status);
+  const handlePriorityFilter = (priority) => filterByPriority(priority);
+  const handlePageChange = (page) => changePage(page);
+  const refreshTickets = () => refresh();
+
+  // Datos mock para fallback (se mantendrán temporalmente)
+  const ticketsDataFallback = [
     {
       id: "2024-001",
       equipment: "DESFIBRILADOR CON MARCAPASOS",
@@ -135,18 +160,8 @@ export default function GestionTickets() {
     }
   };
 
-  const filteredTickets = ticketsData.filter(
-    (ticket) =>
-      ticket.equipment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.technician.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTickets = filteredTickets.slice(startIndex, endIndex);
+  // Usar tickets reales o fallback
+  const currentTickets = tickets.length > 0 ? tickets : ticketsDataFallback;
 
   const openDocumentModal = (ticket) => {
     setSelectedTicket(ticket);
@@ -216,40 +231,128 @@ export default function GestionTickets() {
     </Card>
   );
 
+  // Componente de carga
+  if (loading) {
+    return (
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50 min-h-screen">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Cargando tickets...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="space-y-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Gestión de Tickets
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">
-            Administre y supervise todos los tickets del sistema
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Gestión de Tickets
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Administre y supervise todos los tickets del sistema
+            </p>
+          </div>
+          <Button
+            onClick={refreshTickets}
+            variant="outline"
+            className="flex items-center gap-2"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
         </div>
 
-        {/* Origin Filter */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Origen</span>
-            <div className="relative">
-              <select className="appearance-none bg-white border border-gray-300 rounded-md px-3 sm:px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:min-w-[200px]">
-                <option>Todos los orígenes</option>
-                <option>HUV MANTENIMIENTO BIOMEDICO</option>
-                <option>HUV MANTENIMIENTO INDUSTRIAL</option>
-                <option>PROVEEDORES EXTERNOS</option>
-              </select>
-              <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+        {/* Error Alert */}
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            <div>
+              <p className="text-red-800 font-medium">Error al cargar datos</p>
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+            <Button
+              onClick={refreshTickets}
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+            >
+              Reintentar
+            </Button>
+          </div>
+        )}
+
+        {/* Search and Filters */}
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Buscar por título, descripción o número..."
+              value={filters.search}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            {/* Status Filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Estado</span>
+              <div className="relative">
+                <select
+                  value={filters.estado}
+                  onChange={(e) => handleStatusFilter(e.target.value)}
+                  className="appearance-none bg-white border border-gray-300 rounded-md px-3 sm:px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:min-w-[150px]"
+                >
+                  <option value="todos">Todos los estados</option>
+                  <option value="abierto">Abierto</option>
+                  <option value="en_proceso">En Proceso</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="resuelto">Resuelto</option>
+                  <option value="cerrado">Cerrado</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Priority Filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Prioridad</span>
+              <div className="relative">
+                <select
+                  value={filters.prioridad}
+                  onChange={(e) => handlePriorityFilter(e.target.value)}
+                  className="appearance-none bg-white border border-gray-300 rounded-md px-3 sm:px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:min-w-[150px]"
+                >
+                  <option value="todos">Todas las prioridades</option>
+                  <option value="baja">Baja</option>
+                  <option value="media">Media</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Records Count */}
         <div className="text-xs sm:text-sm text-gray-600">
-          Mostrando registros de {startIndex + 1} a{" "}
-          {Math.min(endIndex, filteredTickets.length)} de un total de{" "}
-          {filteredTickets.length} registros
+          {pagination.totalItems > 0 ? (
+            <>
+              Mostrando {tickets.length} de {pagination.totalItems} tickets
+              {filters.search && ` (filtrados por: "${filters.search}")`}
+            </>
+          ) : (
+            'No se encontraron tickets'
+          )}
         </div>
       </div>
 
@@ -383,8 +486,8 @@ export default function GestionTickets() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              onClick={() => handlePageChange(Math.max(pagination.currentPage - 1, 1))}
+              disabled={pagination.currentPage === 1 || loading}
               className="border-gray-300 text-xs sm:text-sm px-2 sm:px-3"
             >
               <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -395,29 +498,30 @@ export default function GestionTickets() {
               {/* Mobile: Show only current page and total */}
               <div className="block sm:hidden">
                 <span className="text-xs text-gray-600">
-                  {currentPage} / {totalPages}
+                  {pagination.currentPage} / {pagination.totalPages}
                 </span>
               </div>
 
               {/* Desktop: Show page numbers */}
               <div className="hidden sm:flex items-center space-x-1">
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
                   let page;
-                  if (totalPages <= 5) {
+                  if (pagination.totalPages <= 5) {
                     page = i + 1;
-                  } else if (currentPage <= 3) {
+                  } else if (pagination.currentPage <= 3) {
                     page = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    page = totalPages - 4 + i;
+                  } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                    page = pagination.totalPages - 4 + i;
                   } else {
-                    page = currentPage - 2 + i;
+                    page = pagination.currentPage - 2 + i;
                   }
                   return (
                     <Button
                       key={page}
-                      variant={currentPage === page ? "default" : "outline"}
+                      variant={pagination.currentPage === page ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setCurrentPage(page)}
+                      onClick={() => handlePageChange(page)}
+                      disabled={loading}
                       className={`text-xs px-2 ${
                         currentPage === page
                           ? "bg-blue-600 text-white"
@@ -434,10 +538,8 @@ export default function GestionTickets() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(Math.min(pagination.currentPage + 1, pagination.totalPages))}
+              disabled={pagination.currentPage === pagination.totalPages || loading}
               className="border-gray-300 text-xs sm:text-sm px-2 sm:px-3"
             >
               <span className="hidden sm:inline mr-1">Siguiente</span>

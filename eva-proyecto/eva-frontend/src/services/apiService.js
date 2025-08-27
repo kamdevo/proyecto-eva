@@ -10,6 +10,7 @@ import { API_ENDPOINTS, buildUrlWithParams } from '../config/api.js';
 import equiposService from './equiposService.js';
 import mantenimientosService from './mantenimientosService.js';
 import authService from './authService.js';
+import ticketService from './ticketService.js';
 
 class ApiService {
   constructor() {
@@ -17,6 +18,7 @@ class ApiService {
     this.equipos = equiposService;
     this.mantenimientos = mantenimientosService;
     this.auth = authService;
+    this.tickets = ticketService;
   }
 
   /**
@@ -251,8 +253,48 @@ class ApiService {
     create: (data) => this.create(API_ENDPOINTS.AREAS.CREATE, data),
     update: (id, data) => this.update(API_ENDPOINTS.AREAS.BASE, id, data),
     delete: (id) => this.delete(API_ENDPOINTS.AREAS.BASE, id),
-    
+
     getEquipos: (id, params = {}) => this.getList(API_ENDPOINTS.AREAS.EQUIPOS(id), params),
+  };
+
+  /**
+   * Servicios específicos para Tickets
+   */
+  ticketsApi = {
+    // CRUD básico
+    getList: (params = {}) => this.tickets.getTickets(params),
+    getById: (id) => this.tickets.getTicketById(id),
+    create: (data) => this.tickets.createTicket(data),
+    update: (id, data) => this.tickets.updateTicket(id, data),
+    delete: (id) => this.tickets.deleteTicket(id),
+
+    // Operaciones específicas
+    assign: (id, userId) => this.tickets.assignTicket(id, userId),
+    resolve: (id, data) => this.tickets.resolveTicket(id, data),
+    close: (id, data) => this.tickets.closeTicket(id, data),
+    reopen: (id, reason) => this.tickets.reopenTicket(id, reason),
+    changeCategory: (id, category) => this.tickets.changeCategory(id, category),
+    changePriority: (id, priority) => this.tickets.changePriority(id, priority),
+
+    // Filtros y búsquedas
+    getByStatus: (status, params = {}) => this.tickets.getTicketsByStatus(status, params),
+    getOpen: (params = {}) => this.tickets.getOpenTickets(params),
+    getMy: (params = {}) => this.tickets.getMyTickets(params),
+    getClosed: (params = {}) => this.tickets.getClosedTickets(params),
+    search: (term, params = {}) => this.tickets.searchTickets(term, params),
+
+    // Estadísticas
+    getGeneralStats: () => this.tickets.getGeneralStats(),
+    getStatsByCategory: () => this.tickets.getStatsByCategory(),
+
+    // Comentarios y seguimiento
+    getComments: (id) => this.tickets.getTicketComments(id),
+    addComment: (id, comment) => this.tickets.addComment(id, comment),
+    getHistory: (id) => this.tickets.getTicketHistory(id),
+
+    // Utilidades
+    getConfig: () => this.tickets.getConfig(),
+    export: (params = {}) => this.tickets.exportTickets(params),
   };
 
   /**
