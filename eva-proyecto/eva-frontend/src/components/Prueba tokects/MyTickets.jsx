@@ -7,6 +7,10 @@ import { Label } from "@/components/ui/label";
 import TicketsImg from "@/assets/Img/imagenes/mis-tickets-img.jpg";
 import { toast } from "sonner";
 import { httpService } from "@/services/httpService";
+import ticketService from "@/services/ticketService";
+import equipoService from "@/services/equipoService";
+import tecnicoService from "@/services/tecnicoService";
+import servicioService from "@/services/servicioService";
 
 import {
   Select,
@@ -49,6 +53,7 @@ import {
   Cog,
   Truck,
   FolderOpen,
+  RefreshCw,
 } from "lucide-react";
 
 export default function MyTickets() {
@@ -61,6 +66,9 @@ export default function MyTickets() {
   const [equipos, setEquipos] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
   const [servicios, setServicios] = useState([]);
+  const [isLicensedModalOpen, setIsLicensedModalOpen] = useState(false);
+  const [isIndustrialModalOpen, setIsIndustrialModalOpen] = useState(false);
+  const [isInfrastructureModalOpen, setIsInfrastructureModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     licensed: {
       numero: '',
@@ -171,56 +179,47 @@ export default function MyTickets() {
 
   const loadEquipos = async () => {
     try {
-      const response = await httpService.get('/api/v1/equipos');
+      const response = await equipoService.getEquipos();
       if (response.success) {
         setEquipos(response.data || []);
+      } else {
+        toast.error('Error al cargar equipos');
       }
     } catch (error) {
       console.error('Error loading equipos:', error);
-      // Datos de fallback
-      setEquipos([
-        { id: 1, name: 'Desfibrilador ZOLL R Series', tipo: 'biomedico' },
-        { id: 2, name: 'Ventilador Drager Oxylog 3000', tipo: 'biomedico' },
-        { id: 3, name: 'Compresor Industrial Atlas Copco', tipo: 'industrial' },
-        { id: 4, name: 'Bomba Centrífuga Grundfos', tipo: 'industrial' }
-      ]);
+      toast.error('Error al cargar equipos: ' + error.message);
+      // Los datos de fallback se manejan en el servicio
+      setEquipos([]);
     }
   };
 
   const loadTecnicos = async () => {
     try {
-      const response = await httpService.get('/api/v1/usuarios/tecnicos');
+      const response = await tecnicoService.getTecnicos();
       if (response.success) {
         setTecnicos(response.data || []);
+      } else {
+        toast.error('Error al cargar técnicos');
       }
     } catch (error) {
       console.error('Error loading tecnicos:', error);
-      // Datos de fallback
-      setTecnicos([
-        { id: 1, name: 'Juan Sebastian Pérez', especialidad: 'Biomédico' },
-        { id: 2, name: 'Aura María González', especialidad: 'Biomédico' },
-        { id: 3, name: 'Carlos Ruiz Martínez', especialidad: 'Industrial' },
-        { id: 4, name: 'Ana García López', especialidad: 'Infraestructura' }
-      ]);
+      toast.error('Error al cargar técnicos: ' + error.message);
+      setTecnicos([]);
     }
   };
 
   const loadServicios = async () => {
     try {
-      const response = await httpService.get('/api/v1/servicios');
+      const response = await servicioService.getServicios();
       if (response.success) {
         setServicios(response.data || []);
+      } else {
+        toast.error('Error al cargar servicios');
       }
     } catch (error) {
       console.error('Error loading servicios:', error);
-      // Datos de fallback
-      setServicios([
-        { id: 1, name: 'Urgencias' },
-        { id: 2, name: 'UCI' },
-        { id: 3, name: 'Cirugía' },
-        { id: 4, name: 'Producción' },
-        { id: 5, name: 'Mantenimiento' }
-      ]);
+      toast.error('Error al cargar servicios: ' + error.message);
+      setServicios([]);
     }
   };
 
@@ -236,23 +235,137 @@ export default function MyTickets() {
   };
 
   const handleFileUpload = (formType, files) => {
+    const fileArray = Array.from(files);
+
+    // Validar tamaño de archivos (máximo 10MB por archivo)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const invalidFiles = fileArray.filter(file => file.size > maxSize);
+
+    if (invalidFiles.length > 0) {
+      toast.error(`Los siguientes archivos exceden el tamaño máximo de 10MB: ${invalidFiles.map(f => f.name).join(', ')}`);
+      return;
+    }
+
+    // Validar tipos de archivo permitidos
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+      'image/gif'
+    ];
+
+    const invalidTypes = fileArray.filter(file => !allowedTypes.includes(file.type));
+
+    if (invalidTypes.length > 0) {
+      toast.error(`Tipos de archivo no permitidos: ${invalidTypes.map(f => f.name).join(', ')}`);
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [formType]: {
         ...prev[formType],
-        archivos: [...prev[formType].archivos, ...Array.from(files)]
+        archivos: [...prev[formType].archivos, ...fileArray]
       }
     }));
+
+    toast.success(`${fileArray.length} archivo(s) agregado(s) correctamente`);
+  };
+
+  const removeFile = (formType, fileIndex) => {
+    setFormData(prev => ({
+      ...prev,
+      [formType]: {
+        ...prev[formType],
+        archivos: prev[formType].archivos.filter((_, index) => index !== fileIndex)
+      }
+    }));
+    toast.info('Archivo eliminado');
+  };
+
+  const validateForm = (formType) => {
+    const data = formData[formType];
+    const errors = [];
+
+    // Validaciones comunes
+    if (!data.descripcion?.trim()) {
+      errors.push('La descripción es requerida');
+    }
+    if (!data.prioridad) {
+      errors.push('La prioridad es requerida');
+    }
+    if (!data.fecha) {
+      errors.push('La fecha es requerida');
+    }
+    if (!data.hora) {
+      errors.push('La hora es requerida');
+    }
+
+    // Validaciones específicas por tipo
+    if (formType === 'licensed' || formType === 'industrial') {
+      if (!data.equipo_id) {
+        errors.push('El equipo es requerido');
+      }
+      if (!data.tecnico_id) {
+        errors.push('El técnico responsable es requerido');
+      }
+    }
+
+    if (formType === 'infrastructure') {
+      if (!data.categoria) {
+        errors.push('La categoría es requerida');
+      }
+      if (!data.servicio_id) {
+        errors.push('El servicio es requerido');
+      }
+    }
+
+    return errors;
   };
 
   const createWorkOrder = async (formType) => {
+    // Validar formulario antes de enviar
+    const validationErrors = validateForm(formType);
+    if (validationErrors.length > 0) {
+      toast.error(`Por favor complete los campos requeridos:\n${validationErrors.join('\n')}`);
+      return;
+    }
+
     setLoading(true);
     try {
-      const endpoint = `/api/v1/tickets/${formType}`;
-      const response = await httpService.post(endpoint, formData[formType]);
+      // Preparar datos según el tipo de formulario
+      const ticketData = {
+        ...formData[formType],
+        tipo_ticket: formType,
+        estado: 'abierto',
+        fecha_creacion: new Date().toISOString(),
+        // Combinar fecha y hora
+        fecha_programada: `${formData[formType].fecha}T${formData[formType].hora}:00`,
+      };
+
+      // Usar el ticketService para crear el ticket
+      const response = await ticketService.createTicket(ticketData);
 
       if (response.success) {
-        toast.success('Orden de trabajo creada exitosamente');
+        const ticketId = response.data.id;
+
+        // Subir archivos si existen
+        if (formData[formType].archivos && formData[formType].archivos.length > 0) {
+          try {
+            await ticketService.uploadFiles(ticketId, formData[formType].archivos);
+            toast.success('Orden de trabajo creada exitosamente con archivos adjuntos');
+          } catch (fileError) {
+            console.error('Error uploading files:', fileError);
+            toast.warning('Orden de trabajo creada, pero hubo un error al subir los archivos');
+          }
+        } else {
+          toast.success('Orden de trabajo creada exitosamente');
+        }
+
         // Limpiar formulario
         setFormData(prev => ({
           ...prev,
@@ -263,6 +376,7 @@ export default function MyTickets() {
             }, {})
           }
         }));
+
         // Recargar tickets
         await loadTickets();
       } else {
@@ -270,7 +384,7 @@ export default function MyTickets() {
       }
     } catch (error) {
       console.error('Error creating work order:', error);
-      toast.error('Error al crear la orden de trabajo');
+      toast.error('Error al crear la orden de trabajo: ' + (error.message || 'Error desconocido'));
     } finally {
       setLoading(false);
     }
@@ -319,6 +433,24 @@ export default function MyTickets() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-start mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Mis Tickets</h1>
+          <Button
+            onClick={() => {
+              loadTickets();
+              loadEquipos();
+              loadTecnicos();
+              loadServicios();
+              toast.success('Datos actualizados');
+            }}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="hidden sm:inline">Actualizar</span>
+          </Button>
+        </div>
         <div className="flex flex-col lg:flex-col lg:items-center lg:justify-between gap-4">
           <div className="flex w-full justify-center">
             <img
@@ -332,7 +464,7 @@ export default function MyTickets() {
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2">
             {/* Equipos Licenciados Modal */}
-            <Dialog>
+            <Dialog open={isLicensedModalOpen} onOpenChange={setIsLicensedModalOpen}>
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
@@ -359,8 +491,13 @@ export default function MyTickets() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="licensed-priority">Prioridad</Label>
-                      <Select>
+                      <Label htmlFor="licensed-priority">
+                        Prioridad <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={formData.licensed.prioridad}
+                        onValueChange={(value) => handleFormChange('licensed', 'prioridad', value)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar prioridad" />
                         </SelectTrigger>
@@ -374,28 +511,35 @@ export default function MyTickets() {
                   </div>
 
                   <div>
-                    <Label htmlFor="licensed-description">Descripción</Label>
+                    <Label htmlFor="licensed-description">
+                      Descripción <span className="text-red-500">*</span>
+                    </Label>
                     <Textarea
                       id="licensed-description"
                       placeholder="Describa el trabajo a realizar"
                       rows={4}
+                      value={formData.licensed.descripcion}
+                      onChange={(e) => handleFormChange('licensed', 'descripcion', e.target.value)}
+                      className={!formData.licensed.descripcion?.trim() ? 'border-red-300' : ''}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="licensed-equipment">Equipo</Label>
-                      <Select>
+                      <Select
+                        value={formData.licensed.equipo_id}
+                        onValueChange={(value) => handleFormChange('licensed', 'equipo_id', value)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar equipo" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="equipo-1">
-                            Equipo Licenciado 1
-                          </SelectItem>
-                          <SelectItem value="equipo-2">
-                            Equipo Licenciado 2
-                          </SelectItem>
+                          {equipos.filter(equipo => equipo.tipo === 'biomedico').map(equipo => (
+                            <SelectItem key={equipo.id} value={equipo.id.toString()}>
+                              {equipo.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -404,6 +548,8 @@ export default function MyTickets() {
                       <Input
                         id="licensed-location"
                         placeholder="Ubicación del equipo"
+                        value={formData.licensed.ubicacion}
+                        onChange={(e) => handleFormChange('licensed', 'ubicacion', e.target.value)}
                       />
                     </div>
                   </div>
@@ -411,11 +557,21 @@ export default function MyTickets() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="licensed-date">Fecha</Label>
-                      <Input id="licensed-date" type="date" />
+                      <Input
+                        id="licensed-date"
+                        type="date"
+                        value={formData.licensed.fecha}
+                        onChange={(e) => handleFormChange('licensed', 'fecha', e.target.value)}
+                      />
                     </div>
                     <div>
                       <Label htmlFor="licensed-time">Hora</Label>
-                      <Input id="licensed-time" type="time" />
+                      <Input
+                        id="licensed-time"
+                        type="time"
+                        value={formData.licensed.hora}
+                        onChange={(e) => handleFormChange('licensed', 'hora', e.target.value)}
+                      />
                     </div>
                   </div>
 
@@ -423,17 +579,19 @@ export default function MyTickets() {
                     <Label htmlFor="licensed-technician">
                       Técnico responsable
                     </Label>
-                    <Select>
+                    <Select
+                      value={formData.licensed.tecnico_id}
+                      onValueChange={(value) => handleFormChange('licensed', 'tecnico_id', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar técnico" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="tecnico-1">
-                          Técnico Especialista 1
-                        </SelectItem>
-                        <SelectItem value="tecnico-2">
-                          Técnico Especialista 2
-                        </SelectItem>
+                        {tecnicos.filter(tecnico => tecnico.especialidad === 'Biomédico').map(tecnico => (
+                          <SelectItem key={tecnico.id} value={tecnico.id.toString()}>
+                            {tecnico.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -444,6 +602,8 @@ export default function MyTickets() {
                       id="licensed-observations"
                       placeholder="Observaciones adicionales"
                       rows={3}
+                      value={formData.licensed.observaciones}
+                      onChange={(e) => handleFormChange('licensed', 'observaciones', e.target.value)}
                     />
                   </div>
 
@@ -455,6 +615,7 @@ export default function MyTickets() {
                         type="file"
                         multiple
                         className="hidden"
+                        onChange={(e) => handleFileUpload('licensed', e.target.files)}
                       />
                       <div className="space-y-2">
                         <FileText className="w-8 h-8 mx-auto text-gray-400" />
@@ -470,14 +631,45 @@ export default function MyTickets() {
                         <p className="text-xs text-gray-500">
                           Máximo 10MB por archivo
                         </p>
+                        {formData.licensed.archivos.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">Archivos seleccionados:</p>
+                            <div className="space-y-1">
+                              {formData.licensed.archivos.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                  <span className="text-xs text-gray-700 truncate">{file.name}</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeFile('licensed', index)}
+                                    className="text-red-500 hover:text-red-700 p-1 h-auto"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline">Cancelar</Button>
                     <Button
-                      onClick={() => createWorkOrder('licensed')}
+                      variant="outline"
+                      onClick={() => setIsLicensedModalOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        await createWorkOrder('licensed');
+                        if (!loading) {
+                          setIsLicensedModalOpen(false);
+                        }
+                      }}
                       disabled={loading}
                     >
                       {loading ? 'Creando...' : 'Crear Orden'}
@@ -488,7 +680,7 @@ export default function MyTickets() {
             </Dialog>
 
             {/* Equipos Industriales Modal */}
-            <Dialog>
+            <Dialog open={isIndustrialModalOpen} onOpenChange={setIsIndustrialModalOpen}>
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
@@ -516,7 +708,10 @@ export default function MyTickets() {
                     </div>
                     <div>
                       <Label htmlFor="industrial-type">Tipo</Label>
-                      <Select>
+                      <Select
+                        value={formData.industrial.tipo}
+                        onValueChange={(value) => handleFormChange('industrial', 'tipo', value)}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar tipo" />
                         </SelectTrigger>
@@ -535,6 +730,8 @@ export default function MyTickets() {
                       id="industrial-description"
                       placeholder="Describa el trabajo a realizar"
                       rows={4}
+                      value={formData.industrial.descripcion}
+                      onChange={(e) => handleFormChange('industrial', 'descripcion', e.target.value)}
                     />
                   </div>
 
@@ -674,9 +871,19 @@ export default function MyTickets() {
                   </div>
 
                   <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline">Cancelar</Button>
                     <Button
-                      onClick={() => createWorkOrder('industrial')}
+                      variant="outline"
+                      onClick={() => setIsIndustrialModalOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        await createWorkOrder('industrial');
+                        if (!loading) {
+                          setIsIndustrialModalOpen(false);
+                        }
+                      }}
                       disabled={loading}
                     >
                       {loading ? 'Creando...' : 'Crear Orden'}
@@ -687,7 +894,7 @@ export default function MyTickets() {
             </Dialog>
 
             {/* Infraestructura y Movilidad Modal */}
-            <Dialog>
+            <Dialog open={isInfrastructureModalOpen} onOpenChange={setIsInfrastructureModalOpen}>
               <DialogTrigger asChild>
                 <Button
                   variant="outline"
@@ -879,8 +1086,23 @@ export default function MyTickets() {
                   </div>
 
                   <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline">Cancelar</Button>
-                    <Button>Crear Orden</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsInfrastructureModalOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        await createWorkOrder('infrastructure');
+                        if (!loading) {
+                          setIsInfrastructureModalOpen(false);
+                        }
+                      }}
+                      disabled={loading}
+                    >
+                      {loading ? 'Creando...' : 'Crear Orden'}
+                    </Button>
                   </div>
                 </div>
               </DialogContent>

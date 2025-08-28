@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema EVA - Gestión de Tickets</title>
+    <meta name="description" content="Sistema de gestión de tickets para equipos biomédicos, industriales e infraestructura" />
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/src/index.css" as="style" />
+    
+    <!-- Meta tags for better SEO -->
+    <meta name="keywords" content="tickets, gestión, biomédico, industrial, infraestructura, EVA" />
+    <meta name="author" content="Sistema EVA" />
+    
+    <!-- Open Graph meta tags -->
+    <meta property="og:title" content="Sistema EVA - Gestión de Tickets" />
+    <meta property="og:description" content="Sistema de gestión de tickets para equipos biomédicos, industriales e infraestructura" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Favicon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    
+    <!-- Theme color -->
+    <meta name="theme-color" content="#3b82f6" />
+    
+    <!-- Prevent FOUC (Flash of Unstyled Content) -->
+    <style>
+      #root {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f9fafb;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e5e7eb;
+        border-top: 4px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .loading-text {
+        margin-top: 16px;
+        color: #6b7280;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Loading spinner while React loads -->
+      <div style="text-align: center;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Cargando Sistema EVA...</div>
+      </div>
+    </div>
+    
+    <!-- Main script -->
+    <script type="module" src="/src/ticket-main.jsx"></script>
+    
+    <!-- Development helpers -->
+    <script>
+      // Log loading time in development
+      if (window.location.hostname === 'localhost') {
+        const startTime = performance.now();
+        window.addEventListener('load', () => {
+          const loadTime = performance.now() - startTime;
+          console.log(`🚀 Aplicación cargada en ${loadTime.toFixed(2)}ms`);
+        });
+      }
+      
+      // Error handling
+      window.addEventListener('error', (event) => {
+        console.error('❌ Error en la aplicación:', event.error);
+      });
+      
+      window.addEventListener('unhandledrejection', (event) => {
+        console.error('❌ Promise rechazada:', event.reason);
+      });
+    </script>
+  </body>
+</html>

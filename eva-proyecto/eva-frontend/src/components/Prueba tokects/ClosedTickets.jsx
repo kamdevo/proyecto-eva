@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PdfModal } from "@/components/modals/pdf-modal";
+import { toast } from "sonner";
+import ticketService from "@/services/ticketService";
 
-const documents = [
+// Datos de fallback para cuando no hay conexión al backend
+const fallbackDocuments = [
   {
     id: 1,
     codigo: "LAB001",
@@ -75,30 +78,141 @@ const documents = [
   },
 ];
 
-const searchOptions = [
-  { value: "todos", label: "Todos los documentos" },
-  { value: "laboratorio", label: "Laboratorio Clínico" },
-  { value: "radiologia", label: "Radiología" },
-  { value: "consulta", label: "Consulta Especializada" },
-  { value: "procedimiento", label: "Procedimiento Quirúrgico" },
-  { value: "farmacia", label: "Farmacia" },
-  { value: "vigente", label: "Estado: Vigente" },
-  { value: "pendiente", label: "Estado: Pendiente" },
-];
+
 
 export default function ClosedTickets() {
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("todos");
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filteredDocuments, setFilteredDocuments] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  // Cargar tickets cerrados al montar el componente
+  useEffect(() => {
+    loadClosedTickets();
+  }, []);
+
+  // Filtrar documentos cuando cambie el valor de búsqueda
+  useEffect(() => {
+    filterDocuments();
+  }, [searchValue, documents]);
+
+  const loadClosedTickets = async () => {
+    setLoading(true);
+    try {
+      // Intentar obtener tickets cerrados del backend
+      const response = await ticketService.getTickets({
+        estado: 'cerrado',
+        per_page: 50
+      });
+
+      if (response.success && response.data) {
+        // Transformar datos del backend al formato esperado por el componente
+        const transformedData = response.data.map(ticket => ({
+          id: ticket.id,
+          codigo: ticket.numero || `TKT-${ticket.id}`,
+          reporte: ticket.descripcion || ticket.titulo,
+          cierre: ticket.fecha_cierre || ticket.updated_at,
+          tiempoCierre: ticket.fecha_limite || ticket.fecha_cierre,
+          estado: ticket.estado?.toUpperCase() || 'CERRADO',
+          fuente: ticket.origen || 'Sistema EVA',
+          observaciones: ticket.observaciones || 'Sin observaciones',
+          responsable: ticket.usuario_asignado?.nombre || ticket.tecnico_responsable || 'No asignado',
+        }));
+        setDocuments(transformedData);
+      } else {
+        // Si no hay datos del backend, usar datos de fallback
+        setDocuments(fallbackDocuments);
+      }
+    } catch (error) {
+      console.error('Error loading closed tickets:', error);
+      toast.error('Error al cargar los tickets cerrados. Mostrando datos de ejemplo.');
+      setDocuments(fallbackDocuments);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterDocuments = () => {
+    if (searchValue === "todos") {
+      setFilteredDocuments(documents);
+      return;
+    }
+
+    const filtered = documents.filter(doc => {
+      switch (searchValue) {
+        case "laboratorio":
+          return doc.reporte.toLowerCase().includes("laboratorio");
+        case "radiologia":
+          return doc.reporte.toLowerCase().includes("radiologia");
+        case "consulta":
+          return doc.reporte.toLowerCase().includes("consulta");
+        case "procedimiento":
+          return doc.reporte.toLowerCase().includes("procedimiento") || doc.reporte.toLowerCase().includes("quirurgico");
+        case "farmacia":
+          return doc.reporte.toLowerCase().includes("farmacia");
+        case "vigente":
+          return doc.estado === "VIGENTE";
+        case "pendiente":
+          return doc.estado === "PENDIENTE";
+        default:
+          return true;
+      }
+    });
+    setFilteredDocuments(filtered);
+  };
 
   const handleDocumentClick = (document) => {
     setSelectedDocument(document);
     setIsModalOpen(true);
   };
 
+  const searchOptions = [
+    { value: "todos", label: "Todos los documentos" },
+    { value: "laboratorio", label: "Laboratorio" },
+    { value: "radiologia", label: "Radiología" },
+    { value: "consulta", label: "Consulta" },
+    { value: "procedimiento", label: "Procedimiento" },
+    { value: "farmacia", label: "Farmacia" },
+    { value: "vigente", label: "Vigentes" },
+    { value: "pendiente", label: "Pendientes" },
+  ];
+
   const handleSearch = () => {
-    // Aquí puedes implementar la lógica de filtrado
-    console.log("Buscando:", searchValue);
+    filterDocuments();
+    setCurrentPage(1); // Reset to first page when filtering
+    const selectedOption = searchOptions.find(opt => opt.value === searchValue);
+    toast.success(`Filtro aplicado: ${selectedOption?.label || 'Todos'}`);
+  };
+
+  // Pagination logic
+  const getCurrentPageData = () => {
+    const dataToUse = filteredDocuments.length > 0 ? filteredDocuments : documents;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return dataToUse.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = () => {
+    const dataToUse = filteredDocuments.length > 0 ? filteredDocuments : documents;
+    return Math.ceil(dataToUse.length / itemsPerPage);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+      toast.info(`Página ${currentPage - 1} de ${getTotalPages()}`);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < getTotalPages()) {
+      setCurrentPage(currentPage + 1);
+      toast.info(`Página ${currentPage + 1} de ${getTotalPages()}`);
+    }
   };
 
   return (
@@ -154,6 +268,12 @@ export default function ClosedTickets() {
 
       {/* Document List */}
       <div className="p-4 sm:p-6">
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando tickets cerrados...</p>
+          </div>
+        ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="bg-slate-600 text-white px-4 sm:px-6 py-3">
             <h4 className="font-semibold text-sm sm:text-base">Documentos</h4>
@@ -185,12 +305,13 @@ export default function ClosedTickets() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {documents.map((doc, index) => (
+                {getCurrentPageData().map((doc, index) => (
                   <tr
                     key={doc.id}
-                    className={`hover:bg-gray-50 transition-colors ${
+                    className={`hover:bg-blue-50 transition-colors duration-200 cursor-pointer ${
                       index % 2 === 0 ? "bg-white" : "bg-gray-50"
                     }`}
+                    onClick={() => handleDocumentClick(doc)}
                   >
                     <td className="px-4 py-4 text-sm">
                       <div className="font-medium text-gray-900">
@@ -231,7 +352,7 @@ export default function ClosedTickets() {
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       <Button
-                        onClick={() => openDocumentModal(ticket)}
+                        onClick={() => handleDocumentClick(doc)}
                         className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
                         size="sm"
                         title="Ver documento de trabajo"
@@ -247,12 +368,13 @@ export default function ClosedTickets() {
 
           {/* Mobile/Tablet Cards */}
           <div className="lg:hidden">
-            {documents.map((doc, index) => (
+            {getCurrentPageData().map((doc, index) => (
               <div
                 key={doc.id}
-                className={`p-4 border-b border-gray-200 last:border-b-0 ${
+                className={`p-4 border-b border-gray-200 last:border-b-0 hover:bg-blue-50 transition-colors duration-200 cursor-pointer ${
                   index % 2 === 0 ? "bg-white" : "bg-gray-50"
                 }`}
+                onClick={() => handleDocumentClick(doc)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -314,6 +436,7 @@ export default function ClosedTickets() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Footer Info */}
         <div className="mt-6 text-xs sm:text-sm text-gray-600">
@@ -321,9 +444,10 @@ export default function ClosedTickets() {
             Documentos registrados del 1 al 31 de enero del 2024 registrados.
           </p>
           <p className="mt-2">
-            <strong>Registros:</strong> 5 |
-            <strong className="ml-2">Vigentes:</strong> 4 |
-            <strong className="ml-2">Pendientes:</strong> 1
+            <strong>Registros:</strong> {(filteredDocuments.length > 0 ? filteredDocuments : documents).length} |
+            <strong className="ml-2">Vigentes:</strong> {(filteredDocuments.length > 0 ? filteredDocuments : documents).filter(doc => doc.estado === "VIGENTE").length} |
+            <strong className="ml-2">Pendientes:</strong> {(filteredDocuments.length > 0 ? filteredDocuments : documents).filter(doc => doc.estado === "PENDIENTE").length} |
+            <strong className="ml-2">Página:</strong> {currentPage} de {getTotalPages()}
           </p>
           <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <p className="text-xs">
@@ -334,14 +458,18 @@ export default function ClosedTickets() {
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white text-gray-700 border-gray-300"
+                className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
               >
                 Anterior
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white text-gray-700 border-gray-300"
+                className="bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                onClick={handleNextPage}
+                disabled={currentPage === getTotalPages() || getTotalPages() === 0}
               >
                 Siguiente
               </Button>

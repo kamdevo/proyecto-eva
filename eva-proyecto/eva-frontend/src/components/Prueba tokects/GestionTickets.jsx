@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import WorkOrderModal from "./modals/work-order-modal";
+import WorkOrderModal from "@/components/modals/work-order-modal";
+import { toast } from "sonner";
+import ticketService from "@/services/ticketService";
 import {
   Search,
   FolderOpen,
@@ -13,6 +15,7 @@ import {
   Calendar,
   User,
   Building,
+  RefreshCw,
 } from "lucide-react";
 
 export default function GestionTickets() {
@@ -20,8 +23,12 @@ export default function GestionTickets() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedOrigin, setSelectedOrigin] = useState("all");
 
-  const ticketsData = [
+  // Datos de fallback para cuando no hay conexión al backend
+  const fallbackTicketsData = [
     {
       id: "2024-001",
       equipment: "DESFIBRILADOR CON MARCAPASOS",
@@ -109,6 +116,53 @@ export default function GestionTickets() {
     },
   ];
 
+  // Cargar tickets al montar el componente
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const loadTickets = async () => {
+    setLoading(true);
+    try {
+      // Intentar obtener tickets del backend
+      const response = await ticketService.getTickets({
+        per_page: 50,
+        include: 'usuario_asignado,equipo'
+      });
+
+      if (response.success && response.data) {
+        // Transformar datos del backend al formato esperado por el componente
+        const transformedData = response.data.map(ticket => ({
+          id: ticket.numero || `${ticket.id}`,
+          equipment: ticket.equipo?.nombre || ticket.descripcion || 'Equipo no especificado',
+          brand: ticket.equipo?.marca || 'N/A',
+          model: ticket.equipo?.modelo || 'N/A',
+          serial: ticket.equipo?.numero_serie || 'N/A',
+          location: ticket.equipo?.ubicacion || ticket.ubicacion || 'No especificada',
+          issue: ticket.descripcion || ticket.titulo,
+          priority: ticket.prioridad?.toUpperCase() || 'MEDIA',
+          status: ticket.estado?.toUpperCase() || 'PENDIENTE',
+          date: ticket.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+          technician: ticket.usuario_asignado?.nombre || ticket.tecnico_responsable || 'No asignado',
+          company: ticket.origen || 'HUV MANTENIMIENTO BIOMEDICO',
+          estimatedTime: ticket.tiempo_estimado || '2 HORAS',
+          actualState: ticket.estado_actual || 'EN REVISION',
+          equipment2: ticket.tipo_equipo || 'EQUIPO',
+        }));
+        setTickets(transformedData);
+      } else {
+        // Si no hay datos del backend, usar datos de fallback
+        setTickets(fallbackTicketsData);
+      }
+    } catch (error) {
+      console.error('Error loading tickets:', error);
+      toast.error('Error al cargar los tickets. Mostrando datos de ejemplo.');
+      setTickets(fallbackTicketsData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case "completado":
@@ -135,12 +189,17 @@ export default function GestionTickets() {
     }
   };
 
-  const filteredTickets = ticketsData.filter(
-    (ticket) =>
+  const filteredTickets = tickets.filter((ticket) => {
+    const matchesSearch =
       ticket.equipment.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.technician.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      ticket.technician.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesOrigin = selectedOrigin === "all" ||
+      ticket.company.toLowerCase().includes(selectedOrigin.toLowerCase());
+
+    return matchesSearch && matchesOrigin;
+  });
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
@@ -216,29 +275,73 @@ export default function GestionTickets() {
     </Card>
   );
 
+  if (loading) {
+    return (
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50 min-h-screen">
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando tickets...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="space-y-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Gestión de Tickets
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">
-            Administre y supervise todos los tickets del sistema
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Gestión de Tickets
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Administre y supervise todos los tickets del sistema
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              loadTickets();
+              toast.success('Datos actualizados');
+            }}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="hidden sm:inline">Actualizar</span>
+          </Button>
         </div>
 
-        {/* Origin Filter */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        {/* Search and Origin Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Search Input */}
+          <div className="flex-1">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar por equipo, ID o técnico..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            </div>
+          </div>
+
+          {/* Origin Filter */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <span className="text-sm font-medium text-gray-700">Origen</span>
             <div className="relative">
-              <select className="appearance-none bg-white border border-gray-300 rounded-md px-3 sm:px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:min-w-[200px]">
-                <option>Todos los orígenes</option>
-                <option>HUV MANTENIMIENTO BIOMEDICO</option>
-                <option>HUV MANTENIMIENTO INDUSTRIAL</option>
-                <option>PROVEEDORES EXTERNOS</option>
+              <select
+                value={selectedOrigin}
+                onChange={(e) => setSelectedOrigin(e.target.value)}
+                className="appearance-none bg-white border border-gray-300 rounded-md px-3 sm:px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:min-w-[200px]"
+              >
+                <option value="all">Todos los orígenes</option>
+                <option value="biomedico">HUV MANTENIMIENTO BIOMEDICO</option>
+                <option value="industrial">HUV MANTENIMIENTO INDUSTRIAL</option>
+                <option value="externos">PROVEEDORES EXTERNOS</option>
               </select>
               <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
             </div>
@@ -383,7 +486,13 @@ export default function GestionTickets() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              onClick={() => {
+                const newPage = Math.max(currentPage - 1, 1);
+                setCurrentPage(newPage);
+                if (newPage !== currentPage) {
+                  toast.info(`Página ${newPage} de ${totalPages}`);
+                }
+              }}
               disabled={currentPage === 1}
               className="border-gray-300 text-xs sm:text-sm px-2 sm:px-3"
             >
@@ -434,9 +543,13 @@ export default function GestionTickets() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
+              onClick={() => {
+                const newPage = Math.min(currentPage + 1, totalPages);
+                setCurrentPage(newPage);
+                if (newPage !== currentPage) {
+                  toast.info(`Página ${newPage} de ${totalPages}`);
+                }
+              }}
               disabled={currentPage === totalPages}
               className="border-gray-300 text-xs sm:text-sm px-2 sm:px-3"
             >

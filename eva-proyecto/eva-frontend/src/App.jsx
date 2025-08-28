@@ -28,6 +28,14 @@ import Usuarios from "./components/Usuarios";
 import Navbar from "./components/Navbar";
 import IndustrialDevicesView from "./components/IndustrialDevices";
 import GestionTickets from "./components/GestionTickets";
+
+// Import prototype components
+import PrototypeClosedTickets from "./components/Prueba tokects/ClosedTickets";
+import PrototypeGestionTickets from "./components/Prueba tokects/GestionTickets";
+import PrototypeMyTickets from "./components/Prueba tokects/MyTickets";
+import PrototypeNavigation from "./components/PrototypeNavigation";
+import BackendTestComponent from "./components/BackendTestComponent";
+import ComprehensiveTestSuite from "./components/ComprehensiveTestSuite";
 import TicketDashboard from "./components/TicketDashboard";
 import CreateTicketModal from "./components/modals/CreateTicketModal";
 import VirtualizedTicketList from "./components/VirtualizedTicketList";
@@ -205,6 +213,57 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
+
+            {/* New prototype routes */}
+            <Route
+              path="/prototypes"
+              element={
+                <ProtectedRoute>
+                  <PrototypeNavigation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prototype/closed-tickets"
+              element={
+                <ProtectedRoute>
+                  <PrototypeClosedTickets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prototype/gestion-tickets"
+              element={
+                <ProtectedRoute>
+                  <PrototypeGestionTickets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prototype/my-tickets"
+              element={
+                <ProtectedRoute>
+                  <PrototypeMyTickets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/backend-test"
+              element={
+                <ProtectedRoute>
+                  <BackendTestComponent />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crud-test"
+              element={
+                <ProtectedRoute>
+                  <ComprehensiveTestSuite />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/tickets/dashboard"
               element={

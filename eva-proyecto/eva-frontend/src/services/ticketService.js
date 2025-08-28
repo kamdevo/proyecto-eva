@@ -394,7 +394,6 @@ class TicketService {
       throw new Error(error.response?.data?.message || 'Error al obtener mis tickets');
     }
   }
-}
 
   /**
    * Obtener tickets cerrados
@@ -414,6 +413,124 @@ class TicketService {
     } catch (error) {
       console.error('Error fetching closed tickets:', error);
       throw new Error(error.response?.data?.message || 'Error al obtener tickets cerrados');
+    }
+  }
+
+  /**
+   * Actualizar ticket
+   * @param {string|number} id - ID del ticket
+   * @param {Object} ticketData - Datos actualizados
+   * @returns {Promise} Ticket actualizado
+   */
+  async updateTicket(id, ticketData) {
+    try {
+      const result = await retryRequest(async () => {
+        const response = await httpClient.put(`${this.baseUrl}/${id}`, ticketData);
+        return {
+          success: true,
+          data: response.data.data || response.data,
+          message: response.data.message || 'Ticket actualizado exitosamente'
+        };
+      });
+
+      // Limpiar caché relacionado
+      cacheService.clearPattern('tickets:');
+      cacheService.remove(`ticket:${id}`);
+
+      return result;
+    } catch (error) {
+      console.error(`Error updating ticket ${id}:`, error);
+      throw new Error(error.response?.data?.message || 'Error al actualizar el ticket');
+    }
+  }
+
+  /**
+   * Eliminar ticket
+   * @param {string|number} id - ID del ticket
+   * @returns {Promise} Confirmación de eliminación
+   */
+  async deleteTicket(id) {
+    try {
+      const result = await retryRequest(async () => {
+        const response = await httpClient.delete(`${this.baseUrl}/${id}`);
+        return {
+          success: true,
+          message: response.data.message || 'Ticket eliminado exitosamente'
+        };
+      });
+
+      // Limpiar caché
+      cacheService.clearPattern('tickets:');
+      cacheService.remove(`ticket:${id}`);
+
+      return result;
+    } catch (error) {
+      console.error(`Error deleting ticket ${id}:`, error);
+      throw new Error(error.response?.data?.message || 'Error al eliminar el ticket');
+    }
+  }
+
+  /**
+   * Cambiar estado de ticket
+   * @param {string|number} id - ID del ticket
+   * @param {string} estado - Nuevo estado
+   * @param {string} observaciones - Observaciones del cambio
+   * @returns {Promise} Ticket actualizado
+   */
+  async changeTicketStatus(id, estado, observaciones = '') {
+    try {
+      const result = await retryRequest(async () => {
+        const response = await httpClient.patch(`${this.baseUrl}/${id}/status`, {
+          estado,
+          observaciones,
+          fecha_cambio: new Date().toISOString()
+        });
+        return {
+          success: true,
+          data: response.data.data || response.data,
+          message: response.data.message || `Estado cambiado a ${estado} exitosamente`
+        };
+      });
+
+      // Limpiar caché
+      cacheService.clearPattern('tickets:');
+      cacheService.remove(`ticket:${id}`);
+
+      return result;
+    } catch (error) {
+      console.error(`Error changing ticket ${id} status:`, error);
+      throw new Error(error.response?.data?.message || 'Error al cambiar el estado del ticket');
+    }
+  }
+
+  /**
+   * Asignar técnico a ticket
+   * @param {string|number} ticketId - ID del ticket
+   * @param {string|number} tecnicoId - ID del técnico
+   * @returns {Promise} Ticket actualizado
+   */
+  async assignTechnician(ticketId, tecnicoId) {
+    try {
+      const result = await retryRequest(async () => {
+        const response = await httpClient.patch(`${this.baseUrl}/${ticketId}/assign`, {
+          tecnico_id: tecnicoId,
+          fecha_asignacion: new Date().toISOString()
+        });
+        return {
+          success: true,
+          data: response.data.data || response.data,
+          message: response.data.message || 'Técnico asignado exitosamente'
+        };
+      });
+
+      // Limpiar caché
+      cacheService.clearPattern('tickets:');
+      cacheService.remove(`ticket:${ticketId}`);
+
+      return result;
+    } catch (error) {
+      console.error(`Error assigning technician to ticket ${ticketId}:`, error);
+      throw new Error(error.response?.data?.message || 'Error al asignar técnico');
     }
   }
 
@@ -590,6 +707,93 @@ class TicketService {
     } catch (error) {
       console.error('Error searching tickets:', error);
       throw new Error(error.response?.data?.message || 'Error al buscar tickets');
+    }
+  }
+
+  /**
+   * Subir archivos adjuntos a un ticket
+   * @param {string|number} ticketId - ID del ticket
+   * @param {FileList|Array} files - Archivos a subir
+   * @returns {Promise} Archivos subidos
+   */
+  async uploadFiles(ticketId, files) {
+    try {
+      const formData = new FormData();
+
+      // Agregar archivos al FormData
+      Array.from(files).forEach((file, index) => {
+        formData.append(`files[${index}]`, file);
+      });
+
+      formData.append('ticket_id', ticketId);
+
+      const result = await retryRequest(async () => {
+        const response = await httpClient.post(
+          `${this.baseUrl}/${ticketId}/files`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+        return {
+          success: true,
+          data: response.data.data || response.data,
+          message: response.data.message || 'Archivos subidos exitosamente'
+        };
+      });
+
+      return result;
+    } catch (error) {
+      console.error(`Error uploading files to ticket ${ticketId}:`, error);
+      throw new Error(error.response?.data?.message || 'Error al subir archivos');
+    }
+  }
+
+  /**
+   * Obtener estadísticas de tickets
+   * @param {Object} params - Parámetros de filtro
+   * @returns {Promise} Estadísticas
+   */
+  async getTicketStats(params = {}) {
+    try {
+      const cacheKey = cacheService.generateKey('tickets:stats', params);
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      const url = buildUrlWithParams(`${this.baseUrl}/stats`, params);
+
+      const result = await retryRequest(async () => {
+        const response = await httpClient.get(url);
+        return {
+          success: true,
+          data: response.data.data || response.data,
+          message: response.data.message || 'Estadísticas obtenidas exitosamente'
+        };
+      });
+
+      // Cachear por 5 minutos
+      cacheService.set(cacheKey, result, 5 * 60 * 1000);
+      return result;
+    } catch (error) {
+      console.error('Error fetching ticket stats:', error);
+
+      // Retornar estadísticas de fallback
+      return {
+        success: true,
+        data: {
+          total: 0,
+          abiertos: 0,
+          en_proceso: 0,
+          cerrados: 0,
+          por_prioridad: { alta: 0, media: 0, baja: 0 },
+          por_tipo: { licensed: 0, industrial: 0, infrastructure: 0 }
+        },
+        message: 'Estadísticas de ejemplo - Sin conexión al servidor'
+      };
     }
   }
 }
