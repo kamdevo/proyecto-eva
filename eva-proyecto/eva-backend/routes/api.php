@@ -29,6 +29,70 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Equipo;
 
+// Helper function for default permissions based on roles.md
+function getDefaultPermissionsByRole($rolId, $moduleName) {
+    // Role 1 (Super Admin) - Full access to everything
+    if ($rolId == 1) {
+        return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1];
+    }
+    
+    // Role 4 (Basic User) - Limited permissions as per roles.md
+    if ($rolId == 4) {
+        $basicUserModules = [
+            'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'guias rapidas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'contactos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'servicios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'areas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            // Explicitly deny access to admin modules
+            'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'roles' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'permisos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'administracion' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'reportes' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+        ];
+        
+        return $basicUserModules[$moduleName] ?? ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+    }
+    
+    // Role 3 (Advanced User) - Extended permissions
+    if ($rolId == 3) {
+        $advancedUserModules = [
+            'equipos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'equipos industriales' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'tickets activos' => ['leer' => 1, 'insertar' => 0, 'editar' => 1, 'eliminar' => 0],
+            'guias rapidas' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'contactos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'repuestos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'capacitaciones' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+        ];
+        
+        return $advancedUserModules[$moduleName] ?? ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0];
+    }
+    
+    // Role 2 (Administrator) - Administrative permissions
+    if ($rolId == 2) {
+        $adminModules = [
+            'equipos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'equipos industriales' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'usuarios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1],
+            'tickets activos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1],
+            'reportes' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'tickets cerrados' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+        ];
+        
+        return $adminModules[$moduleName] ?? ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0];
+    }
+    
+    // Default: no permissions
+    return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+}
+
 // ENDPOINT FINAL CORREGIDO PARA CREAR EQUIPOS
 Route::post("v1/equipos-final", function(Request $request) {
     header("Access-Control-Allow-Origin: *");
@@ -537,9 +601,803 @@ Route::get('v1/health', function () {
         'modules' => [
             'auth', 'equipos', 'mantenimiento', 'export', 'archivos',
             'contingencias', 'dashboard', 'areas', 'repuestos',
-            'capacitacion', 'contactos', 'filtros'
+            'capacitacion', 'contactos', 'filtros', 'bajas'
         ]
     ]);
+});
+
+// Bajas endpoints (sin autenticación por ahora)
+Route::prefix('v1')->group(function () {
+    // Get all bajas with pagination
+    Route::get('bajas', function (Request $request) {
+        try {
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 10);
+            $search = $request->get('search', '');
+            
+            $query = DB::table('bajas')
+                ->select('bajas.*')
+                ->selectRaw('(SELECT COUNT(*) FROM equipos_bajas WHERE equipos_bajas.baja_id = bajas.id) as equipos_count');
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('descripcion', 'LIKE', "%{$search}%")
+                      ->orWhere('id', 'LIKE', "%{$search}%");
+                });
+            }
+            
+            $total = $query->count();
+            $bajas = $query->orderBy('id', 'desc')
+                          ->offset(($page - 1) * $perPage)
+                          ->limit($perPage)
+                          ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $bajas,
+                'pagination' => [
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$perPage,
+                    'total' => $total,
+                    'last_page' => ceil($total / $perPage)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener bajas: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Create new baja
+    Route::post('bajas', function (Request $request) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'fecha_baja' => 'required|date',
+                'descripcion' => 'required|string|max:500',
+                'motivo' => 'required|string|max:255',
+                'observaciones' => 'nullable|string',
+                'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $archivoPath = null;
+            if ($request->hasFile('archivo')) {
+                $file = $request->file('archivo');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+            }
+            
+            $bajaId = DB::table('bajas')->insertGetId([
+                'fecha_baja' => $request->fecha_baja,
+                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'archivo' => $archivoPath,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            $baja = DB::table('bajas')->where('id', $bajaId)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Baja creada exitosamente',
+                'data' => $baja
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear baja: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Update baja
+    Route::put('bajas/{id}', function (Request $request, $id) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'fecha_baja' => 'required|date',
+                'descripcion' => 'required|string|max:500',
+                'motivo' => 'required|string|max:255',
+                'observaciones' => 'nullable|string',
+                'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $baja = DB::table('bajas')->where('id', $id)->first();
+            if (!$baja) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Baja no encontrada'
+                ], 404);
+            }
+            
+            $updateData = [
+                'fecha_baja' => $request->fecha_baja,
+                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'updated_at' => now()
+            ];
+            
+            if ($request->hasFile('archivo')) {
+                $file = $request->file('archivo');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+                $updateData['archivo'] = $archivoPath;
+            }
+            
+            DB::table('bajas')->where('id', $id)->update($updateData);
+            
+            $updatedBaja = DB::table('bajas')->where('id', $id)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Baja actualizada exitosamente',
+                'data' => $updatedBaja
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar baja: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Delete baja
+    Route::delete('bajas/{id}', function ($id) {
+        try {
+            $baja = DB::table('bajas')->where('id', $id)->first();
+            if (!$baja) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Baja no encontrada'
+                ], 404);
+            }
+            
+            // Remove equipment associations
+            DB::table('equipos_bajas')->where('baja_id', $id)->delete();
+            
+            // Delete baja
+            DB::table('bajas')->where('id', $id)->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Baja eliminada exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar baja: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Get available equipment for association
+    Route::get('equipos/available-for-baja', function (Request $request) {
+        try {
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 15);
+            $search = $request->get('search', '');
+            
+            $query = DB::table('equipos')
+                ->select('equipos.*')
+                ->where(function($q) {
+                    $q->whereNull('baja_id')
+                      ->orWhere('baja_id', 1);
+                });
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('marca', 'LIKE', "%{$search}%")
+                      ->orWhere('modelo', 'LIKE', "%{$search}%")
+                      ->orWhere('serie', 'LIKE', "%{$search}%");
+                });
+            }
+            
+            $total = $query->count();
+            $equipos = $query->orderBy('name', 'asc')
+                          ->offset(($page - 1) * $perPage)
+                          ->limit($perPage)
+                          ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $equipos,
+                'pagination' => [
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$perPage,
+                    'total' => $total,
+                    'last_page' => ceil($total / $perPage)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener equipos disponibles: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Associate equipment to baja
+    Route::post('bajas/{bajaId}/equipos', function (Request $request, $bajaId) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipo_ids' => 'required|array',
+                'equipo_ids.*' => 'integer|exists:equipos,id'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $user = $request->user();
+            $equipoIds = $request->equipo_ids;
+            
+            foreach ($equipoIds as $equipoId) {
+                // Check if already associated
+                $exists = DB::table('equipos_bajas')
+                    ->where('baja_id', $bajaId)
+                    ->where('equipo_id', $equipoId)
+                    ->exists();
+                
+                if (!$exists) {
+                    DB::table('equipos_bajas')->insert([
+                        'baja_id' => $bajaId,
+                        'equipo_id' => $equipoId,
+                        'usuario_id' => $user->id,
+                        'created_at' => now()
+                    ]);
+                    
+                    // Update equipment status to BAJA
+                    DB::table('equipos')->where('id', $equipoId)->update([
+                        'baja_id' => $bajaId,
+                        'estado' => 'BAJA'
+                    ]);
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipos asociados exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al asociar equipos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Get equipment associated with baja
+    Route::get('bajas/{bajaId}/equipos', function ($bajaId) {
+        try {
+            $equipos = DB::table('equipos_bajas')
+                ->join('equipos', 'equipos_bajas.equipo_id', '=', 'equipos.id')
+                ->where('equipos_bajas.baja_id', $bajaId)
+                ->select('equipos.*', 'equipos_bajas.created_at as fecha_asociacion')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $equipos
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener equipos asociados: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Remove equipment from baja
+    Route::delete('bajas/{bajaId}/equipos/{equipoId}', function ($bajaId, $equipoId) {
+        try {
+            $association = DB::table('equipos_bajas')
+                ->where('baja_id', $bajaId)
+                ->where('equipo_id', $equipoId)
+                ->first();
+            
+            if (!$association) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Asociación no encontrada'
+                ], 404);
+            }
+            
+            // Remove association
+            DB::table('equipos_bajas')
+                ->where('baja_id', $bajaId)
+                ->where('equipo_id', $equipoId)
+                ->delete();
+            
+            // Update equipment status back to ACTIVO
+            DB::table('equipos')->where('id', $equipoId)->update([
+                'baja_id' => 1,
+                'estado' => 'ACTIVO'
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipo removido de la baja exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al remover equipo: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Decommission equipment (create baja and associate equipment)
+    Route::post('equipos/{equipoId}/dar-baja', function (Request $request, $equipoId) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'fecha_baja' => 'required|date',
+                'descripcion' => 'required|string|max:500',
+                'motivo' => 'required|string|max:255',
+                'observaciones' => 'nullable|string',
+                'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $archivoPath = null;
+            if ($request->hasFile('archivo')) {
+                $file = $request->file('archivo');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+            }
+            
+            // Create baja
+            $bajaId = DB::table('bajas')->insertGetId([
+                'fecha_baja' => $request->fecha_baja,
+                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'archivo' => $archivoPath,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Associate equipment with baja
+            DB::table('equipos_bajas')->insert([
+                'baja_id' => $bajaId,
+                'equipo_id' => $equipoId,
+                'fecha_asociacion' => now(),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Update equipment status
+            DB::table('equipos')->where('id', $equipoId)->update([
+                'baja_id' => $bajaId,
+                'estado' => 'BAJA'
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipo dado de baja exitosamente',
+                'baja_id' => $bajaId
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al dar de baja equipo: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+});
+
+// Planes de Mantenimiento Preventivo endpoints (sin autenticación por ahora)
+Route::prefix('v1')->group(function () {
+    // Get all preventive maintenance plans with pagination
+    Route::get('planes-mantenimientos', function (Request $request) {
+        try {
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 25);
+            $search = $request->get('search', '');
+            $equipoId = $request->get('equipo_id');
+            $status = $request->get('status');
+            
+            $query = DB::table('planes_mantenimientos')
+                ->select('planes_mantenimientos.*')
+                ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+                ->selectRaw('equipos.name as equipo_name, equipos.code as equipo_code');
+            
+            if ($equipoId) {
+                $query->where('planes_mantenimientos.equipo_id', $equipoId);
+            }
+            
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('planes_mantenimientos.descripcion', 'LIKE', "%{$search}%")
+                      ->orWhere('planes_mantenimientos.tipo_mantenimiento', 'LIKE', "%{$search}%")
+                      ->orWhere('planes_mantenimientos.responsable', 'LIKE', "%{$search}%")
+                      ->orWhere('equipos.name', 'LIKE', "%{$search}%")
+                      ->orWhere('equipos.code', 'LIKE', "%{$search}%");
+                });
+            }
+            
+            if ($status && $status !== 'all') {
+                switch ($status) {
+                    case 'programado':
+                        $query->where('planes_mantenimientos.estado', 'programado');
+                        break;
+                    case 'en_progreso':
+                        $query->where('planes_mantenimientos.estado', 'en_progreso');
+                        break;
+                    case 'completado':
+                        $query->where('planes_mantenimientos.estado', 'completado');
+                        break;
+                    case 'cancelado':
+                        $query->where('planes_mantenimientos.estado', 'cancelado');
+                        break;
+                    case 'reprogramado':
+                        $query->where('planes_mantenimientos.estado', 'reprogramado');
+                        break;
+                }
+            }
+            
+            $total = $query->count();
+            $preventivos = $query->orderBy('planes_mantenimientos.fecha_programada', 'desc')
+                                ->offset(($page - 1) * $perPage)
+                                ->limit($perPage)
+                                ->get();
+            
+            // Format data for frontend
+            $formattedData = $preventivos->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'tipo_mantenimiento' => $item->tipo_mantenimiento ?? '',
+                    'descripcion' => $item->descripcion ?? '',
+                    'fecha_programada' => $item->fecha_programada ?? '',
+                    'fecha_mantenimiento' => $item->fecha_mantenimiento ?? null,
+                    'responsable' => $item->responsable ?? '',
+                    'estado' => $item->estado ?? 'programado',
+                    'observaciones' => $item->observaciones ?? '',
+                    'costo_estimado' => $item->costo_estimado ?? 0,
+                    'repuestos_necesarios' => $item->repuestos_necesarios ?? '',
+                    'frecuencia_dias' => $item->frecuencia_dias ?? null,
+                    'equipo_id' => $item->equipo_id,
+                    'equipo' => [
+                        'name' => $item->equipo_name ?? '',
+                        'code' => $item->equipo_code ?? ''
+                    ],
+                    'created_at' => $item->created_at ?? null,
+                    'updated_at' => $item->updated_at ?? null
+                ];
+            });
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $formattedData,
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$perPage,
+                    'total' => $total,
+                    'last_page' => ceil($total / $perPage)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener planes de mantenimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Create new preventive maintenance plan
+    Route::post('planes-mantenimientos', function (Request $request) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipo_id' => 'required|integer|exists:equipos,id',
+                'tipo_mantenimiento' => 'required|string|max:255',
+                'descripcion' => 'required|string|max:1000',
+                'fecha_programada' => 'required|date',
+                'responsable' => 'nullable|string|max:255',
+                'frecuencia_dias' => 'nullable|integer',
+                'costo_estimado' => 'nullable|numeric',
+                'repuestos_necesarios' => 'nullable|string',
+                'observaciones' => 'nullable|string'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $planId = DB::table('planes_mantenimientos')->insertGetId([
+                'equipo_id' => $request->equipo_id,
+                'tipo_mantenimiento' => $request->tipo_mantenimiento,
+                'descripcion' => $request->descripcion,
+                'fecha_programada' => $request->fecha_programada,
+                'responsable' => $request->responsable,
+                'frecuencia_dias' => $request->frecuencia_dias,
+                'costo_estimado' => $request->costo_estimado,
+                'repuestos_necesarios' => $request->repuestos_necesarios,
+                'observaciones' => $request->observaciones,
+                'estado' => 'programado',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            $plan = DB::table('planes_mantenimientos')->where('id', $planId)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Plan de mantenimiento creado exitosamente',
+                'data' => $plan
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear plan de mantenimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Update preventive maintenance plan
+    Route::put('planes-mantenimientos/{id}', function (Request $request, $id) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipo_id' => 'required|integer|exists:equipos,id',
+                'tipo_mantenimiento' => 'required|string|max:255',
+                'descripcion' => 'required|string|max:1000',
+                'fecha_programada' => 'required|date',
+                'responsable' => 'nullable|string|max:255',
+                'frecuencia_dias' => 'nullable|integer',
+                'costo_estimado' => 'nullable|numeric',
+                'repuestos_necesarios' => 'nullable|string',
+                'observaciones' => 'nullable|string',
+                'estado' => 'nullable|string|in:programado,en_progreso,completado,cancelado,reprogramado'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $plan = DB::table('planes_mantenimientos')->where('id', $id)->first();
+            if (!$plan) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Plan de mantenimiento no encontrado'
+                ], 404);
+            }
+            
+            $updateData = [
+                'equipo_id' => $request->equipo_id,
+                'tipo_mantenimiento' => $request->tipo_mantenimiento,
+                'descripcion' => $request->descripcion,
+                'fecha_programada' => $request->fecha_programada,
+                'responsable' => $request->responsable,
+                'frecuencia_dias' => $request->frecuencia_dias,
+                'costo_estimado' => $request->costo_estimado,
+                'repuestos_necesarios' => $request->repuestos_necesarios,
+                'observaciones' => $request->observaciones,
+                'estado' => $request->estado ?? $plan->estado,
+                'updated_at' => now()
+            ];
+            
+            DB::table('planes_mantenimientos')->where('id', $id)->update($updateData);
+            
+            $updatedPlan = DB::table('planes_mantenimientos')->where('id', $id)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Plan de mantenimiento actualizado exitosamente',
+                'data' => $updatedPlan
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar plan de mantenimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Delete preventive maintenance plan
+    Route::delete('planes-mantenimientos/{id}', function ($id) {
+        try {
+            $plan = DB::table('planes_mantenimientos')->where('id', $id)->first();
+            if (!$plan) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Plan de mantenimiento no encontrado'
+                ], 404);
+            }
+            
+            DB::table('planes_mantenimientos')->where('id', $id)->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Plan de mantenimiento eliminado exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar plan de mantenimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Export preventive maintenance plans
+    Route::get('planes-mantenimientos/export-excel', function (Request $request) {
+        try {
+            $equipoId = $request->get('equipo_id');
+            
+            $query = DB::table('planes_mantenimientos')
+                ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+                ->select([
+                    'planes_mantenimientos.*',
+                    'equipos.name as equipo_name',
+                    'equipos.code as equipo_code'
+                ]);
+            
+            if ($equipoId) {
+                $query->where('planes_mantenimientos.equipo_id', $equipoId);
+            }
+            
+            $data = $query->orderBy('planes_mantenimientos.fecha_programada', 'desc')->get();
+            
+            // Create CSV content
+            $csvContent = "Tipo Mantenimiento,Fecha Programada,Fecha Mantenimiento,Equipo,Código Equipo,Descripción,Responsable,Estado,Costo Estimado,Repuestos Necesarios,Observaciones\n";
+            
+            foreach ($data as $row) {
+                $csvContent .= sprintf(
+                    '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' . "\n",
+                    $row->tipo_mantenimiento ?? '',
+                    $row->fecha_programada ?? '',
+                    $row->fecha_mantenimiento ?? '',
+                    $row->equipo_name ?? '',
+                    $row->equipo_code ?? '',
+                    str_replace('"', '""', $row->descripcion ?? ''),
+                    $row->responsable ?? '',
+                    $row->estado ?? '',
+                    $row->costo_estimado ?? '',
+                    str_replace('"', '""', $row->repuestos_necesarios ?? ''),
+                    str_replace('"', '""', $row->observaciones ?? '')
+                );
+            }
+            
+            return response($csvContent, 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="planes_mantenimiento_' . date('Y-m-d') . '.csv"'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar planes de mantenimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    Route::post('equipos/{equipoId}/dar-baja', function (Request $request, $equipoId) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'fecha_baja' => 'required|date',
+                'descripcion' => 'required|string|max:500',
+                'motivo' => 'required|string|max:255',
+                'observaciones' => 'nullable|string',
+                'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $equipo = DB::table('equipos')->where('id', $equipoId)->first();
+            if (!$equipo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Equipo no encontrado'
+                ], 404);
+            }
+            
+            $user = $request->user();
+            
+            $archivoPath = null;
+            if ($request->hasFile('archivo')) {
+                $file = $request->file('archivo');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+            }
+            
+            // Create baja
+            $bajaId = DB::table('bajas')->insertGetId([
+                'fecha_baja' => $request->fecha_baja,
+                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'archivo' => $archivoPath,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Associate equipment to baja
+            DB::table('equipos_bajas')->insert([
+                'baja_id' => $bajaId,
+                'equipo_id' => $equipoId,
+                'usuario_id' => $user->id,
+                'observaciones' => $request->observaciones,
+                'created_at' => now()
+            ]);
+            
+            // Update equipment status
+            DB::table('equipos')->where('id', $equipoId)->update([
+                'baja_id' => $bajaId,
+                'estado' => 'BAJA'
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Equipo dado de baja exitosamente',
+                'baja_id' => $bajaId
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al dar de baja equipo: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Download baja document
+    Route::get('bajas/{id}/documento', function ($id) {
+        try {
+            $baja = DB::table('bajas')->where('id', $id)->first();
+            if (!$baja || !$baja->archivo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Documento no encontrado'
+                ], 404);
+            }
+            
+            $filePath = storage_path('app/public/' . $baja->archivo);
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Archivo no encontrado en el servidor'
+                ], 404);
+            }
+            
+            return response()->download($filePath);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al descargar documento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 });
 
 // Test endpoint (público)
@@ -2586,6 +3444,167 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'message' => 'Error obteniendo usuarios: ' . $e->getMessage()
             ], 500);
         }
+    });
+
+    // Authenticated User Management Routes
+    Route::middleware('auth:sanctum')->group(function () {
+        // User CRUD operations
+        Route::apiResource('usuarios', App\Http\Controllers\Api\UsuarioController::class);
+        
+        // Additional user endpoints
+        Route::get('usuarios/{id}/permissions', function($id) {
+            try {
+                $permissions = DB::table('acciones')
+                    ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                    ->where('acciones.usuario_id', $id)
+                    ->select([
+                        'modulos.id as modulo_id',
+                        'modulos.name as modulo_name',
+                        'acciones.leer',
+                        'acciones.insertar', 
+                        'acciones.editar',
+                        'acciones.eliminar'
+                    ])
+                    ->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $permissions
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error obteniendo permisos: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+
+        Route::post('usuarios/{id}/permissions', function($id, Request $request) {
+            try {
+                $user = auth('sanctum')->user();
+                
+                // Only super admin can modify permissions
+                if ($user->rol_id != 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Solo los super administradores pueden modificar permisos'
+                    ], 403);
+                }
+
+                $permissions = $request->input('permissions', []);
+                
+                // Delete existing permissions
+                DB::table('acciones')->where('usuario_id', $id)->delete();
+                
+                // Insert new permissions
+                foreach ($permissions as $permission) {
+                    DB::table('acciones')->insert([
+                        'usuario_id' => $id,
+                        'modulo_id' => $permission['modulo_id'],
+                        'leer' => $permission['leer'] ?? 0,
+                        'insertar' => $permission['insertar'] ?? 0,
+                        'editar' => $permission['editar'] ?? 0,
+                        'eliminar' => $permission['eliminar'] ?? 0
+                    ]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Permisos actualizados exitosamente'
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error actualizando permisos: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+
+        // Roles management endpoints
+        Route::get('roles', function() {
+            try {
+                $roles = DB::table('roles')
+                    ->where('estado', 1)
+                    ->select('id', 'nombre', 'descripcion')
+                    ->orderBy('id')
+                    ->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $roles
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error obteniendo roles: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+
+        // Modules management endpoints
+        Route::get('modulos', function() {
+            try {
+                $modulos = DB::table('modulos')
+                    ->where('estado', 1)
+                    ->select('id', 'name', 'descripcion')
+                    ->orderBy('name')
+                    ->get();
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $modulos
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error obteniendo módulos: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+
+        // Auto-assign default permissions for new users with role 4
+        Route::post('usuarios/{id}/assign-default-permissions', function($id) {
+            try {
+                $user = DB::table('usuarios')->where('id', $id)->first();
+                
+                if (!$user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Usuario no encontrado'
+                    ], 404);
+                }
+
+                // Get all modules
+                $modulos = DB::table('modulos')->where('estado', 1)->get();
+                
+                // Delete existing permissions
+                DB::table('acciones')->where('usuario_id', $id)->delete();
+                
+                // Assign permissions based on role according to roles.md
+                foreach ($modulos as $modulo) {
+                    $permissions = getDefaultPermissionsByRole($user->rol_id, $modulo->name);
+                    
+                    DB::table('acciones')->insert([
+                        'usuario_id' => $id,
+                        'modulo_id' => $modulo->id,
+                        'leer' => $permissions['leer'],
+                        'insertar' => $permissions['insertar'],
+                        'editar' => $permissions['editar'],
+                        'eliminar' => $permissions['eliminar']
+                    ]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Permisos por defecto asignados exitosamente'
+                ]);
+            } catch (Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error asignando permisos: ' . $e->getMessage()
+                ], 500);
+            }
+        });
     });
 
     // User activation endpoints (require super admin)

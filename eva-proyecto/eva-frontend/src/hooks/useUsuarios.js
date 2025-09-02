@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import api from "../config/apiClient";
 
-const API_BASE_URL = "http://127.0.0.1:8001/api/v1";
+const API_BASE_URL = "/v1";
 
 export const useUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -26,22 +27,9 @@ export const useUsuarios = () => {
           ...(search && { search }),
         });
 
-        const response = await fetch(
-          `${API_BASE_URL}/usuarios-public?${params}`,
-          {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const response = await api.get(`${API_BASE_URL}/usuarios-public?${params}`);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success) {
           setUsuarios(data.data.data || []);
@@ -72,23 +60,9 @@ export const useUsuarios = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${API_BASE_URL}/usuarios`, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userData),
-        });
+        const response = await api.post(`${API_BASE_URL}/usuarios`, userData);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
-          );
-        }
-
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success) {
           // Refrescar la lista después de crear
@@ -115,23 +89,9 @@ export const useUsuarios = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-          method: "PUT",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userData),
-        });
+        const response = await api.put(`${API_BASE_URL}/usuarios/${id}`, userData);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
-          );
-        }
-
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success) {
           // Refrescar la lista después de actualizar
@@ -158,22 +118,9 @@ export const useUsuarios = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-          method: "DELETE",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await api.delete(`${API_BASE_URL}/usuarios/${id}`);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.message || `HTTP error! status: ${response.status}`
-          );
-        }
-
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success) {
           // Refrescar la lista después de eliminar
@@ -199,19 +146,9 @@ export const useUsuarios = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await api.get(`${API_BASE_URL}/usuarios/${id}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         return data.data;

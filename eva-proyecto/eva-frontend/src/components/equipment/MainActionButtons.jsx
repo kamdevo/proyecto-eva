@@ -2,6 +2,7 @@ import { Filter, Plus, FileSpreadsheet, Merge, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "../../hooks/useAuth.jsx";
 
 /**
  * Componente reutilizable para botones de acciones principales
@@ -38,6 +39,9 @@ export function MainActionButtons({
   };
 
   const labels = getLabels();
+  const { canCreate, canEdit, canDelete } = useAuth();
+  
+  const moduleName = equipmentType === "industrial" ? "equipos industriales" : "equipos";
 
   return (
     <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
@@ -80,7 +84,10 @@ export function MainActionButtons({
             onClick={onAddClick}
             variant="ghost"
             size="sm"
-            className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
+            disabled={!canCreate(moduleName)}
+            className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
+              !canCreate(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <Plus className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
             <span className="truncate">{labels.add}</span>
@@ -90,7 +97,10 @@ export function MainActionButtons({
             onClick={onCleanNamesClick}
             variant="ghost"
             size="sm"
-            className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
+            disabled={!canEdit(moduleName)}
+            className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
+              !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <FileSpreadsheet className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
             <span className="truncate">{labels.clean}</span>
@@ -100,7 +110,10 @@ export function MainActionButtons({
             onClick={onMergeClick}
             variant="ghost"
             size="sm"
-            className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
+            disabled={!canEdit(moduleName)}
+            className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
+              !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <Merge className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
             <span className="truncate">{labels.merge}</span>

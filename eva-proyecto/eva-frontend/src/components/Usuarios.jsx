@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronL
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
 import { useCentrosCosto } from "../hooks/useCentrosCosto";
-import { usePermisos } from "../hooks/usePermisos";
+import { usePermissions } from "../hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -68,13 +68,13 @@ export default function Usuarios() {
   const { sedes, loading: sedesLoading } = useSedes();
   const { centros, loading: centrosLoading } = useCentrosCosto();
   const {
-    modulos,
+    loading: permissionsLoading,
+    error: permissionsError,
     fetchUserPermissions,
-    updatePermission,
-    createDefaultPermissions,
-    resetModulePermissions,
-    fetchModuleStats,
-  } = usePermisos();
+    updateUserPermissions,
+    assignDefaultPermissions,
+    fetchModules,
+  } = usePermissions();
 
   // Estados para modales y UI
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -89,6 +89,7 @@ export default function Usuarios() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPermissions, setUserPermissions] = useState([]);
   const [moduleStats, setModuleStats] = useState([]);
+  const [modulos, setModulos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchTimeout, setSearchTimeout] = useState(null);
   const [goToPage, setGoToPage] = useState("");
@@ -146,26 +147,29 @@ export default function Usuarios() {
     },
   });
 
-  // Cargar estadísticas de módulos al montar el componente
+  // Cargar módulos al montar el componente
   useEffect(() => {
-    const loadModuleStats = async () => {
+    const loadModules = async () => {
       try {
-        const stats = await fetchModuleStats();
-        // Ensure moduleStats is always an array
-        if (Array.isArray(stats)) {
-          setModuleStats(stats);
+        const modules = await fetchModules();
+        // Ensure modules is always an array
+        if (Array.isArray(modules)) {
+          setModulos(modules);
+          setModuleStats(modules);
         } else {
-          console.warn("Module stats is not an array, using empty array:", stats);
+          console.warn("Modules is not an array, using empty array:", modules);
+          setModulos([]);
           setModuleStats([]);
         }
       } catch (error) {
-        console.error("Error loading module stats:", error);
+        console.error("Error loading modules:", error);
+        setModulos([]); // Set empty array on error
         setModuleStats([]); // Set empty array on error
       }
     };
 
-    loadModuleStats();
-  }, [fetchModuleStats]);
+    loadModules();
+  }, [fetchModules]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -882,34 +886,22 @@ export default function Usuarios() {
     try {
       if (!selectedUser) return;
 
-      const response = await fetch(`http://127.0.0.1:8001/api/v1/admin/users/${selectedUser.id}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('eva_auth_token')}`
-        },
-        body: JSON.stringify({
-          permissions: userPermissions.map(permission => ({
-            modulo_id: permission.modulo_id,
-            leer: permission.leer,
-            insertar: permission.insertar,
-            editar: permission.editar,
-            eliminar: permission.eliminar
-          }))
-        })
-      });
+      const permissionsToSave = userPermissions.map(permission => ({
+        modulo_id: permission.modulo_id,
+        leer: permission.leer ? 1 : 0,
+        insertar: permission.insertar ? 1 : 0,
+        editar: permission.editar ? 1 : 0,
+        eliminar: permission.eliminar ? 1 : 0
+      }));
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert("Permisos actualizados exitosamente");
-        // Refrescar permisos
-        const updatedPermissions = await fetchUserPermissions(selectedUser.id);
-        setUserPermissions(updatedPermissions);
-      } else {
-        alert(`Error: ${result.message}`);
-      }
+      await updateUserPermissions(selectedUser.id, permissionsToSave);
+      
+      alert("Permisos actualizados exitosamente");
+      
+      // Refrescar permisos
+      const updatedPermissions = await fetchUserPermissions(selectedUser.id);
+      setUserPermissions(updatedPermissions);
+      
     } catch (error) {
       console.error("Error saving user permissions:", error);
       alert("Error al guardar los permisos del usuario");

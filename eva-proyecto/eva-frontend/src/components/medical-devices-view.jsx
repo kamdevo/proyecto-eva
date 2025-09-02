@@ -16,6 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { useEquipment } from "@/hooks/useEquipment";
+import { useAuth } from "@/hooks/useAuth.jsx";
+import PermissionWrapper from "./PermissionWrapper";
 import { MainActionButtons } from "./equipment/MainActionButtons";
 import { StatsActionButtons } from "./equipment/StatsActionButtons";
 import { EquipmentPagination } from "./equipment/EquipmentPagination";
@@ -37,7 +39,7 @@ import { FilterModal } from "@/components/modals/filter-modal";
 import { AddEquipmentModal } from "@/components/modals/add-equipment-modal";
 import { CleanNamesModal } from "@/components/modals/clean-names-modal";
 import { MergeModal } from "@/components/modals/merge-modal";
-import { PreventiveModal } from "@/components/modals/preventive-modal";
+import PreventiveModal from "@/components/modals/preventive-modal";
 import { CalibrationModal } from "@/components/modals/calibration-modal";
 import { CorrectiveModal } from "@/components/modals/corrective-modal";
 import { MonthModal } from "@/components/modals/month-modal";
@@ -48,6 +50,7 @@ import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import AddObservacionModal from "@/components/modals/add-observacion-modal";
+import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
 import EquipmentImage from "./ui/equipment-image";
 
@@ -106,6 +109,7 @@ export function MedicalDevicesView() {
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
+  const [darBajaEquipoModalOpen, setDarBajaEquipoModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [equipmentId, setEquipmentId] = useState("");
   const [dateFilter, setDateFilter] = useState("");
@@ -287,25 +291,29 @@ export function MedicalDevicesView() {
       {/* Action Buttons - Ultra Compact Side by Side */}
       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
         {/* Main Action Buttons */}
-        <MainActionButtons
-          onFilterClick={() => setFilterModalOpen(true)}
-          onAddClick={() => setAddModalOpen(true)}
-          onCleanNamesClick={() => setCleanNamesModalOpen(true)}
-          onMergeClick={() => setMergeModalOpen(true)}
-          onClearFiltersClick={handleClearAllFilters}
-          activeFiltersCount={activeFiltersCount}
-          showClearFilters={true}
-          equipmentType="biomedical"
-        />
+        <PermissionWrapper module="equipos" action="leer">
+          <MainActionButtons
+            onFilterClick={() => setFilterModalOpen(true)}
+            onAddClick={() => setAddModalOpen(true)}
+            onCleanNamesClick={() => setCleanNamesModalOpen(true)}
+            onMergeClick={() => setMergeModalOpen(true)}
+            onClearFiltersClick={handleClearAllFilters}
+            activeFiltersCount={activeFiltersCount}
+            showClearFilters={true}
+            equipmentType="biomedical"
+          />
+        </PermissionWrapper>
 
         {/* Stats Buttons */}
-        <StatsActionButtons
-          onPreventiveClick={() => setPreventiveModalOpen(true)}
-          onCalibrationClick={() => setCalibrationModalOpen(true)}
-          onCorrectiveClick={() => setCorrectiveModalOpen(true)}
-          onMonthClick={() => setMonthModalOpen(true)}
-          equipmentType="biomedical"
-        />
+        <PermissionWrapper module="equipos" action="leer">
+          <StatsActionButtons
+            onPreventiveClick={() => setPreventiveModalOpen(true)}
+            onCalibrationClick={() => setCalibrationModalOpen(true)}
+            onCorrectiveClick={() => setCorrectiveModalOpen(true)}
+            onMonthClick={() => setMonthModalOpen(true)}
+            equipmentType="biomedical"
+          />
+        </PermissionWrapper>
       </div>
       {/* Main Content Card */}
       <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
@@ -960,6 +968,10 @@ export function MedicalDevicesView() {
                           setSelectedEquipment(eq);
                           setCopyEquipmentModalOpen(true);
                         }}
+                        onDecommissionClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDarBajaEquipoModalOpen(true);
+                        }}
                         equipmentType="biomedical"
                         showCopyButton={false}
                       />
@@ -1153,7 +1165,7 @@ export function MedicalDevicesView() {
       />
       <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />
       <PreventiveModal
-        open={preventiveModalOpen}
+        isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
       />
       <CopyEquipmentModal
@@ -1214,6 +1226,15 @@ export function MedicalDevicesView() {
         equipmentName={selectedEquipment?.equipo?.name || "Equipo sin nombre"}
         onObservationAdded={() => {
           // Refresh the equipment data after adding observation
+          refresh();
+        }}
+      />
+      <DarBajaEquipoModal
+        open={darBajaEquipoModalOpen}
+        onOpenChange={setDarBajaEquipoModalOpen}
+        equipo={selectedEquipment}
+        onSuccess={() => {
+          // Refresh the equipment data after decommissioning
           refresh();
         }}
       />

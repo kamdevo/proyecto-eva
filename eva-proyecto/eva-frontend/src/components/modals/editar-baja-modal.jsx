@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,14 +12,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X, Edit } from "lucide-react";
+import { Upload, X, Edit, AlertCircle } from "lucide-react";
+import useBajas from "../../hooks/useBajas";
 
-function ModalEditarDocumento({ open, onOpenChange, document }) {
-  const [fechaBaja, setFechaBaja] = useState("2019-05-04");
-  const [descripcion, setDescripcion] = useState(
-    "Concepto técnico de baja, según el acta presentada por Consultorio y Medicina 2020"
-  );
+function ModalEditarDocumento({ open, onOpenChange, baja, onSuccess }) {
+  const { updateBaja, loading, error } = useBajas();
+  const [fechaBaja, setFechaBaja] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [archivo, setArchivo] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+
+  // Cargar datos de la baja cuando se abre el modal
+  useEffect(() => {
+    if (open && baja) {
+      setFechaBaja(baja.fecha_baja || "");
+      setDescripcion(baja.descripcion || "");
+      setMotivo(baja.motivo || "");
+      setObservaciones(baja.observaciones || "");
+      setArchivo(null); // No cargar archivo existente
+      setSubmitError(null);
+    }
+  }, [open, baja]);
 
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0];
@@ -40,6 +55,54 @@ function ModalEditarDocumento({ open, onOpenChange, document }) {
     }
   };
 
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    
+    if (!baja?.id) {
+      setSubmitError('No se puede actualizar: ID de baja no encontrado');
+      return;
+    }
+    
+    // Validaciones básicas
+    if (!fechaBaja) {
+      setSubmitError('La fecha de baja es requerida');
+      return;
+    }
+    
+    if (!descripcion.trim()) {
+      setSubmitError('La descripción es requerida');
+      return;
+    }
+
+    try {
+      const bajaData = {
+        fecha_baja: fechaBaja,
+        descripcion: descripcion.trim(),
+        motivo: motivo.trim(),
+        observaciones: observaciones.trim(),
+        documento: archivo
+      };
+
+      await updateBaja(baja.id, bajaData);
+      
+      setSubmitError(null);
+      
+      // Notificar éxito
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err) {
+      setSubmitError(err.message || 'Error al actualizar la baja');
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      setSubmitError(null);
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
@@ -53,14 +116,14 @@ function ModalEditarDocumento({ open, onOpenChange, document }) {
           {/* Título del documento */}
           <div>
             <h3 className="text-lg font-medium text-blue-600 border-b border-blue-200 pb-1">
-              Documento soporte de disposición final de equipos biomédicos
+              Editar Baja ID: {baja?.id}
             </h3>
           </div>
 
           {/* Fecha de la baja */}
           <div className="space-y-2">
             <Label htmlFor="fecha-baja-edit" className="text-sm font-medium">
-              Fecha de la baja
+              Fecha de la baja *
             </Label>
             <Input
               id="fecha-baja-edit"
@@ -68,18 +131,49 @@ function ModalEditarDocumento({ open, onOpenChange, document }) {
               value={fechaBaja}
               onChange={(e) => setFechaBaja(e.target.value)}
               className="w-full"
+              required
             />
           </div>
 
           {/* Descripción */}
           <div className="space-y-2">
             <Label htmlFor="descripcion-edit" className="text-sm font-medium">
-              Descripción
+              Descripción *
             </Label>
             <Textarea
               id="descripcion-edit"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Ingrese la descripción de la baja"
+              className="min-h-[80px] resize-none"
+              required
+            />
+          </div>
+
+          {/* Motivo */}
+          <div className="space-y-2">
+            <Label htmlFor="motivo-edit" className="text-sm font-medium">
+              Motivo
+            </Label>
+            <Textarea
+              id="motivo-edit"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Motivo de la baja (opcional)"
+              className="min-h-[60px] resize-none"
+            />
+          </div>
+
+          {/* Observaciones */}
+          <div className="space-y-2">
+            <Label htmlFor="observaciones-edit" className="text-sm font-medium">
+              Observaciones
+            </Label>
+            <Textarea
+              id="observaciones-edit"
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder="Observaciones adicionales (opcional)"
               className="min-h-[60px] resize-none"
             />
           </div>
@@ -98,11 +192,16 @@ function ModalEditarDocumento({ open, onOpenChange, document }) {
               >
                 <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                 <p className="text-gray-500 mb-1 text-sm">
-                  Drag & drop files here
+                  Arrastra y suelta archivos aquí
                 </p>
                 <p className="text-gray-400 text-xs mb-3">
-                  (or click to select file)
+                  (o haz clic para seleccionar archivo)
                 </p>
+                {baja?.documento && !archivo && (
+                  <p className="text-xs text-blue-600 mb-2">
+                    Archivo actual: {baja.documento}
+                  </p>
+                )}
                 {archivo && (
                   <div className="flex items-center justify-center gap-2 text-sm text-green-600">
                     <span>{archivo.name}</span>
@@ -127,21 +226,56 @@ function ModalEditarDocumento({ open, onOpenChange, document }) {
               onChange={handleFileSelect}
             />
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                SELECT FILE
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => document.getElementById("file-input-edit")?.click()}
+                type="button"
+              >
+                SELECCIONAR ARCHIVO
               </Button>
-              <Button variant="destructive" size="sm">
-                Eliminar
-              </Button>
+              {archivo && (
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => setArchivo(null)}
+                  type="button"
+                >
+                  Eliminar
+                </Button>
+              )}
             </div>
+            {archivo && (
+              <p className="text-xs text-green-600 mt-1">
+                Nuevo archivo seleccionado: {archivo.name}
+              </p>
+            )}
           </div>
         </div>
 
+        {/* Error display */}
+        {(submitError || error) && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">{submitError || error}</span>
+          </div>
+        )}
+
         {/* Botones de acción */}
         <div className="flex justify-between pt-3 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700">Actualizar</Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? 'Actualizando...' : 'Actualizar Baja'}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={loading}
+          >
+            Cancelar
           </Button>
         </div>
       </DialogContent>

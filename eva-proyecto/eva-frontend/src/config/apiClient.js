@@ -62,17 +62,22 @@ api.interceptors.response.use(
       data: error.response?.data,
     });
 
-    // Manejo de errores de autenticación deshabilitado para equipos biomédicos
-    // Solo redirigir si es un error 401 y NO es una ruta de equipos
-    if (
-      error.response?.status === 401 &&
-      !error.config?.url?.includes("/equipos/")
-    ) {
-      console.warn("🚪 Unauthorized - redirecting to login");
-      localStorage.removeItem("usuario");
-      // Solo redirigir si no estamos ya en la página de login
-      if (!window.location.pathname.includes("/login")) {
+    // Manejo de errores de autenticación - evitar redirección automática para ciertas rutas
+    if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      const isProtectedRoute = url.includes("/equipos/") || 
+                              url.includes("/bajas") || 
+                              url.includes("/v1/bajas") ||
+                              url.includes("/usuarios/") ||
+                              url.includes("/permissions");
+      
+      // Solo redirigir si NO es una ruta protegida y NO estamos en login
+      if (!isProtectedRoute && !window.location.pathname.includes("/login")) {
+        console.warn("🚪 Unauthorized - redirecting to login");
+        localStorage.removeItem("usuario");
         window.location.href = "/login";
+      } else {
+        console.warn("🔒 401 error on protected route - not redirecting:", url);
       }
     }
 

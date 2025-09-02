@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useEquipment } from "../hooks/useEquipment";
+import { useAuth } from "../hooks/useAuth.jsx";
+import PermissionWrapper from "./PermissionWrapper";
 import { MainActionButtons } from "./equipment/MainActionButtons";
 import { StatsActionButtons } from "./equipment/StatsActionButtons";
 import { EquipmentPagination } from "./equipment/EquipmentPagination";
@@ -38,7 +40,7 @@ import { FilterModal } from "@/components/modals/filter-modal";
 import { AddEquipmentModal } from "@/components/modals/add-equipment-modal";
 import { CleanNamesModal } from "@/components/modals/clean-names-modal";
 import { MergeModal } from "@/components/modals/merge-modal";
-import { PreventiveModal } from "@/components/modals/preventive-modal";
+import PreventiveModal from "@/components/modals/preventive-modal";
 import { CalibrationModal } from "@/components/modals/calibration-modal";
 import { CorrectiveModal } from "@/components/modals/corrective-modal";
 import { MonthModal } from "@/components/modals/month-modal";
@@ -49,6 +51,7 @@ import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import { LifeModal } from "@/components/modals/life-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
+import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
 
 function IndustrialDevicesView() {
@@ -92,6 +95,7 @@ function IndustrialDevicesView() {
   const [editEquipmentModalOpen, setEditEquipmentModalOpen] = useState(false);
   const [viewEquipmentModalOpen, setViewEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [darBajaEquipoModalOpen, setDarBajaEquipoModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
 
@@ -201,24 +205,28 @@ function IndustrialDevicesView() {
       {/* Action Buttons - Ultra Compact Side by Side */}
       <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 mb-3 sm:mb-4 md:mb-6">
         {/* Main Action Buttons */}
-        <MainActionButtons
-          onFilterClick={() => setFilterModalOpen(true)}
-          onAddClick={() => setAddModalOpen(true)}
-          onCleanNamesClick={() => setCleanNamesModalOpen(true)}
-          onMergeClick={() => setMergeModalOpen(true)}
-          onClearFiltersClick={handleClearAllFilters}
-          activeFiltersCount={activeFiltersCount}
-          showClearFilters={true}
-          equipmentType="industrial"
-        />{" "}
+        <PermissionWrapper module="equipos industriales" action="leer">
+          <MainActionButtons
+            onFilterClick={() => setFilterModalOpen(true)}
+            onAddClick={() => setAddModalOpen(true)}
+            onCleanNamesClick={() => setCleanNamesModalOpen(true)}
+            onMergeClick={() => setMergeModalOpen(true)}
+            onClearFiltersClick={handleClearAllFilters}
+            activeFiltersCount={activeFiltersCount}
+            showClearFilters={true}
+            equipmentType="industrial"
+          />
+        </PermissionWrapper>
         {/* Stats Buttons */}
-        <StatsActionButtons
-          onPreventiveClick={() => setPreventiveModalOpen(true)}
-          onCalibrationClick={() => setCalibrationModalOpen(true)}
-          onCorrectiveClick={() => setCorrectiveModalOpen(true)}
-          onMonthClick={() => setMonthModalOpen(true)}
-          equipmentType="industrial"
-        />
+        <PermissionWrapper module="equipos industriales" action="leer">
+          <StatsActionButtons
+            onPreventiveClick={() => setPreventiveModalOpen(true)}
+            onCalibrationClick={() => setCalibrationModalOpen(true)}
+            onCorrectiveClick={() => setCorrectiveModalOpen(true)}
+            onMonthClick={() => setMonthModalOpen(true)}
+            equipmentType="industrial"
+          />
+        </PermissionWrapper>
       </div>
       {/* Main Content Card */}
       <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
@@ -666,6 +674,10 @@ function IndustrialDevicesView() {
                           setSelectedEquipment(eq);
                           setCopyEquipmentModalOpen(true);
                         }}
+                        onDecommissionClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDarBajaEquipoModalOpen(true);
+                        }}
                         equipmentType="industrial"
                         showCopyButton={true}
                       />
@@ -708,7 +720,7 @@ function IndustrialDevicesView() {
       />
       <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />
       <PreventiveModal
-        open={preventiveModalOpen}
+        isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
       />
       <CalibrationModal
@@ -758,6 +770,15 @@ function IndustrialDevicesView() {
         open={copyEquipmentModalOpen}
         onOpenChange={setCopyEquipmentModalOpen}
         equipment={selectedEquipment}
+      />
+      <DarBajaEquipoModal
+        open={darBajaEquipoModalOpen}
+        onOpenChange={setDarBajaEquipoModalOpen}
+        equipo={selectedEquipment}
+        onSuccess={() => {
+          // Refresh the equipment data after decommissioning
+          refresh();
+        }}
       />
     </div>
   );

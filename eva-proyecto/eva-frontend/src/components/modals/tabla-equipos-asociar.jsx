@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,55 +17,41 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Edit, ChevronLeft, ChevronRight, List, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import useBajas from "../../hooks/useBajas";
+import { useEquipment } from "../../hooks/useEquipment";
 
-// Datos de ejemplo de equipos biomédicos
-const equiposBiomedicos = [
-  {
-    id: "CAMA ELECTROMECANICA",
-    nombre: "CAMA ELECTROMECANICA",
-    estado: "ACTIVO",
-    fecha: "Feb 16,19",
-    tipo: "CAMA ELECTROMECANICA",
-  },
-  {
-    id: "CAMA ELECTROMECANICA",
-    nombre: "CAMA ELECTROMECANICA",
-    estado: "ACTIVO",
-    fecha: "Feb 16,19",
-    tipo: "CAMA ELECTROMECANICA",
-  },
-  {
-    id: "CAMA ELECTROMECANICA",
-    nombre: "CAMA ELECTROMECANICA",
-    estado: "ACTIVO",
-    fecha: "Feb 16,19",
-    tipo: "CAMA ELECTROMECANICA",
-  },
-  {
-    id: "CAMA ELECTROMECANICA",
-    nombre: "CAMA ELECTROMECANICA",
-    estado: "ACTIVO",
-    fecha: "Feb 16,19",
-    tipo: "CAMA ELECTROMECANICA",
-  },
-  {
-    id: "CAMA ELECTROMECANICA",
-    nombre: "CAMA ELECTROMECANICA",
-    estado: "ACTIVO",
-    fecha: "Feb 16,19",
-    tipo: "CAMA ELECTROMECANICA",
-  },
-];
-function ModalTablaEquipos({ open, onOpenChange, document }) {
+function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
+  const { associateEquipment, loading: bajasLoading, error: bajasError } = useBajas();
+  const { 
+    devices: equipos, 
+    loading: equiposLoading, 
+    refresh: fetchEquipos 
+  } = useEquipment("biomedical");
+  
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const itemsPerPage = 5;
+  const [selectedEquipos, setSelectedEquipos] = useState([]);
+  const [submitError, setSubmitError] = useState(null);
+  const itemsPerPage = 10;
+
+  // Cargar equipos cuando se abre el modal
+  useEffect(() => {
+    if (open) {
+      fetchEquipos();
+      setSelectedEquipos([]);
+      setSubmitError(null);
+    }
+  }, [open]);
 
   // Filtrar equipos según término de búsqueda
-  const filteredEquipos = equiposBiomedicos.filter((equipo) =>
-    equipo.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEquipos = equipos.filter((equipo) =>
+    equipo.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    equipo.marca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    equipo.modelo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    equipo.serie?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredEquipos.length / itemsPerPage);
@@ -73,24 +59,83 @@ function ModalTablaEquipos({ open, onOpenChange, document }) {
   const endIndex = startIndex + itemsPerPage;
   const currentItems = filteredEquipos.slice(startIndex, endIndex);
 
+  const handleSelectEquipo = (equipoId, checked) => {
+    if (checked) {
+      setSelectedEquipos(prev => [...prev, equipoId]);
+    } else {
+      setSelectedEquipos(prev => prev.filter(id => id !== equipoId));
+    }
+  };
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedEquipos(currentItems.map(equipo => equipo.id));
+    } else {
+      setSelectedEquipos([]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    
+    if (!baja?.id) {
+      setSubmitError('No se puede asociar: ID de baja no encontrado');
+      return;
+    }
+    
+    if (selectedEquipos.length === 0) {
+      setSubmitError('Debe seleccionar al menos un equipo');
+      return;
+    }
+
+    try {
+      await associateEquipment(baja.id, selectedEquipos);
+      
+      setSelectedEquipos([]);
+      setSubmitError(null);
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err) {
+      setSubmitError(err.message || 'Error al asociar equipos');
+    }
+  };
+
+  const handleClose = () => {
+    if (!bajasLoading) {
+      setSelectedEquipos([]);
+      setSubmitError(null);
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} className="w-full">
       <DialogContent className="sm:max-w-[900px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-blue-600 border-b border-blue-200 pb-2">
-            Equipos
+            Asociar Equipos a Baja ID: {baja?.id}
           </DialogTitle>
         </DialogHeader>
 
         <div className="py-4">
-          {/* Barra de búsqueda */}
-          <div className="mb-4">
+          {/* Información y búsqueda */}
+          <div className="mb-4 space-y-3">
+            <div className="text-sm text-gray-600">
+              Seleccione los equipos que desea asociar a esta baja.
+              {selectedEquipos.length > 0 && (
+                <span className="ml-2 font-medium text-blue-600">
+                  {selectedEquipos.length} equipo(s) seleccionado(s)
+                </span>
+              )}
+            </div>
             <Input
-              placeholder="Buscar..."
+              placeholder="Buscar por nombre, marca, modelo o serie..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1); // Reset to first page on search
+                setCurrentPage(1);
               }}
               className="max-w-sm"
             />
@@ -101,48 +146,73 @@ function ModalTablaEquipos({ open, onOpenChange, document }) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
-                  <TableHead className="font-medium">ID</TableHead>
+                  <TableHead className="font-medium w-12">
+                    <Checkbox
+                      checked={currentItems.length > 0 && currentItems.every(equipo => selectedEquipos.includes(equipo.id))}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="font-medium">Nombre</TableHead>
+                  <TableHead className="font-medium">Marca</TableHead>
+                  <TableHead className="font-medium">Modelo</TableHead>
+                  <TableHead className="font-medium">Serie</TableHead>
                   <TableHead className="font-medium">Estado</TableHead>
-                  <TableHead className="font-medium">Fecha</TableHead>
-                  <TableHead className="font-medium">Editar</TableHead>
-                  <TableHead className="font-medium">Tipo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentItems.map((equipo, index) => (
-                  <TableRow key={index} className="hover:bg-gray-50">
-                    <TableCell className="font-medium text-sm">
-                      {equipo.id}
+                {equiposLoading ? (
+                  <TableRow>
+                    <TableCell colSpan="6" className="text-center py-8 text-gray-500">
+                      Cargando equipos...
                     </TableCell>
-                    <TableCell className="text-sm">{equipo.nombre}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="bg-green-100 text-green-800 hover:bg-green-100"
-                      >
-                        {equipo.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{equipo.fecha}</TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-sm">{equipo.tipo}</TableCell>
                   </TableRow>
-                ))}
+                ) : currentItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan="6" className="text-center py-8 text-gray-500">
+                      {searchTerm ? 'No se encontraron equipos que coincidan con la búsqueda' : 'No hay equipos disponibles'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  currentItems.map((equipo) => (
+                    <TableRow key={equipo.id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedEquipos.includes(equipo.id)}
+                          onCheckedChange={(checked) => handleSelectEquipo(equipo.id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">
+                        {equipo.nombre || 'Sin nombre'}
+                      </TableCell>
+                      <TableCell className="text-sm">{equipo.marca || 'N/A'}</TableCell>
+                      <TableCell className="text-sm">{equipo.modelo || 'N/A'}</TableCell>
+                      <TableCell className="text-sm">{equipo.serie || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`${
+                            equipo.estado === 'ACTIVO' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-800'
+                          } hover:bg-current`}
+                        >
+                          {equipo.estado || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
 
             {/* Paginación */}
             <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
               <div className="text-sm text-gray-600">
-                Showing {startIndex + 1} to{" "}
-                {Math.min(endIndex, filteredEquipos.length)} of{" "}
-                {filteredEquipos.length} entries
+                {equiposLoading ? (
+                  "Cargando..."
+                ) : (
+                  `Mostrando ${startIndex + 1} a ${Math.min(endIndex, filteredEquipos.length)} de ${filteredEquipos.length} equipos`
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -189,10 +259,29 @@ function ModalTablaEquipos({ open, onOpenChange, document }) {
           </div>
         </div>
 
+        {/* Error display */}
+        {(submitError || bajasError) && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">{submitError || bajasError}</span>
+          </div>
+        )}
+
         {/* Botones de acción */}
-        <div className="flex justify-end pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
+        <div className="flex justify-between pt-4 border-t">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleSubmit}
+            disabled={bajasLoading || selectedEquipos.length === 0}
+          >
+            {bajasLoading ? 'Asociando...' : `Asociar ${selectedEquipos.length} Equipo(s)`}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={bajasLoading}
+          >
+            Cancelar
           </Button>
         </div>
       </DialogContent>

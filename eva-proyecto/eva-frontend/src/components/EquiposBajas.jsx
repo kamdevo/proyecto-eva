@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   FileText,
@@ -9,6 +9,9 @@ import {
   Edit,
   Link,
   Plus,
+  Download,
+  Eye,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,105 +27,102 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "../hooks/useAuth";
+import useBajas from "../hooks/useBajas";
 import ModalAgregarBaja from "@/components/modals/agregar-baja-modal";
 import ModalEditarDocumento from "@/components/modals/editar-baja-modal";
 import ModalTablaEquipos from "@/components/modals/tabla-equipos-asociar";
+import ModalEquiposAsociados from "@/components/modals/equipos-asociados-modal";
 
 export default function EquiposBajas() {
+  const { hasPermission, canCreate, canEdit, canDelete } = useAuth();
+  const {
+    loading,
+    error,
+    fetchBajas,
+    deleteBaja,
+    downloadDocument
+  } = useBajas();
+
+  const [bajas, setBajas] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1
+  });
+
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBaja, setSelectedBaja] = useState(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [isAgregarBajaModalOpen, setIsAgregarBajaModalOpen] = useState(false);
   const [isEditarBajaModalOpen, setIsEditarBajaModalOpen] = useState(false);
-  const [isAsociarEquiposModalOpen, setIsAsociarEquiposModalOpen] =
-    useState(false);
+  const [isAsociarEquiposModalOpen, setIsAsociarEquiposModalOpen] = useState(false);
+  const [isEquiposAsociadosModalOpen, setIsEquiposAsociadosModalOpen] = useState(false);
   const itemsPerPage = 10;
 
-  const documents = [
-    {
-      id: "2019-09-004",
-      description:
-        "EQUIPOS MÉDICOS INFORMES QUE TIENE ASIGNADOS, ÚLTIMA ACTUALIZACIÓN",
-      date: "2019-09-04",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "09:30",
-    },
-    {
-      id: "2019-09-103",
-      description: "BAJAS DE EQUIPOS LABORATORIO CLÍNICO 08-07-2019",
-      date: "2019-09-103",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "10:15",
-    },
-    {
-      id: "2019-09-104",
-      description: "BAJAS DE EQUIPOS IMÁGENES DIAGNÓSTICAS 30-7-2019",
-      date: "2019-09-104",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "11:20",
-    },
-    {
-      id: "2019-09-105",
-      description:
-        "Bajas de Anestesia Philips Pulmones y MICROScopy 304 (Histo-pat)",
-      date: "2019-09-105",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "14:30",
-    },
-    {
-      id: "2019-09-13",
-      description: "Inventario del segundo viviendo dependiendo del perfil",
-      date: "2019-09-13",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "16:45",
-    },
-    {
-      id: "2019-09-24",
-      description: "Informe instalado con Equipo Nuevo sin mantenimiento",
-      date: "2019-09-24",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "08:20",
-    },
-    {
-      id: "2019-09-27",
-      description: "Seguimiento técnico con Equipo Nuevo sin mantenimiento",
-      date: "2019-09-27",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "13:10",
-    },
-    {
-      id: "2020-05-23",
-      description:
-        "ESPECIFICACIONES GENERALES DE CARACTERÍSTICAS DE EQUIPOS MÉDICOS EN COLOMBIA DE CONFORMIDAD CON LA SALA ESPECIALIZADA DE DISPOSITIVOS MÉDICOS Y OTRAS TECNOLOGÍAS EN SALUD DE LA COMISIÓN REVISORA DEL INSTITUTO NACIONAL DE VIGILANCIA DE MEDICAMENTOS Y ALIMENTOS - INVIMA",
-      date: "2020-05-23",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "09:55",
-    },
-    {
-      id: "2020-05-24",
-      description:
-        "Informe de equipos eliminados, Memorias de inventario de procedimiento de equipos médicos de la empresa Hospira",
-      date: "2020-05-24",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "15:30",
-    },
-    {
-      id: "2020-07-15",
-      description: "FINALIZACIÓN CRONOGRAMA EQUIPOS BIOMEDICOS",
-      date: "2020-07-15",
-      user: "Eva Luz Yiceth Calao Mena",
-      time: "12:40",
-    },
-  ];
+  // Cargar bajas al montar el componente y cuando cambie la página o búsqueda
+  useEffect(() => {
+    const loadBajas = async () => {
+      try {
+        const result = await fetchBajas(currentPage, itemsPerPage, searchTerm);
+        setBajas(result?.data || []);
+        setPagination(result?.pagination || {
+          current_page: 1,
+          per_page: 10,
+          total: 0,
+          last_page: 1
+        });
+      } catch (error) {
+        console.warn('Error loading bajas:', error);
+        setBajas([]);
+        setPagination({
+          current_page: 1,
+          per_page: 10,
+          total: 0,
+          last_page: 1
+        });
+      }
+    };
+    
+    loadBajas();
+  }, [currentPage, searchTerm]);
 
-  const totalPages = Math.ceil(documents.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentDocuments = documents.slice(startIndex, endIndex);
+  // Usar datos directamente del backend (ya filtrados y paginados)
+  const currentBajas = bajas;
+  const totalPages = pagination.last_page;
+  const startIndex = (pagination.current_page - 1) * pagination.per_page;
+  const endIndex = Math.min(startIndex + pagination.per_page, pagination.total);
 
-  const handleDocumentClick = (document) => {
-    setSelectedDocument(document);
+  const handleBajaClick = (baja) => {
+    setSelectedBaja(baja);
     setIsDocumentModalOpen(true);
+  };
+
+  const handleDownloadDocument = async (baja) => {
+    try {
+      await downloadDocument(baja.id);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+    }
+  };
+
+  const handleDeleteBaja = async (bajaId) => {
+    if (window.confirm('¿Está seguro de que desea eliminar esta baja?')) {
+      try {
+        await deleteBaja(bajaId);
+      } catch (error) {
+        console.error('Error deleting baja:', error);
+      }
+    }
+  };
+
+  const handleViewAssociatedEquipment = (baja) => {
+    setSelectedBaja(baja);
+    setIsEquiposAsociadosModalOpen(true);
   };
 
   const renderPagination = () => {
@@ -171,48 +171,56 @@ export default function EquiposBajas() {
           </p>
         </div>
 
-        {/* Origin Filter */}
+        {/* Search Filter */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Origen
+            Buscar Bajas
           </label>
           <div className="flex items-center gap-2">
-            <Select defaultValue="todos">
-              <SelectTrigger className="w-full sm:w-80">
-                <SelectValue placeholder="Seleccionar origen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los orígenes</SelectItem>
-                <SelectItem value="equipos">Equipos médicos</SelectItem>
-                <SelectItem value="laboratorio">Laboratorio</SelectItem>
-                <SelectItem value="imagenes">Imágenes diagnósticas</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              placeholder="Buscar por descripción, motivo o ID..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
+              className="w-full sm:w-80"
+            />
             <Button variant="outline" size="icon" className="flex-shrink-0">
               <Search className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Records Count */}
-        <div className="mb-4">
+        {/* Records Count and Loading */}
+        <div className="mb-4 flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            Mostrando registros de {startIndex + 1} a{" "}
-            {Math.min(endIndex, documents.length)} de un total de{" "}
-            {documents.length} registros
+            {loading ? (
+              "Cargando..."
+            ) : (
+              `Mostrando registros de ${startIndex + 1} a ${endIndex} de un total de ${pagination.total} registros`
+            )}
           </p>
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded">
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Add Button */}
         <div className="mb-6 flex justify-start">
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-            onClick={() => setIsAgregarBajaModalOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Agregar baja</span>
-            <span className="sm:hidden">Agregar</span>
-          </Button>
+          {canCreate('bajas') && (
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+              onClick={() => setIsAgregarBajaModalOpen(true)}
+              disabled={loading}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Agregar baja</span>
+              <span className="sm:hidden">Agregar</span>
+            </Button>
+          )}
         </div>
 
         {/* Desktop Table */}
@@ -222,10 +230,16 @@ export default function EquiposBajas() {
               <thead className="bg-gray-600 text-white">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-medium">
-                    Código
+                    ID
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium">
+                    Fecha Baja
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-medium">
                     Descripción
+                  </th>
+                  <th className="px-6 py-4 text-center text-sm font-medium">
+                    Archivo
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium">
                     Acciones
@@ -233,61 +247,130 @@ export default function EquiposBajas() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {currentDocuments.map((document, index) => (
-                  <tr
-                    key={document.id}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {document.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-md">
-                      <div className="line-clamp-2">{document.description}</div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDocumentClick(document)}
-                          className="p-2 hover:bg-blue-50 rounded-full"
-                          title="Ver documento"
-                        >
-                          <div className="relative">
-                            <FileText className="h-6 w-6 text-blue-600" />
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full flex items-center justify-center">
-                              <div className="w-1 h-1 bg-white rounded-full"></div>
-                            </div>
-                          </div>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedDocument(document);
-                            setIsEditarBajaModalOpen(true);
-                          }}
-                          className="p-2 hover:bg-green-50 rounded-full"
-                          title="Editar"
-                        >
-                          <Edit className="h-6 w-6 text-green-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedDocument(document);
-                            setIsAsociarEquiposModalOpen(true);
-                          }}
-                          className="p-2 hover:bg-purple-50 rounded-full"
-                          title="Asociar"
-                        >
-                          <Link className="h-6 w-6 text-purple-600" />
-                        </Button>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                      Cargando bajas...
                     </td>
                   </tr>
-                ))}
+                ) : currentBajas.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                      {searchTerm ? 'No se encontraron bajas que coincidan con la búsqueda' : 'No hay bajas registradas'}
+                    </td>
+                  </tr>
+                ) : (
+                  currentBajas.map((baja, index) => (
+                    <tr
+                      key={baja.id}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {baja.id}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {baja.fecha_baja ? new Date(baja.fecha_baja).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 max-w-md">
+                        <div className="line-clamp-2">{baja.descripcion || baja.motivo || 'Sin descripción'}</div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {baja.documento ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const documentUrl = `/storage/bajas/${baja.documento}`;
+                              window.open(documentUrl, "_blank");
+                            }}
+                            className="text-blue-600 hover:bg-blue-50"
+                            title="Ver documento"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Sin archivo</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleBajaClick(baja)}
+                            className="p-2 hover:bg-blue-50 rounded-full"
+                            title="Ver detalles"
+                          >
+                            <Eye className="h-5 w-5 text-blue-600" />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewAssociatedEquipment(baja)}
+                            className="p-2 hover:bg-blue-50 rounded-full"
+                            title="Ver equipos asociados"
+                          >
+                            <Eye className="h-5 w-5 text-blue-600" />
+                            <span className="ml-1 text-xs">({baja.equipos_count || 0})</span>
+                          </Button>
+                          
+                          {baja.documento && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadDocument(baja)}
+                              className="p-2 hover:bg-green-50 rounded-full"
+                              title="Descargar documento"
+                            >
+                              <Download className="h-5 w-5 text-green-600" />
+                            </Button>
+                          )}
+                          
+                          {canEdit('bajas') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBaja(baja);
+                                setIsEditarBajaModalOpen(true);
+                              }}
+                              className="p-2 hover:bg-yellow-50 rounded-full"
+                              title="Editar"
+                            >
+                              <Edit className="h-5 w-5 text-yellow-600" />
+                            </Button>
+                          )}
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedBaja(baja);
+                              setIsAsociarEquiposModalOpen(true);
+                            }}
+                            className="p-2 hover:bg-purple-50 rounded-full"
+                            title="Asociar equipos"
+                          >
+                            <Link className="h-5 w-5 text-purple-600" />
+                          </Button>
+                          
+                          {canDelete('bajas') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteBaja(baja.id)}
+                              className="p-2 hover:bg-red-50 rounded-full"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-5 w-5 text-red-600" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -295,71 +378,111 @@ export default function EquiposBajas() {
 
         {/* Mobile Cards */}
         <div className="lg:hidden space-y-4">
-          {currentDocuments.map((document) => (
-            <div
-              key={document.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="font-medium text-gray-900">{document.id}</div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDocumentClick(document)}
-                    className="p-2 hover:bg-blue-50 rounded-full"
-                    title="Ver documento"
-                  >
-                    <div className="relative">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full"></div>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedDocument(document);
-                      setIsEditarBajaModalOpen(true);
-                    }}
-                    className="p-2 hover:bg-green-50 rounded-full"
-                    title="Editar"
-                  >
-                    <Edit className="h-5 w-5 text-green-600" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedDocument(document);
-                      setIsAsociarEquiposModalOpen(true);
-                    }}
-                    className="p-2 hover:bg-purple-50 rounded-full"
-                    title="Asociar"
-                  >
-                    <Link className="h-5 w-5 text-purple-600" />
-                  </Button>
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">
+              Cargando bajas...
+            </div>
+          ) : currentBajas.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {searchTerm ? 'No se encontraron bajas que coincidan con la búsqueda' : 'No hay bajas registradas'}
+            </div>
+          ) : (
+            currentBajas.map((baja) => (
+              <div
+                key={baja.id}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="font-medium text-gray-900">ID: {baja.id}</div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleBajaClick(baja)}
+                      className="p-2 hover:bg-blue-50 rounded-full"
+                      title="Ver detalles"
+                    >
+                      <Eye className="h-4 w-4 text-blue-600" />
+                    </Button>
+                    
+                    {baja.documento && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadDocument(baja)}
+                        className="p-2 hover:bg-green-50 rounded-full"
+                        title="Descargar documento"
+                      >
+                        <Download className="h-4 w-4 text-green-600" />
+                      </Button>
+                    )}
+                    
+                    {canEdit('bajas') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBaja(baja);
+                          setIsEditarBajaModalOpen(true);
+                        }}
+                        className="p-2 hover:bg-yellow-50 rounded-full"
+                        title="Editar"
+                      >
+                        <Edit className="h-4 w-4 text-yellow-600" />
+                      </Button>
+                    )}
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedBaja(baja);
+                        setIsAsociarEquiposModalOpen(true);
+                      }}
+                      className="p-2 hover:bg-purple-50 rounded-full"
+                      title="Asociar equipos"
+                    >
+                      <Link className="h-4 w-4 text-purple-600" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <p className="text-sm text-gray-700 mb-3 line-clamp-3">
-                {document.description}
-              </p>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-medium text-gray-600">
-                    {document.user
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2)}
+                
+                <div className="mb-2">
+                  <span className="text-xs text-gray-500">Fecha:</span>
+                  <span className="text-sm text-gray-700 ml-1">
+                    {baja.fecha_baja ? new Date(baja.fecha_baja).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
-                <span>{document.user}</span>
-                <span>•</span>
-                <span>{document.time}</span>
+                
+                <p className="text-sm text-gray-700 mb-3 line-clamp-3">
+                  {baja.descripcion || baja.motivo || 'Sin descripción'}
+                </p>
+                
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewAssociatedEquipment(baja)}
+                    className="text-blue-600 hover:bg-blue-50"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    Equipos ({baja.equipos_count || 0})
+                  </Button>
+                  
+                  {canDelete('bajas') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteBaja(baja.id)}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* Pagination */}
@@ -442,27 +565,27 @@ export default function EquiposBajas() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Documento - {selectedDocument?.id}
+              Detalles de Baja - {selectedBaja?.id}
             </DialogTitle>
           </DialogHeader>
 
-          {selectedDocument && (
+          {selectedBaja && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código
+                    ID
                   </label>
                   <div className="p-3 bg-gray-50 rounded-md text-sm">
-                    {selectedDocument.id}
+                    {selectedBaja.id}
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha
+                    Fecha de Baja
                   </label>
                   <div className="p-3 bg-gray-50 rounded-md text-sm">
-                    {selectedDocument.date}
+                    {selectedBaja.fecha_baja ? new Date(selectedBaja.fecha_baja).toLocaleDateString() : 'N/A'}
                   </div>
                 </div>
               </div>
@@ -472,18 +595,31 @@ export default function EquiposBajas() {
                   Descripción
                 </label>
                 <div className="p-3 bg-gray-50 rounded-md text-sm min-h-[100px]">
-                  {selectedDocument.description}
+                  {selectedBaja.descripcion || 'Sin descripción'}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Accio
-                </label>
-                <div className="p-3 bg-gray-50 rounded-md text-sm">
-                  {selectedDocument.user}
+              {selectedBaja.motivo && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-md text-sm">
+                    {selectedBaja.motivo}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {selectedBaja.observaciones && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Observaciones
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-md text-sm">
+                    {selectedBaja.observaciones}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button
@@ -492,10 +628,15 @@ export default function EquiposBajas() {
                 >
                   Cerrar
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Ver Documento
-                </Button>
+                {selectedBaja.documento && (
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => handleDownloadDocument(selectedBaja)}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar Documento
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -506,16 +647,76 @@ export default function EquiposBajas() {
       <ModalAgregarBaja
         open={isAgregarBajaModalOpen}
         onOpenChange={setIsAgregarBajaModalOpen}
+        onSuccess={() => {
+          // Recargar datos después de agregar
+          const loadBajas = async () => {
+            try {
+              const result = await fetchBajas(currentPage, itemsPerPage, searchTerm);
+              setBajas(result?.data || []);
+              setPagination(result?.pagination || pagination);
+            } catch (error) {
+              console.warn('Error reloading bajas:', error);
+            }
+          };
+          loadBajas();
+          setIsAgregarBajaModalOpen(false);
+        }}
       />
       <ModalEditarDocumento
         open={isEditarBajaModalOpen}
         onOpenChange={setIsEditarBajaModalOpen}
-        document={selectedDocument}
+        baja={selectedBaja}
+        onSuccess={() => {
+          // Recargar datos después de editar
+          const loadBajas = async () => {
+            try {
+              const result = await fetchBajas(currentPage, itemsPerPage, searchTerm);
+              setBajas(result?.data || []);
+              setPagination(result?.pagination || pagination);
+            } catch (error) {
+              console.warn('Error reloading bajas:', error);
+            }
+          };
+          loadBajas();
+          setIsEditarBajaModalOpen(false);
+        }}
       />
       <ModalTablaEquipos
         open={isAsociarEquiposModalOpen}
         onOpenChange={setIsAsociarEquiposModalOpen}
-        document={selectedDocument}
+        baja={selectedBaja}
+        onSuccess={() => {
+          // Recargar datos después de asociar equipos
+          const loadBajas = async () => {
+            try {
+              const result = await fetchBajas(currentPage, itemsPerPage, searchTerm);
+              setBajas(result?.data || []);
+              setPagination(result?.pagination || pagination);
+            } catch (error) {
+              console.warn('Error reloading bajas:', error);
+            }
+          };
+          loadBajas();
+          setIsAsociarEquiposModalOpen(false);
+        }}
+      />
+      <ModalEquiposAsociados
+        open={isEquiposAsociadosModalOpen}
+        onOpenChange={setIsEquiposAsociadosModalOpen}
+        baja={selectedBaja}
+        onSuccess={() => {
+          // Recargar datos después de ver equipos asociados
+          const loadBajas = async () => {
+            try {
+              const result = await fetchBajas(currentPage, itemsPerPage, searchTerm);
+              setBajas(result?.data || []);
+              setPagination(result?.pagination || pagination);
+            } catch (error) {
+              console.warn('Error reloading bajas:', error);
+            }
+          };
+          loadBajas();
+        }}
       />
     </div>
   );

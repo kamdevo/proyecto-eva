@@ -2,9 +2,11 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider as PermissionAuthProvider } from "./hooks/useAuth.jsx";
 import { ToastProvider } from "./contexts/ToastContext";
 import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 // Importa tus vistas
 import ContingenciesView from "./components/contingencies-view";
@@ -242,7 +244,9 @@ function AppContent() {
               path="/admin/propietarios"
               element={
                 <ProtectedRoute>
-                  <VistaPropietariosPrincipal />
+                  <AdminRoute>
+                    <VistaPropietariosPrincipal />
+                  </AdminRoute>
                 </ProtectedRoute>
               }
             />
@@ -250,7 +254,9 @@ function AppContent() {
               path="/admin/usuarios"
               element={
                 <ProtectedRoute>
-                  <Usuarios />
+                  <AdminRoute>
+                    <Usuarios />
+                  </AdminRoute>
                 </ProtectedRoute>
               }
             />
@@ -301,9 +307,11 @@ export default function App() {
     <Router>
       <ToastProvider>
         <AuthProvider>
-          <EquipmentSearchProvider>
-            <AppContent />
-          </EquipmentSearchProvider>
+          <PermissionAuthProvider>
+            <EquipmentSearchProvider>
+              <AppContent />
+            </EquipmentSearchProvider>
+          </PermissionAuthProvider>
         </AuthProvider>
       </ToastProvider>
     </Router>

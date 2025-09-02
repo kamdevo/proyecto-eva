@@ -27,7 +27,7 @@ import { FilterModal } from "@/components/modals/filter-modal";
 import { AddEquipmentModal } from "@/components/modals/add-equipment-modal";
 import { CleanNamesModal } from "@/components/modals/clean-names-modal";
 import { MergeModal } from "@/components/modals/merge-modal";
-import { PreventiveModal } from "@/components/modals/preventive-modal";
+import PreventiveModal from "@/components/modals/preventive-modal";
 import { CalibrationModal } from "@/components/modals/calibration-modal";
 import { CorrectiveModal } from "@/components/modals/corrective-modal";
 import { MonthModal } from "@/components/modals/month-modal";
@@ -762,7 +762,7 @@ export function MedicalDevicesView() {
       />
       <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />
       <PreventiveModal
-        open={preventiveModalOpen}
+        isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
       />
       <CalibrationModal

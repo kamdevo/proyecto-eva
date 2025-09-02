@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import api from '../config/apiClient';
 
-const API_BASE_URL = 'http://127.0.0.1:8001/api/v1';
+const API_BASE_URL = '/v1';
 
 export const useRoles = () => {
   const [roles, setRoles] = useState([]);
@@ -13,19 +14,8 @@ export const useRoles = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/roles`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await api.get(`${API_BASE_URL}/roles`);
+      const data = response.data;
       
       if (data.success) {
         setRoles(data.data || []);
@@ -72,19 +62,8 @@ export const useEmpresas = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/empresas`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await api.get(`${API_BASE_URL}/empresas`);
+      const data = response.data;
       
       if (data.success) {
         setEmpresas(data.data || []);
@@ -127,19 +106,8 @@ export const useSedes = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/sedes`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await api.get(`${API_BASE_URL}/sedes`);
+      const data = response.data;
       
       if (data.success) {
         setSedes(data.data || []);

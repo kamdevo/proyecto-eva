@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useAuth as usePermissions } from "../hooks/useAuth.jsx";
 import { Button } from "./ui/button";
 
 import {
@@ -108,6 +109,7 @@ const Header = () => {
 const AppSidebar = () => {
   const [openSubmenus, setOpenSubmenus] = useState([]);
   const { permissionService, isAdmin, user } = useAuth();
+  const { hasModuleAccess, isAdmin: isPermissionAdmin } = usePermissions();
 
   // Initialize permissions when user changes
   useEffect(() => {
@@ -173,14 +175,15 @@ const AppSidebar = () => {
         { label: "AREAS", href: "/config/areas" },
       ],
     },
-    {
+    // Only show admin module for users with admin permissions
+    ...(isPermissionAdmin() ? [{
       icon: User,
       label: "ADMINISTRADOR",
       submenu: [
         { label: "USUARIOS", href: "/admin/usuarios" },
         { label: "PROPIETARIOS", href: "/admin/propietarios" },
       ],
-    },
+    }] : []),
   ];
 
   const toggleSubmenu = (label) => {

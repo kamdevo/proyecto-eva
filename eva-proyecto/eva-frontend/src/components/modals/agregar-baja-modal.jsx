@@ -12,14 +12,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X } from "lucide-react";
+import { Upload, X, AlertCircle } from "lucide-react";
+import useBajas from "../../hooks/useBajas";
 
-function ModalAgregarBaja({ open, onOpenChange }) {
+function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
+  const { createBaja, loading, error } = useBajas();
   const [fechaBaja, setFechaBaja] = useState("");
-  const [descripcion, setDescripcion] = useState(
-    "Ingrese su descripción del documento"
-  );
+  const [descripcion, setDescripcion] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [archivo, setArchivo] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0];
@@ -40,6 +43,61 @@ function ModalAgregarBaja({ open, onOpenChange }) {
     }
   };
 
+  const handleSubmit = async () => {
+    setSubmitError(null);
+    
+    // Validaciones básicas
+    if (!fechaBaja) {
+      setSubmitError('La fecha de baja es requerida');
+      return;
+    }
+    
+    if (!descripcion.trim()) {
+      setSubmitError('La descripción es requerida');
+      return;
+    }
+
+    try {
+      const bajaData = {
+        fecha_baja: fechaBaja,
+        descripcion: descripcion.trim(),
+        motivo: motivo.trim(),
+        observaciones: observaciones.trim(),
+        documento: archivo
+      };
+
+      await createBaja(bajaData);
+      
+      // Limpiar formulario
+      setFechaBaja("");
+      setDescripcion("");
+      setMotivo("");
+      setObservaciones("");
+      setArchivo(null);
+      setSubmitError(null);
+      
+      // Notificar éxito
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err) {
+      setSubmitError(err.message || 'Error al crear la baja');
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      // Limpiar formulario al cerrar
+      setFechaBaja("");
+      setDescripcion("");
+      setMotivo("");
+      setObservaciones("");
+      setArchivo(null);
+      setSubmitError(null);
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
@@ -55,27 +113,57 @@ function ModalAgregarBaja({ open, onOpenChange }) {
           {/* Fecha de la baja */}
           <div className="space-y-2">
             <Label htmlFor="fecha-baja" className="text-sm font-medium">
-              Fecha de la baja
+              Fecha de la baja *
             </Label>
             <Input
               id="fecha-baja"
               type="date"
               value={fechaBaja}
               onChange={(e) => setFechaBaja(e.target.value)}
-              placeholder="DD/MM/AAAA"
               className="w-full"
+              required
             />
           </div>
 
           {/* Descripción */}
           <div className="space-y-2">
             <Label htmlFor="descripcion" className="text-sm font-medium">
-              Descripción
+              Descripción *
             </Label>
             <Textarea
               id="descripcion"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Ingrese la descripción de la baja"
+              className="min-h-[80px] resize-none"
+              required
+            />
+          </div>
+
+          {/* Motivo */}
+          <div className="space-y-2">
+            <Label htmlFor="motivo" className="text-sm font-medium">
+              Motivo
+            </Label>
+            <Textarea
+              id="motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Motivo de la baja (opcional)"
+              className="min-h-[60px] resize-none"
+            />
+          </div>
+
+          {/* Observaciones */}
+          <div className="space-y-2">
+            <Label htmlFor="observaciones" className="text-sm font-medium">
+              Observaciones
+            </Label>
+            <Textarea
+              id="observaciones"
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder="Observaciones adicionales (opcional)"
               className="min-h-[60px] resize-none"
             />
           </div>
@@ -92,10 +180,10 @@ function ModalAgregarBaja({ open, onOpenChange }) {
               >
                 <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                 <p className="text-gray-500 mb-1 text-sm">
-                  Drag & drop files here
+                  Arrastra y suelta archivos aquí
                 </p>
                 <p className="text-gray-400 text-xs mb-3">
-                  (or click to select file)
+                  (o haz clic para seleccionar archivo)
                 </p>
                 {archivo && (
                   <div className="flex items-center justify-center gap-2 text-sm text-green-600">
@@ -121,21 +209,51 @@ function ModalAgregarBaja({ open, onOpenChange }) {
               onChange={handleFileSelect}
             />
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                SELECT FILE
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => document.getElementById("file-input")?.click()}
+                type="button"
+              >
+                SELECCIONAR ARCHIVO
               </Button>
-              <Button variant="destructive" size="sm">
-                Eliminar
-              </Button>
+              {archivo && (
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => setArchivo(null)}
+                  type="button"
+                >
+                  Eliminar
+                </Button>
+              )}
             </div>
           </div>
         </div>
 
+        {/* Error display */}
+        {(submitError || error) && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">{submitError || error}</span>
+          </div>
+        )}
+
         {/* Botones de acción */}
         <div className="flex justify-between pt-3 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700">Ingresar</Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? 'Creando...' : 'Crear Baja'}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={loading}
+          >
+            Cancelar
           </Button>
         </div>
       </DialogContent>

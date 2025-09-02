@@ -89,6 +89,9 @@ class UsuarioController extends Controller
 
             $usuario = Usuario::create($data);
 
+            // Auto-assign default permissions for new users based on their role
+            $this->assignDefaultPermissions($usuario->id, $usuario->rol_id);
+
             return ResponseFormatter::success($usuario, 'Usuario creado exitosamente', 201);
 
         } catch (\Exception $e) {
@@ -258,5 +261,96 @@ class UsuarioController extends Controller
         } catch (\Exception $e) {
             return ResponseFormatter::error(null, 'Error en búsqueda: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Assign default permissions to user based on role
+     */
+    private function assignDefaultPermissions($userId, $rolId)
+    {
+        try {
+            // Get all active modules
+            $modulos = DB::table('modulos')->where('estado', 1)->get();
+            
+            // Delete existing permissions
+            DB::table('acciones')->where('usuario_id', $userId)->delete();
+            
+            // Assign permissions based on role
+            foreach ($modulos as $modulo) {
+                $permissions = $this->getDefaultPermissionsByRole($rolId, $modulo->name);
+                
+                DB::table('acciones')->insert([
+                    'usuario_id' => $userId,
+                    'modulo_id' => $modulo->id,
+                    'leer' => $permissions['leer'],
+                    'insertar' => $permissions['insertar'],
+                    'editar' => $permissions['editar'],
+                    'eliminar' => $permissions['eliminar']
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error assigning default permissions: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get default permissions by role based on roles.md specification
+     */
+    private function getDefaultPermissionsByRole($rolId, $moduleName)
+    {
+        // Role 1 (Super Admin) - Full access to everything
+        if ($rolId == 1) {
+            return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1];
+        }
+        
+        // Role 4 (Basic User) - Limited permissions as per roles.md
+        if ($rolId == 4) {
+            $basicUserModules = [
+                'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'guias rapidas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'contactos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'servicios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'areas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+            ];
+            
+            return $basicUserModules[$moduleName] ?? ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        }
+        
+        // Role 3 (Advanced User) - Extended permissions
+        if ($rolId == 3) {
+            $advancedUserModules = [
+                'equipos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'equipos industriales' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'tickets activos' => ['leer' => 1, 'insertar' => 0, 'editar' => 1, 'eliminar' => 0],
+                'guias rapidas' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'contactos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'repuestos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'capacitaciones' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+            ];
+            
+            return $advancedUserModules[$moduleName] ?? ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0];
+        }
+        
+        // Role 2 (Administrator) - Administrative permissions
+        if ($rolId == 2) {
+            $adminModules = [
+                'equipos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'equipos industriales' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'usuarios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1],
+                'tickets activos' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1],
+                'reportes' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'tickets cerrados' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+            ];
+            
+            return $adminModules[$moduleName] ?? ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0];
+        }
+        
+        // Default: no permissions
+        return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
     }
 }
