@@ -239,7 +239,7 @@ export default function EquiposBajas() {
                     Descripción
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium">
-                    Archivo
+                    Equipos
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium">
                     Acciones
@@ -275,22 +275,15 @@ export default function EquiposBajas() {
                         <div className="line-clamp-2">{baja.descripcion || baja.motivo || 'Sin descripción'}</div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        {baja.documento ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const documentUrl = `/storage/bajas/${baja.documento}`;
-                              window.open(documentUrl, "_blank");
-                            }}
-                            className="text-blue-600 hover:bg-blue-50"
-                            title="Ver documento"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <span className="text-gray-400 text-sm">Sin archivo</span>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewAssociatedEquipment(baja)}
+                          className="text-blue-600 hover:bg-blue-50"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver ({baja.equipos_count || 0})
+                        </Button>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -302,17 +295,6 @@ export default function EquiposBajas() {
                             title="Ver detalles"
                           >
                             <Eye className="h-5 w-5 text-blue-600" />
-                          </Button>
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewAssociatedEquipment(baja)}
-                            className="p-2 hover:bg-blue-50 rounded-full"
-                            title="Ver equipos asociados"
-                          >
-                            <Eye className="h-5 w-5 text-blue-600" />
-                            <span className="ml-1 text-xs">({baja.equipos_count || 0})</span>
                           </Button>
                           
                           {baja.documento && (
