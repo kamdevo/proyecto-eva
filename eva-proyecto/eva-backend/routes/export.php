@@ -30,6 +30,11 @@ use App\Http\Controllers\Api\ExportController;
 |
 */
 
+// Calibraciones sin autenticación
+Route::prefix('v1')->group(function () {
+    Route::get('export/calibraciones', [ExportController::class, 'calibraciones']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     // Exportaciones de equipos
 

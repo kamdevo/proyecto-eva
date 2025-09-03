@@ -4749,6 +4749,11 @@ Route::get('v1/test/modal-equipment-data', function () {
     Route::delete('equipos/{id}', [\App\Http\Controllers\Api\EquipoController::class, 'destroy']);
 });
 
+// Calibraciones (sin autenticación)
+Route::prefix('v1')->group(function () {
+    Route::apiResource('calibracion', \App\Http\Controllers\Api\CalibracionController::class);
+});
+
 // Middleware de seguridad aplicado automáticamente
 Route::middleware(['auth:sanctum'])->group(function () {
 
@@ -4763,7 +4768,7 @@ Route::prefix('v1')->group(function () {
 
     // Equipos médicos e industriales (rutas protegidas)
     require __DIR__.'/equipos.php';
-
+    
     // Mantenimiento y calibraciones
     require __DIR__.'/mantenimiento.php';
 

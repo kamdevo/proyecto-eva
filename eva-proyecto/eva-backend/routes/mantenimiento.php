@@ -33,14 +33,11 @@ use App\Http\Controllers\Api\PlanMantenimientoController;
 |
 */
 
-Route::middleware('auth:sanctum')->group(function () {
-    // CRUD de mantenimientos
-    Route::apiResource('mantenimiento', MantenimientoController::class);
-    
-    // Rutas específicas de mantenimiento
-
 // Agrupación optimizada de rutas con middleware empresarial
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
+    
+    // CRUD de mantenimientos
+    Route::apiResource('mantenimiento', MantenimientoController::class);
         Route::get('mantenimiento/{id}/detalles', [MantenimientoController::class, 'detalles']);
         Route::post('mantenimiento/{id}/completar', [MantenimientoController::class, 'completar']);
         Route::post('mantenimiento/{id}/cancelar', [MantenimientoController::class, 'cancelar']);
@@ -62,13 +59,13 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.v
         Route::get('mantenimiento/estadisticas/por-tecnico', [MantenimientoController::class, 'estadisticasPorTecnico']);
         Route::get('mantenimiento/estadisticas/por-equipo', [MantenimientoController::class, 'estadisticasPorEquipo']);
     
-    // CRUD de calibraciones
-    Route::apiResource('calibracion', CalibracionController::class);
-        Route::get('calibracion/{id}/certificado', [CalibracionController::class, 'certificado']);
-        Route::post('calibracion/{id}/aprobar', [CalibracionController::class, 'aprobar']);
-        Route::post('calibracion/{id}/rechazar', [CalibracionController::class, 'rechazar']);
-        Route::get('calibracion/vencimientos', [CalibracionController::class, 'vencimientos']);
-        Route::get('calibracion/estadisticas', [CalibracionController::class, 'estadisticas']);
+    // Rutas adicionales de calibraciones (CRUD básico definido en api.php sin auth)
+    // Estas rutas específicas mantienen autenticación por seguridad
+    Route::get('calibracion/{id}/certificado', [CalibracionController::class, 'certificado']);
+    Route::post('calibracion/{id}/aprobar', [CalibracionController::class, 'aprobar']);
+    Route::post('calibracion/{id}/rechazar', [CalibracionController::class, 'rechazar']);
+    Route::get('calibracion/vencimientos', [CalibracionController::class, 'vencimientos']);
+    Route::get('calibracion/estadisticas', [CalibracionController::class, 'estadisticas']);
     
     // CRUD de correctivos
     Route::apiResource('correctivo', CorrectivoController::class);
@@ -92,6 +89,4 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.v
     // Notificaciones y alertas
         Route::get('mantenimiento/alertas', [MantenimientoController::class, 'alertas']);
         Route::post('mantenimiento/notificar-vencimientos', [MantenimientoController::class, 'notificarVencimientos']);
-});
-
 });

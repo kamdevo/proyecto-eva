@@ -51,15 +51,14 @@ class CalibracionController extends ApiController
             $query = Calibracion::with([
                 'equipo:id,name,code,servicio_id,area_id',
                 'equipo.servicio:id,name',
-                'equipo.area:id,name',
-                'tecnico:id,nombre,apellido'
+                'equipo.area:id,name'
             ]);
 
             // Aplicar filtros
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
-                    $q->where('descripcion', 'like', "%{$search}%")
+                    $q->where('description', 'like', "%{$search}%")
                       ->orWhereHas('equipo', function($eq) use ($search) {
                           $eq->where('name', 'like', "%{$search}%")
                              ->orWhere('code', 'like', "%{$search}%");
@@ -71,9 +70,7 @@ class CalibracionController extends ApiController
                 $query->where('equipo_id', $request->equipo_id);
             }
 
-            if ($request->has('tecnico_id')) {
-                $query->where('tecnico_id', $request->tecnico_id);
-            }
+            // Removed tecnico_id filter as column doesn't exist
 
             if ($request->has('estado')) {
                 $query->where('estado', $request->estado);
@@ -84,11 +81,11 @@ class CalibracionController extends ApiController
             }
 
             if ($request->has('fecha_desde')) {
-                $query->where('fecha', '>=', $request->fecha_desde);
+                $query->where('fecha_calibracion', '>=', $request->fecha_desde);
             }
 
             if ($request->has('fecha_hasta')) {
-                $query->where('fecha', '<=', $request->fecha_hasta);
+                $query->where('fecha_calibracion', '<=', $request->fecha_hasta);
             }
 
             // Filtro por calibraciones vencidas
@@ -97,7 +94,7 @@ class CalibracionController extends ApiController
             }
 
             // Ordenamiento
-            $orderBy = $request->get('order_by', 'fecha');
+            $orderBy = $request->get('order_by', 'fecha_calibracion');
             $orderDirection = $request->get('order_direction', 'desc');
             $query->orderBy($orderBy, $orderDirection);
 

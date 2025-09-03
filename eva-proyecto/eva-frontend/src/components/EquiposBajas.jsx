@@ -125,6 +125,21 @@ export default function EquiposBajas() {
     setIsEquiposAsociadosModalOpen(true);
   };
 
+  const handleViewDocument = (fileName) => {
+    if (!fileName) return;
+    
+    // Construct the URL for the document in Laravel storage
+    const documentUrl = `/storage/bajas/${fileName}`;
+    
+    // Open document in new window with print functionality
+    const newWindow = window.open(documentUrl, "_blank");
+    if (newWindow) {
+      newWindow.focus();
+    } else {
+      console.error('No se pudo abrir el documento. Verifique que no esté bloqueando ventanas emergentes.');
+    }
+  };
+
   const renderPagination = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -239,7 +254,7 @@ export default function EquiposBajas() {
                     Descripción
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium">
-                    Equipos
+                    Archivo
                   </th>
                   <th className="px-6 py-4 text-center text-sm font-medium">
                     Acciones
@@ -275,15 +290,20 @@ export default function EquiposBajas() {
                         <div className="line-clamp-2">{baja.descripcion || baja.motivo || 'Sin descripción'}</div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewAssociatedEquipment(baja)}
-                          className="text-blue-600 hover:bg-blue-50"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          Ver ({baja.equipos_count || 0})
-                        </Button>
+                        {baja.archivo ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDocument(baja.archivo)}
+                            className="text-green-600 hover:bg-green-50"
+                            title="Ver documento de baja"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Ver Archivo
+                          </Button>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Sin archivo</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">

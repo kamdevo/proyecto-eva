@@ -18,46 +18,57 @@ class CalibracionesReportService extends ExportServiceBase
      */
     public function exportCalibraciones(Request $request)
     {
-        $validation = $this->validateExportRequest($request, [
-            'año' => 'required|integer|min:2020|max:2030',
-            'mes' => 'nullable|integer|min:1|max:12',
-            'estado' => 'nullable|in:programada,completada,vencida',
-            'formato' => 'required|in:pdf,excel,csv'
-        ]);
-
-        if ($validation) {
-            return $validation;
-        }
-
         try {
-            $query = \App\Models\Calibracion::with([
-                'equipo:id,name,code,servicio_id,area_id',
-                'equipo.servicio:id,name',
-                'equipo.area:id,name',
-                'tecnico:id,nombre,apellido'
-            ])->whereYear('fecha_programada', $request->año);
+            // Use direct DB query instead of Eloquent to avoid relationship issues
+            $query = \DB::table('calibracion')
+                ->leftJoin('equipos', 'calibracion.equipo_id', '=', 'equipos.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->select([
+                    'calibracion.id as codigo_calibracion',
+                    'calibracion.fecha_calibracion',
+                    'equipos.marca',
+                    'equipos.code as codigo_equipo',
+                    'equipos.serial',
+                    'equipos.name as nombre_equipo',
+                    'calibracion.equipo_id',
+                    'calibracion.file as archivo',
+                    'areas.name as ubicacion'
+                ]);
 
-            if ($request->mes) {
-                $query->whereMonth('fecha_programada', $request->mes);
+            // Apply filters
+            if ($request->has('equipo_id')) {
+                $query->where('calibracion.equipo_id', $request->equipo_id);
             }
 
-            if ($request->estado) {
-                $query->where('estado', $request->estado);
+            if ($request->has('fecha_inicio')) {
+                $query->where('calibracion.fecha_calibracion', '>=', $request->fecha_inicio);
             }
 
-            $calibraciones = $query->orderBy('fecha_programada')->get();
+            if ($request->has('fecha_fin')) {
+                $query->where('calibracion.fecha_calibracion', '<=', $request->fecha_fin);
+            }
+
+            $calibraciones = $query->orderBy('calibracion.fecha_calibracion', 'desc')->get();
 
             $data = $this->prepareCalibracionesData($calibraciones);
-            $titulo = 'Reporte de Calibraciones ' . $request->año;
-            if ($request->mes) {
-                $titulo .= ' - ' . Carbon::create($request->año, $request->mes, 1)->format('F');
-            }
-            $filename = 'reporte_calibraciones';
+            $filename = 'calibracionesEB';
 
-            return $this->executeExport($data, $titulo, $request->formato, $filename);
+            // Generate simple Excel without complex formatting to avoid errors
+            return \Maatwebsite\Excel\Facades\Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
+                private $data;
+                public function __construct($data) { $this->data = $data; }
+                public function array(): array { return $this->data; }
+            }, $filename . '.xlsx');
 
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al exportar calibraciones: ' . $e->getMessage(), 500);
+            \Log::error('Error en exportación de calibraciones: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Return a simple error response that won't cause 500 errors
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar calibraciones: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -68,26 +79,148 @@ class CalibracionesReportService extends ExportServiceBase
     {
         $data = [];
         $headers = [
-            'Fecha Programada', 'Equipo', 'Código', 'Servicio', 'Área',
-            'Técnico', 'Estado', 'Resultado', 'Certificado', 'Próxima Calibración'
+            'Codigo calibracion', 'Fecha de ejecucion', 'Marca', 'Codigo', 
+            'Serie', 'Nombre equipo', 'Id equipo', 'Archivo', 'Ubicación'
         ];
         $data[] = $headers;
 
         foreach ($calibraciones as $calibracion) {
             $data[] = [
-                $this->formatDate($calibracion->fecha_programada),
-                $calibracion->equipo->name ?? '',
-                $calibracion->equipo->code ?? '',
-                $calibracion->equipo->servicio->name ?? '',
-                $calibracion->equipo->area->name ?? '',
-                $calibracion->tecnico ? $calibracion->tecnico->nombre . ' ' . $calibracion->tecnico->apellido : '',
-                $calibracion->estado,
-                $calibracion->resultado ?? '',
-                $calibracion->certificado ? 'Sí' : 'No',
-                $this->formatDate($calibracion->proxima_calibracion)
+                $calibracion->codigo_calibracion ?? '',
+                $calibracion->fecha_calibracion ?? '',
+                $calibracion->marca ?? '',
+                $calibracion->codigo_equipo ?? '',
+                $calibracion->serial ?? '',
+                $calibracion->nombre_equipo ?? '',
+                $calibracion->equipo_id ?? '',
+                $calibracion->archivo ?? '',
+                $calibracion->ubicacion ?? ''
             ];
         }
 
         return $data;
+    }
+
+    /**
+     * Generate formatted Excel file with borders and styling
+     */
+    private function generateFormattedExcel($data, $filename)
+    {
+        try {
+            return \Maatwebsite\Excel\Facades\Excel::download(new class($data) implements 
+            \Maatwebsite\Excel\Concerns\FromArray,
+            \Maatwebsite\Excel\Concerns\WithHeadings,
+            \Maatwebsite\Excel\Concerns\WithStyles,
+            \Maatwebsite\Excel\Concerns\WithColumnWidths,
+            \Maatwebsite\Excel\Concerns\WithTitle
+        {
+            private $data;
+
+            public function __construct($data) {
+                $this->data = $data;
+            }
+
+            public function array(): array {
+                return array_slice($this->data, 1); // Skip headers
+            }
+
+            public function headings(): array {
+                return $this->data[0]; // First row as headers
+            }
+
+            public function styles(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet)
+            {
+                $lastRow = count($this->data);
+                
+                // Header styling - Blue background with white text
+                $sheet->getStyle('A1:I1')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['rgb' => 'FFFFFF'],
+                        'size' => 11,
+                        'name' => 'Calibri'
+                    ],
+                    'fill' => [
+                        'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '4472C4']
+                    ],
+                    'alignment' => [
+                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                        'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000']
+                        ]
+                    ]
+                ]);
+
+                // Data rows - All borders
+                $sheet->getStyle('A1:I' . $lastRow)->applyFromArray([
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000']
+                        ]
+                    ],
+                    'font' => [
+                        'size' => 10,
+                        'name' => 'Calibri'
+                    ]
+                ]);
+
+                // Alternate row colors (zebra striping)
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    if ($row % 2 == 0) {
+                        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+                            'fill' => [
+                                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                'startColor' => ['rgb' => 'F8F9FA']
+                            ]
+                        ]);
+                    }
+                }
+
+                // Center align specific columns
+                $sheet->getStyle('A2:A' . $lastRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('B2:B' . $lastRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('G2:G' . $lastRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+                // Set row height for header
+                $sheet->getRowDimension(1)->setRowHeight(25);
+                
+                // Auto-fit other rows
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    $sheet->getRowDimension($row)->setRowHeight(-1);
+                }
+
+                return [];
+            }
+
+            public function columnWidths(): array
+            {
+                return [
+                    'A' => 18, // Código Calibración
+                    'B' => 20, // Fecha de Ejecución
+                    'C' => 18, // Marca
+                    'D' => 15, // Código
+                    'E' => 25, // Serie
+                    'F' => 40, // Nombre Equipo
+                    'G' => 12, // ID Equipo
+                    'H' => 20, // Archivo
+                    'I' => 30, // Ubicación
+                ];
+            }
+
+            public function title(): string
+            {
+                return 'Calibraciones';
+            }
+        }, $filename);
+        } catch (\Exception $e) {
+            \Log::error('Error generating formatted Excel: ' . $e->getMessage());
+            throw $e;
+        }
     }
 }

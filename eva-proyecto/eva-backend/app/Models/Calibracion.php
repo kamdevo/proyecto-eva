@@ -115,12 +115,12 @@ class Calibracion extends Model
     // ==========================================
     
     /**
-     * Relación genérica - personalizar según necesidades
+     * Relación con el modelo Equipo
      */
-    // public function relacion(): BelongsTo
-    // {
-    //     return $this->belongsTo(RelatedModel::class);
-    // }
+    public function equipo(): BelongsTo
+    {
+        return $this->belongsTo(Equipo::class, 'equipo_id');
+    }
 
     // ==========================================
     // SCOPES EMPRESARIALES

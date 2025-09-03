@@ -21,7 +21,13 @@ abstract class ExportServiceBase
     {
         $filename = $filename ?: ('export_' . now()->format('Y-m-d_H-i-s') . '.xlsx');
 
-        return Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromCollection {
+        return Excel::download(new class($data) implements 
+            \Maatwebsite\Excel\Concerns\FromCollection,
+            \Maatwebsite\Excel\Concerns\WithHeadings,
+            \Maatwebsite\Excel\Concerns\WithStyles,
+            \Maatwebsite\Excel\Concerns\WithColumnWidths,
+            \Maatwebsite\Excel\Concerns\WithTitle
+        {
             private $data;
 
             public function __construct($data) {
@@ -29,7 +35,84 @@ abstract class ExportServiceBase
             }
 
             public function collection() {
-                return collect($this->data);
+                // Skip the first row (headers) since we handle them in headings()
+                return collect($this->data)->skip(1);
+            }
+
+            public function headings(): array
+            {
+                // Return the first row as headers
+                return $this->data[0] ?? [];
+            }
+
+            public function styles(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet)
+            {
+                // Header row styling
+                $sheet->getStyle('A1:I1')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'color' => ['rgb' => 'FFFFFF'],
+                        'size' => 12
+                    ],
+                    'fill' => [
+                        'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => '4472C4']
+                    ],
+                    'alignment' => [
+                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                        'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
+                    ]
+                ]);
+
+                // Data rows styling
+                $lastRow = count($this->data);
+                $sheet->getStyle('A1:I' . $lastRow)->applyFromArray([
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000']
+                        ]
+                    ]
+                ]);
+
+                // Alternate row colors
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    if ($row % 2 == 0) {
+                        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+                            'fill' => [
+                                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                'startColor' => ['rgb' => 'F2F2F2']
+                            ]
+                        ]);
+                    }
+                }
+
+                // Auto-fit row heights
+                for ($row = 1; $row <= $lastRow; $row++) {
+                    $sheet->getRowDimension($row)->setRowHeight(-1);
+                }
+
+                return [];
+            }
+
+            public function columnWidths(): array
+            {
+                return [
+                    'A' => 15, // Codigo calibracion
+                    'B' => 18, // Fecha de ejecucion
+                    'C' => 15, // Marca
+                    'D' => 12, // Codigo
+                    'E' => 20, // Serie
+                    'F' => 35, // Nombre equipo
+                    'G' => 10, // Id equipo
+                    'H' => 15, // Archivo
+                    'I' => 25, // Ubicación
+                ];
+            }
+
+            public function title(): string
+            {
+                return 'Calibraciones';
             }
         }, $filename);
     }

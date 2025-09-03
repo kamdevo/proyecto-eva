@@ -160,14 +160,14 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
       if (statusFilter !== 'all') params.append('estado', statusFilter);
       if (equipoId) params.append('equipo_id', equipoId);
 
-      const response = await httpService.get(`/v1/planes-mantenimientos/export?${params}`, {
+      const response = await httpService.get(`/v1/export/mantenimientos?${params}`, {
         responseType: 'blob'
       });
 
-      const url = window.URL.createObjectURL(new Blob([response]));
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `mantenimientos_preventivos_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `mantenimientos_preventivos_${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -789,8 +789,8 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl w-full max-h-[90vh] overflow-hidden p-0">
-        <div className="px-8 py-6 pb-4 border-b bg-white">
+      <DialogContent className="w-[98vw] max-w-none max-h-[90vh] overflow-hidden p-0">
+        <div className="px-6 py-4 pb-3 border-b bg-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
@@ -816,9 +816,9 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {viewMode === 'list' && (
             <>
-              <div className="px-8 py-6 pb-4 border-b bg-gray-50">
-                <div className="flex flex-wrap gap-6 items-center justify-between">
-                  <div className="flex-1 min-w-80 max-w-md">
+              <div className="px-6 py-4 pb-3 border-b bg-gray-50">
+                <div className="flex flex-wrap gap-4 items-center justify-between">
+                  <div className="flex-1 min-w-64 max-w-md">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input

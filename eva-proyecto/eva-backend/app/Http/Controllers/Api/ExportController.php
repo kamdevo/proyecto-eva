@@ -291,9 +291,19 @@ class ExportController extends ApiController
      *
      * Exportar reporte de calibraciones
      */
-    public function exportCalibraciones(Request $request)
+    public function calibraciones(Request $request)
     {
-        return $this->calibracionesReportService->exportCalibraciones($request);
+        try {
+            // Create service instance directly to avoid dependency injection issues
+            $service = new \App\Services\Export\Reports\CalibracionesReportService();
+            return $service->exportCalibraciones($request);
+        } catch (\Exception $e) {
+            \Log::error('Error in calibraciones export: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar calibraciones: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
