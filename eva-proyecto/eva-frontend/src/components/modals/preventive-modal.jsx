@@ -9,6 +9,7 @@ import { Clock, Search, Filter, Download, RefreshCw, Plus, Edit, Trash2, Eye, Ch
 import { toast } from 'sonner';
 import httpService from '../../services/httpService';
 import { useAuth } from '../../hooks/useAuth';
+import Pagination from '../common/Pagination';
 
 const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
   const [preventiveData, setPreventiveData] = useState([]);
@@ -525,41 +526,15 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
     </div>
   </div>
 
-  {/* Paginación */}
-  <div className="px-8 py-6 pt-4 border-t bg-gray-50">
-    <div className="flex items-center justify-between">
-      <div className="text-sm text-gray-600 font-medium">
-        Mostrando <span className="font-semibold text-gray-900">{((currentPage - 1) * 10) + 1}</span> a <span className="font-semibold text-gray-900">{Math.min(currentPage * 10, totalRecords)}</span> de <span className="font-semibold text-gray-900">{totalRecords.toLocaleString()}</span> registros
-      </div>
-      <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-          disabled={currentPage === 1}
-          className="px-4 py-2"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Anterior
-        </Button>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            Página <span className="font-semibold text-gray-900">{currentPage}</span> de <span className="font-semibold text-gray-900">{totalPages}</span>
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-          disabled={currentPage === totalPages}
-          className="px-4 py-2"
-        >
-          Siguiente
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-      </div>
-    </div>
-  </div>
+      {/* Paginación */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalRecords}
+        itemsPerPage={itemsPerPage}
+        onPageChange={handlePageChange}
+        loading={loading}
+      />
 </div>
 );
 
@@ -789,7 +764,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] max-w-none max-h-[90vh] overflow-hidden p-0">
+      <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-hidden p-0">
         <div className="px-6 py-4 pb-3 border-b bg-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

@@ -25,6 +25,7 @@ import { RowActionButtons } from "./equipment/RowActionButtons";
 import { useEquipmentSearch } from "@/contexts/EquipmentSearchContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import httpService from "@/services/httpService";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -117,6 +118,28 @@ export function MedicalDevicesView() {
   // Handlers
   const handlePageSizeChange = (newSize) => {
     changePageSize(parseInt(newSize));
+  };
+
+  // Handle export equipment counts
+  const handleExportEquipmentCounts = async () => {
+    try {
+      const response = await httpService.get('/v1/export/equipment-counts', {
+        responseType: 'blob',
+        params: { type: 'biomedical' }
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'CantidadesEquiposBiomedicos.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting equipment counts:', err);
+      // You could add a toast notification here
+    }
   };
 
   // Handle opening maintenance documents
@@ -296,7 +319,7 @@ export function MedicalDevicesView() {
             onFilterClick={() => setFilterModalOpen(true)}
             onAddClick={() => setAddModalOpen(true)}
             onCleanNamesClick={() => setCleanNamesModalOpen(true)}
-            onMergeClick={() => setMergeModalOpen(true)}
+            onExportClick={handleExportEquipmentCounts}
             onClearFiltersClick={handleClearAllFilters}
             activeFiltersCount={activeFiltersCount}
             showClearFilters={true}

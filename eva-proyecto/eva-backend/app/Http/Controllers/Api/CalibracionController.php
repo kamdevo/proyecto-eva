@@ -81,11 +81,11 @@ class CalibracionController extends ApiController
             }
 
             if ($request->has('fecha_desde')) {
-                $query->where('fecha_calibracion', '>=', $request->fecha_desde);
+                $query->whereDate('fecha_calibracion', '>=', $request->fecha_desde);
             }
 
             if ($request->has('fecha_hasta')) {
-                $query->where('fecha_calibracion', '<=', $request->fecha_hasta);
+                $query->whereDate('fecha_calibracion', '<=', $request->fecha_hasta);
             }
 
             // Filtro por calibraciones vencidas

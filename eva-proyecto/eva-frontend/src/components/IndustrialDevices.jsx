@@ -6,8 +6,10 @@ import { MainActionButtons } from "./equipment/MainActionButtons";
 import { StatsActionButtons } from "./equipment/StatsActionButtons";
 import { EquipmentPagination } from "./equipment/EquipmentPagination";
 import { RowActionButtons } from "./equipment/RowActionButtons";
-import { useEquipmentSearch } from "../contexts/EquipmentSearchContext";
-import { API_CONFIG } from "../config/api";
+import { useEquipmentSearch } from "@/contexts/EquipmentSearchContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import httpService from "@/services/httpService";
 import { EquipmentFiltersSection } from "./shared/EquipmentFiltersSection";
 import { EquipmentResultsInfo } from "./shared/EquipmentResultsInfo";
 import {
@@ -25,7 +27,6 @@ import {
   Link,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -153,6 +154,28 @@ function IndustrialDevicesView() {
     changePageSize(parseInt(newSize));
   };
 
+  // Handle export equipment counts
+  const handleExportEquipmentCounts = async () => {
+    try {
+      const response = await httpService.get('/v1/export/equipment-counts', {
+        responseType: 'blob',
+        params: { type: 'industrial' }
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'CantidadesEquiposIndustriales.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting equipment counts:', err);
+      // You could add a toast notification here
+    }
+  };
+
   // Handle opening maintenance documents
   const handleOpenMaintenanceDocument = async (equipmentId) => {
     try {
@@ -210,7 +233,7 @@ function IndustrialDevicesView() {
             onFilterClick={() => setFilterModalOpen(true)}
             onAddClick={() => setAddModalOpen(true)}
             onCleanNamesClick={() => setCleanNamesModalOpen(true)}
-            onMergeClick={() => setMergeModalOpen(true)}
+            onExportClick={handleExportEquipmentCounts}
             onClearFiltersClick={handleClearAllFilters}
             activeFiltersCount={activeFiltersCount}
             showClearFilters={true}

@@ -1,4 +1,4 @@
-import { Filter, Plus, FileSpreadsheet, Merge, X } from "lucide-react";
+import { Filter, Plus, FileSpreadsheet, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ export function MainActionButtons({
   onFilterClick,
   onAddClick,
   onCleanNamesClick,
-  onMergeClick,
+  onExportClick,
   onClearFiltersClick,
   activeFiltersCount = 0,
   equipmentType = "biomedical", // "biomedical" | "industrial"
@@ -25,7 +25,7 @@ export function MainActionButtons({
           filter: "Filtrar",
           add: "Registrar",
           clean: "Depurar",
-          merge: "Fusionar",
+          export: "Exportar cant. equipos",
         };
       case "biomedical":
       default:
@@ -33,7 +33,7 @@ export function MainActionButtons({
           filter: "Filtrar",
           add: "Registrar",
           clean: "Depurar",
-          merge: "Fusionar",
+          export: "Exportar cant. equipos",
         };
     }
   };
@@ -107,7 +107,7 @@ export function MainActionButtons({
           </Button>
 
           <Button
-            onClick={onMergeClick}
+            onClick={onExportClick}
             variant="ghost"
             size="sm"
             disabled={!canEdit(moduleName)}
@@ -115,8 +115,8 @@ export function MainActionButtons({
               !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            <Merge className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
-            <span className="truncate">{labels.merge}</span>
+            <Download className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
+            <span className="truncate">{labels.export}</span>
           </Button>
         </div>
       </CardContent>

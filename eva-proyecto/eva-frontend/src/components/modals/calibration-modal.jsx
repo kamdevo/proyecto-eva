@@ -47,7 +47,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   const [filteredCalibraciones, setFilteredCalibraciones] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
+  const [yearFilter, setYearFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [, setTotalRecords] = useState(0);
@@ -66,8 +66,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Load calibrations data
-  const loadCalibraciones = useCallback(async (page = 1, search = '') => {
+  // Load calibrations data with server-side pagination
+  const loadCalibraciones = useCallback(async (page = 1, search = '', filters = {}) => {
     setLoading(true);
     setError(null);
     
@@ -76,83 +76,79 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
         page,
         per_page: itemsPerPage,
         search,
+        ...filters,
         ...(equipoId && { equipo_id: equipoId })
       };
 
       console.log('Loading calibrations with params:', params);
+      console.log('🔍 Date filters being sent:', { 
+        fecha_desde: params.fecha_desde, 
+        fecha_hasta: params.fecha_hasta 
+      });
       const response = await httpService.get('/v1/calibracion', { params });
       
       if (response.data && response.data.success) {
         const apiData = response.data.data;
         
-        if (apiData && Array.isArray(apiData.data)) {
-          // Paginated response structure
-          const allData = apiData.data;
-          setCalibraciones(allData);
-          setTotalRecords(apiData.total || allData.length);
+        if (apiData && typeof apiData === 'object' && Array.isArray(apiData.data)) {
+          // Paginated response structure from Laravel
+          setCalibraciones(apiData.data);
+          setFilteredCalibraciones(apiData.data); // Set filtered data same as main data for server-side pagination
+          setTotalRecords(apiData.total || 0);
           setCurrentPage(apiData.current_page || 1);
           setTotalPages(apiData.last_page || 1);
         } else if (Array.isArray(apiData)) {
-          // Direct array response
+          // Direct array response (fallback)
           setCalibraciones(apiData);
+          setFilteredCalibraciones(apiData);
           setTotalRecords(apiData.length);
           setCurrentPage(1);
           setTotalPages(Math.ceil(apiData.length / itemsPerPage));
         } else {
+          console.warn('Unexpected API response structure:', apiData);
           setCalibraciones([]);
+          setFilteredCalibraciones([]);
           setTotalRecords(0);
         }
       } else {
+        console.warn('API response not successful:', response.data);
         setCalibraciones([]);
+        setFilteredCalibraciones([]);
         setTotalRecords(0);
       }
     } catch (err) {
       console.error('Error loading calibrations:', err);
       setError('Error al cargar las calibraciones: ' + err.message);
       setCalibraciones([]);
+      setFilteredCalibraciones([]);
       setTotalRecords(0);
     } finally {
       setLoading(false);
     }
   }, [equipoId, itemsPerPage]);
 
-  // Get filtered data - computed on each render to avoid useEffect loops
-  const getFilteredData = () => {
-    if (calibraciones.length === 0) return [];
+  // Apply filters with server-side pagination
+  const applyFilters = useCallback(() => {
+    const filters = {};
     
-    let filtered = [...calibraciones];
-
-    // Apply search filter
-    if (searchTerm && searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(cal => 
-        (cal.description && cal.description.toLowerCase().includes(searchLower)) ||
-        (cal.equipo?.name && cal.equipo.name.toLowerCase().includes(searchLower)) ||
-        (cal.equipo?.marca && cal.equipo.marca.toLowerCase().includes(searchLower)) ||
-        (cal.equipo?.serial && cal.equipo.serial.toLowerCase().includes(searchLower))
-      );
+    // Build date filters for API
+    if (monthFilter && yearFilter) {
+      const year = parseInt(yearFilter);
+      const month = parseInt(monthFilter);
+      const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+      filters.fecha_desde = startDate;
+      filters.fecha_hasta = endDate;
+    } else if (yearFilter) {
+      const year = parseInt(yearFilter);
+      filters.fecha_desde = `${year}-01-01`;
+      filters.fecha_hasta = `${year}-12-31`;
     }
 
-    // Apply month filter
-    if (monthFilter) {
-      filtered = filtered.filter(cal => {
-        if (!cal.fecha_calibracion) return false;
-        const date = new Date(cal.fecha_calibracion);
-        return date.getMonth() + 1 === parseInt(monthFilter);
-      });
-    }
-
-    // Apply year filter
-    if (yearFilter) {
-      filtered = filtered.filter(cal => {
-        if (!cal.fecha_calibracion) return false;
-        const date = new Date(cal.fecha_calibracion);
-        return date.getFullYear() === parseInt(yearFilter);
-      });
-    }
-
-    return filtered;
-  };
+    // Reload data with filters
+    loadCalibraciones(1, searchTerm, filters);
+    setCurrentPage(1);
+  }, [searchTerm, monthFilter, yearFilter, loadCalibraciones]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -161,35 +157,50 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
     }
   }, [open, equipoId, loadCalibraciones]);
 
-  // Handle search
+  // Apply filters when filter values change
+  useEffect(() => {
+    if (open) {
+      applyFilters();
+    }
+  }, [searchTerm, monthFilter, yearFilter, open, applyFilters]);
+
+  // Handle search with debounce
   const handleSearch = (value) => {
     setSearchTerm(value);
-    // applyFilters will be called by useEffect
   };
 
   // Handle month filter change
   const handleMonthFilter = (value) => {
     setMonthFilter(value);
-    // applyFilters will be called by useEffect
   };
 
   // Handle year filter change
   const handleYearFilter = (value) => {
     setYearFilter(value);
-    // applyFilters will be called by useEffect
   };
 
-  // Get current page data
+  // Get current page data (server-side pagination)
   const getCurrentPageData = () => {
-    const filteredData = getFilteredData();
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredData.slice(startIndex, endIndex);
+    return filteredCalibraciones; // Data is already paginated from server
   };
 
-  // Handle page change
+  // Handle page change with server reload
   const handlePageChange = (page) => {
-    setCurrentPage(page);
+    const filters = {};
+    if (monthFilter && yearFilter) {
+      const year = parseInt(yearFilter);
+      const month = parseInt(monthFilter);
+      const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+      filters.fecha_desde = startDate;
+      filters.fecha_hasta = endDate;
+    } else if (yearFilter) {
+      const year = parseInt(yearFilter);
+      filters.fecha_desde = `${year}-01-01`;
+      filters.fecha_hasta = `${year}-12-31`;
+    }
+    
+    loadCalibraciones(page, searchTerm, filters);
   };
 
   // Handle form input changes
@@ -623,7 +634,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                       </span>
                     )}
                   </div>
-                  {(searchTerm || monthFilter || (yearFilter && yearFilter !== new Date().getFullYear().toString())) && (
+                  {(searchTerm || monthFilter || yearFilter) && (
                     <div className="flex items-center gap-2 text-xs bg-blue-50 px-2 py-1 rounded">
                       <Filter className="h-3 w-3" />
                       <span>Filtros activos</span>
@@ -674,8 +685,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                                   onClick={() => {
                                     setSearchTerm('');
                                     setMonthFilter('');
-                                    setYearFilter(new Date().getFullYear().toString());
-                                    applyFilters(calibraciones, '');
+                                    setYearFilter('');
+                                    setCurrentPage(1);
                                   }}
                                   className="mt-2"
                                 >

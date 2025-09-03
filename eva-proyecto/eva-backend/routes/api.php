@@ -4752,10 +4752,18 @@ Route::get('v1/test/modal-equipment-data', function () {
 // Calibraciones (sin autenticación)
 Route::prefix('v1')->group(function () {
     Route::apiResource('calibracion', \App\Http\Controllers\Api\CalibracionController::class);
+    
+    // Export equipment counts
+    Route::get('/export/equipment-counts', [App\Http\Controllers\Api\EquipmentCountsExportController::class, 'export']);
+    
+    // Export preventive maintenance
+    Route::get('/export/mantenimientos', [App\Http\Controllers\Api\PreventiveExportController::class, 'export']);
 });
 
 // Middleware de seguridad aplicado automáticamente
 Route::middleware(['auth:sanctum'])->group(function () {
+
+});
 
 // Agrupación optimizada de rutas con middleware empresarial
 Route::prefix('v1')->group(function () {
@@ -5027,8 +5035,6 @@ Route::prefix('v1')->group(function () {
             ], 500);
         }
     });
-});
-
 });
 
 // Observaciones routes (PUBLIC - no authentication required)
