@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calibration Export</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Test Calibration Export</h1>
+    <button onclick="testExport()">Test Export</button>
+    <div id="result"></div>
+
+    <script>
+        async function testExport() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing export...';
+            
+            try {
+                console.log('Testing export endpoint...');
+                
+                const response = await axios.get('http://127.0.0.1:8001/api/v1/export/calibraciones', {
+                    responseType: 'blob',
+                    timeout: 30000
+                });
+                
+                console.log('Response:', response);
+                console.log('Status:', response.status);
+                console.log('Headers:', response.headers);
+                
+                if (response.status === 200) {
+                    // Create download link
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'CalibracionesEB.xlsx');
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    
+                    resultDiv.innerHTML = `
+                        <div style="color: green;">
+                            ✅ Export successful!<br>
+                            Status: ${response.status}<br>
+                            Content-Type: ${response.headers['content-type']}<br>
+                            File downloaded successfully
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div style="color: orange;">⚠️ Unexpected status: ${response.status}</div>`;
+                }
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                
+                let errorMessage = 'Unknown error';
+                if (error.response) {
+                    errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}`;
+                    if (error.response.data) {
+                        try {
+                            const text = await error.response.data.text();
+                            errorMessage += `<br>Response: ${text}`;
+                        } catch (e) {
+                            errorMessage += `<br>Response: ${error.response.data}`;
+                        }
+                    }
+                } else if (error.request) {
+                    errorMessage = 'Network error - no response received';
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                resultDiv.innerHTML = `
+                    <div style="color: red;">
+                        ❌ Export failed:<br>
+                        ${errorMessage}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

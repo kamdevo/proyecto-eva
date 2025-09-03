@@ -30,16 +30,11 @@ use App\Http\Controllers\Api\ExportController;
 |
 */
 
-// Calibraciones sin autenticación
-Route::prefix('v1')->group(function () {
-    Route::get('export/calibraciones', [ExportController::class, 'calibraciones']);
-});
-
-Route::middleware('auth:sanctum')->group(function () {
-    // Exportaciones de equipos
+// Calibraciones sin autenticación (accessible without auth for frontend)
+Route::get('export/calibraciones', [ExportController::class, 'calibraciones']);
 
 // Agrupación optimizada de rutas con middleware empresarial
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
         Route::get('export/equipos-consolidado', [ExportController::class, 'equiposConsolidado']);
         Route::get('export/equipos-criticos', [ExportController::class, 'equiposCriticos']);
         Route::get('export/equipos-por-area', [ExportController::class, 'equiposPorArea']);
@@ -53,8 +48,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.v
         Route::get('export/mantenimientos-vencidos', [ExportController::class, 'mantenimientosVencidos']);
         Route::get('export/historial-mantenimientos', [ExportController::class, 'historialMantenimientos']);
     
-    // Exportaciones de calibraciones
-        Route::get('export/calibraciones', [ExportController::class, 'calibraciones']);
+    // Exportaciones de calibraciones (authenticated routes)
         Route::get('export/calibraciones-vencidas', [ExportController::class, 'calibracionesVencidas']);
         Route::get('export/certificados-calibracion', [ExportController::class, 'certificadosCalibracion']);
     
@@ -97,6 +91,4 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.v
         Route::post('export/plantillas', [ExportController::class, 'crearPlantilla']);
         Route::put('export/plantillas/{id}', [ExportController::class, 'actualizarPlantilla']);
         Route::delete('export/plantillas/{id}', [ExportController::class, 'eliminarPlantilla']);
-});
-
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, createContext } from 'react';
+import { useState, useEffect, useContext, createContext, useCallback } from 'react';
 import { useAuth as useOriginalAuth } from '../contexts/AuthContext';
 import apiClient from '../config/apiClient';
 
@@ -45,59 +45,40 @@ export const AuthProvider = ({ children }) => {
     }
   }, [originalUser, isAuthenticated, isLoading]);
 
-  const hasPermission = (moduleName, action = 'leer') => {
+  const hasPermission = useCallback((moduleName, action = 'leer') => {
     if (!originalUser) {
-      console.log('❌ No user found');
       return false;
     }
-    
-    // Debug: Log user data
-    console.log('🔍 Permission check:', { 
-      user: originalUser, 
-      rol_id: originalUser.rol_id, 
-      rol_id_type: typeof originalUser.rol_id,
-      moduleName, 
-      action 
-    });
     
     // Convert rol_id to number to ensure proper comparison
     const userRoleId = parseInt(originalUser.rol_id);
     
-    console.log('🔢 Parsed role ID:', userRoleId);
-    
     // Super admin (role 1) has ALL permissions - no restrictions
     if (userRoleId === 1) {
-      console.log('✅ Super admin detected - granting all permissions');
       return true;
     }
     
     // Admin (role 2) has most permissions
     if (userRoleId === 2) {
-      console.log('✅ Admin detected - granting most permissions');
       return true;
     }
     
     // Advanced user (role 3) - limited delete permissions
     if (userRoleId === 3) {
-      console.log('⚠️ Advanced user detected');
       if (action === 'eliminar') return false;
       return true;
     }
     
     // Basic user (role 4) - very restricted permissions
     if (userRoleId === 4) {
-      console.log('🔒 Basic user detected - checking limited permissions');
       // Only read access to equipment modules
       if (moduleName.includes('equipos') && action === 'leer') return true;
       if (moduleName === 'tickets propios' && (action === 'leer' || action === 'insertar' || action === 'editar')) return true;
       return false;
     }
     
-    console.log('❓ Unknown role or fallback logic');
-    
     // Fallback to database permissions
     if (!permissions.length) {
-      console.log('📋 No permissions loaded, defaulting based on role');
       return userRoleId <= 2; // Default allow for admins
     }
     
@@ -106,14 +87,12 @@ export const AuthProvider = ({ children }) => {
     );
     
     if (!modulePermission) {
-      console.log('🚫 No module permission found, defaulting based on role');
       return userRoleId <= 2;
     }
     
     const result = modulePermission[action] === 1 || modulePermission[action] === true;
-    console.log('📊 Database permission result:', result);
     return result;
-  };
+  }, [originalUser, permissions]);
 
   const hasModuleAccess = (moduleName) => {
     return hasPermission(moduleName, 'leer');

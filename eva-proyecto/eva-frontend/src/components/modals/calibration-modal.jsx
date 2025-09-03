@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,22 +30,31 @@ import {
   Upload,
   X,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import httpService from "@/services/httpService";
 
 export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
-  const { user, hasPermission } = useAuth();
+  const {  hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
   const [calibraciones, setCalibraciones] = useState([]);
+  const [filteredCalibraciones, setFilteredCalibraciones] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [, setTotalRecords] = useState(0);
   const [viewMode, setViewMode] = useState('list'); // 'list', 'add', 'edit'
   const [selectedCalibration, setSelectedCalibration] = useState(null);
   const [error, setError] = useState(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 15;
 
   // Form data for add/edit
   const [formData, setFormData] = useState({
@@ -58,7 +67,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   // Load calibrations data
-  const loadCalibraciones = async (page = 1, search = '') => {
+  const loadCalibraciones = useCallback(async (page = 1, search = '') => {
     setLoading(true);
     setError(null);
     
@@ -72,56 +81,115 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
 
       console.log('Loading calibrations with params:', params);
       const response = await httpService.get('/v1/calibracion', { params });
-      console.log('Full response:', response);
-      console.log('Response data:', response.data);
-      console.log('Response data.data:', response.data.data);
       
       if (response.data && response.data.success) {
-        // The API returns: {success: true, data: {data: [...], current_page: 1, ...}}
         const apiData = response.data.data;
-        console.log('API data structure:', apiData);
         
         if (apiData && Array.isArray(apiData.data)) {
           // Paginated response structure
-          setCalibraciones(apiData.data);
+          const allData = apiData.data;
+          setCalibraciones(allData);
+          setTotalRecords(apiData.total || allData.length);
           setCurrentPage(apiData.current_page || 1);
           setTotalPages(apiData.last_page || 1);
-          console.log('Set calibrations (paginated):', apiData.data.length, 'records');
         } else if (Array.isArray(apiData)) {
           // Direct array response
           setCalibraciones(apiData);
+          setTotalRecords(apiData.length);
           setCurrentPage(1);
-          setTotalPages(1);
-          console.log('Set calibrations (direct array):', apiData.length, 'records');
+          setTotalPages(Math.ceil(apiData.length / itemsPerPage));
         } else {
-          // Fallback
           setCalibraciones([]);
-          console.log('No valid data structure found, set empty array');
+          setTotalRecords(0);
         }
       } else {
         setCalibraciones([]);
-        console.log('No response data or success=false, set empty array');
+        setTotalRecords(0);
       }
     } catch (err) {
       console.error('Error loading calibrations:', err);
       setError('Error al cargar las calibraciones: ' + err.message);
       setCalibraciones([]);
+      setTotalRecords(0);
     } finally {
       setLoading(false);
     }
+  }, [equipoId, itemsPerPage]);
+
+  // Get filtered data - computed on each render to avoid useEffect loops
+  const getFilteredData = () => {
+    if (calibraciones.length === 0) return [];
+    
+    let filtered = [...calibraciones];
+
+    // Apply search filter
+    if (searchTerm && searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(cal => 
+        (cal.description && cal.description.toLowerCase().includes(searchLower)) ||
+        (cal.equipo?.name && cal.equipo.name.toLowerCase().includes(searchLower)) ||
+        (cal.equipo?.marca && cal.equipo.marca.toLowerCase().includes(searchLower)) ||
+        (cal.equipo?.serial && cal.equipo.serial.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Apply month filter
+    if (monthFilter) {
+      filtered = filtered.filter(cal => {
+        if (!cal.fecha_calibracion) return false;
+        const date = new Date(cal.fecha_calibracion);
+        return date.getMonth() + 1 === parseInt(monthFilter);
+      });
+    }
+
+    // Apply year filter
+    if (yearFilter) {
+      filtered = filtered.filter(cal => {
+        if (!cal.fecha_calibracion) return false;
+        const date = new Date(cal.fecha_calibracion);
+        return date.getFullYear() === parseInt(yearFilter);
+      });
+    }
+
+    return filtered;
   };
 
   // Load data when modal opens
   useEffect(() => {
     if (open) {
-      loadCalibraciones(1, searchTerm);
+      loadCalibraciones(1, '');
     }
-  }, [open, equipoId]);
+  }, [open, equipoId, loadCalibraciones]);
 
   // Handle search
   const handleSearch = (value) => {
     setSearchTerm(value);
-    loadCalibraciones(1, value);
+    // applyFilters will be called by useEffect
+  };
+
+  // Handle month filter change
+  const handleMonthFilter = (value) => {
+    setMonthFilter(value);
+    // applyFilters will be called by useEffect
+  };
+
+  // Handle year filter change
+  const handleYearFilter = (value) => {
+    setYearFilter(value);
+    // applyFilters will be called by useEffect
+  };
+
+  // Get current page data
+  const getCurrentPageData = () => {
+    const filteredData = getFilteredData();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredData.slice(startIndex, endIndex);
+  };
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   // Handle form input changes
@@ -254,7 +322,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   const handleExport = async () => {
     try {
       setLoading(true);
-      const response = await httpService.get('/v1/v1/export/calibraciones', {
+      const response = await httpService.get('/v1/export/calibraciones', {
         responseType: 'blob',
         params: { ...(equipoId && { equipo_id: equipoId }) }
       });
@@ -401,7 +469,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[70vw] max-w-none max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[85vw] !max-w-none sm:!max-w-none md:!max-w-none lg:!max-w-none xl:!max-w-none max-h-[95vh] overflow-hidden flex flex-col">
         <div className="px-6 py-4 pb-3 border-b bg-white">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
@@ -427,7 +495,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
           {viewMode === 'list' && (
             <>
               <div className="px-6 py-4 pb-3 border-b bg-gray-50">
-                <div className="flex flex-wrap gap-4 items-center justify-between">
+                {/* Search and Filters Row */}
+                <div className="flex flex-wrap gap-4 items-center justify-between mb-4">
                   <div className="flex-1 min-w-64 max-w-md">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -435,7 +504,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                         placeholder="Buscar calibraciones..."
                         value={searchTerm}
                         onChange={(e) => handleSearch(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 border-blue-200 focus:border-blue-400"
                       />
                     </div>
                   </div>
@@ -443,7 +512,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                     {hasPermission('calibraciones', 'crear') && (
                       <Button
                         onClick={() => setViewMode('add')}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-600 hover:bg-green-700 text-white shadow-md"
                         size="sm"
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -455,11 +524,81 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                       variant="outline"
                       size="sm"
                       disabled={loading}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Exportar
                     </Button>
                   </div>
+                </div>
+
+                {/* Filters Row */}
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Filtros:</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="month-filter" className="text-sm text-gray-600">Mes:</Label>
+                    <select
+                      id="month-filter"
+                      value={monthFilter}
+                      onChange={(e) => handleMonthFilter(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Todos</option>
+                      <option value="1">Enero</option>
+                      <option value="2">Febrero</option>
+                      <option value="3">Marzo</option>
+                      <option value="4">Abril</option>
+                      <option value="5">Mayo</option>
+                      <option value="6">Junio</option>
+                      <option value="7">Julio</option>
+                      <option value="8">Agosto</option>
+                      <option value="9">Septiembre</option>
+                      <option value="10">Octubre</option>
+                      <option value="11">Noviembre</option>
+                      <option value="12">Diciembre</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="year-filter" className="text-sm text-gray-600">Año:</Label>
+                    <select
+                      id="year-filter"
+                      value={yearFilter}
+                      onChange={(e) => handleYearFilter(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Todos</option>
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return (
+                          <option key={year} value={year.toString()}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {(searchTerm || monthFilter || yearFilter) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setMonthFilter('');
+                        setYearFilter('');
+                        setCurrentPage(1);
+                      }}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Limpiar filtros
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -475,76 +614,141 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                   <span className="font-medium">Listado de Calibraciones</span>
                 </div>
 
-                <div className="text-sm text-gray-600 mb-4">
-                  Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, calibraciones.length)} de {calibraciones.length} registros
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                  <div>
+                    Mostrando {filteredCalibraciones.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} a {Math.min(currentPage * itemsPerPage, filteredCalibraciones.length)} de {filteredCalibraciones.length} registros
+                    {filteredCalibraciones.length !== calibraciones.length && (
+                      <span className="text-blue-600 ml-2">
+                        (filtrado de {calibraciones.length} total)
+                      </span>
+                    )}
+                  </div>
+                  {(searchTerm || monthFilter || (yearFilter && yearFilter !== new Date().getFullYear().toString())) && (
+                    <div className="flex items-center gap-2 text-xs bg-blue-50 px-2 py-1 rounded">
+                      <Filter className="h-3 w-3" />
+                      <span>Filtros activos</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto border rounded-lg">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha Calibración</TableHead>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Equipo</TableHead>
-                        <TableHead>Marca</TableHead>
-                        <TableHead>Modelo</TableHead>
-                        <TableHead>Serie</TableHead>
-                        <TableHead>Ubicación</TableHead>
-                        <TableHead>Archivo</TableHead>
-                        <TableHead className="text-center">Acciones</TableHead>
+                      <TableRow className="bg-gray-100">
+                        <TableHead className="text-gray-700 font-semibold">Fecha Calibración</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Código</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Equipo</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Marca</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Modelo</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Serie</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Ubicación</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Archivo</TableHead>
+                        <TableHead className="text-center text-gray-700 font-semibold">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan="9" className="text-center py-8">
-                            Cargando calibraciones...
+                          <TableCell colSpan="9" className="text-center py-12">
+                            <div className="flex items-center justify-center gap-2">
+                              <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
+                              <span className="text-gray-600">Cargando calibraciones...</span>
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ) : calibraciones.length === 0 ? (
+                      ) : filteredCalibraciones.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan="9" className="text-center py-8 text-gray-500">
-                            {searchTerm ? 'No se encontraron calibraciones que coincidan con la búsqueda' : 'No hay calibraciones registradas'}
+                          <TableCell colSpan="9" className="text-center py-12 text-gray-500">
+                            <div className="flex flex-col items-center gap-2">
+                              <AlertCircle className="h-8 w-8 text-gray-400" />
+                              <span className="font-medium">
+                                {searchTerm || monthFilter || yearFilter ? 
+                                  'No se encontraron calibraciones que coincidan con los filtros aplicados' : 
+                                  'No hay calibraciones registradas'
+                                }
+                              </span>
+                              {(searchTerm || monthFilter || yearFilter) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSearchTerm('');
+                                    setMonthFilter('');
+                                    setYearFilter(new Date().getFullYear().toString());
+                                    applyFilters(calibraciones, '');
+                                  }}
+                                  className="mt-2"
+                                >
+                                  Limpiar filtros
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : (
-                        Array.isArray(calibraciones) && calibraciones.map((calibration, index) => (
-                          <TableRow key={calibration.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                            <TableCell>
-                              {calibration.fecha_calibracion ? new Date(calibration.fecha_calibracion).toLocaleDateString() : 'N/A'}
-                            </TableCell>
+                        getCurrentPageData().map((calibration, index) => (
+                          <TableRow 
+                            key={calibration.id} 
+                            className={`hover:bg-blue-50 transition-colors ${
+                              index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                            }`}
+                          >
                             <TableCell className="font-medium">
+                              {calibration.fecha_calibracion ? (
+                                <div className="flex flex-col">
+                                  <span>{new Date(calibration.fecha_calibracion).toLocaleDateString('es-ES')}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(calibration.fecha_calibracion).toLocaleDateString('es-ES', { 
+                                      weekday: 'short', 
+                                      month: 'short' 
+                                    })}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium text-blue-700">
                               {calibration.description || 'N/A'}
                             </TableCell>
-                            <TableCell>{calibration.equipo?.name || 'N/A'}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{calibration.equipo?.name || 'N/A'}</span>
+                                <span className="text-xs text-gray-500">ID: {calibration.equipo_id || 'N/A'}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>{calibration.equipo?.marca || 'N/A'}</TableCell>
                             <TableCell>{calibration.equipo?.modelo || 'N/A'}</TableCell>
-                            <TableCell>{calibration.equipo?.serial || 'N/A'}</TableCell>
-                            <TableCell>{calibration.equipo?.servicio?.name || 'N/A'}</TableCell>
+                            <TableCell className="font-mono text-sm">{calibration.equipo?.serial || 'N/A'}</TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
+                                {calibration.equipo?.servicio?.name || 'N/A'}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               {calibration.file ? (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleViewDocument(calibration.file)}
-                                  className="text-green-600 hover:bg-green-50"
+                                  className="text-green-600 hover:bg-green-50 border-green-200"
                                 >
                                   <FileText className="h-4 w-4 mr-1" />
                                   Ver
                                 </Button>
                               ) : (
-                                <span className="text-gray-400 text-sm">Sin archivo</span>
+                                <span className="text-gray-400 text-sm italic">Sin archivo</span>
                               )}
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center justify-center gap-2">
+                              <div className="flex items-center justify-center gap-1">
                                 {hasPermission('calibraciones', 'editar') && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleEdit(calibration)}
-                                    className="p-2 hover:bg-yellow-50 rounded-full"
-                                    title="Editar"
+                                    className="p-2 hover:bg-yellow-50 rounded-full transition-colors"
+                                    title="Editar calibración"
                                   >
                                     <Edit className="h-4 w-4 text-yellow-600" />
                                   </Button>
@@ -554,8 +758,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDelete(calibration.id)}
-                                    className="p-2 hover:bg-red-50 rounded-full"
-                                    title="Eliminar"
+                                    className="p-2 hover:bg-red-50 rounded-full transition-colors"
+                                    title="Eliminar calibración"
                                   >
                                     <Trash2 className="h-4 w-4 text-red-600" />
                                   </Button>
@@ -569,41 +773,142 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                   </Table>
                 </div>
 
-                {/* Pagination */}
+                {/* Enhanced Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-6">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => loadCalibraciones(currentPage - 1, searchTerm)}
-                      disabled={currentPage <= 1 || loading}
-                    >
-                      Anterior
-                    </Button>
+                  <div className="flex items-center justify-between mt-8 p-4 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>Página {currentPage} de {totalPages}</span>
+                      <span className="text-gray-400">•</span>
+                      <span>{filteredCalibraciones.length} registros total</span>
+                    </div>
                     
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const page = i + 1;
-                      return (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => loadCalibraciones(page, searchTerm)}
-                          className={currentPage === page ? "bg-blue-600 text-white" : ""}
-                        >
-                          {page}
-                        </Button>
-                      );
-                    })}
-                    
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => loadCalibraciones(currentPage + 1, searchTerm)}
-                      disabled={currentPage >= totalPages || loading}
-                    >
-                      Siguiente
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {/* First page */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage <= 1 || loading}
+                        className="p-2"
+                        title="Primera página"
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      {/* Previous page */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage <= 1 || loading}
+                        className="p-2"
+                        title="Página anterior"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      {/* Page numbers */}
+                      {(() => {
+                        const pages = [];
+                        const maxVisiblePages = 5;
+                        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                        
+                        // Adjust start page if we're near the end
+                        if (endPage - startPage + 1 < maxVisiblePages) {
+                          startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                        }
+                        
+                        // Add ellipsis at the beginning if needed
+                        if (startPage > 1) {
+                          pages.push(
+                            <Button
+                              key={1}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(1)}
+                              className="min-w-[2.5rem]"
+                            >
+                              1
+                            </Button>
+                          );
+                          if (startPage > 2) {
+                            pages.push(
+                              <span key="ellipsis-start" className="px-2 text-gray-400">
+                                ...
+                              </span>
+                            );
+                          }
+                        }
+                        
+                        // Add visible page numbers
+                        for (let i = startPage; i <= endPage; i++) {
+                          pages.push(
+                            <Button
+                              key={i}
+                              variant={currentPage === i ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(i)}
+                              className={`min-w-[2.5rem] ${
+                                currentPage === i 
+                                  ? "bg-blue-600 text-white hover:bg-blue-700" 
+                                  : "hover:bg-blue-50"
+                              }`}
+                            >
+                              {i}
+                            </Button>
+                          );
+                        }
+                        
+                        // Add ellipsis at the end if needed
+                        if (endPage < totalPages) {
+                          if (endPage < totalPages - 1) {
+                            pages.push(
+                              <span key="ellipsis-end" className="px-2 text-gray-400">
+                                ...
+                              </span>
+                            );
+                          }
+                          pages.push(
+                            <Button
+                              key={totalPages}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(totalPages)}
+                              className="min-w-[2.5rem]"
+                            >
+                              {totalPages}
+                            </Button>
+                          );
+                        }
+                        
+                        return pages;
+                      })()}
+                      
+                      {/* Next page */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage >= totalPages || loading}
+                        className="p-2"
+                        title="Página siguiente"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      {/* Last page */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage >= totalPages || loading}
+                        className="p-2"
+                        title="Última página"
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

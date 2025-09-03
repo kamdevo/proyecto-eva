@@ -51,14 +51,10 @@ class CalibracionesReportService extends ExportServiceBase
             $calibraciones = $query->orderBy('calibracion.fecha_calibracion', 'desc')->get();
 
             $data = $this->prepareCalibracionesData($calibraciones);
-            $filename = 'calibracionesEB';
+            $filename = 'calibracionesEB.xlsx';
 
-            // Generate simple Excel without complex formatting to avoid errors
-            return \Maatwebsite\Excel\Facades\Excel::download(new class($data) implements \Maatwebsite\Excel\Concerns\FromArray {
-                private $data;
-                public function __construct($data) { $this->data = $data; }
-                public function array(): array { return $this->data; }
-            }, $filename . '.xlsx');
+            // Generate formatted Excel with professional styling
+            return $this->generateFormattedExcel($data, $filename);
 
         } catch (\Exception $e) {
             \Log::error('Error en exportación de calibraciones: ' . $e->getMessage());
@@ -132,17 +128,17 @@ class CalibracionesReportService extends ExportServiceBase
             {
                 $lastRow = count($this->data);
                 
-                // Header styling - Blue background with white text
+                // Header styling - Gray background with dark text
                 $sheet->getStyle('A1:I1')->applyFromArray([
                     'font' => [
                         'bold' => true,
-                        'color' => ['rgb' => 'FFFFFF'],
+                        'color' => ['rgb' => '374151'],
                         'size' => 11,
                         'name' => 'Calibri'
                     ],
                     'fill' => [
                         'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => '4472C4']
+                        'startColor' => ['rgb' => 'F3F4F6']
                     ],
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
