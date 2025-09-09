@@ -16,6 +16,8 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -39,7 +41,23 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
   const { user, hasPermission } = useAuth();
   const itemsPerPage = 10;
 
-  const loadPreventiveData = async (page = 1, search = '', status = 'all', sort = 'fecha_programada', order = 'desc') => {
+  // Agregar estilos CSS para sobrescribir limitaciones globales
+  useEffect(() => {
+    if (isOpen) {
+      const style = document.createElement("style");
+      style.textContent = `
+        .preventive-modal-wide [data-radix-dialog-content] {
+          max-width: 95vw !important;
+          width: 95vw !important;
+          height: 90vh !important;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => document.head.removeChild(style);
+    }
+  }, [isOpen]);
+
+  const loadPreventiveData = async (page = 1, search = '', status = 'all', sort = 'fecha_programada', order = 'desc', filters = {}) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -52,6 +70,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
       if (search) params.append('search', search);
       if (status !== 'all') params.append('estado', status);
       if (equipoId) params.append('equipo_id', equipoId);
+      
+      // Add date filters
+      if (filters.fecha_desde) params.append('fecha_desde', filters.fecha_desde);
+      if (filters.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta);
 
       const response = await httpService.get(`/v1/planes-mantenimientos?${params}`);
       
@@ -183,6 +205,35 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
     }
   };
 
+  // Handle date from filter change
+  const handleDateFromFilter = (value) => {
+    setDateFromFilter(value);
+    applyFilters(value, dateToFilter);
+  };
+
+  // Handle date to filter change
+  const handleDateToFilter = (value) => {
+    setDateToFilter(value);
+    applyFilters(dateFromFilter, value);
+  };
+
+  // Apply filters with date logic
+  const applyFilters = (dateFrom = dateFromFilter, dateTo = dateToFilter) => {
+    const filters = {};
+    
+    // Handle date range filters
+    if (dateFrom) {
+      filters.fecha_desde = dateFrom;
+    }
+    if (dateTo) {
+      filters.fecha_hasta = dateTo;
+    }
+    
+    // Reload data with filters
+    loadPreventiveData(1, searchTerm, statusFilter, sortField, sortOrder, filters);
+    setCurrentPage(1);
+  };
+
   const resetForm = () => {
     setFormData({
       equipo_id: equipoId || '',
@@ -285,63 +336,13 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
   }, [isOpen]);
 
   const renderListView = () => (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar mantenimientos..."
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Select value={statusFilter} onValueChange={handleStatusFilter}>
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="programado">Programado</SelectItem>
-              <SelectItem value="en_progreso">En Progreso</SelectItem>
-              <SelectItem value="completado">Completado</SelectItem>
-              <SelectItem value="cancelado">Cancelado</SelectItem>
-              <SelectItem value="reprogramado">Reprogramado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportData}
-            disabled={loading}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
-          {hasPermission('mantenimientos', 'insertar') && (
-            <Button
-              size="sm"
-              onClick={() => setViewMode('create')}
-              disabled={loading}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo
-            </Button>
-          )}
-      </div>
-    </div>
-
-  <div className="flex-1 overflow-hidden px-8 py-6 pt-4">
-    <div className="border rounded-lg overflow-hidden h-full flex flex-col shadow-sm">
-      <div className="flex-1 overflow-auto">
-        <table className="w-full table-fixed">
+    <div className="flex-1 overflow-hidden px-4 py-6 pt-4">
+      <div className="border rounded-lg overflow-hidden h-full flex flex-col shadow-sm">
+        <div className="flex-1 overflow-auto">
+        <table className="w-full table-auto min-w-full">
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
-              <th className="w-24 px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+              <th className="min-w-[80px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
                   onClick={() => handleSort('id')}>
                 <div className="flex items-center gap-2">
                   ID
@@ -350,7 +351,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                   )}
                 </div>
               </th>
-              <th className="w-32 px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+              <th className="min-w-[120px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
                   onClick={() => handleSort('equipo_id')}>
                 <div className="flex items-center gap-2">
                   Equipo
@@ -359,10 +360,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                   )}
                 </div>
               </th>
-              <th className="w-64 px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="min-w-[200px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
                 Meses Programados
               </th>
-              <th className="w-40 px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+              <th className="min-w-[130px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
                   onClick={() => handleSort('fecha_programada')}>
                 <div className="flex items-center gap-2">
                   Fecha Programada
@@ -371,7 +372,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                   )}
                 </div>
               </th>
-              <th className="w-32 px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+              <th className="min-w-[110px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
                   onClick={() => handleSort('estado')}>
                 <div className="flex items-center gap-2">
                   Estado
@@ -380,7 +381,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                   )}
                 </div>
               </th>
-              <th className="w-40 px-6 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="min-w-[120px] px-4 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -407,10 +408,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                 console.log('Rendering record:', record);
                 return (
                 <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                     <span className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">#{record.id}</span>
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {record.equipo_id ? (
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
                         Equipo #{record.equipo_id}
@@ -419,7 +420,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                       <span className="text-gray-400 text-sm">Sin asignar</span>
                     )}
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1.5 max-w-full">
                       {[
                         { key: 'mes1', label: 'Ene' },
@@ -457,7 +458,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {record.fecha_programada ? (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-400" />
@@ -473,7 +474,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                       <span className="text-gray-400 text-sm">Sin fecha</span>
                     )}
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <Badge 
                       variant={getStatusVariant(record.estado)}
                       className="text-sm px-3 py-1.5 font-medium min-w-fit"
@@ -481,7 +482,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                       {getStatusLabel(record.estado)}
                     </Badge>
                   </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-center">
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Button
                         variant="outline"
@@ -523,8 +524,6 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
 
       {/* Paginación */}
       <Pagination
@@ -535,8 +534,9 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
         onPageChange={handlePageChange}
         loading={loading}
       />
-</div>
-);
+    </div>
+  </div>
+  );
 
   const getStatusVariant = (estado) => {
     const variants = {
@@ -764,7 +764,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-hidden p-0">
+      <DialogContent className="preventive-modal-wide w-[95vw] max-w-[1600px] max-h-[90vh] overflow-hidden p-0">
         <div className="px-6 py-4 pb-3 border-b bg-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

@@ -13,7 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Register custom services here if needed
+        // Register SECOP service
+        $this->app->singleton(\App\Services\SecopServiceSimple::class, function ($app) {
+            return new \App\Services\SecopServiceSimple();
+        });
     }
 
     /**

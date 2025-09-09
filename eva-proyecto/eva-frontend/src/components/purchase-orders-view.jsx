@@ -34,6 +34,7 @@ import {
 import { AddPurchaseOrderModal } from "@/components/modals/add-purchase-order-modal";
 import { QueryPurchaseOrderModal } from "@/components/modals/query-purchase-order-modal";
 import { DownloadPdfModal } from "@/components/modals/download-pdf-modal";
+import { SecopConsultationModal } from "@/components/modals/secop-consultation-modal";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 import { useOrdenesCompra } from "../hooks/useOrdenesCompra";
 
@@ -41,6 +42,7 @@ export function PurchaseOrdersView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [downloadPdfModalOpen, setDownloadPdfModalOpen] = useState(false);
+  const [secopModalOpen, setSecopModalOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -117,6 +119,15 @@ export function PurchaseOrdersView() {
               >
                 <Search className="w-3 h-3 mr-1 flex-shrink-0" />
                 <span className="truncate">Consulta</span>
+              </Button>
+              <Button
+                onClick={() => setSecopModalOpen(true)}
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
+              >
+                <RefreshCw className="w-3 h-3 mr-1 flex-shrink-0" />
+                <span className="truncate">SECOP</span>
               </Button>
               <Button
                 onClick={() => setDownloadPdfModalOpen(true)}
@@ -580,6 +591,10 @@ export function PurchaseOrdersView() {
       <QueryPurchaseOrderModal
         open={queryModalOpen}
         onOpenChange={setQueryModalOpen}
+      />
+      <SecopConsultationModal
+        open={secopModalOpen}
+        onOpenChange={setSecopModalOpen}
       />
       <DownloadPdfModal
         open={downloadPdfModalOpen}

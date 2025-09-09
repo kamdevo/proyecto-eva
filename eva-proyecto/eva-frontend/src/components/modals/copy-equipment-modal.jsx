@@ -532,9 +532,11 @@ function CopyEquipmentModal({ open, onOpenChange }) {
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="optima">Óptima</SelectItem>
-                        <SelectItem value="buena">Buena</SelectItem>
-                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="1">ACTIVO</SelectItem>
+                        <SelectItem value="2">FUERA DE SERVICIO</SelectItem>
+                        <SelectItem value="5">PENDIENTE POR DAR DE BAJA</SelectItem>
+                        <SelectItem value="6">EQUIPO DADO DE BAJA</SelectItem>
+                        <SelectItem value="10">PENDIENTE POR ENTREGAR</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -548,10 +550,9 @@ function CopyEquipmentModal({ open, onOpenChange }) {
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="disponible">Disponible</SelectItem>
-                        <SelectItem value="no-disponible">
-                          No Disponible
-                        </SelectItem>
+                        <SelectItem value="1">----------</SelectItem>
+                        <SelectItem value="2">EN CONTINGENCIA</SelectItem>
+                        <SelectItem value="3">DISPONIBLE PARA CONTINGENCIA</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -98,8 +98,8 @@ const Pagination = ({
                 disabled={loading}
                 className={`min-w-[2.5rem] ${
                   currentPage === i 
-                    ? "bg-blue-600 text-white hover:bg-blue-700" 
-                    : "hover:bg-blue-50"
+                    ? "bg-blue-600 text-white hover:bg-blue-700 border-blue-600 shadow-md font-semibold" 
+                    : "hover:bg-blue-50 hover:border-blue-300"
                 }`}
               >
                 {i}

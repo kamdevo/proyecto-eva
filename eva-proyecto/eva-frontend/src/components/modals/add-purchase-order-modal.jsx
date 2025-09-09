@@ -155,14 +155,42 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
 
   // Manejar selección de proceso SECOP
   const handleSecopProcessSelect = (process) => {
+    console.log('🔗 [SECOP] Proceso seleccionado:', process);
+    
     setSelectedSecopProcess(process);
+    
+    // Determinar el ID SECOP del proceso
+    const secopId = process.id || 
+                   process.uid || 
+                   process.numero_constancia || 
+                   process.numero_proceso || 
+                   process.codigo_proceso || 
+                   "";
+    
+    // Determinar la URL SECOP
+    const secopUrl = process.url_proceso || 
+                    process.url_secop || 
+                    process.enlace || 
+                    "";
+    
+    // Actualizar el formulario con los datos del proceso SECOP
     setFormData(prev => ({
       ...prev,
-      secop_id: process.uid || process.numero_constancia || "",
-      url_secop: process.url_secop || "",
-      descripcion: prev.descripcion || process.objeto || "",
+      secop_id: secopId,
+      url_secop: secopUrl,
+      descripcion: prev.descripcion || process.objeto || process.descripcion || "",
+      monto: prev.monto || (process.valor ? process.valor.toString() : ""),
+      // Si el proceso tiene proveedor, también lo podemos usar
+      ...(process.proveedor && !prev.proveedor_id && {
+        // proveedor_nombre: process.proveedor
+      })
     }));
-    console.log('🔗 [SECOP] Proceso seleccionado:', process);
+    
+    console.log('� [SECOP] Campos auto-llenados:', {
+      secop_id: secopId,
+      url_secop: secopUrl,
+      descripcion: process.objeto || process.descripcion || ""
+    });
   };
 
   // Limpiar formulario al cerrar modal
@@ -186,7 +214,9 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto">
+      <DialogContent className=" max-w-none w-[95vw]  mx-auto max-h-[90vh] overflow-y-auto"
+      style={{ width: '40vw', maxWidth: 'none', height: '70vh', maxHeight: 'none' }}
+>
         <DialogHeader className="border-b border-teal-200 pb-3">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base sm:text-lg font-semibold text-slate-800">
@@ -317,6 +347,58 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             </Select>
           </div>
 
+          {/* Campo de Descripción/Observaciones */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="descripcion"
+              className="text-xs sm:text-sm font-medium text-slate-700 flex items-center gap-1"
+            >
+              Descripción/Observaciones
+              {formData.descripcion && selectedSecopProcess && (
+                <span className="text-green-600 text-xs">✓ Auto-llenado desde SECOP</span>
+              )}
+            </Label>
+            <Textarea
+              id="descripcion"
+              value={formData.descripcion}
+              onChange={(e) => handleInputChange("descripcion", e.target.value)}
+              placeholder="Descripción de la orden de compra o observaciones adicionales"
+              className={`h-20 text-xs sm:text-sm resize-none ${
+                formData.descripcion && selectedSecopProcess 
+                  ? 'border-green-300 bg-green-50' 
+                  : ''
+              }`}
+              rows={3}
+            />
+          </div>
+
+          {/* Campo de Monto */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="monto"
+              className="text-xs sm:text-sm font-medium text-slate-700 flex items-center gap-1"
+            >
+              Monto/Valor
+              {formData.monto && selectedSecopProcess && (
+                <span className="text-green-600 text-xs">✓ Auto-llenado desde SECOP</span>
+              )}
+            </Label>
+            <Input
+              id="monto"
+              type="number"
+              value={formData.monto}
+              onChange={(e) => handleInputChange("monto", e.target.value)}
+              placeholder="Valor de la orden de compra"
+              className={`h-8 sm:h-9 text-xs sm:text-sm ${
+                formData.monto && selectedSecopProcess 
+                  ? 'border-green-300 bg-green-50' 
+                  : ''
+              }`}
+              step="0.01"
+              min="0"
+            />
+          </div>
+
           {/* Sección SECOP */}
           <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
@@ -339,7 +421,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               <div className="p-3 bg-white rounded border border-green-200">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-green-800">
-                    Proceso SECOP Seleccionado
+                    ✓ Proceso SECOP Seleccionado - Campos Auto-llenados
                   </span>
                   <Button
                     type="button"
@@ -359,49 +441,69 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
                   </Button>
                 </div>
                 <div className="text-xs text-gray-600 space-y-1">
-                  <div><strong>Entidad:</strong> {selectedSecopProcess.entidad}</div>
-                  <div><strong>Objeto:</strong> {selectedSecopProcess.objeto}</div>
-                  <div><strong>UID:</strong> {selectedSecopProcess.uid}</div>
-                  {selectedSecopProcess.url_secop && (
-                    <div className="flex items-center gap-1">
-                      <strong>URL:</strong>
+                  <div><strong>Entidad:</strong> {selectedSecopProcess.entidad || 'N/A'}</div>
+                  <div><strong>Objeto:</strong> {selectedSecopProcess.objeto || 'N/A'}</div>
+                  <div className="bg-blue-50 p-2 rounded border border-blue-200 mt-2">
+                    <div className="text-blue-700 font-medium mb-1">📝 Campos auto-completados:</div>
+                    <div><strong>ID SECOP:</strong> {formData.secop_id || 'No disponible'}</div>
+                    <div><strong>URL SECOP:</strong> {formData.url_secop ? (
                       <a
-                        href={selectedSecopProcess.url_secop}
+                        href={formData.url_secop}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline flex items-center gap-1"
                       >
                         Ver en SECOP <ExternalLink className="w-3 h-3" />
                       </a>
-                    </div>
-                  )}
+                    ) : 'No disponible'}</div>
+                    {formData.descripcion && (
+                      <div><strong>Descripción:</strong> {formData.descripcion.substring(0, 100)}{formData.descripcion.length > 100 ? '...' : ''}</div>
+                    )}
+                    {formData.monto && (
+                      <div><strong>Monto:</strong> ${parseFloat(formData.monto).toLocaleString('es-CO')}</div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <Label htmlFor="secop_id" className="text-xs font-medium text-slate-700">
+                <Label htmlFor="secop_id" className="text-xs font-medium text-slate-700 flex items-center gap-1">
                   ID SECOP
+                  {formData.secop_id && selectedSecopProcess && (
+                    <span className="text-green-600 text-xs">✓ Auto-llenado</span>
+                  )}
                 </Label>
                 <Input
                   id="secop_id"
                   value={formData.secop_id}
                   onChange={(e) => handleInputChange("secop_id", e.target.value)}
                   placeholder="UID o número de constancia SECOP"
-                  className="h-8 text-xs"
+                  className={`h-8 text-xs ${
+                    formData.secop_id && selectedSecopProcess 
+                      ? 'border-green-300 bg-green-50' 
+                      : ''
+                  }`}
                 />
               </div>
               <div>
-                <Label htmlFor="url_secop" className="text-xs font-medium text-slate-700">
+                <Label htmlFor="url_secop" className="text-xs font-medium text-slate-700 flex items-center gap-1">
                   URL SECOP
+                  {formData.url_secop && selectedSecopProcess && (
+                    <span className="text-green-600 text-xs">✓ Auto-llenado</span>
+                  )}
                 </Label>
                 <Input
                   id="url_secop"
                   value={formData.url_secop}
                   onChange={(e) => handleInputChange("url_secop", e.target.value)}
                   placeholder="URL del proceso en SECOP"
-                  className="h-8 text-xs"
+                  className={`h-8 text-xs ${
+                    formData.url_secop && selectedSecopProcess 
+                      ? 'border-green-300 bg-green-50' 
+                      : ''
+                  }`}
                 />
               </div>
             </div>

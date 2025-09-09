@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
 
-// Use the centralized API configuration
-const API_BASE_URL = API_CONFIG.API_URL || 'http://127.0.0.1:8001/api/v1';
+// Use the centralized API configuration with correct v1 path
+const API_BASE_URL = (API_CONFIG.API_URL || 'http://127.0.0.1:8001/api') + '/v1';
 
 /**
  * Hook personalizado para interactuar con el servicio SECOP

@@ -46,8 +46,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   const [calibraciones, setCalibraciones] = useState([]);
   const [filteredCalibraciones, setFilteredCalibraciones] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [monthFilter, setMonthFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [, setTotalRecords] = useState(0);
@@ -132,23 +132,17 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
     const filters = {};
     
     // Build date filters for API
-    if (monthFilter && yearFilter) {
-      const year = parseInt(yearFilter);
-      const month = parseInt(monthFilter);
-      const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-      filters.fecha_desde = startDate;
-      filters.fecha_hasta = endDate;
-    } else if (yearFilter) {
-      const year = parseInt(yearFilter);
-      filters.fecha_desde = `${year}-01-01`;
-      filters.fecha_hasta = `${year}-12-31`;
+    if (dateFromFilter) {
+      filters.fecha_desde = dateFromFilter;
+    }
+    if (dateToFilter) {
+      filters.fecha_hasta = dateToFilter;
     }
 
     // Reload data with filters
     loadCalibraciones(1, searchTerm, filters);
     setCurrentPage(1);
-  }, [searchTerm, monthFilter, yearFilter, loadCalibraciones]);
+  }, [searchTerm, dateFromFilter, dateToFilter, loadCalibraciones]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -162,21 +156,23 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
     if (open) {
       applyFilters();
     }
-  }, [searchTerm, monthFilter, yearFilter, open, applyFilters]);
+  }, [searchTerm, dateFromFilter, dateToFilter, open, applyFilters]);
 
   // Handle search with debounce
   const handleSearch = (value) => {
     setSearchTerm(value);
   };
 
-  // Handle month filter change
-  const handleMonthFilter = (value) => {
-    setMonthFilter(value);
+  // Handle date from filter change
+  const handleDateFromFilter = (value) => {
+    setDateFromFilter(value);
+    setCurrentPage(1); // Reset to first page when filtering
   };
 
-  // Handle year filter change
-  const handleYearFilter = (value) => {
-    setYearFilter(value);
+  // Handle date to filter change
+  const handleDateToFilter = (value) => {
+    setDateToFilter(value);
+    setCurrentPage(1); // Reset to first page when filtering
   };
 
   // Get current page data (server-side pagination)
@@ -187,17 +183,13 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   // Handle page change with server reload
   const handlePageChange = (page) => {
     const filters = {};
-    if (monthFilter && yearFilter) {
-      const year = parseInt(yearFilter);
-      const month = parseInt(monthFilter);
-      const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-      filters.fecha_desde = startDate;
-      filters.fecha_hasta = endDate;
-    } else if (yearFilter) {
-      const year = parseInt(yearFilter);
-      filters.fecha_desde = `${year}-01-01`;
-      filters.fecha_hasta = `${year}-12-31`;
+    
+    // Handle date filters
+    if (dateFromFilter) {
+      filters.fecha_desde = dateFromFilter;
+    }
+    if (dateToFilter) {
+      filters.fecha_hasta = dateToFilter;
     }
     
     loadCalibraciones(page, searchTerm, filters);
@@ -551,57 +543,35 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="month-filter" className="text-sm text-gray-600">Mes:</Label>
-                    <select
-                      id="month-filter"
-                      value={monthFilter}
-                      onChange={(e) => handleMonthFilter(e.target.value)}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Todos</option>
-                      <option value="1">Enero</option>
-                      <option value="2">Febrero</option>
-                      <option value="3">Marzo</option>
-                      <option value="4">Abril</option>
-                      <option value="5">Mayo</option>
-                      <option value="6">Junio</option>
-                      <option value="7">Julio</option>
-                      <option value="8">Agosto</option>
-                      <option value="9">Septiembre</option>
-                      <option value="10">Octubre</option>
-                      <option value="11">Noviembre</option>
-                      <option value="12">Diciembre</option>
-                    </select>
+                    <Label htmlFor="date-from-filter" className="text-sm text-gray-600">Desde:</Label>
+                    <Input
+                      id="date-from-filter"
+                      type="date"
+                      value={dateFromFilter}
+                      onChange={(e) => handleDateFromFilter(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-40"
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="year-filter" className="text-sm text-gray-600">Año:</Label>
-                    <select
-                      id="year-filter"
-                      value={yearFilter}
-                      onChange={(e) => handleYearFilter(e.target.value)}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Todos</option>
-                      {Array.from({ length: 10 }, (_, i) => {
-                        const year = new Date().getFullYear() - i;
-                        return (
-                          <option key={year} value={year.toString()}>
-                            {year}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <Label htmlFor="date-to-filter" className="text-sm text-gray-600">Hasta:</Label>
+                    <Input
+                      id="date-to-filter"
+                      type="date"
+                      value={dateToFilter}
+                      onChange={(e) => handleDateToFilter(e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-40"
+                    />
                   </div>
 
-                  {(searchTerm || monthFilter || yearFilter) && (
+                  {(searchTerm || dateFromFilter || dateToFilter) && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
                         setSearchTerm('');
-                        setMonthFilter('');
-                        setYearFilter('');
+                        setDateFromFilter('');
+                        setDateToFilter('');
                         setCurrentPage(1);
                       }}
                       className="text-gray-500 hover:text-gray-700"
@@ -634,7 +604,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                       </span>
                     )}
                   </div>
-                  {(searchTerm || monthFilter || yearFilter) && (
+                  {(searchTerm || dateFromFilter || dateToFilter) && (
                     <div className="flex items-center gap-2 text-xs bg-blue-50 px-2 py-1 rounded">
                       <Filter className="h-3 w-3" />
                       <span>Filtros activos</span>
@@ -673,19 +643,19 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                             <div className="flex flex-col items-center gap-2">
                               <AlertCircle className="h-8 w-8 text-gray-400" />
                               <span className="font-medium">
-                                {searchTerm || monthFilter || yearFilter ? 
+                                {searchTerm || dateFromFilter || dateToFilter ? 
                                   'No se encontraron calibraciones que coincidan con los filtros aplicados' : 
                                   'No hay calibraciones registradas'
                                 }
                               </span>
-                              {(searchTerm || monthFilter || yearFilter) && (
+                              {(searchTerm || dateFromFilter || dateToFilter) && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
                                     setSearchTerm('');
-                                    setMonthFilter('');
-                                    setYearFilter('');
+                                    setDateFromFilter('');
+                                    setDateToFilter('');
                                     setCurrentPage(1);
                                   }}
                                   className="mt-2"
@@ -862,8 +832,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                               onClick={() => handlePageChange(i)}
                               className={`min-w-[2.5rem] ${
                                 currentPage === i 
-                                  ? "bg-blue-600 text-white hover:bg-blue-700" 
-                                  : "hover:bg-blue-50"
+                                  ? "bg-blue-600 text-white hover:bg-blue-700 border-blue-600 shadow-md font-semibold" 
+                                  : "hover:bg-blue-50 hover:border-blue-300"
                               }`}
                             >
                               {i}

@@ -61,7 +61,9 @@ class CorrectivoGeneralController extends Controller
                 'search' => 'nullable|string|max:255',
                 'status' => 'nullable|in:all,active,completed,in_progress,pending',
                 'sort_by' => 'nullable|string|in:fecha_creacion,codigo_orden,equipo,marca,sede',
-                'sort_direction' => 'nullable|in:asc,desc'
+                'sort_direction' => 'nullable|in:asc,desc',
+                'fecha_desde' => 'nullable|date|date_format:Y-m-d',
+                'fecha_hasta' => 'nullable|date|date_format:Y-m-d|after_or_equal:fecha_desde'
             ]);
 
             if ($validator->fails()) {
@@ -132,6 +134,15 @@ class CorrectivoGeneralController extends Controller
                         $query->whereNull('cg.fecha_diagnostico');
                         break;
                 }
+            }
+
+            // Filtros por rango de fechas
+            if ($request->filled('fecha_desde')) {
+                $query->whereDate('cg.created_at', '>=', $request->fecha_desde);
+            }
+            
+            if ($request->filled('fecha_hasta')) {
+                $query->whereDate('cg.created_at', '<=', $request->fecha_hasta);
             }
 
             // Ordenamiento usando campos reales

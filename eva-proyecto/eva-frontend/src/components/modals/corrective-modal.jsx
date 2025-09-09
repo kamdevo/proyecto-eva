@@ -88,6 +88,8 @@ export function CorrectiveModal({ open, onOpenChange }) {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
   const [sortConfig, setSortConfig] = useState({
     key: "fecha_creacion",
     direction: "desc",
@@ -112,7 +114,8 @@ export function CorrectiveModal({ open, onOpenChange }) {
       page = 1,
       perPage = itemsPerPage,
       search = searchTerm,
-      status = statusFilter
+      status = statusFilter,
+      filters = {}
     ) => {
       setLoading(true);
       try {
@@ -121,17 +124,24 @@ export function CorrectiveModal({ open, onOpenChange }) {
           perPage,
           search,
           status,
+          filters
         });
 
+        const params = {
+          page: page,
+          per_page: perPage,
+          search: search || undefined,
+          status: status !== "all" ? status : undefined,
+          sort_by: sortConfig.key,
+          sort_direction: sortConfig.direction,
+        };
+
+        // Add date filters
+        if (filters.fecha_desde) params.fecha_desde = filters.fecha_desde;
+        if (filters.fecha_hasta) params.fecha_hasta = filters.fecha_hasta;
+
         const response = await httpService.get("/v1/correctivos-generales", {
-          params: {
-            page: page,
-            per_page: perPage,
-            search: search || undefined,
-            status: status !== "all" ? status : undefined,
-            sort_by: sortConfig.key,
-            sort_direction: sortConfig.direction,
-          },
+          params
         });
 
         console.log("✅ [CORRECTIVE] Datos cargados:", response.data);
@@ -189,6 +199,35 @@ export function CorrectiveModal({ open, onOpenChange }) {
     },
     [itemsPerPage, sortConfig]
   );
+
+  // Handle date from filter change
+  const handleDateFromFilter = (value) => {
+    setDateFromFilter(value);
+    applyFilters(value, dateToFilter);
+  };
+
+  // Handle date to filter change
+  const handleDateToFilter = (value) => {
+    setDateToFilter(value);
+    applyFilters(dateFromFilter, value);
+  };
+
+  // Apply filters with date logic
+  const applyFilters = (dateFrom = dateFromFilter, dateTo = dateToFilter) => {
+    const filters = {};
+    
+    // Handle date range filters
+    if (dateFrom) {
+      filters.fecha_desde = dateFrom;
+    }
+    if (dateTo) {
+      filters.fecha_hasta = dateTo;
+    }
+    
+    // Reload data with filters
+    loadCorrectiveData(1, itemsPerPage, searchTerm, statusFilter, filters);
+    setCurrentPage(1);
+  };
 
   // Load data when modal opens
   useEffect(() => {
@@ -1071,6 +1110,22 @@ export function CorrectiveModal({ open, onOpenChange }) {
                         <SelectItem value="pending">Pendientes</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Input
+                      type="date"
+                      placeholder="Fecha desde"
+                      value={dateFromFilter}
+                      onChange={(e) => handleDateFromFilter(e.target.value)}
+                      className="w-36"
+                      title="Filtrar desde fecha específica"
+                    />
+                    <Input
+                      type="date"
+                      placeholder="Fecha hasta"
+                      value={dateToFilter}
+                      onChange={(e) => handleDateToFilter(e.target.value)}
+                      className="w-36"
+                      title="Filtrar hasta fecha específica"
+                    />
                     <Select
                       value={itemsPerPage.toString()}
                       onValueChange={(value) =>
@@ -1304,7 +1359,7 @@ export function CorrectiveModal({ open, onOpenChange }) {
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
 
-                      {/* Page numbers */}
+                      {/* Page numbers with enhanced styling */}
                       {Array.from(
                         { length: Math.min(5, totalPages) },
                         (_, i) => {
@@ -1324,8 +1379,8 @@ export function CorrectiveModal({ open, onOpenChange }) {
                                 onClick={() => handlePageChange(page)}
                                 className={
                                   currentPage === page
-                                    ? "bg-blue-600 text-white"
-                                    : ""
+                                    ? "bg-blue-600 hover:bg-blue-700 text-white font-semibold border-blue-600 shadow-md"
+                                    : "hover:bg-blue-50 hover:border-blue-300"
                                 }
                               >
                                 {page}

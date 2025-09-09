@@ -21,9 +21,10 @@ import {
   User,
   AlertCircle,
   Info,
+  Package,
 } from "lucide-react";
 import { usePDF } from "@react-pdf/renderer";
-import { EquipmentLifecyclePDFRobust } from "../pdf/equipment-lifecycle-pdf-robust";
+import { EquipmentLifecyclePDFCompact } from "../pdf/equipment-lifecycle-pdf-compact";
 import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -40,10 +41,10 @@ export function ViewEquipmentModal({
   const [imageError, setImageError] = useState(false);
 
   // PDF generation hook - switch between components for testing
-  // Use MinimalTestPDF for basic testing, EquipmentLifecyclePDFRobust for full functionality
+  // Use EquipmentLifecyclePDFCompact for compact, single-page format
   const [instance, updateInstance] = usePDF({
     document: equipmentDetails ? (
-      <EquipmentLifecyclePDFRobust equipment={equipmentDetails} />
+      <EquipmentLifecyclePDFCompact equipment={equipmentDetails} />
     ) : null,
     // document: equipmentDetails ? <MinimalTestPDF equipment={equipmentDetails} /> : null  // For testing
   });
@@ -125,7 +126,7 @@ export function ViewEquipmentModal({
   useEffect(() => {
     if (equipmentDetails) {
       updateInstance(
-        <EquipmentLifecyclePDFRobust equipment={equipmentDetails} />
+        <EquipmentLifecyclePDFCompact equipment={equipmentDetails} />
       );
       // updateInstance(<MinimalTestPDF equipment={equipmentDetails} />);  // For testing
     }
@@ -355,7 +356,7 @@ export function ViewEquipmentModal({
                 <Settings className="h-5 w-5 text-blue-600" />
                 2. Información Técnica del Fabricante
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Año de Fabricación:</span>
@@ -372,19 +373,45 @@ export function ViewEquipmentModal({
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Voltaje:</span>
+                    <span className="text-gray-600">Voltaje 1:</span>
                     <span className="font-medium text-gray-800">
-                      {safeValue(displayData.voltaje)}
+                      {safeValue(displayData.v1)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Voltaje 2:</span>
+                    <span className="font-medium text-gray-800">
+                      {safeValue(displayData.v2)}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Voltaje 3:</span>
+                    <span className="font-medium text-gray-800">
+                      {safeValue(displayData.v3)}
+                    </span>
+                  </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Frecuencia:</span>
                     <span className="font-medium text-gray-800">
                       {safeValue(displayData.frecuencia)}
                     </span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Garantía:</span>
+                    <span className="font-medium text-gray-800">
+                      {safeValue(displayData.garantia)} años
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Periodicidad:</span>
+                    <span className="font-medium text-gray-800">
+                      {safeValue(displayData.periodicidad)}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Edad del Equipo:</span>
                     <Badge className="bg-blue-100 text-blue-800">
@@ -401,6 +428,24 @@ export function ViewEquipmentModal({
                       }`}
                     >
                       {safeValue(displayData.movilidad)}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Evaluación Desempeño:</span>
+                    <span className="font-medium text-gray-800">
+                      {safeValue(displayData.evaluacion_desempenio)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Calibración:</span>
+                    <Badge
+                      className={`${
+                        displayData.calibracion?.toLowerCase() === "si"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {safeValue(displayData.calibracion)}
                     </Badge>
                   </div>
                 </div>
@@ -516,6 +561,55 @@ export function ViewEquipmentModal({
                 <p className="text-sm text-blue-700 mt-1">
                   Hospital Universitario del Valle Evaristo García
                 </p>
+              </div>
+            </div>
+
+            {/* SECCIÓN 4.5: ACCESORIOS Y ESPECIFICACIONES ADICIONALES */}
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
+                <Package className="h-5 w-5 text-orange-600" />
+                4.5. Accesorios y Especificaciones Adicionales
+              </h3>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-3">
+                  <div className="text-sm">
+                    <span className="text-gray-600 font-medium">Accesorios Incluidos:</span>
+                    <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                      <div 
+                        className="text-gray-800 text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{
+                          __html: displayData.accesorios || "No se han especificado accesorios"
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Repuesto Pendiente:</span>
+                      <Badge
+                        className={`${
+                          displayData.repuesto_pendiente?.toLowerCase() === "si"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {safeValue(displayData.repuesto_pendiente)}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Código Antiguo:</span>
+                      <span className="font-medium text-gray-800">
+                        {safeValue(displayData.codigo_antiguo)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Verificación Inventario:</span>
+                      <span className="font-medium text-gray-800">
+                        {safeValue(displayData.verificacion_inventario)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

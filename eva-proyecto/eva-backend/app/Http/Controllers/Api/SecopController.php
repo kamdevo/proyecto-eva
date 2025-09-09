@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\SecopService;
+use App\Services\SecopServiceSimple;
 use App\ConexionesVista\ResponseFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +19,7 @@ class SecopController extends Controller
 {
     protected $secopService;
 
-    public function __construct(SecopService $secopService)
+    public function __construct(SecopServiceSimple $secopService)
     {
         $this->secopService = $secopService;
     }
@@ -199,7 +199,8 @@ class SecopController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'q' => 'required|string|min:3|max:255',
+                'q' => 'nullable|string|min:3|max:255',
+                'search' => 'nullable|string|min:3|max:255',
                 'limit' => 'nullable|integer|min:1|max:100'
             ]);
 
@@ -211,10 +212,24 @@ class SecopController extends Controller
                 );
             }
 
-            $searchTerm = $request->input('q');
+            // Aceptar tanto 'q' como 'search' para flexibilidad
+            $searchTerm = $request->input('q') ?: $request->input('search');
             $limit = $request->input('limit', 50);
 
-            $resultado = $this->secopService->buscarProcesos($searchTerm, $limit);
+            if (empty($searchTerm)) {
+                return ResponseFormatter::error(
+                    'Término de búsqueda requerido (q o search)',
+                    'Parámetro de búsqueda faltante',
+                    400
+                );
+            }
+
+            $filters = [
+                'search' => $searchTerm,
+                'limit' => $limit
+            ];
+
+            $resultado = $this->secopService->buscarProcesos($filters);
 
             if (!$resultado['success']) {
                 return ResponseFormatter::error(

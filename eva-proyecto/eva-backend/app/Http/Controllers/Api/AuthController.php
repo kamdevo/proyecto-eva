@@ -623,8 +623,6 @@ class AuthController extends ApiController
                         'insertar' => $permissions['insertar'],
                         'editar' => $permissions['editar'],
                         'eliminar' => $permissions['eliminar'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
                     ]);
                 }
             }

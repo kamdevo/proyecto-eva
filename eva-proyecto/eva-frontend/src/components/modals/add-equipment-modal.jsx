@@ -1963,10 +1963,11 @@ export function AddEquipmentModal({
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="optima">Óptima</SelectItem>
-                        <SelectItem value="buena">Buena</SelectItem>
-                        <SelectItem value="regular">Regular</SelectItem>
-                        <SelectItem value="deficiente">Deficiente</SelectItem>
+                        <SelectItem value="1">ACTIVO</SelectItem>
+                        <SelectItem value="2">FUERA DE SERVICIO</SelectItem>
+                        <SelectItem value="5">PENDIENTE POR DAR DE BAJA</SelectItem>
+                        <SelectItem value="6">EQUIPO DADO DE BAJA</SelectItem>
+                        <SelectItem value="10">PENDIENTE POR ENTREGAR</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.funcionalidad && (
@@ -1994,14 +1995,14 @@ export function AddEquipmentModal({
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        {catalogs.estados_equipo &&
-                        catalogs.estados_equipo.length > 0 ? (
-                          catalogs.estados_equipo.map((estado) => (
+                        {catalogs.disponibilidades &&
+                        catalogs.disponibilidades.length > 0 ? (
+                          catalogs.disponibilidades.map((disponibilidad) => (
                             <SelectItem
-                              key={estado.id}
-                              value={estado.id.toString()}
+                              key={disponibilidad.id}
+                              value={disponibilidad.id.toString()}
                             >
-                              {estado.name}
+                              {disponibilidad.name}
                             </SelectItem>
                           ))
                         ) : (

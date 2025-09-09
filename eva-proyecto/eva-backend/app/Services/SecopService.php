@@ -16,9 +16,9 @@ use Exception;
 class SecopService
 {
     /**
-     * URL base de la API de datos abiertos del gobierno colombiano
+     * URL base de la API de SECOP II
      */
-    private const SECOP_API_BASE = 'https://www.datos.gov.co/resource/xvdy-vvsk.json';
+    private const SECOP_API_BASE = 'https://www.datos.gov.co/resource/jbjy-vk9h.json';
     
     /**
      * Límite de registros por consulta
@@ -242,7 +242,7 @@ class SecopService
         
         // Filtro por objeto del contrato
         if (!empty($filters['objeto'])) {
-            $conditions[] = "objeto_contratar LIKE '%{$filters['objeto']}%'";
+            $conditions[] = "objeto_del_contrato LIKE '%{$filters['objeto']}%'";
         }
         
         // Filtro por rango de fechas
@@ -262,7 +262,7 @@ class SecopService
         // Búsqueda general
         if (!empty($filters['search'])) {
             $searchTerm = $filters['search'];
-            $conditions[] = "(nombre_entidad LIKE '%{$searchTerm}%' OR objeto_contratar LIKE '%{$searchTerm}%' OR numero_de_constancia LIKE '%{$searchTerm}%')";
+            $conditions[] = "(nombre_entidad LIKE '%{$searchTerm}%' OR objeto_del_contrato LIKE '%{$searchTerm}%' OR proveedor_adjudicado LIKE '%{$searchTerm}%')";
         }
         
         // Construir query final

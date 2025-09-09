@@ -311,7 +311,7 @@ Route::get('v1/test/modal-analysis', function () {
             'servicios', 'areas', 'propietarios', 'usuarios', 'sedes',
             'fuentes_alimentacion', 'tecnologias', 'frecuencias_mantenimiento',
             'clasificaciones_biomedicas', 'clasificaciones_riesgo',
-            'tipos_adquisicion', 'estados_equipo', 'disponibilidades'
+            'tipos_adquisicion', 'estados_equipo', 'estadoequipos'
         ];
 
         $catalogAnalysis = [];
@@ -608,6 +608,132 @@ Route::get('v1/health', function () {
 
 // Bajas endpoints (sin autenticación por ahora)
 Route::prefix('v1')->group(function () {
+    
+    // User permissions routes with v1 prefix (for frontend compatibility)
+    Route::get('admin/users/{id}/permissions', function($id) {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden ver permisos.'
+                ], 403);
+            }
+
+            // Check if user exists
+            $user = DB::table('usuarios')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Get all modules
+            $modules = DB::table('modulos')->get();
+
+            // Get user permissions
+            $permissions = DB::table('acciones')
+                ->where('usuario_id', $id)
+                ->get()
+                ->keyBy('modulo_id');
+
+            $formattedPermissions = [];
+            foreach ($modules as $module) {
+                $permission = $permissions->get($module->id);
+                $formattedPermissions[] = [
+                    'modulo_id' => $module->id,
+                    'modulo_name' => $module->name,
+                    'leer' => $permission ? (bool)$permission->leer : false,
+                    'insertar' => $permission ? (bool)$permission->insertar : false,
+                    'editar' => $permission ? (bool)$permission->editar : false,
+                    'eliminar' => $permission ? (bool)$permission->eliminar : false,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => $user,
+                    'permissions' => $formattedPermissions
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
+    Route::post('admin/users/{id}/permissions', function($id) {
+        try {
+            // Check if user is authenticated and is super admin
+            $currentUser = auth('sanctum')->user();
+            if (!$currentUser || $currentUser->rol_id != 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Acceso denegado. Solo super administradores pueden modificar permisos.'
+                ], 403);
+            }
+
+            // Validate request
+            $validator = Validator::make(request()->all(), [
+                'permissions' => 'required|array',
+                'permissions.*.modulo_id' => 'required|integer|exists:modulos,id',
+                'permissions.*.leer' => 'required|boolean',
+                'permissions.*.insertar' => 'required|boolean',
+                'permissions.*.editar' => 'required|boolean',
+                'permissions.*.eliminar' => 'required|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Check if user exists
+            $user = DB::table('usuarios')->where('id', $id)->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Delete existing permissions
+            DB::table('acciones')->where('usuario_id', $id)->delete();
+
+            // Insert new permissions
+            foreach (request('permissions') as $permission) {
+                DB::table('acciones')->insert([
+                    'usuario_id' => $id,
+                    'modulo_id' => $permission['modulo_id'],
+                    'leer' => $permission['leer'] ? 1 : 0,
+                    'insertar' => $permission['insertar'] ? 1 : 0,
+                    'editar' => $permission['editar'] ? 1 : 0,
+                    'eliminar' => $permission['eliminar'] ? 1 : 0,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Permisos actualizados correctamente'
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error actualizando permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    })->middleware('auth:sanctum');
+
     // Get all bajas with pagination
     Route::get('bajas', function (Request $request) {
         try {
@@ -1020,6 +1146,8 @@ Route::prefix('v1')->group(function () {
             $search = $request->get('search', '');
             $equipoId = $request->get('equipo_id');
             $status = $request->get('status');
+            $fechaDesde = $request->get('fecha_desde');
+            $fechaHasta = $request->get('fecha_hasta');
             
             $query = DB::table('planes_mantenimientos')
                 ->select('planes_mantenimientos.*')
@@ -1038,6 +1166,15 @@ Route::prefix('v1')->group(function () {
                       ->orWhere('equipos.name', 'LIKE', "%{$search}%")
                       ->orWhere('equipos.code', 'LIKE', "%{$search}%");
                 });
+            }
+            
+            // Filtros por rango de fechas
+            if ($fechaDesde) {
+                $query->whereDate('planes_mantenimientos.fecha_programada', '>=', $fechaDesde);
+            }
+            
+            if ($fechaHasta) {
+                $query->whereDate('planes_mantenimientos.fecha_programada', '<=', $fechaHasta);
             }
             
             if ($status && $status !== 'all') {
@@ -1594,11 +1731,11 @@ Route::get('v1/test/modal-data', function () {
                 ['id' => 5, 'name' => 'Alquiler']
             ],
             'disponibilidades' => [
-                ['id' => 1, 'name' => 'Disponible'],
-                ['id' => 2, 'name' => 'En Uso'],
-                ['id' => 3, 'name' => 'En Mantenimiento'],
-                ['id' => 4, 'name' => 'Fuera de Servicio'],
-                ['id' => 5, 'name' => 'Reservado']
+                ['id' => 1, 'name' => 'ACTIVO'],
+                ['id' => 2, 'name' => 'FUERA DE SERVICIO'],
+                ['id' => 5, 'name' => 'PENDIENTE POR DAR DE BAJA'],
+                ['id' => 6, 'name' => 'EQUIPO DADO DE BAJA'],
+                ['id' => 10, 'name' => 'PENDIENTE POR ENTREGAR']
             ]
         ];
 
@@ -4720,11 +4857,11 @@ Route::get('v1/test/modal-equipment-data', function () {
                 ['id' => 5, 'name' => 'Alquiler']
             ],
             'disponibilidades' => [
-                ['id' => 1, 'name' => 'Disponible'],
-                ['id' => 2, 'name' => 'En Uso'],
-                ['id' => 3, 'name' => 'En Mantenimiento'],
-                ['id' => 4, 'name' => 'Fuera de Servicio'],
-                ['id' => 5, 'name' => 'Reservado']
+                ['id' => 1, 'name' => 'ACTIVO'],
+                ['id' => 2, 'name' => 'FUERA DE SERVICIO'],
+                ['id' => 5, 'name' => 'PENDIENTE POR DAR DE BAJA'],
+                ['id' => 6, 'name' => 'EQUIPO DADO DE BAJA'],
+                ['id' => 10, 'name' => 'PENDIENTE POR ENTREGAR']
             ]
         ];
 
@@ -4756,8 +4893,11 @@ Route::prefix('v1')->group(function () {
     // Export equipment counts
     Route::get('/export/equipment-counts', [App\Http\Controllers\Api\EquipmentCountsExportController::class, 'export']);
     
-    // Export preventive maintenance
-    Route::get('/export/mantenimientos', [App\Http\Controllers\Api\PreventiveExportController::class, 'export']);
+    // Export preventive maintenance  
+    Route::get('/export/mantenimientos', function() {
+        $controller = new App\Http\Controllers\Api\PreventiveExportController();
+        return $controller->export(request());
+    });
 });
 
 // Middleware de seguridad aplicado automáticamente
@@ -5391,6 +5531,11 @@ Route::post('auth/register', function (Request $request) {
 // RUTA ADICIONAL: Asegurar que /api/v1/register-working también funcione
 Route::post('v1/register-working', [\App\Http\Controllers\Api\AuthController::class, 'register'])
     ->name('api.v1.register-working');
+
+// RUTA PRINCIPAL: Frontend espera /v1/register
+Route::post('v1/register', [\App\Http\Controllers\Api\AuthController::class, 'register'])
+    ->withoutMiddleware(['auth:sanctum', 'auth'])
+    ->name('api.v1.register');
 
 // DEBUG: Endpoint para listar todas las rutas de registro disponibles
 Route::get('debug/routes', function () {

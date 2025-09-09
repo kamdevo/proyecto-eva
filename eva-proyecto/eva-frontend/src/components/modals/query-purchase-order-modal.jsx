@@ -1,13 +1,9 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+"use client";
+
+import { useState } from "react";
+import { Search, Filter, Download, FileText, Calendar, Package, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -15,601 +11,321 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, X, Filter, Loader2, Building, ExternalLink } from "lucide-react";
-import { useOrdenesCompra } from "../../hooks/useOrdenesCompra";
-import { useTiposCompra } from "../../hooks/useTiposCompra";
-import { useSecopService } from "../../hooks/useSecopService";
-import { SecopConsultationModal } from "./secop-consultation-modal";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { usePurchaseOrders } from "../../hooks/usePurchaseOrders";
 
 export function QueryPurchaseOrderModal({ open, onOpenChange }) {
-  const [loading, setLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [secopModalOpen, setSecopModalOpen] = useState(false);
-  const [secopResults, setSecopResults] = useState([]);
-  const [showSecopTab, setShowSecopTab] = useState(false);
-
-  // Hooks para datos reales
-  const { searchOrdenesAvanzada } = useOrdenesCompra();
-  const { tipos, loading: tiposLoading } = useTiposCompra();
-  const { searchProcesses, processes, loading: secopLoading } = useSecopService();
-
-  // Estado del formulario de búsqueda
-  const [searchForm, setSearchForm] = useState({
-    codigo: "",
-    fecha: "",
-    proveedor: "",
-    tipo_compra: "ALL",
-    estado: "ALL",
-    monto_min: "",
-    monto_max: "",
+  const [activeTab, setActiveTab] = useState("ordenes");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    proveedor: "TODOS",
+    estado: "TODOS",
+    tipo: "TODOS",
+    fechaInicio: "",
+    fechaFin: ""
   });
 
-  // Estado del formulario de búsqueda SECOP
-  const [secopSearchForm, setSecopSearchForm] = useState({
-    entidad: "",
-    objeto: "",
-    search: "",
-    fecha_inicio: "",
-    fecha_fin: "",
-    valor_minimo: "",
-  });
+  const {
+    purchaseOrders,
+    loading,
+    search,
+    refresh
+  } = usePurchaseOrders();
 
-  const handleInputChange = (field, value) => {
-    setSearchForm((prev) => ({
+  const handleSearch = () => {
+    const searchFilters = {
+      search: searchTerm,
+      ...filters
+    };
+    search(searchFilters);
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
       ...prev,
-      [field]: value,
+      [key]: value
     }));
   };
 
-  const handleSecopInputChange = (field, value) => {
-    setSecopSearchForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleSearch = async () => {
-    try {
-      setLoading(true);
-
-      // Construir parámetros de búsqueda
-      const searchParams = {};
-      if (searchForm.codigo) searchParams.codigo = searchForm.codigo;
-      if (searchForm.fecha) searchParams.fecha = searchForm.fecha;
-      if (searchForm.proveedor) searchParams.proveedor = searchForm.proveedor;
-      if (searchForm.tipo_compra)
-        searchParams.tipo_compra = searchForm.tipo_compra;
-      if (searchForm.estado) searchParams.estado = searchForm.estado;
-      if (searchForm.monto_min) searchParams.monto_min = searchForm.monto_min;
-      if (searchForm.monto_max) searchParams.monto_max = searchForm.monto_max;
-
-      const results = await searchOrdenesAvanzada(searchParams);
-      setSearchResults(results);
-    } catch (error) {
-      console.error("Error searching orders:", error);
-      alert("Error al buscar órdenes: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSecopSearch = async () => {
-    try {
-      setLoading(true);
-
-      // Prepare SECOP search filters
-      const filters = Object.fromEntries(
-        Object.entries(secopSearchForm).filter(([_, value]) => value.trim() !== '')
-      );
-
-      await searchProcesses(filters);
-      setSecopResults(processes || []);
-      console.log('🔍 [SECOP] Search completed:', processes?.length || 0, 'results');
-    } catch (error) {
-      console.error("Error searching SECOP:", error);
-      alert("Error al buscar en SECOP: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClear = () => {
-    setSearchForm({
-      codigo: "",
-      fecha: "",
-      proveedor: "",
-      tipo_compra: "ALL",
-      estado: "ALL",
-      monto_min: "",
-      monto_max: "",
+  const resetFilters = () => {
+    setSearchTerm("");
+    setFilters({
+      proveedor: "TODOS",
+      estado: "TODOS", 
+      tipo: "TODOS",
+      fechaInicio: "",
+      fechaFin: ""
     });
-    setSearchResults([]);
+    refresh();
   };
 
-  // Limpiar formulario al cerrar modal
-  useEffect(() => {
-    if (!open) {
-      handleClear();
-    }
-  }, [open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="border-b border-teal-200 pb-3">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-base sm:text-lg font-semibold text-slate-800">
-              Consulta
+      <DialogContent 
+        className="max-w-none w-[80vw] max-h-none h-[80vh] p-0 overflow-auto"
+        style={{ width: '80vw', maxWidth: 'none', height: '80vh', maxHeight: 'none' }}
+      >
+        <div className="flex flex-col h-full">
+          <DialogHeader className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-slate-800">
+              <Search className="w-5 h-5 text-teal-600" />
+              Consulta Avanzada de Órdenes de Compra
             </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-6">
+          {/* Pestañas */}
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
             <Button
-              variant="ghost"
+              variant={activeTab === "ordenes" ? "default" : "ghost"}
               size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
+              onClick={() => setActiveTab("ordenes")}
+              className={`flex-1 ${
+                activeTab === "ordenes"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              <X className="h-4 w-4" />
+              <Package className="w-4 h-4 mr-2" />
+              Órdenes de Compra
             </Button>
           </div>
-          <div className="h-1 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
-        </DialogHeader>
 
-        {/* Tabs for switching between Purchase Orders and SECOP */}
-        <div className="flex border-b border-gray-200">
-          <button
-            className={`px-4 py-2 text-sm font-medium ${
-              !showSecopTab
-                ? 'border-b-2 border-teal-500 text-teal-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setShowSecopTab(false)}
-          >
-            Órdenes de Compra
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium ${
-              showSecopTab
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setShowSecopTab(true)}
-          >
-            <Building className="w-4 h-4 inline mr-1" />
-            Consulta SECOP
-          </button>
-        </div>
-
-        <div className="space-y-4 py-4">
-          {!showSecopTab ? (
-            <>
-              <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4">
-                Buscar orden de compra
-              </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label
-                htmlFor="codigoBuscar"
-                className="text-xs sm:text-sm font-medium text-slate-700"
-              >
-                Código
-              </Label>
-              <Input
-                id="codigoBuscar"
-                placeholder="INGRESE EL NÚMERO"
-                value={searchForm.codigo}
-                onChange={(e) => handleInputChange("codigo", e.target.value)}
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="fechaBuscar"
-                className="text-xs sm:text-sm font-medium text-slate-700"
-              >
-                Fecha
-              </Label>
-              <Input
-                id="fechaBuscar"
-                type="date"
-                value={searchForm.fecha}
-                onChange={(e) => handleInputChange("fecha", e.target.value)}
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="proveedorBuscar"
-                className="text-xs sm:text-sm font-medium text-slate-700"
-              >
-                Proveedor
-              </Label>
-              <Input
-                id="proveedorBuscar"
-                placeholder="Nombre del proveedor"
-                value={searchForm.proveedor}
-                onChange={(e) => handleInputChange("proveedor", e.target.value)}
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="tipoCompraBuscar"
-              className="text-xs sm:text-sm font-medium text-slate-700"
-            >
-              Tipo de compra
-            </Label>
-            <Select
-              value={searchForm.tipo_compra}
-              onValueChange={(value) => handleInputChange("tipo_compra", value)}
-              disabled={tiposLoading}
-            >
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
-                <SelectValue placeholder="-----" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos los Tipos</SelectItem>
-                {tiposLoading ? (
-                  <SelectItem value="LOADING" disabled>
-                    Cargando tipos...
-                  </SelectItem>
-                ) : (
-                  tipos.map((tipo) => (
-                    <SelectItem key={tipo.id} value={tipo.id.toString()}>
-                      {tipo.nombre}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="estadoBuscar"
-              className="text-xs sm:text-sm font-medium text-slate-700"
-            >
-              Estado de la orden
-            </Label>
-            <Select
-              value={searchForm.estado}
-              onValueChange={(value) => handleInputChange("estado", value)}
-            >
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
-                <SelectValue placeholder="Seleccionar estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos los Estados</SelectItem>
-                <SelectItem value="1">Activo</SelectItem>
-                <SelectItem value="0">Inactivo</SelectItem>
-                <SelectItem value="2">Pendiente</SelectItem>
-                <SelectItem value="3">Completado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label
-                htmlFor="fechaDesde"
-                className="text-xs sm:text-sm font-medium text-slate-700"
-              >
-                Fecha desde
-              </Label>
-              <Input
-                id="fechaDesde"
-                type="date"
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="fechaHasta"
-                className="text-xs sm:text-sm font-medium text-slate-700"
-              >
-                Fecha hasta
-              </Label>
-              <Input
-                id="fechaHasta"
-                type="date"
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="montoMinimo"
-              className="text-xs sm:text-sm font-medium text-slate-700"
-            >
-              Rango de monto
-            </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Input
-                id="montoMinimo"
-                placeholder="Monto mínimo"
-                type="number"
-                value={searchForm.monto_min}
-                onChange={(e) => handleInputChange("monto_min", e.target.value)}
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-              <Input
-                id="montoMaximo"
-                placeholder="Monto máximo"
-                type="number"
-                value={searchForm.monto_max}
-                onChange={(e) => handleInputChange("monto_max", e.target.value)}
-                className="h-8 sm:h-9 text-xs sm:text-sm"
-              />
-            </div>
-          </div>
-            </>
-          ) : (
-            <>
-              {/* SECOP Search Form */}
-              <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4 flex items-center gap-2">
-                <Building className="w-5 h-5 text-blue-600" />
-                Consulta SECOP - Procesos de Contratación Pública
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Búsqueda General
-                  </Label>
-                  <Input
-                    placeholder="Buscar por entidad, objeto o número..."
-                    value={secopSearchForm.search}
-                    onChange={(e) => handleSecopInputChange("search", e.target.value)}
-                    className="h-8 sm:h-9 text-xs sm:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Entidad
-                  </Label>
-                  <Input
-                    placeholder="Nombre de la entidad"
-                    value={secopSearchForm.entidad}
-                    onChange={(e) => handleSecopInputChange("entidad", e.target.value)}
-                    className="h-8 sm:h-9 text-xs sm:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Objeto del Contrato
-                  </Label>
-                  <Input
-                    placeholder="Descripción del objeto"
-                    value={secopSearchForm.objeto}
-                    onChange={(e) => handleSecopInputChange("objeto", e.target.value)}
-                    className="h-8 sm:h-9 text-xs sm:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Valor Mínimo
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="Valor mínimo en COP"
-                    value={secopSearchForm.valor_minimo}
-                    onChange={(e) => handleSecopInputChange("valor_minimo", e.target.value)}
-                    className="h-8 sm:h-9 text-xs sm:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Fecha Inicio
-                  </Label>
-                  <Input
-                    type="date"
-                    value={secopSearchForm.fecha_inicio}
-                    onChange={(e) => handleSecopInputChange("fecha_inicio", e.target.value)}
-                    className="h-8 sm:h-9 text-xs sm:text-sm"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs sm:text-sm font-medium text-slate-700">
-                    Fecha Fin
-                  </Label>
-                  <Input
-                    type="date"
-                    value={secopSearchForm.fecha_fin}
-                    onChange={(e) => handleSecopInputChange("fecha_fin", e.target.value)}
-                    className="h-8 sm:h-9 text-xs sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* SECOP Search Button */}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSecopSearchForm({
-                      entidad: "",
-                      objeto: "",
-                      search: "",
-                      fecha_inicio: "",
-                      fecha_fin: "",
-                      valor_minimo: "",
-                    });
-                    setSecopResults([]);
-                  }}
-                  className="px-4 h-9 text-sm"
-                  disabled={loading}
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Limpiar
-                </Button>
-                <Button
-                  onClick={handleSecopSearch}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 h-9 text-sm"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Consultando...
-                    </>
-                  ) : (
-                    <>
+          {/* Contenido de Órdenes de Compra */}
+          {activeTab === "ordenes" && (
+            <div className="space-y-6">
+              {/* Filtros de Búsqueda */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Filter className="w-4 h-4 text-blue-600" />
+                    Filtros de Búsqueda
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Búsqueda General */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Buscar por número, proveedor, descripción..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="flex-1 border-blue-300 focus:border-blue-500"
+                    />
+                    <Button 
+                      onClick={handleSearch} 
+                      disabled={loading}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                    >
                       <Search className="w-4 h-4 mr-2" />
-                      Consultar SECOP
-                    </>
-                  )}
-                </Button>
-              </div>
+                      Buscar
+                    </Button>
+                  </div>
 
-              {/* SECOP Results */}
-              {processes && processes.length > 0 && (
-                <div className="mt-4 border-t pt-4">
-                  <h4 className="text-sm font-medium text-slate-800 mb-3">
-                    Resultados SECOP ({processes.length})
-                  </h4>
-                  <div className="max-h-60 overflow-y-auto space-y-2">
-                    {processes.map((proceso, index) => (
-                      <div key={proceso.uid || index} className="p-3 border rounded text-xs bg-blue-50">
-                        <div className="font-medium text-blue-800">
-                          {proceso.entidad || 'Entidad no especificada'}
-                        </div>
-                        <div className="text-slate-700 mt-1">
-                          <strong>Objeto:</strong> {proceso.objeto || 'N/A'}
-                        </div>
-                        <div className="text-slate-600 mt-1 flex justify-between items-center">
-                          <span>
-                            <strong>Valor:</strong> {proceso.valor ?
-                              new Intl.NumberFormat('es-CO', {
-                                style: 'currency',
-                                currency: 'COP',
-                                minimumFractionDigits: 0
-                              }).format(proceso.valor) : 'N/A'}
-                          </span>
-                          <span>
-                            <strong>Fecha:</strong> {proceso.fecha_firma ?
-                              new Date(proceso.fecha_firma).toLocaleDateString('es-CO') : 'N/A'}
-                          </span>
-                        </div>
-                        {proceso.url_secop && (
-                          <div className="mt-2">
-                            <a
-                              href={proceso.url_secop}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-xs flex items-center gap-1"
-                            >
-                              Ver en SECOP <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                        )}
+                  {/* Filtros Específicos */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 mb-1 block">
+                        Proveedor:
+                      </label>
+                      <Select
+                        value={filters.proveedor}
+                        onValueChange={(value) => handleFilterChange("proveedor", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TODOS">Todos los proveedores</SelectItem>
+                          <SelectItem value="PROVEEDOR_A">Proveedor A</SelectItem>
+                          <SelectItem value="PROVEEDOR_B">Proveedor B</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 mb-1 block">
+                        Estado:
+                      </label>
+                      <Select
+                        value={filters.estado}
+                        onValueChange={(value) => handleFilterChange("estado", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TODOS">Todos los estados</SelectItem>
+                          <SelectItem value="ACTIVA">Activa</SelectItem>
+                          <SelectItem value="APROBADA">Aprobada</SelectItem>
+                          <SelectItem value="EN_PROCESO">En Proceso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 mb-1 block">
+                        Tipo:
+                      </label>
+                      <Select
+                        value={filters.tipo}
+                        onValueChange={(value) => handleFilterChange("tipo", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TODOS">Todos los tipos</SelectItem>
+                          <SelectItem value="ORDEN_COMPRA">Orden de Compra</SelectItem>
+                          <SelectItem value="CONTRATO">Contrato</SelectItem>
+                          <SelectItem value="COMODATO">Comodato</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Filtros de Fecha */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 mb-1 block">
+                        Fecha Inicio:
+                      </label>
+                      <Input
+                        type="date"
+                        value={filters.fechaInicio}
+                        onChange={(e) => handleFilterChange("fechaInicio", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700 mb-1 block">
+                        Fecha Fin:
+                      </label>
+                      <Input
+                        type="date"
+                        value={filters.fechaFin}
+                        onChange={(e) => handleFilterChange("fechaFin", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Botones de Acción */}
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" onClick={resetFilters}>
+                      <X className="w-4 h-4 mr-2" />
+                      Limpiar Filtros
+                    </Button>
+                    <Button onClick={refresh} variant="outline">
+                      <Download className="w-4 h-4 mr-2" />
+                      Actualizar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Resultados */}
+              <Card className="bg-white border-gray-200 shadow-sm">
+                <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-200">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    Resultados de la Búsqueda
+                    {!loading && purchaseOrders && (
+                      <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-800">
+                        {purchaseOrders.length} registros
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-96 overflow-y-auto p-6">
+                    {loading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
+                        <p className="text-slate-600 mt-2">Cargando órdenes de compra...</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                    ) : purchaseOrders && purchaseOrders.length > 0 ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {purchaseOrders.map((order) => (
+                          <div
+                            key={order.id}
+                            className="border rounded-lg p-4 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 border-gray-200 hover:border-blue-300"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 border-blue-200">
+                                {order.orden || `OC-${order.id}`}
+                              </Badge>
+                              <Badge
+                                className={
+                                  order.status_text === "Aprobada"
+                                    ? "bg-green-100 text-green-800"
+                                    : order.status_text === "Activa"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }
+                              >
+                                {order.status_text}
+                              </Badge>
+                            </div>
+                            
+                            <div className="mb-3">
+                              <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+                                <Calendar className="w-4 h-4" />
+                                {order.fecha_formatted || "Sin fecha"}
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-sm text-slate-600">Proveedor:</p>
+                                  <p className="font-medium">
+                                    {order.proveedor_nombre || "Sin proveedor"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-slate-600">Tipo:</p>
+                                  <p className="font-medium">
+                                    {order.tipo_compra_nombre || "Sin tipo"}
+                                  </p>
+                                </div>
+                              </div>
 
-        {/* Resultados de búsqueda de órdenes de compra */}
-        {!showSecopTab && searchResults.length > 0 && (
-          <div className="mt-4 border-t pt-4">
-            <h4 className="text-sm font-medium text-slate-800 mb-3">
-              Resultados de búsqueda ({searchResults.length})
-            </h4>
-            <div className="max-h-40 overflow-y-auto space-y-2">
-              {searchResults.map((orden) => (
-                <div key={orden.id} className="p-2 border rounded text-xs">
-                  <div className="font-medium">Orden: {orden.orden}</div>
-                  <div className="text-slate-600">
-                    Fecha: {orden.fecha} | Tipo: {orden.tipo_compra}
-                  </div>
-                  {orden.proveedor && (
-                    <div className="text-slate-600">
-                      Proveedor: {orden.proveedor}
+                              {order.equipos_count && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <p className="text-sm text-slate-600">
+                                    Equipos asociados: 
+                                    <span className="font-semibold ml-1 text-blue-600">
+                                      {order.equipos_count}
+                                    </span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                      <p className="text-slate-600">No se encontraron órdenes de compra</p>
+                      <p className="text-sm text-slate-500">
+                        Ajusta los filtros de búsqueda para obtener resultados
+                      </p>
                     </div>
                   )}
-                </div>
-              ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
             </div>
           </div>
-        )}
-
-        {/* Buttons - only show for Purchase Orders tab since SECOP has its own buttons */}
-        {!showSecopTab && (
-          <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
-              disabled={loading}
-            >
-              Cerrar
-            </Button>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={handleClear}
-                className="w-full sm:w-auto px-4 h-9 text-sm"
-                disabled={loading}
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Limpiar
-              </Button>
-              <Button
-                onClick={handleSearch}
-                className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Buscando...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
-                    Buscar
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Close button for SECOP tab */}
-        {showSecopTab && (
-          <div className="flex justify-center pt-4 border-t border-slate-200">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="px-6 h-9 text-sm"
-              disabled={loading}
-            >
-              Cerrar
-            </Button>
-          </div>
-        )}
+        </div>
       </DialogContent>
-
-      {/* SECOP Consultation Modal */}
-      <SecopConsultationModal
-        open={secopModalOpen}
-        onOpenChange={setSecopModalOpen}
-        onSelectProcess={(process) => {
-          console.log('🔗 [SECOP] Process selected from consultation modal:', process);
-          // You can add additional logic here if needed
-        }}
-      />
     </Dialog>
   );
 }

@@ -1192,7 +1192,7 @@ class EquipmentController extends ApiController
                 ]);
             }
 
-            // Consulta SQL completa como se especificó
+            // Consulta SQL completa con subconsultas corregidas
             $query = DB::table('equipos')
                 ->select([
                     'equipos.id',
@@ -1214,7 +1214,7 @@ class EquipmentController extends ApiController
                     'estadoequipos.name as estadoequipo',
                     'cbiomedica.name as clasificacion',
                     'criesgo.name as riesgo',
-                    // Información adicional dinámica
+                    // Información adicional dinámica con subconsultas corregidas
                     DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento 
                              WHERE equipo_id = equipos.id 
                              ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento'),
@@ -1234,7 +1234,7 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT description FROM observaciones 
                              WHERE equipo_id = equipos.id 
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
-                    'invimas.invima as registro_sanitario',
+                    'invimas.invima as registro_sanitario_invima',
                     'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
@@ -1433,8 +1433,8 @@ class EquipmentController extends ApiController
                         'archivoInvima' => $equipo->archivo_invima,
                         'clasificacion' => $equipo->clasificacion,
                         'riesgo' => $equipo->riesgo,
-                        'archivos' => (int) $equipo->cuenta_archivos,
-                        'planesMantenimiento' => (int) $equipo->cuenta_planes_mantenimientos,
+                        'archivos' => (int) ($equipo->cuenta_archivos ?? 0),
+                        'planesMantenimiento' => (int) ($equipo->cuenta_planes_mantenimientos ?? 0),
                     ],
                     'ubicacion' => [
                         'servicio' => $equipo->servicios,
@@ -1443,8 +1443,8 @@ class EquipmentController extends ApiController
                     ],
                     'mantenimiento' => [
                         'ultimoMantenimiento' => $equipo->ultimo_mantenimiento,
-                        'ultimaCalibración' => $equipo->ultima_calibracion,
-                        'ultimoCorrectivo' => $equipo->ultimo_correctivo,
+                        'ultimaCalibración' => $equipo->ultima_calibracion ?? null,
+                        'ultimoCorrectivo' => $equipo->ultimo_correctivo ?? null,
                     ],
                     'propietario' => [
                         'nombre' => $equipo->propietario,
@@ -1455,10 +1455,10 @@ class EquipmentController extends ApiController
                         'tipo' => $equipo->tipo_compra,
                     ],
                     'observaciones' => [
-                        'ultima' => $equipo->ultima_observacion,
+                        'ultima' => $equipo->ultima_observacion ?? null,
                     ],
                     'tickets' => [
-                        'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket,
+                        'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
                     ],
                 ];
             });
