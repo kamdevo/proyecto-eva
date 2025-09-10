@@ -82,7 +82,7 @@ export function RowActionButtons({
         title={tooltips.documents}
         onClick={() => onDocumentsClick(equipment)}
       >
-        <Paperclip className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+        <FileText className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
       </Button>
 
       {/* Upload Button */}
@@ -95,7 +95,7 @@ export function RowActionButtons({
         title={tooltips.upload}
         onClick={() => onUploadClick(equipment)}
       >
-        <FileText className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+        <Paperclip className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
       </Button>
 
       {/* Copy Button (conditional) */}
