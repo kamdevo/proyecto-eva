@@ -22,7 +22,13 @@ export const AuthProvider = ({ children }) => {
           
           // Fetch user permissions
           try {
-            const response = await apiClient.get(`/usuarios/${originalUser.id}/permissions`);
+            // Use admin route if user is super admin, otherwise use user route
+            const permissionsUrl = originalUser.rol_id === 1 
+              ? `/v1/admin/users/${originalUser.id}/permissions`
+              : `/v1/usuarios/${originalUser.id}/permissions`;
+              
+            console.log('🔗 Using permissions URL:', permissionsUrl);
+            const response = await apiClient.get(permissionsUrl);
             console.log('📋 Permissions response:', response.data);
             if (response.data.success) {
               setPermissions(response.data.data || []);

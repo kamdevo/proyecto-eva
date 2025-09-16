@@ -25,10 +25,12 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import useMantenimientoData from "@/hooks/useMantenimientoData";
 
 export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
   const [selectedEquipos, setSelectedEquipos] = useState([]);
-  const [exportFormat, setExportFormat] = useState("pdf");
+  const [exportFormat, setExportFormat] = useState("excel");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [includeOptions, setIncludeOptions] = useState({
     detallesEquipo: true,
     cronograma: true,
@@ -36,6 +38,8 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
     responsables: true,
     estadisticas: false,
   });
+  
+  const { exportConsolidado, loading } = useMantenimientoData();
 
   const handleSelectAll = () => {
     if (selectedEquipos.length === equipos.length) {
@@ -53,11 +57,23 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
     );
   };
 
-  const handleExport = () => {
-    console.log("Exportando equipos:", selectedEquipos);
-    console.log("Formato:", exportFormat);
-    console.log("Opciones:", includeOptions);
-    onOpenChange(false);
+  const handleExport = async () => {
+    try {
+      const result = await exportConsolidado({
+        anio: selectedYear,
+        formato: exportFormat,
+        incluir_opciones: includeOptions
+      });
+      
+      if (result.success) {
+        console.log("Exportación exitosa");
+        onOpenChange(false);
+      } else {
+        console.error("Error en exportación:", result.message);
+      }
+    } catch (error) {
+      console.error("Error during export:", error);
+    }
   };
 
   return (
@@ -158,27 +174,27 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
                         </span>
                         <Badge
                           className={
-                            equipo.cumplimientoGlobal === "Si cumple"
+                            equipo.estado === "completado"
                               ? "bg-green-100 text-green-800 text-xs"
                               : "bg-red-100 text-red-800 text-xs"
                           }
                         >
-                          {equipo.cumplimientoGlobal}
+                          {equipo.estado === "completado" ? "Completado" : "Pendiente"}
                         </Badge>
                       </div>
                       <div className="text-sm font-medium text-slate-900 truncate">
-                        {equipo.equipo}
+                        {equipo.equipo?.name || 'Sin nombre'}
                       </div>
                       <div className="text-xs text-slate-600">
-                        {equipo.marca} - {equipo.modelo} | {equipo.responsable}
+                        Código: {equipo.equipo?.code || 'Sin código'} | {equipo.responsable || 'Sin asignar'}
                       </div>
                     </div>
                     <div className="text-right text-xs">
                       <div className="text-slate-600">
-                        Ejecutados: {equipo.cantidadEjecutados}
+                        Estado: {equipo.estado || 'No definido'}
                       </div>
                       <div className="text-slate-600">
-                        Programados: {equipo.cantidadProgramados}
+                        Costo: ${equipo.costo_estimado || 0}
                       </div>
                     </div>
                   </div>
@@ -343,11 +359,11 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
           </Button>
           <Button
             onClick={handleExport}
-            disabled={selectedEquipos.length === 0}
+            disabled={loading}
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-sm font-medium disabled:opacity-50"
           >
             <Download className="w-4 h-4 mr-2" />
-            Exportar {selectedEquipos.length} Equipos
+            {loading ? 'Exportando...' : `Exportar ${exportFormat.toUpperCase()}`}
           </Button>
         </div>
       </DialogContent>

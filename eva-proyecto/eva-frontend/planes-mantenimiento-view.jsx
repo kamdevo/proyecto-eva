@@ -401,13 +401,13 @@ export function PlanesMantenimientoView() {
                     </td>
                     <td
                       className="p-1.5 font-medium text-xs max-w-[120px] truncate"
-                      title={equipo.equipo}>
-                      {equipo.equipo}
+                      title={equipo.equipo?.name}>
+                      {equipo.equipo?.name || 'Sin nombre'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
-                      title={equipo.codigo}>
-                      {equipo.codigo}
+                      title={equipo.equipo?.code}>
+                      {equipo.equipo?.code || 'Sin código'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
@@ -545,8 +545,8 @@ export function PlanesMantenimientoView() {
                         </div>
                         <div
                           className="font-medium text-xs text-slate-900 max-w-[150px] truncate"
-                          title={equipo.equipo}>
-                          {equipo.equipo}
+                          title={equipo.equipo?.name}>
+                          {equipo.equipo?.name || 'Sin nombre'}
                         </div>
                       </div>
                     </td>
@@ -643,9 +643,9 @@ export function PlanesMantenimientoView() {
                           #{equipo.id}
                         </Badge>
                       </div>
-                      <h3 className="font-medium text-slate-900 text-sm leading-tight mb-1">{equipo.equipo}</h3>
+                      <h3 className="font-medium text-slate-900 text-sm leading-tight mb-1">{equipo.equipo?.name || 'Sin nombre'}</h3>
                       <p className="text-xs text-slate-600">
-                        {equipo.marca} - {equipo.modelo}
+                        Código: {equipo.equipo?.code || 'Sin código'}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">

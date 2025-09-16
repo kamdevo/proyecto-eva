@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Edit,
@@ -35,89 +35,27 @@ import { EditarObservacionesModal } from "@/components/modals/editar-observacion
 import { ConcluirObservacionModal } from "@/components/modals/concluir-observacion-modal";
 import { VerDocumentacionModal } from "@/components/modals/ver-documentacion-modal";
 import { EliminarEquipoModal } from "@/components/modals/eliminar-equipo-modal";
-
-const equiposData = [
-  {
-    id: 1,
-    equipo: "ACELERADOR LINEAL",
-    codigo: "SIN CODIGO",
-    serie: "927H30027",
-    marca: "VARIAN MEDICAL SYSTEMS",
-    modelo: "CLINAC IX",
-    responsable: "J RESTREPO",
-    rangoFecha1: "2022-06-01 | 2022-06-30",
-    rangoFecha2: "2022-07-01 | 2022-07-31",
-    rangoFecha3: "N/A",
-    cantidadEjecutados: 4,
-    cantidadProgramados: 2,
-    cumplimientoGlobal: "Si cumple",
-  },
-  {
-    id: 2,
-    equipo: "AGITADOR",
-    codigo: "EMC00884",
-    serie: "3317MF00031",
-    marca: "COLE PARMER",
-    modelo: "51500-10",
-    responsable: "INGENIEROS BIOMEDICOS",
-    rangoFecha1: "2022-08-01 | 2022-08-31",
-    rangoFecha2: "N/A",
-    rangoFecha3: "N/A",
-    cantidadEjecutados: 1,
-    cantidadProgramados: 1,
-    cumplimientoGlobal: "Si cumple",
-  },
-  {
-    id: 3,
-    equipo: "AGITADOR CON CALENTAMIENTO",
-    codigo: "EMC01252",
-    serie: "775969300561",
-    marca: "TERMOLYNE",
-    modelo: "77",
-    responsable: "INGENIEROS BIOMEDICOS",
-    rangoFecha1: "2022-09-01 | 2022-09-30",
-    rangoFecha2: "N/A",
-    rangoFecha3: "N/A",
-    cantidadEjecutados: 1,
-    cantidadProgramados: 1,
-    cumplimientoGlobal: "Si cumple",
-  },
-  {
-    id: 4,
-    equipo: "AGITADOR DE MAZZINI",
-    codigo: "EMC00847 - 206668",
-    serie: "83113069",
-    marca: "LAB ROTATOR",
-    modelo: "DSR 2100V",
-    responsable: "INGENIEROS BIOMEDICOS",
-    rangoFecha1: "2022-08-01 | 2022-08-31",
-    rangoFecha2: "N/A",
-    rangoFecha3: "N/A",
-    cantidadEjecutados: 1,
-    cantidadProgramados: 1,
-    cumplimientoGlobal: "Si cumple",
-  },
-  {
-    id: 5,
-    equipo: "AGITADOR DE MAZZINI",
-    codigo: "K01358",
-    serie: "206683",
-    marca: "CHEM INDEX",
-    modelo: "DSR 2100V",
-    responsable: "INGENIEROS BIOMEDICOS",
-    rangoFecha1: "2022-05-01 | 2022-05-31",
-    rangoFecha2: "N/A",
-    rangoFecha3: "N/A",
-    cantidadEjecutados: 0,
-    cantidadProgramados: 1,
-    cumplimientoGlobal: "No cumple",
-  },
-];
+import { useMantenimientoData } from "@/hooks/useMantenimientoData";
 
 export function PlanesMantenimientoView() {
+  // Hook para manejar datos de mantenimiento
+  const {
+    planesData,
+    proveedoresData,
+    equiposData,
+    pagination,
+    loading: dataLoading,
+    error: dataError,
+    loadPlanes,
+    loadProveedores,
+    loadEquipos,
+    uploadExcel,
+    clearError: clearDataError
+  } = useMantenimientoData();
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [entriesPerPage, setEntriesPerPage] = useState("5");
-  const [selectedYear, setSelectedYear] = useState("");
+  const [entriesPerPage, setEntriesPerPage] = useState("10");
+  const [selectedYear, setSelectedYear] = useState("2024");
   const [replaceInfo, setReplaceInfo] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -136,6 +74,132 @@ export function PlanesMantenimientoView() {
     useState(false);
   const [eliminarEquipoModalOpen, setEliminarEquipoModalOpen] = useState(false);
   const [selectedEquipo, setSelectedEquipo] = useState(null);
+  
+  // Estados de validación y errores
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    const loadInitialData = async () => {
+      await loadPlanes({ anio: selectedYear, per_page: entriesPerPage });
+      await loadProveedores({ status: 1 });
+      await loadEquipos();
+    };
+    
+    loadInitialData();
+  }, [selectedYear, entriesPerPage, loadPlanes, loadProveedores, loadEquipos]);
+
+  // Función para limpiar mensajes después de un tiempo
+  const clearMessages = () => {
+    setTimeout(() => {
+      setSuccessMessage("");
+      setAlertMessage("");
+    }, 5000);
+  };
+
+  // Función para validar archivos subidos
+  const validateFiles = (files) => {
+    const validTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv'
+    ];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    for (const file of files) {
+      if (!validTypes.includes(file.type)) {
+        setErrors({ fileUpload: 'Solo se permiten archivos Excel (.xlsx, .xls) y CSV' });
+        setAlertMessage('Error: Formato de archivo no válido');
+        clearMessages();
+        return false;
+      }
+      if (file.size > maxSize) {
+        setErrors({ fileUpload: 'El archivo excede el tamaño máximo de 10MB' });
+        setAlertMessage('Error: Archivo demasiado grande');
+        clearMessages();
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Función para validar formularios
+  const validateForm = (formData) => {
+    const newErrors = {};
+    
+    if (!formData.year || formData.year === "") {
+      newErrors.year = "El año es obligatorio";
+    }
+    
+    if (!formData.replaceInfo || formData.replaceInfo === "") {
+      newErrors.replaceInfo = "Debe especificar si reemplazar información";
+    }
+    
+    if (!formData.entriesPerPage || formData.entriesPerPage === "") {
+      newErrors.entriesPerPage = "Debe seleccionar número de entradas";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Función para procesar upload de Excel
+  const handleExcelUpload = async () => {
+    // Validar datos antes del upload
+    const formData = {
+      year: selectedYear,
+      replaceInfo: replaceInfo,
+      files: selectedFiles
+    };
+    
+    if (!validateForm(formData)) {
+      setAlertMessage('Por favor complete todos los campos requeridos');
+      clearMessages();
+      return;
+    }
+    
+    if (selectedFiles.length === 0) {
+      setErrors({ fileUpload: 'Debe seleccionar al menos un archivo' });
+      setAlertMessage('Error: No se han seleccionado archivos');
+      clearMessages();
+      return;
+    }
+    
+    setIsLoading(true);
+    setErrors({});
+    
+    try {
+      const result = await uploadExcel(
+        selectedFiles[0], 
+        selectedYear, 
+        replaceInfo === 'si'
+      );
+      
+      if (result.success) {
+        setSuccessMessage(result.message);
+        setSelectedFiles([]);
+        setErrors({});
+        
+        // Recargar datos del año seleccionado
+        await loadPlanes({ anio: selectedYear, per_page: entriesPerPage });
+        
+      } else {
+        setErrors({ submit: result.message });
+        setAlertMessage('Error: ' + result.message);
+      }
+      
+    } catch (error) {
+      console.error('Excel upload error:', error);
+      setErrors({ submit: 'Error de conexión al procesar archivo' });
+      setAlertMessage('Error: No se pudo procesar el archivo');
+    } finally {
+      setIsLoading(false);
+      clearMessages();
+    }
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -153,12 +217,24 @@ export function PlanesMantenimientoView() {
     setDragActive(false);
 
     const files = Array.from(e.dataTransfer.files);
-    setSelectedFiles((prev) => [...prev, ...files]);
+    
+    if (validateFiles(files)) {
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setSuccessMessage('Archivos cargados exitosamente');
+      setErrors({});
+      clearMessages();
+    }
   };
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
-    setSelectedFiles((prev) => [...prev, ...files]);
+    
+    if (validateFiles(files)) {
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setSuccessMessage('Archivos seleccionados exitosamente');
+      setErrors({});
+      clearMessages();
+    }
   };
 
   const removeFile = (index) => {
@@ -198,12 +274,41 @@ export function PlanesMantenimientoView() {
     setEliminarEquipoModalOpen(true);
   };
 
-  const filteredEquipos = equiposData.filter(
-    (equipo) =>
-      equipo.equipo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      equipo.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      equipo.marca.toLowerCase().includes(searchTerm.toLowerCase())
+  // Manejar cambios en filtros que requieren recarga de datos
+  const handleYearChange = async (newYear) => {
+    setSelectedYear(newYear);
+    if (errors.year) {
+      setErrors(prev => ({ ...prev, year: '' }));
+    }
+    // Recargar datos con nuevo año
+    await loadPlanes({ anio: newYear, per_page: entriesPerPage, search: searchTerm });
+  };
+
+  const handleEntriesPerPageChange = async (newValue) => {
+    setEntriesPerPage(newValue);
+    if (errors.entriesPerPage) {
+      setErrors(prev => ({ ...prev, entriesPerPage: '' }));
+    }
+    // Recargar datos con nueva paginación
+    await loadPlanes({ anio: selectedYear, per_page: newValue, search: searchTerm });
+  };
+
+  const handleSearchChange = async (newSearchTerm) => {
+    setSearchTerm(newSearchTerm);
+    // Recargar datos con nuevo término de búsqueda
+    await loadPlanes({ anio: selectedYear, per_page: entriesPerPage, search: newSearchTerm });
+  };
+
+  // Datos filtrados localmente para búsqueda instantánea
+  const filteredEquipos = planesData.filter(
+    (plan) =>
+      (plan.equipo?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.equipo?.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.responsable || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Mostrar estado de carga combinado
+  const isLoadingData = dataLoading || isLoading;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
@@ -224,11 +329,33 @@ export function PlanesMantenimientoView() {
               placeholder="Buscar equipos..."
               className="w-full sm:w-48 md:w-64 h-8 sm:h-9 text-xs sm:text-sm"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
         </div>
       </div>
+
+      {/* Mensajes de Estado */}
+      {successMessage && (
+        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center gap-2">
+          <CheckCircle className="w-4 h-4" />
+          <span className="text-sm">{successMessage}</span>
+        </div>
+      )}
+
+      {(alertMessage || dataError) && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center gap-2">
+          <XCircle className="w-4 h-4" />
+          <span className="text-sm">{alertMessage || dataError}</span>
+        </div>
+      )}
+
+      {isLoadingData && (
+        <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg flex items-center gap-2">
+          <HelpCircle className="w-4 h-4 animate-spin" />
+          <span className="text-sm">Cargando datos...</span>
+        </div>
+      )}
 
       {/* Upload Section Responsivo */}
       <Card className="mb-4 sm:mb-6 shadow-lg">
@@ -243,24 +370,48 @@ export function PlanesMantenimientoView() {
               <Label className="text-xs sm:text-sm font-medium">
                 Año del cronograma
               </Label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="h-8 sm:h-9 lg:h-10 text-xs sm:text-sm">
+              <Select 
+                value={selectedYear} 
+                onValueChange={handleYearChange}
+              >
+                <SelectTrigger className={`h-8 sm:h-9 lg:h-10 text-xs sm:text-sm ${
+                  errors.year ? 'border-red-500' : ''
+                }`}>
                   <SelectValue placeholder="--------" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="2024">2024</SelectItem>
                   <SelectItem value="2023">2023</SelectItem>
                   <SelectItem value="2022">2022</SelectItem>
+                  <SelectItem value="2021">2021</SelectItem>
+                  <SelectItem value="2020">2020</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.year && (
+                <div className="text-red-500 text-xs flex items-center gap-1">
+                  <XCircle className="w-3 h-3" />
+                  {errors.year}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label className="text-xs sm:text-sm font-medium">
                 ¿Reemplazar información previa?
               </Label>
-              <Select value={replaceInfo} onValueChange={setReplaceInfo}>
-                <SelectTrigger className="h-8 sm:h-9 lg:h-10 text-xs sm:text-sm">
+              <Select 
+                value={replaceInfo} 
+                onValueChange={(value) => {
+                  setReplaceInfo(value);
+                  // Limpiar error cuando se selecciona un valor
+                  if (errors.replaceInfo) {
+                    setErrors(prev => ({ ...prev, replaceInfo: '' }));
+                  }
+                }}
+              >
+                <SelectTrigger className={`h-8 sm:h-9 lg:h-10 text-xs sm:text-sm ${
+                  errors.replaceInfo ? 'border-red-500' : ''
+                }`}>
                   <SelectValue placeholder="--------" />
                 </SelectTrigger>
                 <SelectContent>
@@ -268,6 +419,12 @@ export function PlanesMantenimientoView() {
                   <SelectItem value="no">No</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.replaceInfo && (
+                <div className="text-red-500 text-xs flex items-center gap-1">
+                  <XCircle className="w-3 h-3" />
+                  {errors.replaceInfo}
+                </div>
+              )}
             </div>
           </div>
 
@@ -279,6 +436,8 @@ export function PlanesMantenimientoView() {
               className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-colors ${
                 dragActive
                   ? "border-blue-400 bg-blue-50"
+                  : errors.fileUpload
+                  ? "border-red-400 bg-red-50"
                   : "border-slate-300 bg-slate-50"
               }`}
               onDragEnter={handleDrag}
@@ -292,7 +451,7 @@ export function PlanesMantenimientoView() {
                   Arrastra archivos aquí
                 </div>
                 <div className="text-xs sm:text-sm">
-                  Documentos, fotos y videos de evidencia
+                  Documentos Excel (.xlsx, .xls) y CSV (máx. 10MB por archivo)
                 </div>
               </div>
             </div>
@@ -309,16 +468,31 @@ export function PlanesMantenimientoView() {
                     id="file-upload"
                     type="file"
                     multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.mp4,.mov,.avi"
+                    accept=".xlsx,.xls,.csv"
                     className="hidden"
                     onChange={handleFileSelect}
                   />
                 </label>
               </Button>
+              <Button 
+                onClick={handleExcelUpload}
+                disabled={isLoading || selectedFiles.length === 0 || !selectedYear || !replaceInfo}
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
+              >
+                {isLoading ? 'Procesando...' : '📤 Subir Excel'}
+              </Button>
               <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm">
                 📁 Explorar
               </Button>
             </div>
+            
+            {/* Error de validación de archivos */}
+            {errors.fileUpload && (
+              <div className="text-red-500 text-xs flex items-center gap-1">
+                <XCircle className="w-3 h-3" />
+                {errors.fileUpload}
+              </div>
+            )}
 
             {/* Lista de archivos seleccionados */}
             {selectedFiles.length > 0 && (
@@ -403,19 +577,31 @@ export function PlanesMantenimientoView() {
             </CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-xs sm:text-sm text-slate-600">Mostrar</span>
-              <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
-                <SelectTrigger className="w-12 sm:w-16 h-7 sm:h-8 text-xs sm:text-sm">
+              <Select 
+                value={entriesPerPage} 
+                onValueChange={handleEntriesPerPageChange}
+              >
+                <SelectTrigger className={`w-12 sm:w-16 h-7 sm:h-8 text-xs sm:text-sm ${
+                  errors.entriesPerPage ? 'border-red-500' : ''
+                }`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="5">5</SelectItem>
                   <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
                 </SelectContent>
               </Select>
               <span className="text-xs sm:text-sm text-slate-600">
                 registros
               </span>
+              {errors.entriesPerPage && (
+                <div className="text-red-500 text-xs flex items-center gap-1 ml-2">
+                  <XCircle className="w-3 h-3" />
+                  {errors.entriesPerPage}
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -435,34 +621,28 @@ export function PlanesMantenimientoView() {
                     Código
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Serie
+                    Tipo
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Marca
-                  </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Modelo
+                    Estado
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
                     Responsable
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Rango 1
+                    Fecha Programada
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Rango 2
+                    Fecha Realizada
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Rango 3
+                    Descripción
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Preventivos ejecutados
+                    Costo
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Preventivos programados
-                  </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Cumplimiento
+                    Estado
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[140px]">
                     Acciones
@@ -483,15 +663,15 @@ export function PlanesMantenimientoView() {
                     </td>
                     <td
                       className="p-1.5 font-medium text-xs max-w-[120px] truncate"
-                      title={equipo.equipo}
+                      title={equipo.equipo?.name}
                     >
-                      {equipo.equipo}
+                      {equipo.equipo?.name || 'Sin nombre'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
-                      title={equipo.codigo}
+                      title={equipo.equipo?.code}
                     >
-                      {equipo.codigo}
+                      {equipo.equipo?.code || 'Sin código'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
@@ -501,75 +681,59 @@ export function PlanesMantenimientoView() {
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate"
-                      title={equipo.marca}
+                      title={equipo.tipo_mantenimiento}
                     >
-                      {equipo.marca}
+                      {equipo.tipo_mantenimiento || 'No definido'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
-                      title={equipo.modelo}
+                      title={equipo.estado}
                     >
-                      {equipo.modelo}
+                      {equipo.estado || 'Sin estado'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate"
                       title={equipo.responsable}
                     >
-                      {equipo.responsable}
+                      {equipo.responsable || 'Sin asignar'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate"
-                      title={equipo.rangoFecha1}
+                      title={equipo.fecha_programada}
                     >
-                      {equipo.rangoFecha1}
+                      {equipo.fecha_programada || 'No programada'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate"
-                      title={equipo.rangoFecha2}
+                      title={equipo.fecha_mantenimiento}
                     >
-                      {equipo.rangoFecha2}
+                      {equipo.fecha_mantenimiento || 'No realizada'}
                     </td>
                     <td
                       className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate"
-                      title={equipo.rangoFecha3}
+                      title={equipo.descripcion}
                     >
-                      {equipo.rangoFecha3}
+                      {equipo.descripcion || 'Sin descripción'}
                     </td>
                     <td className="p-1.5 text-center">
                       <Badge
                         variant="outline"
-                        className="bg-blue-50 text-blue-700 text-xs px-1 py-0.5"
+                        className="bg-yellow-50 text-yellow-700 text-xs px-1 py-0.5"
                       >
-                        {equipo.cantidadEjecutados}
+                        ${equipo.costo_estimado || 0}
                       </Badge>
                     </td>
                     <td className="p-1.5 text-center">
                       <Badge
                         variant="outline"
-                        className="bg-green-50 text-green-700 text-xs px-1 py-0.5"
+                        className={`text-xs px-1 py-0.5 ${
+                          equipo.estado === 'completado' 
+                            ? 'bg-green-50 text-green-700' 
+                            : 'bg-red-50 text-red-700'
+                        }`}
                       >
-                        {equipo.cantidadProgramados}
+                        {equipo.estado === 'completado' ? 'Completado' : 'Pendiente'}
                       </Badge>
-                    </td>
-                    <td className="p-1.5">
-                      <div className="flex items-center gap-1">
-                        {equipo.cumplimientoGlobal === "Si cumple" ? (
-                          <CheckCircle className="w-3 h-3 text-green-600" />
-                        ) : (
-                          <XCircle className="w-3 h-3 text-red-600" />
-                        )}
-                        <span
-                          className={`text-xs ${
-                            equipo.cumplimientoGlobal === "Si cumple"
-                              ? "text-green-700"
-                              : "text-red-700"
-                          }`}
-                        >
-                          {equipo.cumplimientoGlobal === "Si cumple"
-                            ? "Sí"
-                            : "No"}
-                        </span>
-                      </div>
                     </td>
                     <td className="p-1.5">
                       <div className="flex items-center gap-0.5">
@@ -654,9 +818,9 @@ export function PlanesMantenimientoView() {
                         </div>
                         <div
                           className="font-medium text-xs text-slate-900 max-w-[150px] truncate"
-                          title={equipo.equipo}
+                          title={equipo.equipo?.name}
                         >
-                          {equipo.equipo}
+                          {equipo.equipo?.name || 'Sin nombre'}
                         </div>
                       </div>
                     </td>
@@ -664,15 +828,15 @@ export function PlanesMantenimientoView() {
                       <div className="space-y-1 text-xs text-slate-600">
                         <div
                           className="max-w-[120px] truncate"
-                          title={equipo.codigo}
+                          title={equipo.equipo?.code}
                         >
-                          Código: {equipo.codigo}
+                          Código: {equipo.equipo?.code || 'Sin código'}
                         </div>
                         <div
                           className="max-w-[120px] truncate"
-                          title={equipo.marca}
+                          title={equipo.tipo_mantenimiento}
                         >
-                          Marca: {equipo.marca}
+                          Tipo: {equipo.tipo_mantenimiento || 'No definido'}
                         </div>
                       </div>
                     </td>
@@ -680,19 +844,19 @@ export function PlanesMantenimientoView() {
                       className="p-2 text-xs text-slate-600 max-w-[100px] truncate"
                       title={equipo.responsable}
                     >
-                      {equipo.responsable}
+                      {equipo.responsable || 'Sin asignar'}
                     </td>
                     <td className="p-2">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1">
-                          {equipo.cumplimientoGlobal === "Si cumple" ? (
+                          {equipo.estado === 'completado' ? (
                             <CheckCircle className="w-3 h-3 text-green-600" />
                           ) : (
                             <XCircle className="w-3 h-3 text-red-600" />
                           )}
                           <span
                             className={`text-xs ${
-                              equipo.cumplimientoGlobal === "Si cumple"
+                              equipo.estado === 'completado'
                                 ? "text-green-700"
                                 : "text-red-700"
                             }`}
@@ -777,14 +941,14 @@ export function PlanesMantenimientoView() {
                         </Badge>
                       </div>
                       <h3 className="font-medium text-slate-900 text-sm leading-tight mb-1">
-                        {equipo.equipo}
+                        {equipo.equipo?.name || 'Sin nombre'}
                       </h3>
                       <p className="text-xs text-slate-600">
-                        {equipo.marca} - {equipo.modelo}
+                        Código: {equipo.equipo?.code || 'Sin código'}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {equipo.cumplimientoGlobal === "Si cumple" ? (
+                      {equipo.estado === 'completado' ? (
                         <CheckCircle className="w-4 h-4 text-green-600" />
                       ) : (
                         <XCircle className="w-4 h-4 text-red-600" />
@@ -795,44 +959,66 @@ export function PlanesMantenimientoView() {
                   <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                     <div>
                       <span className="font-medium text-slate-700">
-                        Código:
+                        Tipo:
                       </span>
                       <div
                         className="text-slate-900 truncate"
-                        title={equipo.codigo}
+                        title={equipo.tipo_mantenimiento}
                       >
-                        {equipo.codigo}
+                        {equipo.tipo_mantenimiento || 'No definido'}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">Serie:</span>
+                      <span className="font-medium text-slate-700">Estado:</span>
                       <div
                         className="text-slate-900 truncate"
-                        title={equipo.serie}
+                        title={equipo.estado}
                       >
-                        {equipo.serie}
+                        {equipo.estado || 'Sin estado'}
                       </div>
                     </div>
                     <div>
                       <span className="font-medium text-slate-700">
-                        Preventivos ejecutados:
+                        Descripción:
                       </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 text-blue-700 text-xs px-1 py-0.5"
+                      <div
+                        className="text-slate-900 truncate"
+                        title={equipo.descripcion}
                       >
-                        {equipo.cantidadEjecutados}
-                      </Badge>
+                        {equipo.descripcion || 'Sin descripción'}
+                      </div>
                     </div>
                     <div>
                       <span className="font-medium text-slate-700">
-                        Preventivos programados:
+                        Fecha programada:
+                      </span>
+                      <div
+                        className="text-slate-900 truncate"
+                        title={equipo.fecha_programada}
+                      >
+                        {equipo.fecha_programada || 'No programada'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">
+                        Responsable:
+                      </span>
+                      <div
+                        className="text-slate-900 truncate"
+                        title={equipo.responsable}
+                      >
+                        {equipo.responsable || 'Sin asignar'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-slate-700">
+                        Costo estimado:
                       </span>
                       <Badge
                         variant="outline"
-                        className="bg-green-50 text-green-700 text-xs px-1 py-0.5"
+                        className="bg-yellow-50 text-yellow-700 text-xs px-1 py-0.5"
                       >
-                        {equipo.cantidadProgramados}
+                        ${equipo.costo_estimado || 0}
                       </Badge>
                     </div>
                   </div>

@@ -23,12 +23,14 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import useMantenimientoData from "@/hooks/useMantenimientoData";
 
 export function ExportPlantillaModal({ open, onOpenChange }) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [plantillaType, setPlantillaType] = useState("excel");
   const [uploadType, setUploadType] = useState("llenar-datos");
+  const { downloadTemplate, loading } = useMantenimientoData();
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -58,9 +60,18 @@ export function ExportPlantillaModal({ open, onOpenChange }) {
     }
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     console.log("Descargando plantilla:", plantillaType);
-    // Aquí iría la lógica para descargar la plantilla
+    try {
+      const result = await downloadTemplate();
+      if (result.success) {
+        console.log("Plantilla descargada exitosamente");
+      } else {
+        console.error("Error al descargar plantilla:", result.message);
+      }
+    } catch (error) {
+      console.error("Error downloading template:", error);
+    }
   };
 
   const handleUploadFile = () => {
@@ -160,10 +171,11 @@ export function ExportPlantillaModal({ open, onOpenChange }) {
 
                 <Button
                   onClick={handleDownloadTemplate}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+                  disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 disabled:opacity-50"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Descargar Plantilla {plantillaType.toUpperCase()}
+                  {loading ? 'Descargando...' : `Descargar Plantilla ${plantillaType.toUpperCase()}`}
                 </Button>
               </div>
             </TabsContent>

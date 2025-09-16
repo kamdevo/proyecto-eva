@@ -1535,6 +1535,119 @@ Route::prefix('v1')->group(function () {
             ], 500);
         }
     });
+    
+    // Endpoint para descargar plantilla de mantenimiento
+    Route::get('planes-mantenimientos/download-template', function () {
+        try {
+            $templatePath = 'C:\Users\Soporte\desktop\EVA\proyecto-eva\eva-proyecto\plantillas\Plantilla importacion cronograma.xlsx';
+            
+            if (!file_exists($templatePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Plantilla no encontrada en: ' . $templatePath
+                ], 404);
+            }
+            
+            return response()->download($templatePath, 'Plantilla_Cronograma_Mantenimiento.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al descargar plantilla: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Endpoint para exportación consolidada de mantenimiento
+    Route::get('planes-mantenimientos/export', function (Request $request) {
+        try {
+            $year = $request->query('anio', date('Y'));
+            $format = $request->query('formato', 'excel');
+            
+            // Obtener planes de mantenimiento del año especificado
+            $planes = DB::table('planes_mantenimientos')
+                ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+                ->select([
+                    'planes_mantenimientos.*',
+                    'equipos.name as equipo_nombre',
+                    'equipos.code as equipo_codigo'
+                ])
+                ->whereYear('planes_mantenimientos.fecha_programada', $year)
+                ->orderBy('planes_mantenimientos.fecha_programada')
+                ->get();
+            
+            if ($format === 'excel') {
+                // Crear archivo Excel
+                $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                
+                // Headers
+                $headers = [
+                    'ID', 'Equipo', 'Código', 'Tipo Mantenimiento', 'Descripción',
+                    'Fecha Programada', 'Fecha Realizada', 'Responsable', 'Estado',
+                    'Costo Estimado', 'Observaciones', 'Repuestos Necesarios'
+                ];
+                
+                $col = 'A';
+                foreach ($headers as $header) {
+                    $sheet->setCellValue($col . '1', $header);
+                    $col++;
+                }
+                
+                // Datos
+                $row = 2;
+                foreach ($planes as $plan) {
+                    $sheet->setCellValue('A' . $row, $plan->id);
+                    $sheet->setCellValue('B' . $row, $plan->equipo_nombre ?? 'Sin equipo');
+                    $sheet->setCellValue('C' . $row, $plan->equipo_codigo ?? 'Sin código');
+                    $sheet->setCellValue('D' . $row, $plan->tipo_mantenimiento);
+                    $sheet->setCellValue('E' . $row, $plan->descripcion);
+                    $sheet->setCellValue('F' . $row, $plan->fecha_programada);
+                    $sheet->setCellValue('G' . $row, $plan->fecha_mantenimiento);
+                    $sheet->setCellValue('H' . $row, $plan->responsable);
+                    $sheet->setCellValue('I' . $row, $plan->estado);
+                    $sheet->setCellValue('J' . $row, $plan->costo_estimado);
+                    $sheet->setCellValue('K' . $row, $plan->observaciones);
+                    $sheet->setCellValue('L' . $row, $plan->repuestos_necesarios);
+                    $row++;
+                }
+                
+                // Crear el writer y generar el archivo
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+                $filename = 'Cronograma_Mantenimiento_' . $year . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+                
+                // Configurar headers para descarga
+                $headers = [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                    'Cache-Control' => 'max-age=0',
+                ];
+                
+                // Crear archivo temporal
+                $tempFile = tempnam(sys_get_temp_dir(), 'export_');
+                $writer->save($tempFile);
+                
+                return response()->download($tempFile, $filename, $headers)->deleteFileAfterSend(true);
+                
+            } else {
+                // Retornar JSON
+                return response()->json([
+                    'success' => true,
+                    'data' => $planes,
+                    'total' => $planes->count(),
+                    'year' => $year
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar datos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 });
 
 // Test endpoint (público)
@@ -6739,5 +6852,334 @@ Route::get('v1/equipos/{id}/documents/audit', function ($id) {
     \App\Http\Middleware\AdvancedRateLimit::class,
     \App\Http\Middleware\VerifyCsrfToken::class
 ]);
+
+// =================== MAINTENANCE PROVIDERS API ROUTES ===================
+Route::get('/proveedores-mantenimiento', function (Request $request) {
+    try {
+        $query = DB::table('proveedores_mantenimiento');
+        
+        // Filter by status if provided
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('status', $request->status);
+        }
+        
+        // Search by name if provided
+        if ($request->has('search') && $request->search !== '') {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+        
+        $providers = $query->select('id', 'name', 'status')
+                          ->orderBy('name', 'asc')
+                          ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $providers
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener proveedores de mantenimiento: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+Route::post('/proveedores-mantenimiento', function (Request $request) {
+    try {
+        $request->validate([
+            'name' => 'required|string|max:100|unique:proveedores_mantenimiento,name',
+            'status' => 'integer|in:0,1'
+        ]);
+        
+        $providerId = DB::table('proveedores_mantenimiento')->insertGetId([
+            'name' => $request->name,
+            'status' => $request->status ?? 1
+        ]);
+        
+        $provider = DB::table('proveedores_mantenimiento')
+                     ->where('id', $providerId)
+                     ->first();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $provider,
+            'message' => 'Proveedor de mantenimiento creado exitosamente'
+        ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al crear proveedor de mantenimiento: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+Route::put('/proveedores-mantenimiento/{id}', function (Request $request, $id) {
+    try {
+        $request->validate([
+            'name' => 'required|string|max:100|unique:proveedores_mantenimiento,name,' . $id,
+            'status' => 'integer|in:0,1'
+        ]);
+        
+        $updated = DB::table('proveedores_mantenimiento')
+                    ->where('id', $id)
+                    ->update([
+                        'name' => $request->name,
+                        'status' => $request->status ?? 1
+                    ]);
+        
+        if (!$updated) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Proveedor de mantenimiento no encontrado'
+            ], 404);
+        }
+        
+        $provider = DB::table('proveedores_mantenimiento')
+                     ->where('id', $id)
+                     ->first();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $provider,
+            'message' => 'Proveedor de mantenimiento actualizado exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar proveedor de mantenimiento: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+Route::delete('/proveedores-mantenimiento/{id}', function ($id) {
+    try {
+        // Check if provider is being used in maintenance records
+        $inUse = DB::table('mantenimiento')
+                   ->where('proveedor_mantenimiento_id', $id)
+                   ->exists();
+        
+        if ($inUse) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar el proveedor porque tiene registros de mantenimiento asociados'
+            ], 400);
+        }
+        
+        $deleted = DB::table('proveedores_mantenimiento')
+                    ->where('id', $id)
+                    ->delete();
+        
+        if (!$deleted) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Proveedor de mantenimiento no encontrado'
+            ], 404);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Proveedor de mantenimiento eliminado exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar proveedor de mantenimiento: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// =================== EXCEL UPLOAD FOR PREVENTIVE MAINTENANCE ===================
+Route::post('/planes-mantenimientos/upload-excel', function (Request $request) {
+    try {
+        $request->validate([
+            'archivo' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
+            'anio' => 'required|integer|min:2019|max:2030',
+            'reemplazar' => 'required|boolean'
+        ]);
+        
+        $file = $request->file('archivo');
+        $year = $request->anio;
+        $replace = $request->reemplazar;
+        
+        // Validate file extension
+        $extension = $file->getClientOriginalExtension();
+        if (!in_array($extension, ['xlsx', 'xls', 'csv'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se permiten archivos Excel (.xlsx, .xls) y CSV'
+            ], 400);
+        }
+        
+        // Process file
+        $filePath = $file->store('temp_uploads', 'local');
+        $fullPath = storage_path('app/' . $filePath);
+        
+        try {
+            // Initialize PhpSpreadsheet
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
+            
+            // Remove header row if exists
+            if (count($rows) > 0 && is_string($rows[0][0]) && !is_numeric($rows[0][0])) {
+                array_shift($rows);
+            }
+            
+            $processed = 0;
+            $errors = [];
+            
+            DB::beginTransaction();
+            
+            // If replace is true, delete existing records for the year
+            if ($replace) {
+                DB::table('planes_mantenimientos')
+                  ->where('anio', $year)
+                  ->delete();
+            }
+            
+            foreach ($rows as $index => $row) {
+                $rowNumber = $index + 1;
+                
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+                
+                // Validate required columns
+                if (count($row) < 5) {
+                    $errors[] = "Fila {$rowNumber}: Faltan columnas requeridas";
+                    continue;
+                }
+                
+                $equipoId = $row[0] ?? null;
+                $mes1 = $row[1] ?? null;
+                $mes2 = $row[2] ?? null;
+                $mes3 = $row[3] ?? null;
+                $responsable = $row[4] ?? null;
+                $frecuencia = $row[5] ?? 'ANUAL';
+                
+                // Validate equipment ID
+                if (empty($equipoId) || !is_numeric($equipoId)) {
+                    $errors[] = "Fila {$rowNumber}: ID de equipo inválido";
+                    continue;
+                }
+                
+                // Check if equipment exists
+                $equipoExists = DB::table('equipos')->where('id', $equipoId)->exists();
+                if (!$equipoExists) {
+                    $errors[] = "Fila {$rowNumber}: Equipo con ID {$equipoId} no existe";
+                    continue;
+                }
+                
+                // Validate months
+                $meses = [];
+                if (!empty($mes1) && is_numeric($mes1) && $mes1 >= 1 && $mes1 <= 12) {
+                    $meses[] = $mes1;
+                }
+                if (!empty($mes2) && is_numeric($mes2) && $mes2 >= 1 && $mes2 <= 12) {
+                    $meses[] = $mes2;
+                }
+                if (!empty($mes3) && is_numeric($mes3) && $mes3 >= 1 && $mes3 <= 12) {
+                    $meses[] = $mes3;
+                }
+                
+                if (empty($meses)) {
+                    $errors[] = "Fila {$rowNumber}: Debe especificar al menos un mes válido";
+                    continue;
+                }
+                
+                // Validate responsible
+                if (empty($responsable)) {
+                    $errors[] = "Fila {$rowNumber}: Responsable es obligatorio";
+                    continue;
+                }
+                
+                // Get or create provider
+                $proveedor = DB::table('proveedores_mantenimiento')
+                              ->where('name', $responsable)
+                              ->first();
+                              
+                if (!$proveedor) {
+                    $proveedorId = DB::table('proveedores_mantenimiento')->insertGetId([
+                        'name' => $responsable,
+                        'status' => 1
+                    ]);
+                } else {
+                    $proveedorId = $proveedor->id;
+                }
+                
+                // Check if record already exists (for non-replace mode)
+                if (!$replace) {
+                    $exists = DB::table('planes_mantenimientos')
+                               ->where('equipo_id', $equipoId)
+                               ->where('anio', $year)
+                               ->exists();
+                    if ($exists) {
+                        continue; // Skip existing records
+                    }
+                }
+                
+                // Insert plan
+                DB::table('planes_mantenimientos')->insert([
+                    'equipo_id' => $equipoId,
+                    'anio' => $year,
+                    'mes1' => $meses[0] ?? null,
+                    'mes2' => $meses[1] ?? null,
+                    'mes3' => $meses[2] ?? null,
+                    'responsable' => $responsable,
+                    'frecuencia' => $frecuencia,
+                    'proveedor_mantenimiento_id' => $proveedorId,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+                
+                $processed++;
+            }
+            
+            DB::commit();
+            
+            // Delete temporary file
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+            
+            $message = "Procesamiento completado: {$processed} registros procesados";
+            if (!empty($errors)) {
+                $message .= ". Errores encontrados: " . implode('; ', array_slice($errors, 0, 5));
+                if (count($errors) > 5) {
+                    $message .= " y " . (count($errors) - 5) . " más...";
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'processed' => $processed,
+                'errors' => $errors,
+                'total_rows' => count($rows)
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            // Delete temporary file
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar archivo Excel: ' . $e->getMessage()
+            ], 500);
+        }
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error en carga de archivo: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 include __DIR__ . '/equipos-modal.php';

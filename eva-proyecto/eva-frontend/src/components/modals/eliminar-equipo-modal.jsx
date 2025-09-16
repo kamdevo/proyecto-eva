@@ -66,7 +66,7 @@ export function EliminarEquipoModal({ open, onOpenChange, equipo }) {
                   </div>
                   <div>
                     <span className="font-medium text-slate-600">Equipo:</span>
-                    <span className="ml-2 text-slate-900">{equipo.equipo}</span>
+                    <span className="ml-2 text-slate-900">{equipo.equipo?.name || 'Sin nombre'}</span>
                   </div>
                   <div>
                     <span className="font-medium text-slate-600">Código:</span>

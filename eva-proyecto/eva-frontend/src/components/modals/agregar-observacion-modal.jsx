@@ -33,6 +33,51 @@ export function AgregarObservacionModal({ open, onOpenChange, equipo }) {
   const [responsable, setResponsable] = useState("");
   const [evidencias, setEvidencias] = useState([]);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Estados de validación
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Función para validar el formulario
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!observacion.trim()) {
+      newErrors.observacion = "La observación es obligatoria";
+    } else if (observacion.trim().length < 10) {
+      newErrors.observacion = "La observación debe tener al menos 10 caracteres";
+    }
+    
+    if (!prioridad) {
+      newErrors.prioridad = "La prioridad es obligatoria";
+    }
+    
+    if (!fechaLimite) {
+      newErrors.fechaLimite = "La fecha límite es obligatoria";
+    } else {
+      const selectedDate = new Date(fechaLimite);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate <= today) {
+        newErrors.fechaLimite = "La fecha límite debe ser futura";
+      }
+    }
+    
+    if (!responsable.trim()) {
+      newErrors.responsable = "El responsable es obligatorio";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Función para limpiar errores
+  const clearError = (field) => {
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -72,21 +117,43 @@ export function AgregarObservacionModal({ open, onOpenChange, equipo }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Agregando observación:", {
-      observacion,
-      prioridad,
-      fechaLimite,
-      responsable,
-      evidencias,
-      equipoId: equipo?.id,
-    });
-    onOpenChange(false);
-    // Limpiar formulario
-    setObservacion("");
-    setPrioridad("");
-    setFechaLimite("");
-    setResponsable("");
-    setEvidencias([]);
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      console.log("Agregando observación:", {
+        observacion,
+        prioridad,
+        fechaLimite,
+        responsable,
+        evidencias,
+        equipoId: equipo?.id,
+      });
+      
+      setSuccessMessage("Observación agregada exitosamente");
+      
+      // Limpiar formulario
+      setObservacion("");
+      setPrioridad("");
+      setFechaLimite("");
+      setResponsable("");
+      setEvidencias([]);
+      setErrors({});
+      
+      setTimeout(() => {
+        onOpenChange(false);
+        setSuccessMessage("");
+      }, 1500);
+      
+    } catch (error) {
+      setErrors({ submit: "Error al agregar la observación. Intente nuevamente." });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!equipo) return null;
@@ -124,7 +191,7 @@ export function AgregarObservacionModal({ open, onOpenChange, equipo }) {
               </div>
               <div>
                 <span className="font-medium text-slate-600">Equipo:</span>
-                <span className="ml-2 text-slate-900">{equipo.equipo}</span>
+                <span className="ml-2 text-slate-900">{equipo.equipo?.name || 'Sin nombre'}</span>
               </div>
               <div>
                 <span className="font-medium text-slate-600">Código:</span>

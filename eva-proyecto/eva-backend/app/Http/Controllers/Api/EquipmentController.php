@@ -1325,7 +1325,7 @@ class EquipmentController extends ApiController
                     $subQuery->select(DB::raw(1))
                         ->from('mantenimiento')
                         ->whereColumn('mantenimiento.equipo_id', 'equipos.id')
-                        ->where('mantenimiento.proveedor_id', $request->proveedor_mantenimiento);
+                        ->where('mantenimiento.proveedor_mantenimiento_id', $request->proveedor_mantenimiento);
                 });
             }
 

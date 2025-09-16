@@ -129,7 +129,7 @@ export function EditarObservacionesModal({ open, onOpenChange, equipo }) {
               <div>
                 <span className="font-medium text-slate-600">Equipo:</span>
                 <div className="text-slate-900 font-medium">
-                  {equipo.equipo}
+                  {equipo.equipo?.name || 'Sin nombre'}
                 </div>
               </div>
               <div>
