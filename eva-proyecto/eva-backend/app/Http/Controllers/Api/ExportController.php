@@ -131,6 +131,14 @@ class ExportController extends ApiController
     }
 
     /**
+     * Exportar consolidado de mantenimiento
+     */
+    public function exportConsolidadoMantenimiento(Request $request)
+    {
+        return $this->mantenimientoReportService->exportConsolidadoMantenimiento($request);
+    }
+
+    /**
      * @OA\Post(
      *     path="/api/export/contingencias",
      *     tags={"Exportación"},

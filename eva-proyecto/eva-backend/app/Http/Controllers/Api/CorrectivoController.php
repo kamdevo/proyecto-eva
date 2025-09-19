@@ -139,15 +139,27 @@ class CorrectivoController extends ApiController
             $correctivoData['estado'] = $correctivoData['estado'] ?? 'programado';
             $correctivoData['created_at'] = now();
 
-            // Manejar archivo adjunto
+            // Crear el correctivo primero
+            $correctivo = CorrectivoGeneral::create($correctivoData);
+
+            // Manejar archivo adjunto - crear registro en tabla mantenimiento
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
-                $fileName = 'correctivos/' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $filePath = $file->storeAs('correctivos', $fileName, 'public');
-                $correctivoData['archivo'] = $filePath;
+                $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
+                $filePath = $file->storeAs('correctivos_asociados', $fileName, 'public');
+                
+                // Crear registro en tabla mantenimiento asociado al correctivo
+                DB::table('mantenimiento')->insert([
+                    'equipo_id' => $correctivoData['equipo_id'],
+                    'file' => $fileName,
+                    'fecha_mantenimiento' => now()->toDateString(),
+                    'fecha_programada' => now()->toDateString(),
+                    'observacion' => 'Archivo de mantenimiento correctivo - ID: ' . $correctivo->id,
+                    'tipo_mantenimiento' => 'correctivo',
+                    'status' => 'completado',
+                    'created_at' => now()
+                ]);
             }
-
-            $correctivo = CorrectivoGeneral::create($correctivoData);
 
             // Cargar relaciones para la respuesta
             $correctivo->load([
@@ -254,20 +266,48 @@ class CorrectivoController extends ApiController
             $correctivo = CorrectivoGeneral::findOrFail($id);
             $correctivoData = $request->except(['archivo']);
 
-            // Manejar actualización de archivo
-            if ($request->hasFile('archivo')) {
-                // Eliminar archivo anterior si existe
-                if ($correctivo->archivo && Storage::disk('public')->exists($correctivo->archivo)) {
-                    Storage::disk('public')->delete($correctivo->archivo);
-                }
-
-                $file = $request->file('archivo');
-                $fileName = 'correctivos/' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $filePath = $file->storeAs('correctivos', $fileName, 'public');
-                $correctivoData['archivo'] = $filePath;
-            }
-
+            // Actualizar el correctivo
             $correctivo->update($correctivoData);
+
+            // Manejar actualización de archivo en tabla mantenimiento
+            if ($request->hasFile('archivo')) {
+                $file = $request->file('archivo');
+                $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
+                $filePath = $file->storeAs('correctivos_asociados', $fileName, 'public');
+                
+                // Buscar registro existente en tabla mantenimiento para este correctivo
+                $mantenimientoExistente = DB::table('mantenimiento')
+                    ->where('equipo_id', $correctivo->equipo_id)
+                    ->where('observacion', 'like', '%correctivo - ID: ' . $correctivo->id . '%')
+                    ->first();
+                
+                if ($mantenimientoExistente) {
+                    // Eliminar archivo anterior si existe
+                    if ($mantenimientoExistente->file && Storage::disk('public')->exists('correctivos_asociados/' . $mantenimientoExistente->file)) {
+                        Storage::disk('public')->delete('correctivos_asociados/' . $mantenimientoExistente->file);
+                    }
+                    
+                    // Actualizar registro existente
+                    DB::table('mantenimiento')
+                        ->where('id', $mantenimientoExistente->id)
+                        ->update([
+                            'file' => $fileName,
+                            'fecha_mantenimiento' => now()->toDateString()
+                        ]);
+                } else {
+                    // Crear nuevo registro en tabla mantenimiento
+                    DB::table('mantenimiento')->insert([
+                        'equipo_id' => $correctivo->equipo_id,
+                        'file' => $fileName,
+                        'fecha_mantenimiento' => now()->toDateString(),
+                        'fecha_programada' => now()->toDateString(),
+                        'observacion' => 'Archivo de mantenimiento correctivo - ID: ' . $correctivo->id,
+                        'tipo_mantenimiento' => 'correctivo',
+                        'status' => 'completado',
+                        'created_at' => now()
+                    ]);
+                }
+            }
 
             // Cargar relaciones para la respuesta
             $correctivo->load([
@@ -322,9 +362,20 @@ class CorrectivoController extends ApiController
                 );
             }
 
-            // Eliminar archivo si existe
-            if ($correctivo->archivo && Storage::disk('public')->exists($correctivo->archivo)) {
-                Storage::disk('public')->delete($correctivo->archivo);
+            // Eliminar archivos asociados en tabla mantenimiento
+            $mantenimientosAsociados = DB::table('mantenimiento')
+                ->where('equipo_id', $correctivo->equipo_id)
+                ->where('observacion', 'like', '%correctivo - ID: ' . $correctivo->id . '%')
+                ->get();
+            
+            foreach ($mantenimientosAsociados as $mantenimiento) {
+                // Eliminar archivo físico si existe
+                if ($mantenimiento->file && Storage::disk('public')->exists('correctivos_asociados/' . $mantenimiento->file)) {
+                    Storage::disk('public')->delete('correctivos_asociados/' . $mantenimiento->file);
+                }
+                
+                // Eliminar registro de mantenimiento
+                DB::table('mantenimiento')->where('id', $mantenimiento->id)->delete();
             }
 
             $correctivo->delete();
@@ -492,4 +543,165 @@ class CorrectivoController extends ApiController
             return ResponseFormatter::error('Error al obtener estadísticas: ' . $e->getMessage(), 500);
         }
     }
+
+    /**
+     * Subir archivo general de correctivo (no asociado a un mantenimiento específico)
+     * 
+     * @OA\POST(
+     *     path="/api/correctivos/upload-general",
+     *     tags={"Correctivos"},
+     *     summary="Subir archivo general de correctivo",
+     *     security={{"sanctum": {}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="archivo", type="string", format="binary"),
+     *                 @OA\Property(property="titulo", type="string"),
+     *                 @OA\Property(property="descripcion", type="string")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Archivo subido exitosamente")
+     * )
+     */
+    public function uploadGeneral(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'archivo' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png,gif|max:10240', // 10MB max
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:1000'
+        ]);
+
+        if ($validator->fails()) {
+            return ResponseFormatter::validation($validator->errors());
+        }
+
+        try {
+            DB::beginTransaction();
+
+            if ($request->hasFile('archivo')) {
+                $file = $request->file('archivo');
+                $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
+                $filePath = $file->storeAs('correctivos_generales', $fileName, 'public');
+
+                // Guardar información del archivo en la tabla correctivos_generales
+                $correctivoData = [
+                    'file' => $fileName,
+                    'description' => $request->titulo . ' - ' . ($request->descripcion ?? ''),
+                    'status' => 1,
+                    'created_at' => now()
+                ];
+
+                $correctivoId = DB::table('correctivos_generales')->insertGetId($correctivoData);
+
+                DB::commit();
+
+                return ResponseFormatter::success([
+                    'id' => $correctivoId,
+                    'archivo' => $fileName,
+                    'titulo' => $request->titulo,
+                    'url' => Storage::disk('public')->url('correctivos_generales/' . $fileName)
+                ], 'Archivo general subido exitosamente', 201);
+            }
+
+            return ResponseFormatter::error('No se recibió ningún archivo', 400);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error('Error al subir archivo: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Obtener lista de archivos generales de correctivos
+     * 
+     * @OA\GET(
+     *     path="/api/correctivos/archivos-generales",
+     *     tags={"Correctivos"},
+     *     summary="Obtener archivos generales de correctivos",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Lista obtenida exitosamente")
+     * )
+     */
+    public function archivosGenerales(Request $request)
+    {
+        try {
+            $query = DB::table('correctivos_generales')
+                ->select('id', 'file', 'description', 'created_at')
+                ->whereNotNull('file')
+                ->where('file', '!=', '')
+                ->whereNull('equipo_id') // Solo archivos generales (sin equipo específico)
+                ->orderBy('created_at', 'desc');
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where('description', 'like', "%{$search}%");
+            }
+
+            $archivos = $query->paginate($request->get('per_page', 15));
+
+            // Agregar URLs a los archivos
+            $archivos->getCollection()->transform(function($archivo) {
+                $archivo->url = Storage::disk('public')->url('correctivos_generales/' . $archivo->file);
+                // Extraer título de la descripción
+                $descripcionParts = explode(' - ', $archivo->description);
+                $archivo->titulo = $descripcionParts[0] ?? $archivo->description;
+                return $archivo;
+            });
+
+            return ResponseFormatter::success($archivos, 'Archivos generales obtenidos exitosamente');
+
+        } catch (\Exception $e) {
+            return ResponseFormatter::error('Error al obtener archivos: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Eliminar archivo general de correctivo
+     * 
+     * @OA\DELETE(
+     *     path="/api/correctivos/archivos-generales/{id}",
+     *     tags={"Correctivos"},
+     *     summary="Eliminar archivo general",
+     *     security={{"sanctum": {}}},
+     *     @OA\Response(response=200, description="Archivo eliminado exitosamente")
+     * )
+     */
+    public function eliminarArchivoGeneral($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $correctivo = DB::table('correctivos_generales')->where('id', $id)->first();
+
+            if (!$correctivo) {
+                return ResponseFormatter::error('Archivo no encontrado', 404);
+            }
+
+            // Verificar que sea un archivo general (sin equipo_id)
+            if ($correctivo->equipo_id !== null) {
+                return ResponseFormatter::error('No se puede eliminar un archivo asociado a un equipo específico', 400);
+            }
+
+            // Eliminar archivo físico
+            if ($correctivo->file && Storage::disk('public')->exists('correctivos_generales/' . $correctivo->file)) {
+                Storage::disk('public')->delete('correctivos_generales/' . $correctivo->file);
+            }
+
+            // Eliminar registro de la base de datos
+            DB::table('correctivos_generales')->where('id', $id)->delete();
+
+            DB::commit();
+
+            return ResponseFormatter::success(null, 'Archivo eliminado exitosamente');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return ResponseFormatter::error('Error al eliminar archivo: ' . $e->getMessage(), 500);
+        }
+    }
 }
+
+{{ ... }}

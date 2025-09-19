@@ -30,6 +30,11 @@ export function EquipmentPagination({
           showing: "equipos industriales por página",
           results: "equipos industriales",
         };
+      case "general":
+        return {
+          showing: "equipos por página",
+          results: "equipos",
+        };
       case "biomedical":
       default:
         return {
@@ -70,7 +75,7 @@ export function EquipmentPagination({
       <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50">
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-700">Mostrar</span>
-          <Select value={perPage.toString()} onValueChange={onPageSizeChange}>
+          <Select value={perPage?.toString() || "10"} onValueChange={onPageSizeChange}>
             <SelectTrigger className="w-16 h-8 text-sm">
               <SelectValue />
             </SelectTrigger>

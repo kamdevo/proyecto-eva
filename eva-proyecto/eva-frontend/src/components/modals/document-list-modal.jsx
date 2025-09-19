@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import httpService from "@/services/httpService";
+import { ShareDocumentModal } from "./share-document-modal";
 
 export function DocumentListModal({
   open,
@@ -53,10 +54,6 @@ export function DocumentListModal({
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
-  const [shareToEquipment, setShareToEquipment] = useState("");
-  const [auditTrail, setAuditTrail] = useState([]);
-  const [equipmentOptions, setEquipmentOptions] = useState([]);
-  const [loadingEquipment, setLoadingEquipment] = useState(false);
 
   // Cargar documentos al abrir el modal
   useEffect(() => {
@@ -229,50 +226,6 @@ export function DocumentListModal({
   const handleShareDocument = (doc) => {
     setSelectedDocument(doc);
     setShareModalOpen(true);
-    // Cargar equipos disponibles
-    loadEquipmentOptions();
-  };
-
-  const loadEquipmentOptions = async () => {
-    try {
-      setLoadingEquipment(true);
-      const response = await httpService.get("/v1/equipos/search?limit=50");
-      if (response.data.success) {
-        setEquipmentOptions(response.data.data);
-      }
-    } catch (error) {
-      console.error("Error cargando equipos:", error);
-    } finally {
-      setLoadingEquipment(false);
-    }
-  };
-
-  const handleCopyDocument = async () => {
-    if (!selectedDocument || !shareToEquipment) {
-      toast.error("Seleccione un equipo de destino");
-      return;
-    }
-
-    try {
-      const response = await httpService.post(
-        `/v1/equipos/${equipment.id}/documents/${selectedDocument.id}/share`,
-        { target_equipment_id: parseInt(shareToEquipment) }
-      );
-
-      if (response.data.success) {
-        toast.success(
-          `Documento compartido exitosamente con ${response.data.data.equipo_destino}`
-        );
-        setShareModalOpen(false);
-        setShareToEquipment("");
-        setSelectedDocument(null);
-      } else {
-        toast.error(response.data.message || "Error al compartir documento");
-      }
-    } catch (error) {
-      console.error("Error compartiendo documento:", error);
-      toast.error("Error al compartir documento");
-    }
   };
 
   const toggleGroup = (groupName) => {
@@ -603,65 +556,13 @@ export function DocumentListModal({
         </DialogContent>
       </Dialog>
 
-      {/* Modal de compartir documento */}
-      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
-        <DialogContent className="w-[70vw] max-w-2xl max-h-[75vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Share2 className="h-5 w-5" />
-              Compartir Documento
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 p-4">
-            <div>
-              <label className="text-sm font-medium">Documento:</label>
-              <p className="text-sm text-gray-600">
-                {selectedDocument?.archivo}
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Equipo de destino:</label>
-              {loadingEquipment ? (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  <span className="text-sm">Cargando equipos...</span>
-                </div>
-              ) : (
-                <Select
-                  value={shareToEquipment}
-                  onValueChange={setShareToEquipment}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccione un equipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {equipmentOptions.map((equipo) => (
-                      <SelectItem key={equipo.id} value={equipo.id.toString()}>
-                        {equipo.name} ({equipo.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShareModalOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleCopyDocument}>
-                <Copy className="h-4 w-4 mr-2" />
-                Copiar Documento
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Modal de compartir documento mejorado */}
+      <ShareDocumentModal
+        open={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        document={selectedDocument}
+        sourceEquipment={equipment}
+      />
     </>
   );
 }

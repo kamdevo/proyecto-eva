@@ -71,6 +71,15 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.v
     Route::apiResource('correctivo', CorrectivoController::class);
         Route::post('correctivo/{id}/asignar', [CorrectivoController::class, 'asignar']);
         Route::post('correctivo/{id}/resolver', [CorrectivoController::class, 'resolver']);
+        Route::post('correctivo/{id}/completar', [CorrectivoController::class, 'completar']);
+        
+    // Rutas para archivos de correctivos
+    Route::post('correctivos/upload-general', [CorrectivoController::class, 'uploadGeneral']);
+    Route::get('correctivos/archivos-generales', [CorrectivoController::class, 'archivosGenerales']);
+    Route::delete('correctivos/archivos-generales/{id}', [CorrectivoController::class, 'eliminarArchivoGeneral']);
+    Route::get('correctivos/pendientes', [CorrectivoController::class, 'pendientes']);
+    Route::get('correctivos/estadisticas', [CorrectivoController::class, 'estadisticas']);
+    Route::get('correctivos/equipo/{equipoId}', [CorrectivoController::class, 'porEquipo']);
         Route::get('correctivo/urgentes', [CorrectivoController::class, 'urgentes']);
         Route::get('correctivo/estadisticas', [CorrectivoController::class, 'estadisticas']);
     

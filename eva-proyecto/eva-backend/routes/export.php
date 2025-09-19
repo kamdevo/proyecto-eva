@@ -42,7 +42,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->gro
         Route::get('export/inventario-equipos', [ExportController::class, 'inventarioEquipos']);
     
     // Exportaciones de mantenimiento
-        Route::get('export/plantilla-mantenimiento', [ExportController::class, 'plantillaMantenimiento']);
+        Route::get('export/plantilla-mantenimiento', [ExportController::class, 'exportPlantillaMantenimiento']);
+        Route::get('export/consolidado-mantenimiento', [ExportController::class, 'exportConsolidadoMantenimiento']);
         Route::get('export/estadisticas-cumplimiento', [ExportController::class, 'estadisticasCumplimiento']);
         Route::get('export/mantenimientos-pendientes', [ExportController::class, 'mantenimientosPendientes']);
         Route::get('export/mantenimientos-vencidos', [ExportController::class, 'mantenimientosVencidos']);

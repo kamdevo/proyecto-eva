@@ -6172,7 +6172,7 @@ Route::get('storage/equipos/archivos/{filename}', function($filename) {
     \App\Http\Middleware\VerifyCsrfToken::class
 ]);
 
-// Ruta para acceder a archivos de correctivos
+// Rutas para acceder a archivos de correctivos
 Route::get('storage/correctivos/{filename}', function($filename) {
     try {
         $filePath = storage_path('app/public/correctivos/' . $filename);
@@ -6189,6 +6189,59 @@ Route::get('storage/correctivos/{filename}', function($filename) {
         return response()->json([
             'success' => false,
             'message' => 'Error al acceder al archivo de correctivo'
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Ruta para acceder a archivos de correctivos asociados (específicos a un mantenimiento)
+// Estos archivos están vinculados a registros en la tabla 'mantenimiento'
+Route::get('storage/correctivos_asociados/{filename}', function($filename) {
+    try {
+        $filePath = storage_path('app/public/correctivos_asociados/' . $filename);
+
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo de correctivo asociado no encontrado'
+            ], 404);
+        }
+
+        return response()->file($filePath);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al acceder al archivo de correctivo asociado'
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
+// Ruta para acceder a archivos de correctivos generales (compartidos)
+Route::get('storage/correctivos_generales/{filename}', function($filename) {
+    try {
+        $filePath = storage_path('app/public/correctivos_generales/' . $filename);
+
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo de correctivo general no encontrado'
+            ], 404);
+        }
+
+        return response()->file($filePath);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al acceder al archivo de correctivo general'
         ], 500);
     }
 })->withoutMiddleware([
@@ -6804,6 +6857,7 @@ Route::get('v1/equipos/search', function (Request $request) {
     \App\Http\Middleware\AdvancedRateLimit::class,
     \App\Http\Middleware\VerifyCsrfToken::class
 ]);
+
 
 // Obtener audit trail de documentos (historial de cambios)
 Route::get('v1/equipos/{id}/documents/audit', function ($id) {
