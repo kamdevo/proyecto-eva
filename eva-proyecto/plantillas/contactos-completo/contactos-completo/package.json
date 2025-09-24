@@ -1,0 +1,60 @@
+{
+  "name": "contactos-completo",
+  "version": "1.0.0",
+  "description": "Sistema completo de gestión de contactos y proveedores hospitalarios",
+  "main": "vista-contactos-principal.jsx",
+  "dependencies": {
+    "react": "^18.0.0",
+    "lucide-react": "^0.263.1"
+  },
+  "peerDependencies": {
+    "@radix-ui/react-dialog": "^1.0.0",
+    "@radix-ui/react-alert-dialog": "^1.0.0",
+    "@radix-ui/react-select": "^1.0.0",
+    "@radix-ui/react-label": "^2.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^1.14.0"
+  },
+  "files": [
+    "vista-contactos-principal.jsx",
+    "README.md",
+    "INSTALACION.md"
+  ],
+  "keywords": [
+    "react",
+    "hospital",
+    "contactos",
+    "proveedores",
+    "shadcn",
+    "tailwind",
+    "responsive",
+    "modal",
+    "table",
+    "crud"
+  ],
+  "features": [
+    "Completamente responsivo",
+    "Modal agregar/editar integrado",
+    "Modal eliminar con confirmación",
+    "Tabla optimizada para móviles",
+    "Paginación adaptativa",
+    "Búsqueda preparada",
+    "Badges coloridos por tipo",
+    "10 contactos de ejemplo",
+    "Accesibilidad completa",
+    "Sin warnings de React"
+  ],
+  "responsive_breakpoints": {
+    "mobile": "320px+",
+    "tablet": "640px+", 
+    "desktop": "1024px+"
+  },
+  "contact_types": {
+    "PROVEEDOR": "Empresas proveedoras (Azul)",
+    "FABRICANTE": "Fabricantes de equipos (Verde)",
+    "REPRESENTANTE": "Representantes comerciales (Morado)"
+  },
+  "author": "Hospital System Developer",
+  "license": "MIT"
+}

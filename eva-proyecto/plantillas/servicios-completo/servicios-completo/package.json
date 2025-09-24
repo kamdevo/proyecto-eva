@@ -1,0 +1,34 @@
+{
+  "name": "servicios-completo",
+  "version": "1.0.0",
+  "description": "Sistema completo de gestión de servicios hospitalarios",
+  "main": "vista-servicios-principal.jsx",
+  "dependencies": {
+    "react": "^18.0.0",
+    "lucide-react": "^0.263.1"
+  },
+  "peerDependencies": {
+    "@radix-ui/react-dialog": "^1.0.0",
+    "@radix-ui/react-select": "^1.0.0",
+    "@radix-ui/react-label": "^2.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^1.14.0"
+  },
+  "files": [
+    "vista-servicios-principal.jsx",
+    "modals/",
+    "README.md"
+  ],
+  "keywords": [
+    "react",
+    "hospital",
+    "servicios",
+    "shadcn",
+    "tailwind",
+    "modal",
+    "table"
+  ],
+  "author": "Hospital System Developer",
+  "license": "MIT"
+}

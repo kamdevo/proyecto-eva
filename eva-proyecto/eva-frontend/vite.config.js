@@ -12,6 +12,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
+import path from "path";
+import { fileURLToPath, URL } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -125,14 +131,14 @@ export default defineConfig(({ mode }) => {
 
     resolve: {
       alias: {
-        "@": new URL("./src", import.meta.url).pathname,
-        "@components": new URL("./src/components", import.meta.url).pathname,
-        "@pages": new URL("./src/pages", import.meta.url).pathname,
-        "@services": new URL("./src/services", import.meta.url).pathname,
-        "@utils": new URL("./src/utils", import.meta.url).pathname,
-        "@hooks": new URL("./src/hooks", import.meta.url).pathname,
-        "@config": new URL("./src/config", import.meta.url).pathname,
-        "@assets": new URL("./src/assets", import.meta.url).pathname,
+       "@": path.resolve(__dirname, "./src"),
+        "@components": path.resolve(__dirname, "./src/components"),
+        "@pages": path.resolve(__dirname, "./src/pages"),
+        "@services": path.resolve(__dirname, "./src/services"),
+        "@utils": path.resolve(__dirname, "./src/utils"),
+        "@hooks": path.resolve(__dirname, "./src/hooks"),
+        "@config": path.resolve(__dirname, "./src/config"),
+        "@assets": path.resolve(__dirname, "./src/assets"),
       },
       extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
     },
