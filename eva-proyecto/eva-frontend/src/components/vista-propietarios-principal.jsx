@@ -22,10 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Edit, Trash2, Plus, Eye, Search } from "lucide-react";
 
 // Importar modales
-import UIModalAgregarPropietario from "./modals/ui-modal-agregar-propietario";
-import UIModalEditarPropietario from "./modals/ui-modal-editar-propietario";
-import UIModalEliminarPropietario from "./modals/ui-modal-eliminar-propietario";
-import UIModalExaminarPropietario from "./modals/ui-modal-examinar-propietario";
+import UIModalAgregarPropietario from "@/components/modals/ui-modal-agregar-propietario";
+import UIModalEditarPropietario from "@/components/modals/ui-modal-editar-propietario";
+import UIModalEliminarPropietario from "@/components/modals/ui-modal-eliminar-propietario";
+import UIModalExaminarPropietario from "@/components/modals/ui-modal-examinar-propietario";
 
 export default function VistaPropietariosPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);

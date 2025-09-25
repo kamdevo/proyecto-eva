@@ -238,8 +238,8 @@ async function handleApiRequest(request) {
         )
       ]);
       
-      // Cache respuesta exitosa
-      if (networkResponse.ok) {
+      // Cache respuesta exitosa (solo GET requests)
+      if (networkResponse.ok && request.method === 'GET') {
         cache.put(request.clone(), networkResponse.clone());
       }
       

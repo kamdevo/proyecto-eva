@@ -23,10 +23,10 @@ import { Input } from "../ui/input";
 import { Edit, Trash2, Plus, Search, MapPin, Menu, Eye, Building } from "lucide-react";
 
 // Importar modales
-import UIModalAgregarZona from "./modals/ui-modal-agregar-zona";
-import UIModalEditarZona from "./modals/ui-modal-editar-zona";
-import UIModalEliminarZona from "./modals/ui-modal-eliminar-zona";
-import UIModalVerZona from "./modals/ui-modal-ver-zona";
+import UIModalAgregarZona from "@/components/modals/ui-modal-agregar-zona";
+import UIModalEditarZona from "@/components/modals/ui-modal-editar-zona";
+import UIModalEliminarZona from "@/components/modals/ui-modal-eliminar-zona";
+import UIModalVerZona from "@/components/modals/ui-modal-ver-zona";
 
 function VistaZonasPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);

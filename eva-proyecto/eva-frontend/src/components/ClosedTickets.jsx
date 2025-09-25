@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTickets } from "@/contexts/TicketsContext";
 import { PdfModal } from "@/components/modals/pdf-modal";
 
 const documents = [
@@ -89,16 +92,36 @@ const searchOptions = [
 export default function ClosedTickets() {
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedOrigin, setSelectedOrigin] = useState("all");
   const [searchValue, setSearchValue] = useState("todos");
+
+  const { getTicketsByStatus, filterTickets } = useTickets();
+  
+  // Get closed tickets and convert to document format
+  const closedTickets = getTicketsByStatus("Cerrado").map(ticket => ({
+    id: ticket.id,
+    codigo: `TK-${ticket.id}`,
+    reporte: ticket.description,
+    cierre: `${ticket.date} ${ticket.time}`,
+    tiempoCierre: ticket.date,
+    estado: "CERRADO",
+    fuente: ticket.origin,
+    observaciones: `Área: ${ticket.area}`,
+    responsable: ticket.asignadoA
+  }));
+
+  // Filter closed tickets based on search
+  const filteredDocuments = closedTickets.filter(doc => 
+    doc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.reporte.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.observaciones.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleDocumentClick = (document) => {
     setSelectedDocument(document);
     setIsModalOpen(true);
-  };
-
-  const handleSearch = () => {
-    // Aquí puedes implementar la lógica de filtrado
-    console.log("Buscando:", searchValue);
   };
 
   return (
@@ -143,7 +166,7 @@ export default function ClosedTickets() {
               </Select>
             </div>
             <Button
-              onClick={handleSearch}
+              onClick={() => {}}
               className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
             >
               Buscar
@@ -185,7 +208,7 @@ export default function ClosedTickets() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {documents.map((doc, index) => (
+                {filteredDocuments.map((doc, index) => (
                   <tr
                     key={doc.id}
                     className={`hover:bg-gray-50 transition-colors ${
@@ -231,7 +254,7 @@ export default function ClosedTickets() {
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       <Button
-                        onClick={() => openDocumentModal(ticket)}
+                        onClick={() => handleDocumentClick(doc)}
                         className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
                         size="sm"
                         title="Ver documento de trabajo"
@@ -247,7 +270,7 @@ export default function ClosedTickets() {
 
           {/* Mobile/Tablet Cards */}
           <div className="lg:hidden">
-            {documents.map((doc, index) => (
+            {filteredDocuments.map((doc, index) => (
               <div
                 key={doc.id}
                 className={`p-4 border-b border-gray-200 last:border-b-0 ${
@@ -263,11 +286,7 @@ export default function ClosedTickets() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        doc.estado === "VIGENTE"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-orange-100 text-orange-800"
-                      }`}
+                      className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800"
                     >
                       {doc.estado}
                     </span>
@@ -318,12 +337,11 @@ export default function ClosedTickets() {
         {/* Footer Info */}
         <div className="mt-6 text-xs sm:text-sm text-gray-600">
           <p>
-            Documentos registrados del 1 al 31 de enero del 2024 registrados.
+            Tickets cerrados del sistema EVA.
           </p>
           <p className="mt-2">
-            <strong>Registros:</strong> 5 |
-            <strong className="ml-2">Vigentes:</strong> 4 |
-            <strong className="ml-2">Pendientes:</strong> 1
+            <strong>Registros:</strong> {filteredDocuments.length} |
+            <strong className="ml-2">Cerrados:</strong> {closedTickets.length}
           </p>
           <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <p className="text-xs">

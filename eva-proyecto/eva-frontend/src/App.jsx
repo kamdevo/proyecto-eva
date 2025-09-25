@@ -5,6 +5,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AuthProvider as PermissionAuthProvider } from "./hooks/useAuth.jsx";
 import { ToastProvider } from "./contexts/ToastContext";
 import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
+import { TicketsProvider } from "./contexts/TicketsContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 
@@ -20,9 +21,10 @@ import ProfilePage from "./components/ProfilePage";
 import MyTickets from "./components/MyTickets";
 import ClosedTickets from "./components/ClosedTickets";
 import DashboardView from "./components/Dashboard";
-import ContactsView from "./components/Contacts";
+import DashboardReportes from "./components/DashboardReportes"; 
+import ContactsView from "./components/vista-contactos-principal";
 import ControlPanel from "./components/control-panel";
-import VistaAreasPrincipal from "./components/vista-areas";
+import VistaAreasPrincipal from "./components/vista-areas-principal";
 import VistaPropietariosPrincipal from "./components/vista-propietarios-principal";
 import VistaServiciosPrincipal from "./components/vista-servicios-principal";
 import Usuarios from "./components/Usuarios";
@@ -212,7 +214,7 @@ function AppContent() {
               path="/dashboard/reportes"
               element={
                 <ProtectedRoute>
-                  <DashboardView />
+                  <DashboardReportes />
                 </ProtectedRoute>
               }
             />
@@ -309,7 +311,9 @@ export default function App() {
         <AuthProvider>
           <PermissionAuthProvider>
             <EquipmentSearchProvider>
-              <AppContent />
+              <TicketsProvider>
+                <AppContent />
+              </TicketsProvider>
             </EquipmentSearchProvider>
           </PermissionAuthProvider>
         </AuthProvider>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -39,8 +39,7 @@ import {
   AlertCircle,
   RefreshCw
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { httpService } from "@/services/httpService";
+
 
 const calibrationData = [
   {

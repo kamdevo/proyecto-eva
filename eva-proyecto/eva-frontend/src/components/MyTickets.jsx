@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTickets } from "@/contexts/TicketsContext";
 import TicketsImg from "@/assets/Img/imagenes/mis-tickets-img.jpg";
 
 import {
@@ -46,62 +47,33 @@ import {
   Building,
   Cog,
   Truck,
-  FolderOpen,
+  X,
 } from "lucide-react";
+import TicketDetailsModal from "@/components/modals/ticket-details-complete";
+import TicketEditModal from "@/components/modals/ticket-edit-full";
+import HospitalTicketModal from "@/components/modals/hospital-ticket-modal";
+
 
 export default function MyTickets() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState("all");
+  const [filterField, setFilterField] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isTicketDetailsModalOpen, setIsTicketDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isHospitalTicketModalOpen, setIsHospitalTicketModalOpen] = useState(false);
+  const [ticketType, setTicketType] = useState("");
 
-  const tickets = [
-    {
-      id: "14820",
-      origin: "Origen 2024",
-      description:
-        "Ticket de prueba de equipos licenciados, se utiliza para verificar el funcionamiento del sistema para...",
-      date: "2024-05-08",
-      time: "14:30:07",
-      status: "Cerrado",
-    },
-    {
-      id: "14819",
-      origin: "Origen 2024",
-      description:
-        "Ticket de prueba de equipos licenciados, se utiliza para verificar el funcionamiento del sistema para...",
-      date: "2024-05-08",
-      time: "14:30:07",
-      status: "Cerrado",
-    },
-    {
-      id: "14818",
-      origin: "Origen 2024",
-      description:
-        "Ticket de prueba de equipos licenciados, se utiliza para verificar el funcionamiento del sistema para...",
-      date: "2024-05-08",
-      time: "14:30:07",
-      status: "Cerrado",
-    },
-    {
-      id: "14817",
-      origin: "Origen 2024",
-      description:
-        "Ticket de prueba de equipos licenciados, se utiliza para verificar el funcionamiento del sistema para...",
-      date: "2024-05-08",
-      time: "14:30:07",
-      status: "Cerrado",
-    },
-    {
-      id: "14816",
-      origin: "Origen 2024",
-      description:
-        "Ticket de prueba de equipos licenciados, se utiliza para verificar el funcionamiento del sistema para...",
-      date: "2024-05-08",
-      time: "14:30:07",
-      status: "Cerrado",
-    },
-  ];
+  const { filterTickets, updateTicket, deleteTicket: removeTicket } = useTickets();
+
+  // Usuario actual simulado - en producción vendría de autenticación
+  const currentUser = "Dr. Carlos Mendez"; // Cambiar según el usuario logueado
+
+
+  const filteredTickets = filterTickets(searchTerm, selectedOrigin, filterField)
+    .filter(ticket => ticket.creadoPor === currentUser); // Solo tickets creados por el usuario actual
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -137,627 +109,182 @@ export default function MyTickets() {
     }
   };
 
-  const totalPages = Math.ceil(tickets.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentTickets = tickets.slice(startIndex, endIndex);
+  const currentTickets = filteredTickets.slice(startIndex, endIndex);
+
+  const handleTicketClick = (ticket) => {
+    setSelectedTicket(ticket);
+    setIsTicketDetailsModalOpen(true);
+  };
+
+  const handleEditTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateTicket = (updatedTicket) => {
+    updateTicket(updatedTicket);
+    setIsEditModalOpen(false);
+    // Forzar actualización de la vista
+    window.location.reload();
+  };
+
+  const handleDeleteTicket = (ticketId, ticketDescription) => {
+    const confirmMessage = `¿Está seguro de que desea eliminar el ticket #${ticketId}?\\n\\n"${ticketDescription.substring(0, 100)}..."\\n\\n⚠️ Esta acción no se puede deshacer.`;
+    
+    if (window.confirm(confirmMessage)) {
+      removeTicket(ticketId);
+      alert(`✅ Ticket #${ticketId} eliminado correctamente`);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-auto">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex flex-col lg:flex-col lg:items-center lg:justify-between gap-4">
+      <div className="bg-white border-b border-gray-200 px-2 sm:px-4 lg:px-6 py-2 sm:py-4">
+        <div className="flex flex-col gap-3">
           <div className="flex w-full justify-center">
             <img
               src={TicketsImg}
-              class="img-fluid rounded-top"
+              className="img-fluid rounded-top max-w-full h-auto"
               alt="Mis tickets - eva"
-              width={350}
+              style={{maxWidth: '300px', width: '100%'}}
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2">
-            {/* Equipos Licenciados Modal */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="bg-blue-600 text-white hover:bg-blue-700 py-6 px-6  hover:cursor-pointer hover:text-white"
-                >
-                  <Building className="w-4 h-4 mr-2" />
-                  Equipos licenciados
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    Nuevo Orden de Trabajo Equipos Licenciados
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="licensed-number">Número</Label>
-                      <Input
-                        id="licensed-number"
-                        placeholder="Automático"
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="licensed-priority">Prioridad</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar prioridad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="media">Media</SelectItem>
-                          <SelectItem value="baja">Baja</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="licensed-description">Descripción</Label>
-                    <Textarea
-                      id="licensed-description"
-                      placeholder="Describa el trabajo a realizar"
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="licensed-equipment">Equipo</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar equipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="equipo-1">
-                            Equipo Licenciado 1
-                          </SelectItem>
-                          <SelectItem value="equipo-2">
-                            Equipo Licenciado 2
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="licensed-location">Ubicación</Label>
-                      <Input
-                        id="licensed-location"
-                        placeholder="Ubicación del equipo"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="licensed-date">Fecha</Label>
-                      <Input id="licensed-date" type="date" />
-                    </div>
-                    <div>
-                      <Label htmlFor="licensed-time">Hora</Label>
-                      <Input id="licensed-time" type="time" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="licensed-technician">
-                      Técnico responsable
-                    </Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar técnico" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="tecnico-1">
-                          Técnico Especialista 1
-                        </SelectItem>
-                        <SelectItem value="tecnico-2">
-                          Técnico Especialista 2
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="licensed-observations">Observaciones</Label>
-                    <Textarea
-                      id="licensed-observations"
-                      placeholder="Observaciones adicionales"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="licensed-files">Archivos adjuntos</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Input
-                        id="licensed-files"
-                        type="file"
-                        multiple
-                        className="hidden"
-                      />
-                      <div className="space-y-2">
-                        <FileText className="w-8 h-8 mx-auto text-gray-400" />
-                        <p className="text-sm text-gray-600">
-                          Drag & drop files here, or{" "}
-                          <label
-                            htmlFor="licensed-files"
-                            className="text-blue-600 cursor-pointer hover:underline"
-                          >
-                            click to select files
-                          </label>
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Máximo 10MB por archivo
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline">Cancelar</Button>
-                    <Button>Crear Orden</Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {/* Equipos Biomédicos Modal */}
+            <Button
+              onClick={() => { setTicketType('biomedico'); setIsHospitalTicketModalOpen(true); }}
+              className="bg-white border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
+            >
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                <Building className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="font-semibold text-sm sm:text-base truncate">Equipos Biomédicos</div>
+                <div className="text-xs sm:text-sm text-blue-600 truncate">Médicos y Licenciados</div>
+              </div>
+            </Button>
 
             {/* Equipos Industriales Modal */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="bg-blue-600 text-white hover:bg-blue-700 py-6 px-6  hover:cursor-pointer hover:text-white"
-                >
-                  <Cog className="w-4 h-4 mr-2" />
-                  Equipos industriales
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    Nuevo Orden de Trabajo Equipos Industriales
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="industrial-number">Número</Label>
-                      <Input
-                        id="industrial-number"
-                        placeholder="Automático"
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="industrial-type">Tipo</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="preventivo">Preventivo</SelectItem>
-                          <SelectItem value="correctivo">Correctivo</SelectItem>
-                          <SelectItem value="predictivo">Predictivo</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="industrial-description">Descripción</Label>
-                    <Textarea
-                      id="industrial-description"
-                      placeholder="Describa el trabajo a realizar"
-                      rows={4}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="industrial-equipment">Equipo</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar equipo industrial" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="compresor-1">
-                          Compresor Industrial 1
-                        </SelectItem>
-                        <SelectItem value="bomba-1">
-                          Bomba Centrífuga 1
-                        </SelectItem>
-                        <SelectItem value="motor-1">
-                          Motor Eléctrico 1
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="industrial-area">Área</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar área" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="produccion">Producción</SelectItem>
-                          <SelectItem value="mantenimiento">
-                            Mantenimiento
-                          </SelectItem>
-                          <SelectItem value="calidad">
-                            Control de Calidad
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="industrial-priority">Prioridad</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar prioridad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="critica">Crítica</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="media">Media</SelectItem>
-                          <SelectItem value="baja">Baja</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="industrial-start-date">
-                        Fecha inicio
-                      </Label>
-                      <Input id="industrial-start-date" type="date" />
-                    </div>
-                    <div>
-                      <Label htmlFor="industrial-end-date">Fecha fin</Label>
-                      <Input id="industrial-end-date" type="date" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="industrial-supervisor">Supervisor</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar supervisor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="supervisor-1">
-                          Supervisor Industrial 1
-                        </SelectItem>
-                        <SelectItem value="supervisor-2">
-                          Supervisor Industrial 2
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="industrial-resources">
-                      Recursos necesarios
-                    </Label>
-                    <Textarea
-                      id="industrial-resources"
-                      placeholder="Especifique herramientas, repuestos y materiales"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="industrial-observations">
-                      Observaciones
-                    </Label>
-                    <Textarea
-                      id="industrial-observations"
-                      placeholder="Observaciones adicionales"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="industrial-files">
-                      Documentos adjuntos
-                    </Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Input
-                        id="industrial-files"
-                        type="file"
-                        multiple
-                        className="hidden"
-                      />
-                      <div className="space-y-2">
-                        <FileText className="w-8 h-8 mx-auto text-gray-400" />
-                        <p className="text-sm text-gray-600">
-                          Drag & drop files here, or{" "}
-                          <label
-                            htmlFor="industrial-files"
-                            className="text-blue-600 cursor-pointer hover:underline"
-                          >
-                            click to select files
-                          </label>
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          PDF, DOC, XLS, IMG - Máximo 10MB
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline">Cancelar</Button>
-                    <Button>Crear Orden</Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button
+              onClick={() => { setTicketType('industrial'); setIsHospitalTicketModalOpen(true); }}
+              className="bg-white border-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
+            >
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                <Cog className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="font-semibold text-sm sm:text-base truncate">Equipos Industriales</div>
+                <div className="text-xs sm:text-sm text-orange-600 truncate">Producción y Manufactura</div>
+              </div>
+            </Button>
 
             {/* Infraestructura y Movilidad Modal */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-blue-600 text-white hover:bg-blue-700 hover:cursor-pointer hover:text-white py-6 px-6"
-                >
-                  <Truck className="w-4 h-4 mr-2" />
-                  Infraestructura y movilidad
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Nueva Orden de Trabajo</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="infra-number">Número</Label>
-                      <Input
-                        id="infra-number"
-                        placeholder="Automático"
-                        disabled
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="infra-category">Categoría</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="infraestructura">
-                            Infraestructura
-                          </SelectItem>
-                          <SelectItem value="movilidad">Movilidad</SelectItem>
-                          <SelectItem value="transporte">Transporte</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="infra-description">Descripción</Label>
-                    <Textarea
-                      id="infra-description"
-                      placeholder="Describa el trabajo a realizar"
-                      rows={4}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="infra-asset">Activo/Elemento</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar activo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="edificio-a">Edificio A</SelectItem>
-                        <SelectItem value="vehiculo-1">Vehículo 1</SelectItem>
-                        <SelectItem value="sistema-hvac">
-                          Sistema HVAC
-                        </SelectItem>
-                        <SelectItem value="ascensor-1">Ascensor 1</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="infra-location">Ubicación</Label>
-                      <Input
-                        id="infra-location"
-                        placeholder="Especifique la ubicación"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="infra-priority">Prioridad</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar prioridad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="urgente">Urgente</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="media">Media</SelectItem>
-                          <SelectItem value="baja">Baja</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="infra-date">Fecha programada</Label>
-                      <Input id="infra-date" type="date" />
-                    </div>
-                    <div>
-                      <Label htmlFor="infra-duration">Duración estimada</Label>
-                      <Input id="infra-duration" placeholder="4 horas" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="infra-responsible">Responsable</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar responsable" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="coord-infra">
-                          Coordinador Infraestructura
-                        </SelectItem>
-                        <SelectItem value="coord-mov">
-                          Coordinador Movilidad
-                        </SelectItem>
-                        <SelectItem value="tecnico-civil">
-                          Técnico Civil
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="infra-requirements">
-                      Requerimientos especiales
-                    </Label>
-                    <Textarea
-                      id="infra-requirements"
-                      placeholder="Especifique permisos, herramientas especiales, coordinaciones"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="infra-impact">Impacto operacional</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Nivel de impacto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="alto">Alto</SelectItem>
-                          <SelectItem value="medio">Medio</SelectItem>
-                          <SelectItem value="bajo">Bajo</SelectItem>
-                          <SelectItem value="nulo">Nulo</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="infra-budget">Presupuesto</Label>
-                      <Input id="infra-budget" placeholder="$0.00" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="infra-observations">Observaciones</Label>
-                    <Textarea
-                      id="infra-observations"
-                      placeholder="Observaciones adicionales"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="infra-files">Archivos adjuntos</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Input
-                        id="infra-files"
-                        type="file"
-                        multiple
-                        className="hidden"
-                      />
-                      <div className="space-y-2">
-                        <FileText className="w-8 h-8 mx-auto text-gray-400" />
-                        <p className="text-sm text-gray-600">
-                          Drag & drop files here, or{" "}
-                          <label
-                            htmlFor="infra-files"
-                            className="text-blue-600 cursor-pointer hover:underline"
-                          >
-                            click to select files
-                          </label>
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Planos, imágenes, documentos - Máximo 10MB
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-4 border-t">
-                    <Button variant="outline">Cancelar</Button>
-                    <Button>Crear Orden</Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            {/* Other Action Buttons */}
+            <Button
+              onClick={() => { setTicketType('infraestructura'); setIsHospitalTicketModalOpen(true); }}
+              className="bg-white border-2 border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
+            >
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="font-semibold text-sm sm:text-base truncate">Infraestructura</div>
+                <div className="text-xs sm:text-sm text-green-600 truncate">Servicios y Movilidad</div>
+              </div>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="p-6">
+      <div className="p-1 sm:p-2 lg:p-4">
         <Card>
-          <CardHeader>
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl">Gestión de Tickets</CardTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Administre y supervise todos los tickets del sistema
-                </p>
-              </div>
+          <CardHeader className="p-2 sm:p-3">
+            <div>
+              <CardTitle className="text-sm sm:text-base md:text-lg lg:text-xl">Mis Tickets</CardTitle>
+              <p className="text-xs sm:text-sm md:text-base text-gray-600">
+                Vea y gestione sus tickets personales
+              </p>
             </div>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-2 sm:p-3">
             {/* Filters */}
-            <div className="mb-6 space-y-4">
-              <div className="flex flex-col lg:flex-row gap-4">
-                <div className="flex-1">
-                  <Label
-                    htmlFor="origin-filter"
-                    className="text-sm font-medium"
-                  >
-                    Origen
+            <div className="mb-3 space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-sm font-medium">Filtrar por</Label>
+                  <Select value={filterField} onValueChange={setFilterField}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los campos</SelectItem>
+                      <SelectItem value="id">ID del Ticket</SelectItem>
+                      <SelectItem value="description">Descripción</SelectItem>
+                      <SelectItem value="creadoPor">Creado por</SelectItem>
+                      <SelectItem value="asignadoA">Asignado a</SelectItem>
+                      <SelectItem value="area">Área</SelectItem>
+                      <SelectItem value="equipo">Equipo</SelectItem>
+                      <SelectItem value="status">Estado</SelectItem>
+                      <SelectItem value="prioridad">Prioridad</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="search-input" className="text-sm font-medium">
+                    Buscar
                   </Label>
                   <div className="flex gap-2 mt-1">
-                    <Select
-                      value={selectedOrigin}
-                      onValueChange={setSelectedOrigin}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar origen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los orígenes</SelectItem>
-                        <SelectItem value="origen-2024">Origen 2024</SelectItem>
-                        <SelectItem value="origen-2023">Origen 2023</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="search-input"
+                      placeholder={`Buscar ${filterField === 'all' ? 'en todos los campos' : 'por ' + filterField}...`}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="flex-1"
+                    />
                     <Button variant="outline" size="sm">
                       <Search className="w-4 h-4" />
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSelectedOrigin("all");
+                        setFilterField("all");
+                      }}
+                      title="Borrar filtros"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Origen</Label>
+                  <Select value={selectedOrigin} onValueChange={setSelectedOrigin}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Seleccionar origen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los orígenes</SelectItem>
+                      <SelectItem value="biomedico">HUV Biomédico</SelectItem>
+                      <SelectItem value="industrial">HUV Industrial</SelectItem>
+                      <SelectItem value="infraestructura">Infraestructura</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               <div className="text-sm text-gray-600">
-                Mostrando registros de 1 a{" "}
-                {Math.min(itemsPerPage, tickets.length)} de un total de{" "}
-                {tickets.length} registros
+                Mostrando registros de {startIndex + 1} a{" "}
+                {Math.min(endIndex, filteredTickets.length)} de un total de{" "}
+                {filteredTickets.length} registros
               </div>
             </div>
 
@@ -783,63 +310,232 @@ export default function MyTickets() {
               <span className="text-sm">registros por página</span>
             </div>
 
-            {/* Table */}
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="font-semibold">ID</TableHead>
-                    <TableHead className="font-semibold">Origen</TableHead>
-                    <TableHead className="font-semibold">Descripción</TableHead>
-                    <TableHead className="font-semibold">
-                      Fecha de Creación
-                    </TableHead>
-                    <TableHead className="font-semibold">Estado</TableHead>
-                    <TableHead className="font-semibold text-center">
-                      Acciones
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentTickets.map((ticket) => (
-                    <TableRow key={ticket.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{ticket.id}</TableCell>
-                      <TableCell>{ticket.origin}</TableCell>
-                      <TableCell className="max-w-md">
-                        <div className="truncate" title={ticket.description}>
-                          {ticket.description}
+            {/* Mobile/Tablet Cards */}
+            <div className="block lg:hidden space-y-3 mb-4">
+              {currentTickets.map((ticket) => (
+                <Card key={ticket.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-lg text-gray-900">#{ticket.id}</h3>
+                          {getStatusBadge(ticket.status)}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div>{ticket.date}</div>
-                          <div className="text-gray-500">{ticket.time}</div>
+                        <p className="text-sm text-blue-600 font-medium">{ticket.origin}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleTicketClick(ticket)}
+                        title="Ver detalles"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2 mb-3">
+                      <p className="text-sm text-gray-800 font-medium">{ticket.description}</p>
+                      <div className="grid grid-cols-1 gap-1 text-xs text-gray-600">
+                        <div><span className="font-medium">Creado por:</span> {ticket.creadoPor}</div>
+                        <div><span className="font-medium">Asignado a:</span> {ticket.asignadoA}</div>
+                        <div><span className="font-medium">Área:</span> {ticket.area}</div>
+                        <div><span className="font-medium">Equipo:</span> {ticket.equipo}</div>
+                        {ticket.equiposAsociados?.length > 0 && (
+                          <div><span className="font-medium text-green-600">✓ Equipos:</span> {ticket.equiposAsociados.length} asociados</div>
+                        )}
+                        {ticket.personalAsociado?.length > 0 && (
+                          <div><span className="font-medium text-purple-600">✓ Personal:</span> {ticket.personalAsociado.length} asociados</div>
+                        )}
+                        {ticket.participantes?.length > 0 && (
+                          <div><span className="font-medium text-indigo-600">✓ Participantes:</span> {ticket.participantes.length} agregados</div>
+                        )}
+                        {ticket.cierreData?.firma && (
+                          <div><span className="font-medium text-red-600">✓ Firmado</span></div>
+                        )}
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1 text-gray-400" />
+                          <span className="font-medium mr-1">Fecha:</span>
+                          {ticket.date} {ticket.time}
                         </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-center">
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <Badge className={`text-xs ${
+                        ticket.prioridad === 'Crítica' ? 'bg-red-500 text-white' :
+                        ticket.prioridad === 'Alta' ? 'bg-red-100 text-red-800' :
+                        ticket.prioridad === 'Media' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {ticket.prioridad}
+                      </Badge>
+                      <div className="grid grid-cols-3 gap-1 mt-2">
+                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
                           <Button
-                            variant="ghost"
+                            onClick={() => handleTicketClick(ticket)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded w-full h-7"
                             size="sm"
-                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            title="Ver detalles del ticket"
                           >
-                            <FolderOpen className="w-4 h-4" />
+                            <Eye className="h-3 w-3" />
                           </Button>
+                          <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>VER</span>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                          <Button
+                            onClick={() => handleEditTicket(ticket)}
+                            className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded w-full h-7"
+                            size="sm"
+                            title="Editar ticket"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>EDIT</span>
+                        </div>
+                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                          <Button
+                            onClick={() => handleDeleteTicket(ticket.id, ticket.description)}
+                            className="bg-red-500 hover:bg-red-600 text-white p-1 rounded w-full h-7"
+                            size="sm"
+                            title="Eliminar ticket"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>DEL</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden lg:block border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] table-fixed">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
+                      <th className="w-64 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                      <th className="w-40 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignación</th>
+                      <th className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                      <th className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioridad</th>
+                      <th className="w-24 px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentTickets.map((ticket) => (
+                      <tr key={ticket.id} className="hover:bg-gray-50">
+                        <td className="px-2 py-3 align-top">
+                          <div className="space-y-1">
+                            <div className="text-xs font-bold text-gray-900 truncate">#{ticket.id}</div>
+                            <div className="text-xs text-blue-600 font-medium truncate">{ticket.origin}</div>
+                            <div className="text-xs text-gray-500">{ticket.date}</div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 align-top">
+                          <div className="space-y-2">
+                            <div className="text-sm text-gray-900 font-medium leading-tight">{ticket.description}</div>
+                            <div className="text-xs text-gray-600 space-y-1">
+                              <div className="truncate"><span className="font-medium">Área:</span> {ticket.area}</div>
+                              <div className="truncate"><span className="font-medium">Equipo:</span> {ticket.equipo}</div>
+                              <div className="flex flex-wrap gap-1 text-xs">
+                                {ticket.equiposAsociados?.length > 0 && (
+                                  <span className="text-green-600 font-medium">✓E:{ticket.equiposAsociados.length}</span>
+                                )}
+                                {ticket.personalAsociado?.length > 0 && (
+                                  <span className="text-purple-600 font-medium">✓P:{ticket.personalAsociado.length}</span>
+                                )}
+                                {ticket.participantes?.length > 0 && (
+                                  <span className="text-indigo-600 font-medium">✓Pt:{ticket.participantes.length}</span>
+                                )}
+                                {ticket.cierreData?.firma && (
+                                  <span className="text-red-600 font-medium">✓F</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 align-top">
+                          <div className="space-y-2">
+                            <div className="text-xs text-gray-600">
+                              <div className="font-medium text-gray-700 mb-1">Creado por:</div>
+                              <div className="text-gray-900 truncate">{ticket.creadoPor}</div>
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              <div className="font-medium text-gray-700 mb-1">Asignado a:</div>
+                              <div className="text-gray-900 truncate">{ticket.asignadoA}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 align-top">
+                          <div className="flex justify-start">
+                            {getStatusBadge(ticket.status)}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 align-top">
+                          <div className="flex justify-start">
+                            <Badge className={`text-xs whitespace-nowrap ${
+                              ticket.prioridad === 'Crítica' ? 'bg-red-500 text-white' :
+                              ticket.prioridad === 'Alta' ? 'bg-red-100 text-red-800' :
+                              ticket.prioridad === 'Media' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {ticket.prioridad}
+                            </Badge>
+                          </div>
+                        </td>
+                        <td className="px-2 py-4 bg-orange-25">
+                          <div className="grid grid-cols-3 gap-1 w-full max-w-[180px]">
+                            <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                              <Button
+                                onClick={() => handleTicketClick(ticket)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded w-full h-7"
+                                size="sm"
+                                title="Ver detalles del ticket"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">VER</span>
+                            </div>
+                            <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                              <Button
+                                onClick={() => handleEditTicket(ticket)}
+                                className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded w-full h-7"
+                                size="sm"
+                                title="Editar ticket"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">EDIT</span>
+                            </div>
+                            <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                              <Button
+                                onClick={() => handleDeleteTicket(ticket.id, ticket.description)}
+                                className="bg-red-500 hover:bg-red-600 text-white p-1 rounded w-full h-7"
+                                size="sm"
+                                title="Eliminar ticket"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                              <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">DEL</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
               <div className="text-sm text-gray-600">
-                Mostrando registros de 1 a{" "}
-                {Math.min(itemsPerPage, tickets.length)} de un total de{" "}
-                {tickets.length} registros
+                Mostrando registros de {startIndex + 1} a{" "}
+                {Math.min(endIndex, filteredTickets.length)} de un total de{" "}
+                {filteredTickets.length} registros
               </div>
 
               <div className="flex items-center gap-2">
@@ -883,6 +579,30 @@ export default function MyTickets() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ticket Details Modal */}
+      <TicketDetailsModal
+        isOpen={isTicketDetailsModalOpen}
+        onClose={() => setIsTicketDetailsModalOpen(false)}
+        ticket={selectedTicket}
+      />
+
+
+
+      {/* Ticket Edit Modal */}
+      <TicketEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        ticket={selectedTicket}
+        onSave={handleUpdateTicket}
+      />
+
+      {/* Hospital Ticket Modal */}
+      <HospitalTicketModal
+        isOpen={isHospitalTicketModalOpen}
+        onClose={() => setIsHospitalTicketModalOpen(false)}
+        ticketType={ticketType}
+      />
     </div>
   );
 }

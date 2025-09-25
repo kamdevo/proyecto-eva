@@ -1,19 +1,18 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
+import { Button } from "../ui/button"
 import { AlertTriangle } from "lucide-react"
 
 export default function UIModalEliminarArea({ isOpen, onClose, area }) {
   const handleConfirmDelete = () => {
-    // Aquí iría la lógica para eliminar el área
     console.log("Eliminando área:", area)
     onClose()
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px] max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4">
+      <DialogContent className="sm:max-w-[500px] max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-gray-800 border-b-2 border-red-500 pb-2">
             Eliminar Área
@@ -33,21 +32,45 @@ export default function UIModalEliminarArea({ isOpen, onClose, area }) {
 
           {area && (
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h4 className="font-medium text-gray-800 mb-2">Área a eliminar:</h4>
-              <div className="space-y-1 text-sm text-gray-600">
-                <p className="break-words">
-                  <span className="font-medium">Nombre:</span> {area.nombre}
-                </p>
-                <p className="break-words">
-                  <span className="font-medium">Servicio:</span> {area.servicio}
-                </p>
-                <p>
-                  <span className="font-medium">Sede:</span> {area.sede}
-                </p>
-                <p>
-                  <span className="font-medium">Piso:</span> {area.piso}
-                </p>
+              <h4 className="font-medium text-gray-800 mb-3">Área a eliminar:</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
+                <div className="space-y-2">
+                  <p className="break-words">
+                    <span className="font-medium text-gray-700">Nombre:</span><br />
+                    {area.nombre}
+                  </p>
+                  <p className="break-words">
+                    <span className="font-medium text-gray-700">Servicio:</span><br />
+                    {area.servicio}
+                  </p>
+                  <p className="break-words">
+                    <span className="font-medium text-gray-700">Sede:</span><br />
+                    {area.sede}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p>
+                    <span className="font-medium text-gray-700">Piso:</span><br />
+                    {area.piso}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-700">Zona:</span><br />
+                    {area.zona}
+                  </p>
+                  <p className="break-words">
+                    <span className="font-medium text-gray-700">Responsable:</span><br />
+                    {area.responsable}
+                  </p>
+                </div>
               </div>
+              
+              {area.capacidad && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium text-gray-700">Capacidad:</span> {area.capacidad}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -64,7 +87,6 @@ export default function UIModalEliminarArea({ isOpen, onClose, area }) {
             </div>
           </div>
 
-          {/* Botones */}
           <div className="flex flex-col sm:flex-row justify-end gap-3">
             <Button
               type="button"

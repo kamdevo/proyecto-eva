@@ -1,0 +1,60 @@
+DEPENDENCIAS FALTANTES PARA EL SISTEMA DE TICKETS
+=================================================
+
+COMPONENTES UI QUE NECESITAS CREAR O INSTALAR:
+----------------------------------------------
+
+1. CARPETA: @/components/ui/
+   - button.jsx
+   - input.jsx
+   - label.jsx
+   - select.jsx (con SelectContent, SelectItem, SelectTrigger, SelectValue)
+   - textarea.jsx
+   - badge.jsx
+   - card.jsx (con CardContent, CardHeader, CardTitle)
+   - dialog.jsx (con DialogContent, DialogHeader, DialogTitle, DialogDescription)
+   - tabs.jsx (con TabsContent, TabsList, TabsTrigger)
+   - table.jsx (con TableBody, TableCell, TableHead, TableHeader, TableRow)
+   - sidebar.jsx (con SidebarProvider, SidebarInset)
+
+2. ICONOS DE LUCIDE-REACT:
+   - Filter, Plus, FileText, Users, Wrench, Eye, Calendar, Settings
+   - Trash2, Edit, Search, Building, Cog, Truck, X, FolderOpen
+   - PenTool, Save, Type, Tablet, Upload, Download
+   - User, Clock, AlertCircle
+
+3. IMAGEN FALTANTE:
+   - @/assets/Img/imagenes/mis-tickets-img.jpg
+
+4. MODAL ADICIONAL:
+   - @/components/modals/pdf-modal.jsx (usado en ClosedTickets)
+
+5. OTROS COMPONENTES REFERENCIADOS EN APP.JSX:
+   - Todos los componentes importados que no son de tickets
+
+INSTALACIÓN RECOMENDADA:
+-----------------------
+npm install lucide-react
+npm install @radix-ui/react-dialog
+npm install @radix-ui/react-select
+npm install @radix-ui/react-tabs
+
+O usar shadcn/ui:
+npx shadcn-ui@latest add button input label select textarea badge card dialog tabs table
+
+ESTRUCTURA MÍNIMA PARA FUNCIONAR:
+---------------------------------
+src/
+├── context/
+│   └── TicketsContext.jsx ✓
+├── components/
+│   ├── MyTickets.jsx ✓
+│   ├── GestionTickets.jsx ✓
+│   ├── ClosedTickets.jsx ✓
+│   ├── ui/ (FALTA - componentes básicos)
+│   └── modals/
+│       └── tickets/ ✓
+├── assets/
+│   └── Img/imagenes/
+│       └── mis-tickets-img.jpg (FALTA)
+└── App.jsx ✓

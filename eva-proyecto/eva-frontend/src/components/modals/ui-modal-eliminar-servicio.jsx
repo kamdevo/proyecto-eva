@@ -1,12 +1,11 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
+import { Button } from "../ui/button"
 import { AlertTriangle } from "lucide-react"
 
 export default function UIModalEliminarServicio({ isOpen, onClose, servicio }) {
   const handleConfirmDelete = () => {
-    // Aquí iría la lógica para eliminar el servicio
     console.log("Eliminando servicio:", servicio)
     onClose()
   }
@@ -70,7 +69,6 @@ export default function UIModalEliminarServicio({ isOpen, onClose, servicio }) {
             </div>
           </div>
 
-          {/* Botones */}
           <div className="flex justify-end space-x-3">
             <Button type="button" variant="outline" onClick={onClose} className="px-6">
               Cancelar

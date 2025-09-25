@@ -21,9 +21,9 @@ import { Input } from "./ui/input";
 import { Edit, Trash2, Plus, Search, Settings, Menu } from "lucide-react";
 
 // Importar modales
-import UIModalAgregarArea from "./modals/ui-modal-agregar-area";
-import UIModalEditarArea from "./modals/ui-modal-editar-area";
-import UIModalEliminarArea from "./modals/ui-modal-eliminar-area";
+import UIModalAgregarArea from "@/components/modals/ui-modal-agregar-area";
+import UIModalEditarArea from "@/components/modals/ui-modal-editar-area";
+import UIModalEliminarArea from "@/components/modals/ui-modal-eliminar-area";
 
 function VistaAreasPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
