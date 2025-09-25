@@ -1776,6 +1776,134 @@ class EquipmentController extends ApiController
     }
 
     /**
+     * Obtener historial de actividad de usuarios para un equipo específico
+     * Incluye observaciones y documentos agregados por usuarios
+     */
+    public function getUserHistory($id)
+    {
+        try {
+            // Verificar que el equipo existe
+            $equipo = DB::table('equipos')->where('id', $id)->first();
+            
+            if (!$equipo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Equipo no encontrado'
+                ], 404)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            }
+
+            $userHistory = [];
+
+            // 1. Obtener historial de observaciones
+            $observaciones = DB::table('observaciones_equipos as oe')
+                ->leftJoin('usuarios as u', 'oe.usuario_id', '=', 'u.id')
+                ->where('oe.equipo_id', $id)
+                ->select([
+                    'oe.id',
+                    'oe.observacion as detalle',
+                    'oe.created_at as fecha',
+                    'u.nombre as usuario',
+                    DB::raw("'observacion' as tipo"),
+                    DB::raw("'Agregó observación' as accion")
+                ])
+                ->get();
+
+            foreach ($observaciones as $obs) {
+                $userHistory[] = [
+                    'id' => 'obs_' . $obs->id,
+                    'usuario' => $obs->usuario ?? 'Usuario desconocido',
+                    'accion' => $obs->accion,
+                    'detalle' => $obs->detalle ?? 'Sin detalle',
+                    'fecha' => $obs->fecha,
+                    'tipo' => $obs->tipo
+                ];
+            }
+
+            // 2. Obtener historial de documentos/archivos
+            $documentos = DB::table('archivos_equipos as ae')
+                ->leftJoin('usuarios as u', 'ae.usuario_id', '=', 'u.id')
+                ->where('ae.equipo_id', $id)
+                ->select([
+                    'ae.id',
+                    'ae.nombre_archivo as detalle',
+                    'ae.created_at as fecha',
+                    'u.nombre as usuario',
+                    DB::raw("'documento' as tipo"),
+                    DB::raw("'Subió documento' as accion")
+                ])
+                ->get();
+
+            foreach ($documentos as $doc) {
+                $userHistory[] = [
+                    'id' => 'doc_' . $doc->id,
+                    'usuario' => $doc->usuario ?? 'Usuario desconocido',
+                    'accion' => $doc->accion,
+                    'detalle' => $doc->detalle ?? 'Documento sin nombre',
+                    'fecha' => $doc->fecha,
+                    'tipo' => $doc->tipo
+                ];
+            }
+
+            // 3. Obtener historial de mantenimientos (opcional)
+            $mantenimientos = DB::table('mantenimientos as m')
+                ->leftJoin('usuarios as u', 'm.usuario_id', '=', 'u.id')
+                ->where('m.equipo_id', $id)
+                ->select([
+                    'm.id',
+                    'm.descripcion as detalle',
+                    'm.created_at as fecha',
+                    'u.nombre as usuario',
+                    DB::raw("'mantenimiento' as tipo"),
+                    DB::raw("'Registró mantenimiento' as accion")
+                ])
+                ->get();
+
+            foreach ($mantenimientos as $mant) {
+                $userHistory[] = [
+                    'id' => 'mant_' . $mant->id,
+                    'usuario' => $mant->usuario ?? 'Usuario desconocido',
+                    'accion' => $mant->accion,
+                    'detalle' => $mant->detalle ?? 'Mantenimiento registrado',
+                    'fecha' => $mant->fecha,
+                    'tipo' => $mant->tipo
+                ];
+            }
+
+            // Ordenar por fecha descendente (más reciente primero)
+            usort($userHistory, function($a, $b) {
+                return strtotime($b['fecha']) - strtotime($a['fecha']);
+            });
+
+            // Limitar a los últimos 50 registros
+            $userHistory = array_slice($userHistory, 0, 50);
+
+            return response()->json([
+                'success' => true,
+                'data' => $userHistory,
+                'message' => 'Historial de usuarios obtenido exitosamente',
+                'total' => count($userHistory)
+            ])
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (\Exception $e) {
+            \Log::error('Error en getUserHistory: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener historial de usuarios: ' . $e->getMessage(),
+                'data' => []
+            ], 500)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        }
+    }
+
+    /**
      * Obtener opciones para filtros
      */
     public function getFilterOptions()

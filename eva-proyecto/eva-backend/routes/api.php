@@ -2350,6 +2350,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     Route::get('equipos/estadisticas/medical-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesStats']);
     Route::get('equipos/estadisticas/industrial-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getIndustrialDevicesStats']);
     Route::get('equipos/{id}/complete-info', [\App\Http\Controllers\Api\EquipmentController::class, 'getCompleteInfo']);
+    Route::get('equipos/{id}/user-history', [\App\Http\Controllers\Api\EquipmentController::class, 'getUserHistory']);
     // Endpoint para crear equipos usando el controlador con validaciones completas
     Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
 

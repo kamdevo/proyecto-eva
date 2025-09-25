@@ -521,7 +521,7 @@ export function AddEquipmentModal({
 
       // Construir URL del archivo usando la ruta de storage directa
       const fileUrl = `${
-        axios.defaults.baseURL || "http://localhost:8000"
+        axios.defaults.baseURL || "http://localhost:8001"
       }/storage/invimas/${registroSeleccionado.archivo_pdf}`;
 
       console.log("🔗 URL construida:", fileUrl);

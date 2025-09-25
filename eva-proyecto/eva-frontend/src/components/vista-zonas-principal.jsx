@@ -27,6 +27,7 @@ import UIModalAgregarZona from "@/components/modals/ui-modal-agregar-zona";
 import UIModalEditarZona from "@/components/modals/ui-modal-editar-zona";
 import UIModalEliminarZona from "@/components/modals/ui-modal-eliminar-zona";
 import UIModalVerZona from "@/components/modals/ui-modal-ver-zona";
+import Pagination from "@/components/common/Pagination";
 
 function VistaZonasPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -399,73 +400,14 @@ function VistaZonasPrincipal() {
               </Table>
             </div>
 
-            <div className="p-4 lg:p-6 border-t border-gray-200">
-              <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-gray-600 text-center lg:text-left">
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, totalItems)}{" "}
-                  de {totalItems} entradas
-                  {searchTerm &&
-                    ` (filtrado de ${zonasData.length} entradas totales)`}
-                </div>
-
-                <div className="flex flex-wrap justify-center items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    className="text-xs lg:text-sm"
-                  >
-                    Anterior
-                  </Button>
-
-                  <div className="flex items-center space-x-1">
-                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                      const pageNumber = i + 1;
-                      const isCurrentPage = currentPage === pageNumber;
-
-                      return (
-                        <Button
-                          key={pageNumber}
-                          variant={isCurrentPage ? "default" : "outline"}
-                          size="sm"
-                          className={`w-8 h-8 p-0 text-xs ${
-                            isCurrentPage ? "bg-blue-500 text-white" : ""
-                          }`}
-                          onClick={() => setCurrentPage(pageNumber)}
-                        >
-                          {pageNumber}
-                        </Button>
-                      );
-                    })}
-
-                    {totalPages > 5 && (
-                      <>
-                        <span className="text-gray-400 px-1">...</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-8 h-8 p-0 text-xs"
-                          onClick={() => setCurrentPage(totalPages)}
-                        >
-                          {totalPages}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    className="text-xs lg:text-sm"
-                  >
-                    Siguiente
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              showInfo={true}
+            />
           </CardContent>
         </Card>
       </div>

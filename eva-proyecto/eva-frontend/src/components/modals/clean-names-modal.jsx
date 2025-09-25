@@ -100,7 +100,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
 
       // Construir URL con parámetros
       const url = new URL(
-        "http://localhost:8000/api/v1/equipos/debugging/name-analysis"
+        "http://localhost:8001/api/v1/equipos/debugging/name-analysis"
       );
       Object.keys(params).forEach((key) => {
         if (params[key] !== undefined && params[key] !== null) {
@@ -240,7 +240,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:8000/api/v1/equipos/debugging/preview-changes",
+        "http://localhost:8001/api/v1/equipos/debugging/preview-changes",
         {
           method: "POST",
           headers: {
@@ -307,7 +307,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
       setApplying(true);
 
       const response = await fetch(
-        "http://localhost:8000/api/v1/equipos/debugging/apply-cleaning",
+        "http://localhost:8001/api/v1/equipos/debugging/apply-cleaning",
         {
           method: "POST",
           headers: {

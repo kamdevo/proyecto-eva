@@ -22,9 +22,12 @@ import {
   AlertCircle,
   Info,
   Package,
+  History,
+  Clock,
+  UserCheck,
 } from "lucide-react";
 import { usePDF } from "@react-pdf/renderer";
-import { EquipmentLifecyclePDFCompact } from "../pdf/equipment-lifecycle-pdf-compact";
+import { EquipmentLifecyclePDFCompact   } from "../pdf/equipment-lifecycle-pdf-compact";
 import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -39,6 +42,7 @@ export function ViewEquipmentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [imageError, setImageError] = useState(false);
+  const [userHistory, setUserHistory] = useState([]);
 
   // PDF generation hook - switch between components for testing
   // Use EquipmentLifecyclePDFCompact for compact, single-page format
@@ -48,6 +52,38 @@ export function ViewEquipmentModal({
     ) : null,
     // document: equipmentDetails ? <MinimalTestPDF equipment={equipmentDetails} /> : null  // For testing
   });
+
+  // Function to fetch user history for equipment (PUBLIC ENDPOINT)
+  const fetchUserHistory = async (equipmentId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8001/api/v1/equipos/${equipmentId}/user-history`,
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setUserHistory(data.data || []);
+      } else {
+        console.warn('API returned success: false for user history');
+        setUserHistory([]);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching user history:', error);
+      setUserHistory([]);
+    }
+  };
 
   // Define fetchEquipmentDetailsPublic function first
   const fetchEquipmentDetailsPublic = async (equipmentId) => {
@@ -69,6 +105,8 @@ export function ViewEquipmentModal({
 
     if (data.success) {
       setEquipmentDetails(data.data);
+      // Load user history after equipment details
+      await fetchUserHistory(equipmentId);
     } else {
       throw new Error(data.message || "Error al obtener datos del equipo");
     }
@@ -92,6 +130,8 @@ export function ViewEquipmentModal({
           );
           if (response.data?.success) {
             setEquipmentDetails(response.data.data);
+            // Load user history after equipment details
+            await fetchUserHistory(equipmentId);
             return;
           }
         } catch (authError) {
@@ -975,6 +1015,75 @@ export function ViewEquipmentModal({
                     {parseInt(displayData.cuenta_archivos || 0) > 0
                       ? "Completa"
                       : "Incompleta"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* SECCIÓN 11: HISTORIAL DE USUARIOS */}
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
+                <History className="h-5 w-5 text-purple-600" />
+                11. Historial de Actividad de Usuarios
+              </h3>
+              
+              {userHistory.length > 0 ? (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {userHistory.map((entry) => (
+                    <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex-shrink-0 mt-1">
+                        {entry.tipo === 'observacion' ? (
+                          <UserCheck className="h-4 w-4 text-blue-600" />
+                        ) : (
+                          <FileText className="h-4 w-4 text-green-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900">
+                            {entry.usuario}
+                          </p>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Clock className="h-3 w-3" />
+                            {new Date(entry.fecha).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          <span className="font-medium">{entry.accion}:</span> {entry.detalle}
+                        </p>
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            entry.tipo === 'observacion' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {entry.tipo === 'observacion' ? '📝 Observación' : '📄 Documento'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <History className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-sm">
+                    No hay actividad registrada para este equipo
+                  </p>
+                </div>
+              )}
+              
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <p className="text-xs text-blue-700">
+                    <strong>Nota:</strong> Este historial muestra las últimas actividades de usuarios que han agregado observaciones o documentos a este equipo.
                   </p>
                 </div>
               </div>

@@ -26,6 +26,7 @@ import UIModalAgregarPropietario from "@/components/modals/ui-modal-agregar-prop
 import UIModalEditarPropietario from "@/components/modals/ui-modal-editar-propietario";
 import UIModalEliminarPropietario from "@/components/modals/ui-modal-eliminar-propietario";
 import UIModalExaminarPropietario from "@/components/modals/ui-modal-examinar-propietario";
+import Pagination from "@/components/common/Pagination";
 
 export default function VistaPropietariosPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -417,69 +418,15 @@ export default function VistaPropietariosPrincipal() {
           </CardContent>
         </Card>
 
-        {/* Paginación mejorada */}
-        <Card className="rounded-xl shadow-sm border-0 bg-white/70 backdrop-blur-sm">
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex flex-wrap justify-center items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="rounded-lg border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 px-4 py-2"
-              >
-                Anterior
-              </Button>
-
-              <div className="flex flex-wrap gap-1">
-                {[...Array(Math.min(10, totalPages))].map((_, i) => {
-                  const pageNumber = i + 1;
-                  const isCurrentPage = currentPage === pageNumber;
-
-                  return (
-                    <Button
-                      key={pageNumber}
-                      variant={isCurrentPage ? "default" : "outline"}
-                      size="sm"
-                      className={`w-10 h-10 p-0 rounded-lg transition-all duration-200 ${
-                        isCurrentPage
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:from-blue-600 hover:to-blue-700"
-                          : "border-gray-200 hover:bg-blue-50 hover:border-blue-300"
-                      }`}
-                      onClick={() => setCurrentPage(pageNumber)}
-                    >
-                      {pageNumber}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {totalPages > 10 && (
-                <>
-                  <span className="text-gray-400 px-2">...</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-10 h-10 p-0 rounded-lg border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
-                    onClick={() => setCurrentPage(totalPages)}
-                  >
-                    {totalPages}
-                  </Button>
-                </>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="rounded-lg border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 px-4 py-2"
-              >
-                Siguiente
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Paginación */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          showInfo={true}
+        />
       </div>
 
       {/* Modales */}

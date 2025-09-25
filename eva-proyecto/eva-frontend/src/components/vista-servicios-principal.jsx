@@ -30,6 +30,7 @@ import UIModalCrearZona from "@/components/modals/ui-modal-crear-zona";
 import UIModalCrearSede from "@/components/modals/ui-modal-crear-sede";
 import UIModalAgregarArea from "@/components/modals/ui-modal-agregar-area";
 import UIModalVerServicio from "@/components/modals/ui-modal-ver-servicio";
+import Pagination from "@/components/common/Pagination";
 
 export default function VistaServiciosPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -403,48 +404,14 @@ export default function VistaServiciosPrincipal() {
             </div>
 
             {/* Paginación */}
-            <div className="p-6 border-t border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-gray-600">
-                  Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, totalItems)} de{" "}
-                  {totalItems} entradas
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                  >
-                    Anterior
-                  </Button>
-
-                  {[...Array(Math.min(5, totalPages))].map((_, i) => (
-                    <Button
-                      key={i + 1}
-                      variant={currentPage === i + 1 ? "default" : "outline"}
-                      size="sm"
-                      className={
-                        currentPage === i + 1 ? "bg-blue-500 text-white" : ""
-                      }
-                      onClick={() => setCurrentPage(i + 1)}
-                    >
-                      {i + 1}
-                    </Button>
-                  ))}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              showInfo={true}
+            />
           </CardContent>
         </Card>
       </div>

@@ -4,6 +4,7 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import SearchableSelect from "../ui/searchable-select"
 
 export default function UIModalAgregarServicio({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
@@ -18,8 +19,23 @@ export default function UIModalAgregarServicio({ isOpen, onClose }) {
     descripcion: "",
     responsable: "",
     telefono: "",
-    email: ""
+    email: "",
+    estado: "ACTIVO"
   })
+
+  // Datos de centros de costo para SearchableSelect
+  const centrosCostoOptions = [
+    { id: "ADMINISTRACION_UES_URGENCIAS", nombre: "ADMINISTRACION UES URGENCIAS" },
+    { id: "ALMACEN_GENERAL", nombre: "ALMACEN GENERAL" },
+    { id: "GINECOBSTETRICIA", nombre: "GINECOBSTETRICIA" },
+    { id: "INVENTARIOS", nombre: "INVENTARIOS" },
+    { id: "HEMODINAMIA", nombre: "HEMODINAMIA" },
+    { id: "CARDIOLOGIA", nombre: "CARDIOLOGIA" },
+    { id: "CIRUGIA_GENERAL", nombre: "CIRUGIA GENERAL" },
+    { id: "LABORATORIO", nombre: "LABORATORIO" },
+    { id: "IMAGENOLOGIA", nombre: "IMAGENOLOGIA" },
+    { id: "UCI", nombre: "UCI" }
+  ]
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -119,23 +135,13 @@ export default function UIModalAgregarServicio({ isOpen, onClose }) {
               <Label htmlFor="centroCosto" className="text-sm font-medium text-gray-700">
                 Centro de costo *
               </Label>
-              <Select onValueChange={(value) => handleInputChange("centroCosto", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar centro de costo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ADMINISTRACION UES URGENCIAS">ADMINISTRACION UES URGENCIAS</SelectItem>
-                  <SelectItem value="ALMACEN GENERAL">ALMACEN GENERAL</SelectItem>
-                  <SelectItem value="GINECOBSTETRICIA">GINECOBSTETRICIA</SelectItem>
-                  <SelectItem value="INVENTARIOS">INVENTARIOS</SelectItem>
-                  <SelectItem value="HEMODINAMIA">HEMODINAMIA</SelectItem>
-                  <SelectItem value="CARDIOLOGIA">CARDIOLOGIA</SelectItem>
-                  <SelectItem value="CIRUGIA GENERAL">CIRUGIA GENERAL</SelectItem>
-                  <SelectItem value="LABORATORIO">LABORATORIO</SelectItem>
-                  <SelectItem value="IMAGENOLOGIA">IMAGENOLOGIA</SelectItem>
-                  <SelectItem value="UCI">UCI</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                placeholder="Buscar o seleccionar centro de costo..."
+                options={centrosCostoOptions}
+                value={formData.centroCosto}
+                onValueChange={(value) => handleInputChange("centroCosto", value)}
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">

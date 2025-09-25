@@ -7,6 +7,7 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Textarea } from "../ui/textarea"
+import SearchableSelect from "../ui/searchable-select"
 import { MapPin } from "lucide-react"
 
 export default function UIModalAgregarArea({ isOpen, onClose }) {
@@ -23,6 +24,24 @@ export default function UIModalAgregarArea({ isOpen, onClose }) {
     descripcion: "",
     estado: "ACTIVA"
   })
+
+  // Datos de servicios para SearchableSelect
+  const serviciosOptions = [
+    { id: "ACONDICIONAMIENTO_FISICO", nombre: "ACONDICIONAMIENTO FISICO" },
+    { id: "SUBESTACION_ELECTRICA", nombre: "SUBESTACION ELECTRICA" },
+    { id: "RADIOTERAPIA", nombre: "RADIOTERAPIA" },
+    { id: "LABORATORIO_CLINICO", nombre: "LABORATORIO CLINICO" },
+    { id: "AMBULANCIA_CARTAGO", nombre: "AMBULANCIA CARTAGO" },
+    { id: "MORGUE", nombre: "MORGUE" },
+    { id: "HEMODINAMIA", nombre: "HEMODINAMIA" },
+    { id: "COMUNICACIONES", nombre: "COMUNICACIONES" },
+    { id: "COORDINACION_ACADEMICA", nombre: "COORDINACION ACADEMICA" },
+    { id: "CONSULTA_EXTERNA", nombre: "CONSULTA EXTERNA" },
+    { id: "CIRUGIA_GENERAL", nombre: "CIRUGIA GENERAL" },
+    { id: "UNIDAD_CUIDADOS_INTENSIVOS", nombre: "UNIDAD CUIDADOS INTENSIVOS" },
+    { id: "FARMACIA", nombre: "FARMACIA" },
+    { id: "IMAGENOLOGIA", nombre: "IMAGENOLOGIA" }
+  ]
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -100,27 +119,13 @@ export default function UIModalAgregarArea({ isOpen, onClose }) {
                 <Label htmlFor="servicio" className="text-sm font-medium text-gray-700">
                   Servicio al que pertenece *
                 </Label>
-                <Select onValueChange={(value) => handleInputChange("servicio", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar servicio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACONDICIONAMIENTO FISICO">ACONDICIONAMIENTO FISICO</SelectItem>
-                    <SelectItem value="SUBESTACION ELECTRICA">SUBESTACION ELECTRICA</SelectItem>
-                    <SelectItem value="RADIOTERAPIA">RADIOTERAPIA</SelectItem>
-                    <SelectItem value="LABORATORIO CLINICO">LABORATORIO CLINICO</SelectItem>
-                    <SelectItem value="AMBULANCIA CARTAGO">AMBULANCIA CARTAGO</SelectItem>
-                    <SelectItem value="MORGUE">MORGUE</SelectItem>
-                    <SelectItem value="HEMODINAMIA">HEMODINAMIA</SelectItem>
-                    <SelectItem value="COMUNICACIONES">COMUNICACIONES</SelectItem>
-                    <SelectItem value="COORDINACION ACADEMICA">COORDINACION ACADEMICA</SelectItem>
-                    <SelectItem value="CONSULTA EXTERNA">CONSULTA EXTERNA</SelectItem>
-                    <SelectItem value="CIRUGIA GENERAL">CIRUGIA GENERAL</SelectItem>
-                    <SelectItem value="UNIDAD CUIDADOS INTENSIVOS">UNIDAD CUIDADOS INTENSIVOS</SelectItem>
-                    <SelectItem value="FARMACIA">FARMACIA</SelectItem>
-                    <SelectItem value="IMAGENOLOGIA">IMAGENOLOGIA</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  placeholder="Buscar o seleccionar servicio..."
+                  options={serviciosOptions}
+                  value={formData.servicio}
+                  onValueChange={(value) => handleInputChange("servicio", value)}
+                  className="w-full"
+                />
               </div>
 
               <div className="space-y-2">

@@ -42,7 +42,7 @@ class ConnectionPool {
           timeout: 5000,
         },
         {
-          url: "http://localhost:8000",
+          url: "http://localhost:8001",
           priority: 2,
           weight: 80,
           maxConnections: 8,

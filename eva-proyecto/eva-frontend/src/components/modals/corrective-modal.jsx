@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import Pagination from "@/components/common/Pagination";
 
 /**
  * Modal de Correctivos Generales - Versión Simplificada
@@ -654,7 +655,7 @@ export function CorrectiveModal({ open, onOpenChange }) {
     if (!fileName) return;
 
     // Construct the URL for the document in Laravel storage
-    const documentUrl = `/storage/correctivos/${fileName}`;
+    const documentUrl = `http://localhost:8001/storage/correctivos_generales/${fileName}`;
 
     // Open document in new window with print functionality
     const newWindow = window.open(documentUrl, "_blank");
@@ -1331,91 +1332,15 @@ export function CorrectiveModal({ open, onOpenChange }) {
               </CardContent>
             </Card>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Card className="flex-shrink-0">
-                <CardContent className="pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                      Página {currentPage} de {totalPages}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(1)}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronsLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handlePageChange(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-
-                      {/* Page numbers with enhanced styling */}
-                      {Array.from(
-                        { length: Math.min(5, totalPages) },
-                        (_, i) => {
-                          const page =
-                            Math.max(
-                              1,
-                              Math.min(totalPages - 4, currentPage - 2)
-                            ) + i;
-                          if (page <= totalPages) {
-                            return (
-                              <Button
-                                key={page}
-                                variant={
-                                  currentPage === page ? "default" : "outline"
-                                }
-                                size="sm"
-                                onClick={() => handlePageChange(page)}
-                                className={
-                                  currentPage === page
-                                    ? "bg-blue-600 hover:bg-blue-700 text-white font-semibold border-blue-600 shadow-md"
-                                    : "hover:bg-blue-50 hover:border-blue-300"
-                                }
-                              >
-                                {page}
-                              </Button>
-                            );
-                          }
-                          return null;
-                        }
-                      )}
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handlePageChange(
-                            Math.min(totalPages, currentPage + 1)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(totalPages)}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronsRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Paginación */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              showInfo={true}
+            />
           </div>
 
           <div className="flex justify-end p-8 border-t gap-4 flex-shrink-0">
