@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Building, FileText } from "lucide-react";
+import { X, Building, FileText, FileSignature } from "lucide-react";
+import WorkOrderClosureModal from "./work-order-closure-modal";
 
 export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
+  const [isWorkOrderModalOpen, setIsWorkOrderModalOpen] = useState(false);
+
   if (!isOpen || !ticket) return null;
 
   const getStatusColor = (status) => {
@@ -153,7 +157,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-y-auto">
+      <div className="bg-white rounded-lg w-[95vw] max-w-7xl max-h-[95vh] overflow-y-auto" style={{width: '95vw', maxWidth: '1400px'}}>
         {/* Header */}
         <div className="bg-blue-600 text-white p-6 rounded-t-lg">
           <div className="flex items-center justify-between">
@@ -179,7 +183,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sede *</label>
-                <p className="text-sm text-gray-900 mt-1">SEDE PRINCIPAL</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.sede_nombre || 'SEDE PRINCIPAL'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Centro de costo *</label>
@@ -187,7 +191,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Servicio *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.origin}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.servicio_nombre || ticket.origin || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">O.T. # *</label>
@@ -195,7 +199,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Área *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.area}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.area_nombre || ticket.area || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">O.T *</label>
@@ -203,7 +207,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Fecha *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.date}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.fecha_inicio ? new Date(ticket.fecha_inicio).toLocaleDateString('es-CO') : ticket.date || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -216,27 +220,27 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Equipo *</label>
-                <p className="text-sm font-medium text-gray-900 mt-1">{ticket.equipo}</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{ticket.equipo_final || ticket.equipo || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Modelo *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.equipo?.split(' ').slice(-1)[0] || 'N/A'}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.modelo_final || ticket.equipo?.split(' ').slice(-1)[0] || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Serie *</label>
-                <p className="text-sm text-gray-900 mt-1">SN-{ticket.id}001</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.serie_final || `SN-${ticket.id}001`}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Marca *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.equipo?.split(' ')[0] || 'N/A'}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.marca_final || ticket.equipo?.split(' ')[0] || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">No. Inventario *</label>
-                <p className="text-sm text-gray-900 mt-1">INV-{ticket.id}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.codigo_final || `INV-${ticket.id}`}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Solicitado por *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.creadoPor}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.reportante_nombre || ticket.creadoPor || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Correo electrónico *</label>
@@ -257,11 +261,11 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border border-gray-200 p-3 rounded col-span-2">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Descripción del problema presentado *</label>
-                <p className="text-sm text-gray-900 mt-1">{ticket.description}</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.descripcion || ticket.description || 'N/A'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Empresa Asignada *</label>
-                <p className="text-sm text-gray-900 mt-1">Hospital Universitario del Valle</p>
+                <p className="text-sm text-gray-900 mt-1">{ticket.empresa_nombre || 'Hospital Universitario del Valle'}</p>
               </div>
               <div className="border border-gray-200 p-3 rounded">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Asignación específica *</label>
@@ -384,8 +388,8 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
               <h3 className="text-lg font-semibold text-gray-900">ESTADO ACTUAL</h3>
             </div>
             <div className="border border-gray-200 p-3 rounded">
-              <Badge className={`${getStatusColor(ticket.status)} border text-sm`}>
-                {ticket.status}
+              <Badge className={`${getStatusColor(ticket.estado || ticket.status)} border text-sm`}>
+                {ticket.estado || ticket.status || 'Sin estado'}
               </Badge>
             </div>
           </div>
@@ -407,9 +411,23 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
               <FileText className="w-4 h-4 mr-2" />
               Imprimir
             </Button>
+            <Button 
+              onClick={() => setIsWorkOrderModalOpen(true)} 
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <FileSignature className="w-4 h-4 mr-2" />
+              Generar Orden Firmada
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Modal de Orden de Cierre con Firma */}
+      <WorkOrderClosureModal
+        open={isWorkOrderModalOpen}
+        onOpenChange={setIsWorkOrderModalOpen}
+        workOrder={ticket}
+      />
     </div>
   );
 }

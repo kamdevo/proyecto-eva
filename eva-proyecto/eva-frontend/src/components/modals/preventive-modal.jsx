@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
-import { Clock, Search, Filter, Download, RefreshCw, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Calendar } from 'lucide-react';
+import { Clock, Search, Filter, Download, RefreshCw, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import httpService from '../../services/httpService';
 import { useAuth } from '../../hooks/useAuth';
@@ -351,51 +351,45 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                   )}
                 </div>
               </th>
-              <th className="min-w-[120px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
-                  onClick={() => handleSort('equipo_id')}>
-                <div className="flex items-center gap-2">
-                  Equipo
-                  {sortField === 'equipo_id' && (
-                    sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                  )}
-                </div>
-              </th>
               <th className="min-w-[200px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
-                Meses Programados
+                Equipo
+              </th>
+              <th className="min-w-[150px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                Descripción
               </th>
               <th className="min-w-[130px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
-                  onClick={() => handleSort('fecha_programada')}>
+                  onClick={() => handleSort('fecha_mantenimiento')}>
                 <div className="flex items-center gap-2">
-                  Fecha Programada
-                  {sortField === 'fecha_programada' && (
+                  Fecha Ejecución
+                  {sortField === 'fecha_mantenimiento' && (
                     sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                   )}
                 </div>
               </th>
-              <th className="min-w-[110px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
-                  onClick={() => handleSort('estado')}>
-                <div className="flex items-center gap-2">
-                  Estado
-                  {sortField === 'estado' && (
-                    sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                  )}
-                </div>
+              <th className="min-w-[130px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                Fecha Programada
+              </th>
+              <th className="min-w-[150px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                Ubicación
+              </th>
+              <th className="min-w-[100px] px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                Repuesto
               </th>
               <th className="min-w-[120px] px-4 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
-                Acciones
+                Archivo
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
                   Cargando...
                 </td>
               </tr>
             ) : preventiveData.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center gap-2">
                     <Clock className="h-8 w-8 text-gray-300" />
                     <p className="text-lg font-medium">No se encontraron mantenimientos preventivos</p>
@@ -411,58 +405,43 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                     <span className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">#{record.id}</span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {record.equipo_id ? (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
-                        Equipo #{record.equipo_id}
-                      </Badge>
-                    ) : (
-                      <span className="text-gray-400 text-sm">Sin asignar</span>
-                    )}
+                  <td className="px-4 py-3">
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900">{record.equipo?.name || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">
+                        Código: {record.equipo?.code || 'N/A'} | Serie: {record.equipo?.serial || 'N/A'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {record.equipo?.marca || ''} {record.equipo?.modelo || ''}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5 max-w-full">
-                      {[
-                        { key: 'mes1', label: 'Ene' },
-                        { key: 'mes2', label: 'Feb' },
-                        { key: 'mes3', label: 'Mar' },
-                        { key: 'mes4', label: 'Abr' },
-                        { key: 'mes5', label: 'May' },
-                        { key: 'mes6', label: 'Jun' },
-                        { key: 'mes7', label: 'Jul' },
-                        { key: 'mes8', label: 'Ago' },
-                        { key: 'mes9', label: 'Sep' },
-                        { key: 'mes10', label: 'Oct' },
-                        { key: 'mes11', label: 'Nov' },
-                        { key: 'mes12', label: 'Dic' }
-                      ].filter(mes => record[mes.key] === 1).map(mes => (
-                        <Badge key={mes.key} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 px-2 py-0.5 font-medium">
-                          {mes.label}
-                        </Badge>
-                      ))}
-                      {[
-                        { key: 'mes1', label: 'Ene' },
-                        { key: 'mes2', label: 'Feb' },
-                        { key: 'mes3', label: 'Mar' },
-                        { key: 'mes4', label: 'Abr' },
-                        { key: 'mes5', label: 'May' },
-                        { key: 'mes6', label: 'Jun' },
-                        { key: 'mes7', label: 'Jul' },
-                        { key: 'mes8', label: 'Ago' },
-                        { key: 'mes9', label: 'Sep' },
-                        { key: 'mes10', label: 'Oct' },
-                        { key: 'mes11', label: 'Nov' },
-                        { key: 'mes12', label: 'Dic' }
-                      ].filter(mes => record[mes.key] === 1).length === 0 && (
-                        <span className="text-gray-400 text-sm italic">Sin programar</span>
-                      )}
+                    <div className="text-sm text-gray-900 max-w-xs truncate" title={record.description}>
+                      {record.description || 'Sin descripción'}
                     </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {record.fecha_mantenimiento ? (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-blue-400" />
+                        <span className="font-medium">
+                          {new Date(record.fecha_mantenimiento).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Sin fecha</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {record.fecha_programada ? (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">
+                        <span>
                           {new Date(record.fecha_programada).toLocaleDateString('es-ES', {
                             year: 'numeric',
                             month: 'short',
@@ -474,48 +453,42 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                       <span className="text-gray-400 text-sm">Sin fecha</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3">
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900">{record.servicio_nombre || 'N/A'}</div>
+                      {record.area_nombre && (
+                        <div className="text-xs text-gray-500">{record.area_nombre}</div>
+                      )}
+                      {record.sede_nombre && (
+                        <div className="text-xs text-gray-500">{record.sede_nombre}</div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
                     <Badge 
-                      variant={getStatusVariant(record.estado)}
-                      className="text-sm px-3 py-1.5 font-medium min-w-fit"
+                      variant={record.repuesto_pendiente === 'si' ? 'destructive' : 'secondary'}
+                      className="text-xs"
                     >
-                      {getStatusLabel(record.estado)}
+                      {record.repuesto_pendiente === 'si' ? 'Pendiente' : 'No'}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-2">
+                    {record.file ? (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => prepareDetail(record)}
+                        onClick={() => {
+                          const fileUrl = `http://localhost:8001/storage/mantenimientos/${record.file}`;
+                          window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                        }}
                         className="hover:bg-blue-50 hover:border-blue-300 px-3 py-2"
-                        title="Ver detalles"
+                        title="Ver documento"
                       >
-                        <Eye className="h-4 w-4" />
+                        <FileText className="h-4 w-4 text-blue-600" />
                       </Button>
-                      {hasPermission('mantenimientos', 'editar') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => prepareEdit(record)}
-                          className="hover:bg-green-50 hover:border-green-300 px-3 py-2"
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {hasPermission('mantenimientos', 'eliminar') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deletePreventive(record.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-300 px-3 py-2"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Sin archivo</span>
+                    )}
                   </td>
                 </tr>
                 );

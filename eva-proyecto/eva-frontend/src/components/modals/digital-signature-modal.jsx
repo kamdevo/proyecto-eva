@@ -266,7 +266,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[90vw] min-w-3xl max-w-5xl mx-auto max-h-[90vh] overflow-y-auto" style={{width: '90vw', maxWidth: '1000px'}}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PenTool className="w-5 h-5 text-blue-600" />

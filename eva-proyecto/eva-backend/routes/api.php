@@ -1148,21 +1148,34 @@ Route::prefix('v1')->group(function () {
             $status = $request->get('status');
             $fechaDesde = $request->get('fecha_desde');
             $fechaHasta = $request->get('fecha_hasta');
+            $sortBy = $request->get('sort_by', 'fecha_mantenimiento');
+            $sortOrder = $request->get('sort_order', 'desc');
             
-            $query = DB::table('planes_mantenimientos')
-                ->select('planes_mantenimientos.*')
-                ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
-                ->selectRaw('equipos.name as equipo_name, equipos.code as equipo_code');
+            // Tabla correcta: mantenimiento con TODOS los joins necesarios
+            $query = DB::table('mantenimiento')
+                ->select('mantenimiento.*')
+                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
+                ->selectRaw('equipos.name as equipo_name, equipos.code as equipo_code, equipos.marca as equipo_marca, equipos.modelo as equipo_modelo, equipos.serial as equipo_serial')
+                ->selectRaw('servicios.name as servicio_nombre')
+                ->selectRaw('areas.name as area_nombre')
+                ->selectRaw('sedes.name as sede_nombre')
+                ->selectRaw('estadoequipos.name as estado_equipo')
+                ->selectRaw('pm.name as proveedor_nombre')
+                ->selectRaw('(SELECT COUNT(*) FROM observaciones WHERE observaciones.preventivo_id = mantenimiento.id) as observaciones_count');
             
             if ($equipoId) {
-                $query->where('planes_mantenimientos.equipo_id', $equipoId);
+                $query->where('mantenimiento.equipo_id', $equipoId);
             }
             
             if ($search) {
                 $query->where(function($q) use ($search) {
-                    $q->where('planes_mantenimientos.descripcion', 'LIKE', "%{$search}%")
-                      ->orWhere('planes_mantenimientos.tipo_mantenimiento', 'LIKE', "%{$search}%")
-                      ->orWhere('planes_mantenimientos.responsable', 'LIKE', "%{$search}%")
+                    $q->where('mantenimiento.description', 'LIKE', "%{$search}%")
+                      ->orWhere('mantenimiento.observacion', 'LIKE', "%{$search}%")
                       ->orWhere('equipos.name', 'LIKE', "%{$search}%")
                       ->orWhere('equipos.code', 'LIKE', "%{$search}%");
                 });
@@ -1170,60 +1183,68 @@ Route::prefix('v1')->group(function () {
             
             // Filtros por rango de fechas
             if ($fechaDesde) {
-                $query->whereDate('planes_mantenimientos.fecha_programada', '>=', $fechaDesde);
+                $query->whereDate('mantenimiento.fecha_mantenimiento', '>=', $fechaDesde);
             }
             
             if ($fechaHasta) {
-                $query->whereDate('planes_mantenimientos.fecha_programada', '<=', $fechaHasta);
+                $query->whereDate('mantenimiento.fecha_mantenimiento', '<=', $fechaHasta);
             }
             
             if ($status && $status !== 'all') {
-                switch ($status) {
-                    case 'programado':
-                        $query->where('planes_mantenimientos.estado', 'programado');
-                        break;
-                    case 'en_progreso':
-                        $query->where('planes_mantenimientos.estado', 'en_progreso');
-                        break;
-                    case 'completado':
-                        $query->where('planes_mantenimientos.estado', 'completado');
-                        break;
-                    case 'cancelado':
-                        $query->where('planes_mantenimientos.estado', 'cancelado');
-                        break;
-                    case 'reprogramado':
-                        $query->where('planes_mantenimientos.estado', 'reprogramado');
-                        break;
-                }
+                // status es numérico en la BD: 1, 2, 3, etc.
+                $query->where('mantenimiento.status', $status);
             }
             
             $total = $query->count();
-            $preventivos = $query->orderBy('planes_mantenimientos.fecha_programada', 'desc')
+            
+            // Ordenamiento
+            $validSortColumns = ['fecha_mantenimiento', 'created_at', 'id'];
+            $sortColumn = in_array($sortBy, $validSortColumns) ? $sortBy : 'fecha_mantenimiento';
+            $sortDirection = strtolower($sortOrder) === 'asc' ? 'asc' : 'desc';
+            
+            $preventivos = $query->orderBy('mantenimiento.' . $sortColumn, $sortDirection)
                                 ->offset(($page - 1) * $perPage)
                                 ->limit($perPage)
                                 ->get();
             
-            // Format data for frontend
+            // Format data for frontend con TODOS los campos de la tabla
             $formattedData = $preventivos->map(function($item) {
                 return [
+                    // Campos propios de mantenimiento
                     'id' => $item->id,
-                    'tipo_mantenimiento' => $item->tipo_mantenimiento ?? '',
-                    'descripcion' => $item->descripcion ?? '',
-                    'fecha_programada' => $item->fecha_programada ?? '',
-                    'fecha_mantenimiento' => $item->fecha_mantenimiento ?? null,
-                    'responsable' => $item->responsable ?? '',
-                    'estado' => $item->estado ?? 'programado',
-                    'observaciones' => $item->observaciones ?? '',
-                    'costo_estimado' => $item->costo_estimado ?? 0,
-                    'repuestos_necesarios' => $item->repuestos_necesarios ?? '',
-                    'frecuencia_dias' => $item->frecuencia_dias ?? null,
                     'equipo_id' => $item->equipo_id,
-                    'equipo' => [
-                        'name' => $item->equipo_name ?? '',
-                        'code' => $item->equipo_code ?? ''
-                    ],
+                    'description' => $item->description ?? '', // Código/descripción del preventivo
+                    'fecha_mantenimiento' => $item->fecha_mantenimiento ?? null,
+                    'fecha_programada' => $item->fecha_programada ?? '',
+                    'file' => $item->file ?? '',
+                    'observacion' => $item->observacion ?? '',
+                    'repuesto_pendiente' => $item->repuesto_pendiente ?? 'no',
+                    'repuesto_id' => $item->repuesto_id ?? null,
+                    'proveedor_mantenimiento_id' => $item->proveedor_mantenimiento_id ?? 0,
+                    'status' => $item->status ?? 1,
                     'created_at' => $item->created_at ?? null,
-                    'updated_at' => $item->updated_at ?? null
+                    
+                    // Datos del equipo (de tabla equipos)
+                    'equipo' => [
+                        'id' => $item->equipo_id,
+                        'name' => $item->equipo_name ?? '',
+                        'code' => $item->equipo_code ?? '', // Código del equipo
+                        'marca' => $item->equipo_marca ?? '',
+                        'modelo' => $item->equipo_modelo ?? '',
+                        'serial' => $item->equipo_serial ?? '' // Serie del equipo
+                    ],
+                    
+                    // Ubicación (de tabla servicios)
+                    'servicio_nombre' => $item->servicio_nombre ?? '',
+                    
+                    // Información adicional
+                    'area_nombre' => $item->area_nombre ?? '',
+                    'sede_nombre' => $item->sede_nombre ?? '',
+                    'estado_equipo' => $item->estado_equipo ?? '',
+                    'proveedor_nombre' => $item->proveedor_nombre ?? '',
+                    
+                    // Conteo de observaciones
+                    'observaciones_count' => $item->observaciones_count ?? 0
                 ];
             });
             
@@ -1238,9 +1259,13 @@ Route::prefix('v1')->group(function () {
                 ]
             ]);
         } catch (\Exception $e) {
+            \Log::error('Error en planes-mantenimientos: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener planes de mantenimiento: ' . $e->getMessage()
+                'message' => 'Error al obtener planes de mantenimiento: ' . $e->getMessage(),
+                'error' => $e->getMessage()
             ], 500);
         }
     });
@@ -2337,6 +2362,485 @@ Route::post('v1/equipos', function(Request $request) {
             'success' => false,
             'message' => 'Error al crear equipo: ' . $e->getMessage()
         ], 500)->header('Access-Control-Allow-Origin', '*');
+    }
+});
+
+// ==========================================
+// ENDPOINTS PÚBLICOS PARA TICKETS Y REPUESTOS
+// ==========================================
+
+// Endpoint público para repuestos instalados
+Route::get('v1/repuestos', function(Request $request) {
+    header('Access-Control-Allow-Origin: *');
+    header('Content-Type: application/json');
+    
+    try {
+        $page = (int)$request->get('page', 1);
+        $perPage = (int)$request->get('per_page', 10);
+        $search = $request->get('search', '');
+        
+        // Verificar que las tablas existen
+        if (!Schema::hasTable('equipo_repuestos')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tabla equipo_repuestos no existe',
+                'data' => [
+                    'data' => [],
+                    'current_page' => 1,
+                    'per_page' => 10,
+                    'total' => 0,
+                    'total_pages' => 0
+                ]
+            ], 200);
+        }
+
+        // Consulta de repuestos instalados
+        $query = DB::table('equipo_repuestos')
+            ->leftJoin('repuestos', 'equipo_repuestos.repuesto_id', '=', 'repuestos.id')
+            ->leftJoin('equipos', 'equipo_repuestos.equipo_id', '=', 'equipos.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->select([
+                'equipo_repuestos.id',
+                'equipo_repuestos.fecha',
+                'repuestos.name as repuesto_nombre',
+                'repuestos.code as repuesto_codigo',
+                'repuestos.precio as repuesto_precio',
+                'equipo_repuestos.cantidad_entregada',
+                'equipos.id as equipo_id',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'equipos.serial as equipo_serial',
+                'equipos.marca as equipo_marca',
+                'equipos.modelo as equipo_modelo',
+                'servicios.name as servicio_nombre',
+                'equipo_repuestos.observacion'
+            ]);
+
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('repuestos.name', 'like', "%{$search}%")
+                  ->orWhere('repuestos.code', 'like', "%{$search}%")
+                  ->orWhere('equipos.name', 'like', "%{$search}%")
+                  ->orWhere('equipos.code', 'like', "%{$search}%");
+            });
+        }
+
+        $total = $query->count();
+        $resultados = $query->orderBy('equipo_repuestos.id', 'desc')
+                       ->offset(($page - 1) * $perPage)
+                       ->limit($perPage)
+                       ->get();
+
+        $data = [];
+        foreach ($resultados as $item) {
+            $precioUnitario = floatval($item->repuesto_precio ?? 0);
+            $cantidad = intval($item->cantidad_entregada ?? 0);
+            
+            $data[] = [
+                'id' => $item->id,
+                'fecha' => $item->fecha ?? 'N/A',
+                'repuesto_nombre' => $item->repuesto_nombre ?? 'N/A',
+                'repuesto_codigo' => $item->repuesto_codigo ?? 'N/A',
+                'cantidad' => $cantidad,
+                'precio_unitario' => $precioUnitario,
+                'precio_total' => $precioUnitario * $cantidad,
+                'equipo_id' => $item->equipo_id,
+                'equipo_nombre' => $item->equipo_nombre ?? 'N/A',
+                'equipo_codigo' => $item->equipo_codigo ?? 'N/A',
+                'equipo_serial' => $item->equipo_serial ?? 'N/A',
+                'equipo_marca' => $item->equipo_marca ?? 'N/A',
+                'equipo_modelo' => $item->equipo_modelo ?? 'N/A',
+                'servicio' => $item->servicio_nombre ?? 'N/A',
+                'observaciones' => $item->observacion ?? '',
+                'instalado_por' => 'N/A'
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $data,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => (int)ceil($total / $perPage)
+            ],
+            'message' => 'Repuestos obtenidos exitosamente'
+        ], 200);
+
+    } catch (\Exception $e) {
+        \Log::error('Error en endpoint repuestos: ' . $e->getMessage());
+        \Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener repuestos',
+            'error' => $e->getMessage(),
+            'data' => [
+                'data' => [],
+                'current_page' => 1,
+                'per_page' => 10,
+                'total' => 0,
+                'total_pages' => 0
+            ]
+        ], 200);
+    }
+});
+
+// Endpoint público para gestión de tickets (todos los tickets del sistema)
+Route::get('v1/gestion-tickets', function(Request $request) {
+    try {
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 10);
+        $search = $request->get('search', '');
+        $estado = $request->get('estado', 'all');
+        $sede = $request->get('sede', 'all');
+        $origen = $request->get('origen', 'all');
+
+        $query = DB::table('ordenes')
+            ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
+            ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+            ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+            ->select([
+                'ordenes.id',
+                'ordenes.descripcion',
+                'ordenes.fecha_inicio',
+                'ordenes.estado_id',
+                'ordenes.prioridad',
+                'ordenes.equipo_id',
+                'ordenes.nombre_equipo',
+                'ordenes.codigo_equipo', 
+                'ordenes.serie_equipo',
+                'subprocesos.nombre as origen',
+                'equipos.name as equipo_name',
+                'equipos.code as equipo_code',
+                'equipos.marca as equipo_marca',
+                'equipos.modelo as equipo_modelo',
+                'equipos.serial as equipo_serial',
+                'reportante.nombre as reportante_nombre',
+                'servicios.name as servicio_nombre',
+                'areas.name as area_nombre',
+                'sedes.name as sede_nombre',
+                'empresas.name as empresa_nombre'
+            ]);
+
+        // Filtro por búsqueda
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('ordenes.descripcion', 'like', "%{$search}%")
+                  ->orWhere('ordenes.id', 'like', "%{$search}%")
+                  ->orWhere('equipos.name', 'like', "%{$search}%")
+                  ->orWhere('equipos.code', 'like', "%{$search}%")
+                  ->orWhere('ordenes.nombre_equipo', 'like', "%{$search}%")
+                  ->orWhere('ordenes.codigo_equipo', 'like', "%{$search}%")
+                  ->orWhere('reportante.nombre', 'like', "%{$search}%")
+                  ->orWhere('empresas.name', 'like', "%{$search}%");
+            });
+        }
+
+        // Filtro por estado
+        if ($estado !== 'all') {
+            $query->where('ordenes.estado_id', $estado);
+        }
+
+        // Filtro por sede
+        if ($sede !== 'all') {
+            $query->where('sedes.name', 'like', "%{$sede}%");
+        }
+
+        // Filtro por origen (subproceso)
+        if ($origen !== 'all') {
+            $query->where('subprocesos.nombre', 'like', "%{$origen}%");
+        }
+
+        $total = $query->count();
+        $tickets = $query->orderBy('ordenes.id', 'desc')
+                       ->offset(($page - 1) * $perPage)
+                       ->limit($perPage)
+                       ->get();
+
+        // Mapear estados, prioridades y información adicional
+        $tickets = $tickets->map(function($ticket) {
+            // Mapear estados
+            switch($ticket->estado_id) {
+                case 1:
+                    $ticket->estado = 'Abierto';
+                    $ticket->estado_color = 'red';
+                    $ticket->estado_info = 'Ticket abierto';
+                    break;
+                case 2:
+                    $ticket->estado = 'Asignado';
+                    $ticket->estado_color = 'yellow';
+                    $ticket->estado_info = [
+                        'empresa' => $ticket->empresa_nombre
+                    ];
+                    break;
+                case 3:
+                    $ticket->estado = 'Diagnosticado';
+                    $ticket->estado_color = 'blue';
+                    $ticket->estado_info = 'Ticket diagnosticado';
+                    break;
+                case 4:
+                    $ticket->estado = 'Cerrado';
+                    $ticket->estado_color = 'green';
+                    $ticket->estado_info = 'Ticket cerrado';
+                    break;
+                case 5:
+                    $ticket->estado = 'Esperando cierre';
+                    $ticket->estado_color = 'green';
+                    $ticket->estado_info = 'Esperando cierre';
+                    break;
+                default:
+                    $ticket->estado = 'Desconocido';
+                    $ticket->estado_color = 'gray';
+                    $ticket->estado_info = 'Estado desconocido';
+            }
+
+            // Mapear prioridades
+            $prioridadLower = strtolower(trim($ticket->prioridad ?? ''));
+            switch($prioridadLower) {
+                case 'baja':
+                case 'low':
+                case 'bajo':
+                case '1':
+                    $ticket->prioridad_texto = 'Baja';
+                    $ticket->prioridad_color = 'green';
+                    break;
+                case 'media':
+                case 'medium':
+                case 'medio':
+                case 'normal':
+                case '2':
+                    $ticket->prioridad_texto = 'Media';
+                    $ticket->prioridad_color = 'yellow';
+                    break;
+                case 'alta':
+                case 'high':
+                case 'alto':
+                case '3':
+                    $ticket->prioridad_texto = 'Alta';
+                    $ticket->prioridad_color = 'orange';
+                    break;
+                case 'critica':
+                case 'crítica':
+                case 'critical':
+                case 'urgente':
+                case 'urgent':
+                case 'muy alta':
+                case '4':
+                    $ticket->prioridad_texto = 'Crítica';
+                    $ticket->prioridad_color = 'red';
+                    break;
+                case '':
+                case null:
+                    $ticket->prioridad_texto = 'Sin definir';
+                    $ticket->prioridad_color = 'gray';
+                    break;
+                default:
+                    $ticket->prioridad_texto = ucfirst($ticket->prioridad);
+                    $ticket->prioridad_color = 'gray';
+            }
+
+            // Información del equipo (priorizar asociado sobre manual)
+            $ticket->equipo_final = $ticket->equipo_name ?: $ticket->nombre_equipo;
+            $ticket->codigo_final = $ticket->equipo_code ?: $ticket->codigo_equipo;
+            $ticket->marca_final = $ticket->equipo_marca ?: 'N/A';
+            $ticket->modelo_final = $ticket->equipo_modelo ?: 'N/A';
+            $ticket->serie_final = $ticket->equipo_serial ?: $ticket->serie_equipo;
+
+            // Indicador de repuesto pendiente
+            $ticket->repuesto_pendiente = false;
+
+            return $ticket;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $tickets,
+                'current_page' => (int)$page,
+                'per_page' => (int)$perPage,
+                'total' => $total,
+                'total_pages' => ceil($total / $perPage)
+            ],
+            'message' => 'Tickets de gestión obtenidos exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo gestión tickets: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Endpoint público para mis tickets (solo tickets del usuario logueado)
+Route::get('v1/mis-tickets', function(Request $request) {
+    try {
+        \Log::info('Endpoint mis-tickets llamado');
+        
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 10);
+        $search = $request->get('search', '');
+        $origen = $request->get('origen', 'all');
+        
+        // Obtener usuario actual
+        $usuarioId = $request->get('usuario_id', 1);
+        
+        \Log::info('Usuario ID: ' . $usuarioId);
+
+        // Verificar tickets del usuario
+        $ticketsUsuario = DB::table('ordenes')->where('reportante_id', $usuarioId)->count();
+        \Log::info('Tickets del usuario ' . $usuarioId . ': ' . $ticketsUsuario);
+
+        $query = DB::table('ordenes')
+            ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
+            ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+            ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+            ->select([
+                'ordenes.id',
+                'ordenes.descripcion',
+                'ordenes.fecha_inicio',
+                'ordenes.estado_id',
+                'ordenes.equipo_id',
+                'ordenes.prioridad',
+                'ordenes.nombre_equipo',
+                'ordenes.codigo_equipo',
+                'ordenes.serie_equipo',
+                'subprocesos.nombre as origen',
+                'equipos.name as equipo_name',
+                'equipos.code as equipo_code',
+                'equipos.marca as equipo_marca',
+                'equipos.modelo as equipo_modelo',
+                'equipos.serial as equipo_serial',
+                'reportante.nombre as reportante_nombre',
+                'servicios.name as servicio_nombre',
+                'areas.name as area_nombre',
+                'sedes.name as sede_nombre',
+                'empresas.name as empresa_nombre'
+            ])
+            ->where('ordenes.reportante_id', $usuarioId);
+
+        // Filtro por búsqueda
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('ordenes.descripcion', 'like', "%{$search}%")
+                  ->orWhere('ordenes.id', 'like', "%{$search}%")
+                  ->orWhere('equipos.name', 'like', "%{$search}%")
+                  ->orWhere('equipos.code', 'like', "%{$search}%")
+                  ->orWhere('ordenes.nombre_equipo', 'like', "%{$search}%")
+                  ->orWhere('ordenes.codigo_equipo', 'like', "%{$search}%");
+            });
+        }
+
+        // Filtro por origen
+        if ($origen !== 'all') {
+            $origenMap = [
+                'biomedico' => 'Equipos biomédicos',
+                'industrial' => 'Equipos industriales', 
+                'infraestructura' => 'Infraestructura'
+            ];
+            if (isset($origenMap[$origen])) {
+                $query->where('subprocesos.nombre', 'like', "%{$origenMap[$origen]}%");
+            }
+        }
+
+        $total = $query->count();
+        $tickets = $query->orderBy('ordenes.id', 'desc')
+                       ->offset(($page - 1) * $perPage)
+                       ->limit($perPage)
+                       ->get();
+
+        // Mapear estados
+        $tickets = $tickets->map(function($ticket) {
+            switch($ticket->estado_id) {
+                case 1:
+                    $ticket->estado = 'Abierto';
+                    $ticket->estado_color = 'red';
+                    break;
+                case 2:
+                    $ticket->estado = 'Asignado';
+                    $ticket->estado_color = 'yellow';
+                    break;
+                case 3:
+                    $ticket->estado = 'Diagnosticado';
+                    $ticket->estado_color = 'blue';
+                    break;
+                case 4:
+                    $ticket->estado = 'Cerrado';
+                    $ticket->estado_color = 'green';
+                    break;
+                case 5:
+                    $ticket->estado = 'Esperando cierre';
+                    $ticket->estado_color = 'green';
+                    break;
+                default:
+                    $ticket->estado = 'Sin definir';
+                    $ticket->estado_color = 'gray';
+            }
+
+            // Mapear prioridad
+            $prioridadTexto = 'Sin definir';
+            $prioridadColor = 'gray';
+            
+            if ($ticket->prioridad) {
+                $prioridadLower = strtolower($ticket->prioridad);
+                if (strpos($prioridadLower, 'critica') !== false || strpos($prioridadLower, 'crítica') !== false) {
+                    $prioridadTexto = 'Crítica';
+                    $prioridadColor = 'red';
+                } elseif (strpos($prioridadLower, 'alta') !== false) {
+                    $prioridadTexto = 'Alta';
+                    $prioridadColor = 'orange';
+                } elseif (strpos($prioridadLower, 'media') !== false) {
+                    $prioridadTexto = 'Media';
+                    $prioridadColor = 'yellow';
+                } elseif (strpos($prioridadLower, 'baja') !== false) {
+                    $prioridadTexto = 'Baja';
+                    $prioridadColor = 'green';
+                } else {
+                    $prioridadTexto = ucfirst($ticket->prioridad);
+                }
+            }
+            
+            $ticket->prioridad_texto = $prioridadTexto;
+            $ticket->prioridad_color = $prioridadColor;
+
+            $ticket->equipo_final = $ticket->equipo_name ?: $ticket->nombre_equipo;
+            $ticket->codigo_final = $ticket->equipo_code ?: $ticket->codigo_equipo;
+            $ticket->marca_final = $ticket->equipo_marca ?: 'N/A';
+            $ticket->modelo_final = $ticket->equipo_modelo ?: 'N/A';
+            $ticket->serie_final = $ticket->equipo_serial ?: $ticket->serie_equipo;
+
+            return $ticket;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $tickets,
+                'current_page' => (int)$page,
+                'per_page' => (int)$perPage,
+                'total' => $total,
+                'total_pages' => ceil($total / $perPage)
+            ],
+            'message' => 'Mis tickets obtenidos exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo mis tickets: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor: ' . $e->getMessage()
+        ], 500);
     }
 });
 
@@ -4998,6 +5502,7 @@ Route::get('v1/test/modal-equipment-data', function () {
 
     // Ruta para eliminar equipos
     Route::delete('equipos/{id}', [\App\Http\Controllers\Api\EquipoController::class, 'destroy']);
+
 });
 
 // Calibraciones (sin autenticación)
@@ -7236,5 +7741,212 @@ Route::post('/planes-mantenimientos/upload-excel', function (Request $request) {
     }
 });
 
+    // ==========================================
+    // ENDPOINTS PARA GESTIÓN DE TICKETS
+    // ==========================================
+
+    // Endpoint para gestión de tickets (todos los tickets del sistema)
+    Route::get('gestion-tickets', function(Request $request) {
+        try {
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 10);
+            $search = $request->get('search', '');
+            $estado = $request->get('estado', 'all');
+            $sede = $request->get('sede', 'all');
+            $origen = $request->get('origen', 'all');
+
+            $query = DB::table('ordenes')
+                ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
+                ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+                ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
+                ->leftJoin('usuarios as asignador', 'ordenes.usuario_asignador_id', '=', 'asignador.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('sedes', 'equipos.sede_id', '=', 'sedes.id')
+                ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+                ->leftJoin('tecnicos', 'ordenes.tecnico_id', '=', 'tecnicos.id')
+                ->leftJoin('estadoequipos', 'equipos.estado_id', '=', 'estadoequipos.id')
+                ->leftJoin('planes_mantenimientos', 'equipos.id', '=', 'planes_mantenimientos.equipo_id')
+                ->select([
+                    'ordenes.id',
+                    'ordenes.descripcion',
+                    'ordenes.fecha_inicio',
+                    'ordenes.estado_id',
+                    'ordenes.prioridad',
+                    'ordenes.nombre_equipo',
+                    'ordenes.codigo_equipo', 
+                    'ordenes.serie_equipo',
+                    'subprocesos.nombre as origen',
+                    'equipos.id as equipo_id',
+                    'equipos.name as equipo_name',
+                    'equipos.code as equipo_code',
+                    'equipos.marca as equipo_marca',
+                    'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serial',
+                    'equipos.localizacion_actual',
+                    'reportante.nombre as reportante_nombre',
+                    'asignador.username as asignador_username',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'sedes.name as sede_nombre',
+                    'empresas.name as empresa_nombre',
+                    'tecnicos.name as tecnico_nombre',
+                    'estadoequipos.name as estado_equipo_nombre',
+                    'planes_mantenimientos.responsable as responsable_mantenimiento'
+                ]);
+
+            // Filtro por búsqueda
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('ordenes.descripcion', 'like', "%{$search}%")
+                      ->orWhere('ordenes.id', 'like', "%{$search}%")
+                      ->orWhere('equipos.name', 'like', "%{$search}%")
+                      ->orWhere('equipos.code', 'like', "%{$search}%")
+                      ->orWhere('ordenes.nombre_equipo', 'like', "%{$search}%")
+                      ->orWhere('ordenes.codigo_equipo', 'like', "%{$search}%")
+                      ->orWhere('reportante.nombre', 'like', "%{$search}%")
+                      ->orWhere('empresas.name', 'like', "%{$search}%");
+                });
+            }
+
+            // Filtro por estado
+            if ($estado !== 'all') {
+                $query->where('ordenes.estado_id', $estado);
+            }
+
+            // Filtro por sede
+            if ($sede !== 'all') {
+                $query->where('sedes.name', 'like', "%{$sede}%");
+            }
+
+            // Filtro por origen (subproceso)
+            if ($origen !== 'all') {
+                $query->where('subprocesos.nombre', 'like', "%{$origen}%");
+            }
+
+            $total = $query->count();
+            $tickets = $query->orderBy('ordenes.id', 'desc')
+                           ->offset(($page - 1) * $perPage)
+                           ->limit($perPage)
+                           ->get();
+
+            // Mapear estados, prioridades y información adicional
+            $tickets = $tickets->map(function($ticket) {
+                // Mapear estados
+                switch($ticket->estado_id) {
+                    case 1:
+                        $ticket->estado = 'Abierto';
+                        $ticket->estado_color = 'red';
+                        $ticket->estado_info = 'Ticket abierto';
+                        break;
+                    case 2:
+                        $ticket->estado = 'Asignado';
+                        $ticket->estado_color = 'yellow';
+                        $ticket->estado_info = [
+                            'empresa' => $ticket->empresa_nombre,
+                            'tecnico' => $ticket->tecnico_nombre,
+                            'asignador' => $ticket->asignador_username
+                        ];
+                        break;
+                    case 3:
+                        $ticket->estado = 'Diagnosticado';
+                        $ticket->estado_color = 'blue';
+                        $ticket->estado_info = 'Ticket diagnosticado';
+                        break;
+                    case 4:
+                        $ticket->estado = 'Cerrado';
+                        $ticket->estado_color = 'green';
+                        $ticket->estado_info = 'Ticket cerrado';
+                        break;
+                    case 5:
+                        $ticket->estado = 'Esperando cierre';
+                        $ticket->estado_color = 'green';
+                        $ticket->estado_info = 'Esperando cierre';
+                        break;
+                    default:
+                        $ticket->estado = 'Desconocido';
+                        $ticket->estado_color = 'gray';
+                        $ticket->estado_info = 'Estado desconocido';
+                }
+
+                // Mapear prioridades
+                $prioridadLower = strtolower(trim($ticket->prioridad ?? ''));
+                switch($prioridadLower) {
+                    case 'baja':
+                    case 'low':
+                    case 'bajo':
+                    case '1':
+                        $ticket->prioridad_texto = 'Baja';
+                        $ticket->prioridad_color = 'green';
+                        break;
+                    case 'media':
+                    case 'medium':
+                    case 'medio':
+                    case 'normal':
+                    case '2':
+                        $ticket->prioridad_texto = 'Media';
+                        $ticket->prioridad_color = 'yellow';
+                        break;
+                    case 'alta':
+                    case 'high':
+                    case 'alto':
+                    case '3':
+                        $ticket->prioridad_texto = 'Alta';
+                        $ticket->prioridad_color = 'orange';
+                        break;
+                    case 'critica':
+                    case 'crítica':
+                    case 'critical':
+                    case 'urgente':
+                    case 'urgent':
+                    case 'muy alta':
+                    case '4':
+                        $ticket->prioridad_texto = 'Crítica';
+                        $ticket->prioridad_color = 'red';
+                        break;
+                    case '':
+                    case null:
+                        $ticket->prioridad_texto = 'Sin definir';
+                        $ticket->prioridad_color = 'gray';
+                        break;
+                    default:
+                        $ticket->prioridad_texto = ucfirst($ticket->prioridad);
+                        $ticket->prioridad_color = 'gray';
+                }
+
+                // Información del equipo (priorizar asociado sobre manual)
+                $ticket->equipo_final = $ticket->equipo_name ?: $ticket->nombre_equipo;
+                $ticket->codigo_final = $ticket->equipo_code ?: $ticket->codigo_equipo;
+                $ticket->marca_final = $ticket->equipo_marca ?: 'N/A';
+                $ticket->modelo_final = $ticket->equipo_modelo ?: 'N/A';
+                $ticket->serie_final = $ticket->equipo_serial ?: $ticket->serie_equipo;
+
+                // Indicador de repuesto pendiente (ejemplo)
+                $ticket->repuesto_pendiente = false; // Implementar lógica según BD
+
+                return $ticket;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $tickets,
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$perPage,
+                    'total' => $total,
+                    'total_pages' => ceil($total / $perPage)
+                ],
+                'message' => 'Tickets obtenidos exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error obteniendo gestión tickets: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    });
+
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
-include __DIR__ . '/equipos-modal.php';
+@include(__DIR__ . '/equipos-modal.php');

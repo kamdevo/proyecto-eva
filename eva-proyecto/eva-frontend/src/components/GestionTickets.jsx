@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTickets } from "@/contexts/TicketsContext";
+import Pagination from "@/components/common/Pagination";
 import TicketDetailsModal from "@/components/modals/ticket-details-complete";
 import TicketEditModal from "@/components/modals/ticket-edit-full";
 import {
@@ -36,71 +36,89 @@ export default function GestionTickets() {
   const [selectedOrigin, setSelectedOrigin] = useState("all");
   const [filterField, setFilterField] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [isHospitalTicketModalOpen, setIsHospitalTicketModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  // const [isEquiposModalOpen, setIsEquiposModalOpen] = useState(false);
-  // const [isPersonalModalOpen, setIsPersonalModalOpen] = useState(false);
-  // const [isParticipantesModalOpen, setIsParticipantesModalOpen] = useState(false);
-  // const [isCierreModalOpen, setIsCierreModalOpen] = useState(false);
   const [ticketType, setTicketType] = useState("");
 
-  const { filterTickets, updateTicket } = useTickets();
+  // Estados para datos reales
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  // Usuario actual simulado - en producción vendría de autenticación
+  // Filtros adicionales para gestión
+  const [estadoFilter, setEstadoFilter] = useState("all");
+  const [sedeFilter, setSedeFilter] = useState("all");
 
-  const [roleFilter, setRoleFilter] = useState("all");
+  const getStatusBadge = (status, color) => {
+    const colorClasses = {
+      red: "bg-red-100 text-red-800 border-red-200",
+      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200", 
+      blue: "bg-blue-100 text-blue-800 border-blue-200",
+      green: "bg-green-100 text-green-800 border-green-200",
+      gray: "bg-gray-100 text-gray-800 border-gray-200"
+    };
 
-  const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case "cerrado":
-      case "completado":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "en proceso":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "pendiente":
-        return "bg-orange-100 text-orange-800 border-orange-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+    return (
+      <Badge className={`${colorClasses[color] || colorClasses.gray} border text-xs`}>
+        {status}
+      </Badge>
+    );
+  };
+
+  const getPriorityBadge = (priority, color) => {
+    const colorClasses = {
+      red: "bg-red-500 text-white border-red-600",
+      orange: "bg-orange-100 text-orange-800 border-orange-200",
+      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      green: "bg-green-100 text-green-800 border-green-200",
+      gray: "bg-gray-100 text-gray-800 border-gray-200"
+    };
+
+    return (
+      <Badge className={`${colorClasses[color] || colorClasses.gray} border text-xs`}>
+        {priority}
+      </Badge>
+    );
+  };
+
+  // Función para obtener tickets reales del API
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:8001/api/v1/gestion-tickets?page=${currentPage}&per_page=${itemsPerPage}&search=${searchTerm}&origen=${selectedOrigin}&estado=${estadoFilter}&sede=${sedeFilter}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener tickets');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setTickets(result.data.data || []);
+        setTotalPages(result.data.total_pages || 1);
+        setTotalItems(result.data.total || 0);
+      } else {
+        console.error('Error en respuesta:', result.message);
+        setTickets([]);
+      }
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      setTickets([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority.toLowerCase()) {
-      case "crítica":
-        return "bg-red-500 text-white border-red-600";
-      case "alta":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "media":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "baja":
-        return "bg-green-100 text-green-800 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
+  // Cargar tickets al montar el componente y cuando cambien los filtros
+  useEffect(() => {
+    fetchTickets();
+  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, estadoFilter, sedeFilter]);
 
-  let filteredTickets = filterTickets(searchTerm, selectedOrigin, filterField);
-  
-  // Filtro adicional por rol de usuario
-  if (roleFilter !== "all") {
-    filteredTickets = filteredTickets.filter(ticket => ticket.tipo === roleFilter);
-  }
-  
-  filteredTickets = filteredTickets.map(ticket => ({
-    ...ticket,
-    origen: ticket.origin,
-    descripcion: ticket.description,
-    fechaCreacion: `${ticket.date} ${ticket.time}`,
-    estado: ticket.status
-  }));
-
-  const itemsPerPage = 5;
-  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTickets = filteredTickets.slice(startIndex, endIndex);
+  const currentTickets = tickets; // Ya viene paginado del API
 
   const openDocumentModal = (ticket) => {
     setSelectedTicket(ticket);
@@ -118,14 +136,9 @@ export default function GestionTickets() {
   };
 
   const handleUpdateTicket = (updatedTicket) => {
-    updateTicket(updatedTicket);
+    // Actualizar ticket y recargar datos
+    fetchTickets();
     setIsEditModalOpen(false);
-    // setIsEquiposModalOpen(false);
-    // setIsPersonalModalOpen(false);
-    // setIsParticipantesModalOpen(false);
-    // setIsCierreModalOpen(false);
-    // Forzar re-render de la tabla
-    setCurrentPage(currentPage);
   };
 
   // Mobile Card Component
@@ -136,9 +149,7 @@ export default function GestionTickets() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold text-sm sm:text-base md:text-lg text-gray-900">#{ticket.id}</h3>
-              <Badge className={`${getStatusColor(ticket.estado)} border text-xs`}>
-                {ticket.estado}
-              </Badge>
+              {getStatusBadge(ticket.estado, ticket.estado_color)}
             </div>
             <p className="text-xs sm:text-sm text-blue-600 font-medium">{ticket.origen}</p>
           </div>
@@ -229,34 +240,31 @@ export default function GestionTickets() {
             <p className="text-xs sm:text-sm font-medium text-gray-800">{ticket.descripcion}</p>
           </div>
           <div className="grid grid-cols-1 gap-1 text-xs text-gray-600">
-            <div><span className="font-medium">Creado por:</span> {ticket.creadoPor}</div>
-            <div><span className="font-medium">Asignado a:</span> {ticket.asignadoA}</div>
-            <div><span className="font-medium">Área:</span> {ticket.area}</div>
-            <div><span className="font-medium">Equipo:</span> {ticket.equipo}</div>
-            {ticket.equiposAsociados?.length > 0 && (
-              <div><span className="font-medium text-green-600">✓ Equipos:</span> {ticket.equiposAsociados.length} asociados</div>
+            <div><span className="font-medium">Reportante:</span> {ticket.reportante_nombre}</div>
+            <div><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
+            <div><span className="font-medium">Sede:</span> {ticket.sede_nombre || 'N/A'}</div>
+            <div><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>
+            <div><span className="font-medium">Equipo:</span> {ticket.equipo_final}</div>
+            <div><span className="font-medium">Código:</span> {ticket.codigo_final}</div>
+            <div><span className="font-medium">Marca:</span> {ticket.marca_final}</div>
+            <div><span className="font-medium">Modelo:</span> {ticket.modelo_final}</div>
+            <div><span className="font-medium">Serie:</span> {ticket.serie_final}</div>
+            {ticket.equipo_id && (
+              <div><span className="font-medium text-blue-600">🔗 ID Equipo:</span> {ticket.equipo_id}</div>
             )}
-            {ticket.personalAsociado?.length > 0 && (
-              <div><span className="font-medium text-purple-600">✓ Personal:</span> {ticket.personalAsociado.length} asociados</div>
-            )}
-            {ticket.participantes?.length > 0 && (
-              <div><span className="font-medium text-indigo-600">✓ Participantes:</span> {ticket.participantes.length} agregados</div>
-            )}
-            {ticket.cierreData?.firma && (
-              <div><span className="font-medium text-red-600">✓ Firmado</span></div>
+            {ticket.repuesto_pendiente && (
+              <div><span className="font-medium text-orange-600">⚠️ RP</span> Repuesto pendiente</div>
             )}
             <div className="flex items-center">
               <Calendar className="h-3 w-3 mr-1 text-gray-400" />
               <span className="font-medium mr-1">Fecha:</span>
-              {ticket.fechaCreacion}
+              {new Date(ticket.fecha_inicio).toLocaleDateString('es-CO')}
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-1">
-          <Badge className={`${getPriorityColor(ticket.prioridad)} border text-xs`}>
-            {ticket.prioridad}
-          </Badge>
+          {getPriorityBadge(ticket.prioridad_texto, ticket.prioridad_color)}
         </div>
       </CardContent>
     </Card>
@@ -321,18 +329,32 @@ export default function GestionTickets() {
         </div>
 
         {/* Search and Filter */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
           <div>
-            <Label className="text-sm font-medium text-gray-700">Tipo de Vista</Label>
+            <Label className="text-sm font-medium text-gray-700">Estado</Label>
             <select 
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
+              value={estadoFilter}
+              onChange={(e) => setEstadoFilter(e.target.value)}
               className="mt-1 appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
             >
-              <option value="all">Todos los Tipos</option>
-              <option value="biomedico">Solo Biomédicos</option>
-              <option value="industrial">Solo Industriales</option>
-              <option value="infraestructura">Solo Infraestructura</option>
+              <option value="all">Todos los Estados</option>
+              <option value="1">Abierto</option>
+              <option value="2">Asignado</option>
+              <option value="3">Diagnosticado</option>
+              <option value="4">Cerrado</option>
+              <option value="5">Esperando cierre</option>
+            </select>
+          </div>
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Sede</Label>
+            <select 
+              value={sedeFilter}
+              onChange={(e) => setSedeFilter(e.target.value)}
+              className="mt-1 appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+            >
+              <option value="all">Todas las Sedes</option>
+              <option value="principal">Principal</option>
+              <option value="norte">Norte</option>
             </select>
           </div>
           <div>
@@ -375,7 +397,8 @@ export default function GestionTickets() {
                   setSearchTerm("");
                   setSelectedOrigin("all");
                   setFilterField("all");
-                  setRoleFilter("all");
+                  setEstadoFilter("all");
+                  setSedeFilter("all");
                 }}
                 title="Borrar filtros"
                 className="px-3"
@@ -401,21 +424,44 @@ export default function GestionTickets() {
 
         {/* Records Count */}
         <div className="text-xs sm:text-sm text-gray-600">
-          Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)} de {filteredTickets.length}
+          {loading ? (
+            "Cargando tickets..."
+          ) : (
+            `Mostrando ${totalItems} tickets del sistema`
+          )}
         </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center py-8">
+            <div className="text-gray-500">Cargando tickets...</div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && tickets.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+            <FolderOpen className="w-12 h-12 mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium mb-2">No hay tickets</h3>
+            <p className="text-sm">No se encontraron tickets con los filtros aplicados.</p>
+          </div>
+        )}
       </div>
 
       {/* Mobile/Tablet View - Cards */}
-      <div className="block lg:hidden">
-        <div className="space-y-4">
-          {currentTickets.map((ticket) => (
-            <TicketCard key={ticket.id} ticket={ticket} />
-          ))}
+      {!loading && tickets.length > 0 && (
+        <div className="block lg:hidden">
+          <div className="space-y-4">
+            {currentTickets.map((ticket) => (
+              <TicketCard key={ticket.id} ticket={ticket} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Desktop View - Table */}
-      <div className="hidden lg:block">
+      {!loading && tickets.length > 0 && (
+        <div className="hidden lg:block">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1000px] border-collapse border border-gray-300">
@@ -451,7 +497,7 @@ export default function GestionTickets() {
                       <div className="space-y-1">
                         <div className="text-sm font-bold text-gray-900">#{ticket.id}</div>
                         <div className="text-xs text-blue-600 font-medium truncate">{ticket.origen}</div>
-                        <div className="text-xs text-gray-500">{ticket.fechaCreacion}</div>
+                        <div className="text-xs text-gray-500">{new Date(ticket.fecha_inicio).toLocaleDateString('es-CO')}</div>
                       </div>
                     </td>
                     <td className="px-3 py-4 border-r border-gray-300 bg-green-25 max-w-md">
@@ -460,20 +506,25 @@ export default function GestionTickets() {
                           {ticket.descripcion}
                         </div>
                         <div className="text-xs text-gray-600">
-                          <div><span className="font-medium">Área:</span> {ticket.area}</div>
-                          <div><span className="font-medium">Equipo:</span> {ticket.equipo}</div>
+                          <div><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
+                          <div><span className="font-medium">Sede:</span> {ticket.sede_nombre || 'N/A'}</div>
+                          <div><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>
+                          <div><span className="font-medium">Equipo:</span> {ticket.equipo_final}</div>
+                          <div><span className="font-medium">Código:</span> {ticket.codigo_final}</div>
+                          <div><span className="font-medium">Marca:</span> {ticket.marca_final} | <span className="font-medium">Modelo:</span> {ticket.modelo_final}</div>
+                          <div><span className="font-medium">Serie:</span> {ticket.serie_final}</div>
                           <div className="flex flex-wrap gap-1 text-xs mt-1">
-                            {ticket.equiposAsociados?.length > 0 && (
-                              <span className="text-green-600 font-medium bg-green-100 px-1 rounded">✓E:{ticket.equiposAsociados.length}</span>
+                            {ticket.equipo_id && (
+                              <span className="text-blue-600 font-medium bg-blue-100 px-1 rounded">🔗ID:{ticket.equipo_id}</span>
                             )}
-                            {ticket.personalAsociado?.length > 0 && (
-                              <span className="text-purple-600 font-medium bg-purple-100 px-1 rounded">✓P:{ticket.personalAsociado.length}</span>
+                            {ticket.repuesto_pendiente && (
+                              <span className="text-orange-600 font-medium bg-orange-100 px-1 rounded">⚠️RP</span>
                             )}
-                            {ticket.participantes?.length > 0 && (
-                              <span className="text-indigo-600 font-medium bg-indigo-100 px-1 rounded">✓Pt:{ticket.participantes.length}</span>
+                            {ticket.responsable_mantenimiento && (
+                              <span className="text-purple-600 font-medium bg-purple-100 px-1 rounded">👤{ticket.responsable_mantenimiento}</span>
                             )}
-                            {ticket.cierreData?.firma && (
-                              <span className="text-red-600 font-medium bg-red-100 px-1 rounded">✓F</span>
+                            {ticket.estado_equipo_nombre && (
+                              <span className="text-green-600 font-medium bg-green-100 px-1 rounded">⚙️{ticket.estado_equipo_nombre}</span>
                             )}
                           </div>
                         </div>
@@ -482,24 +533,24 @@ export default function GestionTickets() {
                     <td className="px-3 py-4 border-r border-gray-300 bg-purple-25">
                       <div className="space-y-2">
                         <div className="text-xs text-gray-600">
-                          <div className="font-medium text-gray-700">Creado por:</div>
-                          <div className="text-gray-900 truncate">{ticket.creadoPor}</div>
+                          <div className="font-medium text-gray-700">Reportante:</div>
+                          <div className="text-gray-900 truncate">{ticket.reportante_nombre}</div>
                         </div>
-                        <div className="text-xs text-gray-600">
-                          <div className="font-medium text-gray-700">Asignado a:</div>
-                          <div className="text-gray-900 truncate">{ticket.asignadoA}</div>
-                        </div>
+                        {ticket.estado_id === 2 && ticket.estado_info && typeof ticket.estado_info === 'object' && (
+                          <div className="text-xs text-gray-600">
+                            <div className="font-medium text-gray-700">Asignado a:</div>
+                            <div className="text-gray-900 truncate">{ticket.estado_info.empresa || 'N/A'}</div>
+                            <div className="text-gray-900 truncate">{ticket.estado_info.tecnico || 'N/A'}</div>
+                            <div className="text-gray-500 text-xs">Por: {ticket.estado_info.asignador || 'N/A'}</div>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-4 border-r border-gray-300 bg-yellow-25 text-center">
-                      <Badge className={`${getStatusColor(ticket.estado)} border text-xs`}>
-                        {ticket.estado}
-                      </Badge>
+                      {getStatusBadge(ticket.estado, ticket.estado_color)}
                     </td>
                     <td className="px-3 py-4 border-r border-gray-300 bg-red-25 text-center">
-                      <Badge className={`${getPriorityColor(ticket.prioridad)} border text-xs`}>
-                        {ticket.prioridad}
-                      </Badge>
+                      {getPriorityBadge(ticket.prioridad_texto, ticket.prioridad_color)}
                     </td>
                     <td className="px-2 py-4 bg-orange-25">
                       <div className="grid grid-cols-3 gap-1 w-full max-w-[180px]">
@@ -589,85 +640,18 @@ export default function GestionTickets() {
             </table>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Pagination */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-3 sm:px-6 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
-            <span>
-              Mostrando {startIndex + 1} a{" "}
-              {Math.min(endIndex, filteredTickets.length)} de{" "}
-              {filteredTickets.length} registros
-            </span>
-          </div>
-          <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="border-gray-300 text-xs sm:text-sm px-2 sm:px-3"
-            >
-              <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline ml-1">Anterior</span>
-            </Button>
-
-            <div className="flex items-center space-x-1">
-              {/* Mobile: Show only current page and total */}
-              <div className="block sm:hidden">
-                <span className="text-xs text-gray-600">
-                  {currentPage} / {totalPages}
-                </span>
-              </div>
-
-              {/* Desktop: Show page numbers */}
-              <div className="hidden sm:flex items-center space-x-1">
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let page;
-                  if (totalPages <= 5) {
-                    page = i + 1;
-                  } else if (currentPage <= 3) {
-                    page = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    page = totalPages - 4 + i;
-                  } else {
-                    page = currentPage - 2 + i;
-                  }
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className={`text-xs px-2 ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="border-gray-300 text-xs sm:text-sm px-2 sm:px-3"
-            >
-              <span className="hidden sm:inline mr-1">Siguiente</span>
-              <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        loading={loading}
+      />
 
       {/* Ticket Details Modal */}
       <TicketDetailsModal

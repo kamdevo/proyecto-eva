@@ -347,12 +347,18 @@ export default function WorkOrderClosureModal({
   const [orderData, setOrderData] = useState({
     orderNumber: workOrder?.id || `ORD-${Date.now()}`,
     closureDate: new Date().toISOString().split('T')[0],
-    workType: workOrder?.type || 'Mantenimiento Correctivo',
+    workType: workOrder?.tipo || workOrder?.type || 'Mantenimiento Correctivo',
     status: 'Completado',
-    equipmentName: workOrder?.equipment?.name || '',
-    equipmentCode: workOrder?.equipment?.code || '',
-    location: workOrder?.equipment?.location || '',
-    service: workOrder?.equipment?.service || '',
+    equipmentName: workOrder?.equipo_final || workOrder?.equipo || workOrder?.equipment?.name || '',
+    equipmentCode: workOrder?.codigo_final || workOrder?.equipment?.code || '',
+    equipmentModel: workOrder?.modelo_final || '',
+    equipmentBrand: workOrder?.marca_final || '',
+    equipmentSerial: workOrder?.serie_final || '',
+    location: workOrder?.area_nombre || workOrder?.equipment?.location || '',
+    service: workOrder?.servicio_nombre || workOrder?.equipment?.service || '',
+    sede: workOrder?.sede_nombre || 'SEDE PRINCIPAL',
+    reportedBy: workOrder?.reportante_nombre || workOrder?.creadoPor || '',
+    description: workOrder?.descripcion || workOrder?.description || '',
     workDescription: '',
     observations: '',
   });
@@ -447,7 +453,7 @@ export default function WorkOrderClosureModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] min-w-6xl max-w-7xl mx-auto max-h-[90vh] overflow-y-auto" style={{width: '95vw', maxWidth: '1400px'}}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardCheck className="w-6 h-6 text-green-600" />

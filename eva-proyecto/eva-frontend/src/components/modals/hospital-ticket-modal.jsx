@@ -7,13 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Building, Upload, PenTool } from "lucide-react";
+import { Building, Upload, PenTool, Search } from "lucide-react";
 import DigitalSignatureModal from "./digital-signature-modal";
 import EvidenceUploadModal from "./evidence-upload-modal";
+import EquipmentSearchModal from "./equipment-search-modal";
 
 export default function HospitalTicketModal({ isOpen, onClose, ticketType = "biomedico" }) {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
+  const [isEquipmentSearchModalOpen, setIsEquipmentSearchModalOpen] = useState(false);
   const [currentSigner, setCurrentSigner] = useState("");
 
   const [formData, setFormData] = useState({
@@ -35,6 +37,20 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
   const handleSignature = (signerType) => { setCurrentSigner(signerType); setIsSignatureModalOpen(true); };
   const saveSignature = (signatureData) => setFormData(prev => ({ ...prev, [`firma${currentSigner}`]: signatureData }));
   const saveEvidences = (evidences) => setFormData(prev => ({ ...prev, evidencias: evidences }));
+  
+  // Función para manejar la selección de equipo desde el modal de búsqueda
+  const handleSelectEquipment = (equipo) => {
+    setFormData(prev => ({
+      ...prev,
+      equipo: equipo.name || '',
+      modelo: equipo.modelo || '',
+      serie: equipo.serial || '',
+      marca: equipo.marca || '',
+      numeroInventario: equipo.code || '',
+      servicio: equipo.servicios || prev.servicio,
+      area: equipo.area || prev.area
+    }));
+  };
 
   const handleSubmit = () => {
     // Detectar campos completados
@@ -184,10 +200,20 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
 
           {/* Información del Equipo */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              Información del Equipo
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                Información del Equipo
+              </h3>
+              <Button
+                type="button"
+                onClick={() => setIsEquipmentSearchModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 h-8"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Buscar equipos en la base de datos
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Equipo</Label>
@@ -400,6 +426,12 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
 
         <DigitalSignatureModal isOpen={isSignatureModalOpen} onClose={() => setIsSignatureModalOpen(false)} onSave={saveSignature} signerName={currentSigner} />
         <EvidenceUploadModal isOpen={isEvidenceModalOpen} onClose={() => setIsEvidenceModalOpen(false)} onSave={saveEvidences} ticketType={ticketType} />
+        <EquipmentSearchModal 
+          isOpen={isEquipmentSearchModalOpen} 
+          onClose={() => setIsEquipmentSearchModalOpen(false)} 
+          onSelectEquipment={handleSelectEquipment}
+          ticketType={ticketType}
+        />
       </DialogContent>
     </Dialog>
   );

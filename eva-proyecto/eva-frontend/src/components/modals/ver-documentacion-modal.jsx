@@ -86,14 +86,36 @@ const documentacionEjemplo = {
 };
 
 export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
+  // Función para DESCARGAR el documento (sin abrirlo)
   const handleDownload = (documento) => {
     console.log("Descargando documento:", documento.nombre);
-    // Aquí iría la lógica para descargar el documento
+    
+    if (!documento.url || documento.url === '#') {
+      console.warn('URL del documento no disponible');
+      return;
+    }
+
+    // Crear un enlace temporal para forzar la descarga
+    const link = document.createElement('a');
+    link.href = documento.url;
+    link.download = documento.nombre || 'documento.pdf'; // Forzar descarga con nombre
+    link.target = '_self'; // No abrir en nueva pestaña
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
+  // Función para VISUALIZAR el documento (abrirlo en el navegador)
   const handleViewDocument = (documento) => {
     console.log("Visualizando documento:", documento.nombre);
-    // Aquí iría la lógica para abrir el documento
+    
+    if (!documento.url || documento.url === '#') {
+      console.warn('URL del documento no disponible');
+      return;
+    }
+
+    // Abrir en nueva pestaña para visualizar
+    window.open(documento.url, '_blank', 'noopener,noreferrer');
   };
 
   const getEstadoColor = (estado) => {

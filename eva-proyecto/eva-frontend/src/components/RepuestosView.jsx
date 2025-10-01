@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Pagination from "@/components/common/Pagination";
 import {
   Select,
   SelectContent,
@@ -57,7 +58,44 @@ import {
   Settings
 } from "lucide-react";
 
-// Datos simulados del sistema completo de repuestos
+// Función para obtener repuestos desde el API
+const fetchRepuestosFromAPI = async (page = 1, perPage = 10, search = '', grupo = 'all') => {
+  try {
+    // Usar ruta relativa para aprovechar el proxy de Vite
+    const url = `/api/v1/repuestos?page=${page}&per_page=${perPage}&search=${search}&grupo=${grupo}`;
+    console.log('Fetching from:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    
+    if (!response.ok) {
+      console.error('Response not OK:', response.status, response.statusText);
+      return { data: [], total: 0, current_page: 1, total_pages: 1 };
+    }
+    
+    const result = await response.json();
+    console.log('Result:', result);
+    
+    if (result.success) {
+      return result.data;
+    }
+    return { data: [], total: 0, current_page: 1, total_pages: 1 };
+  } catch (error) {
+    console.error('Error fetching repuestos:', error);
+    console.error('Error details:', error.message, error.stack);
+    return { data: [], total: 0, current_page: 1, total_pages: 1 };
+  }
+};
+
+// Datos iniciales (se reemplazarán con datos del API)
 const initialRepuestos = [
   {
     id: 1,
@@ -283,8 +321,27 @@ const getInversionPorServicio = () => {
 };
 
 function RepuestosView() {
-  const [repuestos, setRepuestos] = useState(initialRepuestos);
+  const [repuestos, setRepuestos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [grupoFilter, setGrupoFilter] = useState('all');
   const [activeTab, setActiveTab] = useState("lista");
+
+  // Cargar repuestos desde el API
+  useEffect(() => {
+    const loadRepuestos = async () => {
+      setLoading(true);
+      const data = await fetchRepuestosFromAPI(currentPage, 10, searchTerm, grupoFilter);
+      setRepuestos(data.data || []);
+      setTotalPages(data.total_pages || 1);
+      setTotalItems(data.total || 0);
+      setLoading(false);
+    };
+    loadRepuestos();
+  }, [currentPage, searchTerm, grupoFilter]);
   const [selectedRepuesto, setSelectedRepuesto] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showStockForm, setShowStockForm] = useState(false);
@@ -2660,13 +2717,36 @@ function RepuestosView() {
     );
   };
 
+  // Estado de carga
+  if (loading && repuestos.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando repuestos...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Encabezado */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Spare parts</h1>
-          <p className="text-lg text-gray-600 mt-1">List</p>
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                <Package className="w-8 h-8" />
+                Gestión de Repuestos
+              </h1>
+              <p className="text-blue-100 mt-2">Sistema de inventario y control de repuestos</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-white">{totalItems}</div>
+              <p className="text-blue-100 text-sm">Total Repuestos</p>
+            </div>
+          </div>
         </div>
 
         {/* Sistema de Notificaciones */}
@@ -2788,24 +2868,25 @@ function RepuestosView() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <div>
-                <Label>Búsqueda</Label>
+                <Label className="text-blue-700 font-medium">Búsqueda</Label>
                 <Input 
-                  placeholder="Nombre o código..."
-                  value={filtros.busqueda}
-                  onChange={(e) => setFiltros({...filtros, busqueda: e.target.value})}
+                  placeholder="Nombre, código o proveedor..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-blue-200 focus:border-blue-500"
                 />
               </div>
               <div>
-                <Label>Grupo</Label>
-                <Select value={filtros.grupo} onValueChange={(value) => setFiltros({...filtros, grupo: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
+                <Label className="text-blue-700 font-medium">Grupo</Label>
+                <Select value={grupoFilter} onValueChange={(value) => setGrupoFilter(value)}>
+                  <SelectTrigger className="border-blue-200">
+                    <SelectValue placeholder="Seleccionar grupo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="MT1">MT1</SelectItem>
-                    <SelectItem value="DM1">DM1</SelectItem>
-                    <SelectItem value="ET1">ET1</SelectItem>
+                    <SelectItem value="all">Todos los grupos</SelectItem>
+                    <SelectItem value="MT1">MT1 - Mantenimiento</SelectItem>
+                    <SelectItem value="DM1">DM1 - Diagnóstico</SelectItem>
+                    <SelectItem value="ET1">ET1 - Electrónica</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3066,161 +3147,76 @@ function RepuestosView() {
 
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Grupo</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead>Precio</TableHead>
-                      <TableHead>Proveedor</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Acciones</TableHead>
+                    <TableRow className="bg-blue-50">
+                      <TableHead className="font-semibold">Fecha</TableHead>
+                      <TableHead className="font-semibold">Repuesto</TableHead>
+                      <TableHead className="font-semibold">Equipo</TableHead>
+                      <TableHead className="font-semibold">Cantidad</TableHead>
+                      <TableHead className="font-semibold">Precio Unit.</TableHead>
+                      <TableHead className="font-semibold">Total</TableHead>
+                      <TableHead className="font-semibold">Servicio</TableHead>
+                      <TableHead className="font-semibold">Instalado Por</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {repuestosPaginados.map((repuesto) => (
-                      <TableRow key={repuesto.id}>
-                        <TableCell className="font-mono">{repuesto.codigo}</TableCell>
-                        <TableCell>{repuesto.nombre}</TableCell>
-                        <TableCell>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                            {repuesto.grupo}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            repuesto.stock <= repuesto.stockMinimo ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                          }`}>
-                            {repuesto.stock}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-semibold">${repuesto.precio.toFixed(2)}</TableCell>
-                        <TableCell className="text-sm">{repuesto.proveedor}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            repuesto.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {repuesto.estado}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => {
-                                setRepuestoDetalle(repuesto);
-                                setShowDetalleRepuesto(true);
-                              }}
-                              title="Ver detalle"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleEditRepuesto(repuesto)}
-                              title="Editar"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleStockFormOpen(repuesto)}
-                              title="Gestionar stock"
-                            >
-                              <Package className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => {
-                                if (repuesto.stock === 0) {
-                                  agregarNotificacion('warning', `${repuesto.nombre} no tiene stock disponible`);
-                                  return;
-                                }
-                                asignarRepuestoAEquipo(repuesto);
-                              }}
-                              title="Asignar a equipo"
-                              disabled={repuesto.stock === 0}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                            {usuarioActual.permisos.includes("eliminar") && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => {
-                                  if (repuesto.stock > 0) {
-                                    agregarNotificacion('warning', `No se puede eliminar ${repuesto.codigo}: tiene stock (${repuesto.stock})`);
-                                    return;
-                                  }
-                                  
-                                  const instalacionesEquipo = equipoRepuestos.filter(er => er.repuestoId === repuesto.id);
-                                  if (instalacionesEquipo.length > 0) {
-                                    agregarNotificacion('warning', `No se puede eliminar ${repuesto.codigo}: está instalado en equipos`);
-                                    return;
-                                  }
-                                  
-                                  if (confirm(`¿Eliminar repuesto ${repuesto.codigo}?\n\nEsta acción no se puede deshacer.`)) {
-                                    setRepuestos(repuestos.filter(r => r.id !== repuesto.id));
-                                    agregarNotificacion('success', `Repuesto ${repuesto.codigo} eliminado`);
-                                  }
-                                }}
-                                title="Eliminar"
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            <span className="ml-3 text-gray-600">Cargando repuestos...</span>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : repuestos.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                          No se encontraron repuestos instalados
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      repuestos.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-blue-50">
+                        <TableCell className="font-mono text-sm">{item.fecha || 'N/A'}</TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium text-blue-700">{item.repuesto_nombre}</div>
+                            <div className="text-xs text-gray-500">Código: {item.repuesto_codigo}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{item.equipo_nombre}</div>
+                            <div className="text-xs text-gray-500">
+                              {item.equipo_codigo} | {item.equipo_marca} {item.equipo_modelo}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-semibold">
+                            {item.cantidad}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-semibold text-green-700">${item.precio_unitario?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell className="font-bold text-green-800">${item.precio_total?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell className="text-sm">{item.servicio}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{item.instalado_por}</TableCell>
+                      </TableRow>
+                    ))
+                    )}
                   </TableBody>
                 </Table>
                 
-                {/* Paginación */}
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-600">
-                    Mostrando {indiceInicio + 1} a {Math.min(indiceInicio + paginacion.porPagina, repuestosFiltrados.length)} de {repuestosFiltrados.length} registros
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      disabled={paginacion.pagina === 1}
-                      onClick={() => setPaginacion({...paginacion, pagina: paginacion.pagina - 1})}
-                    >
-                      Anterior
-                    </Button>
-                    <span className="text-sm">
-                      Página {paginacion.pagina} de {totalPaginas}
-                    </span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      disabled={paginacion.pagina === totalPaginas}
-                      onClick={() => setPaginacion({...paginacion, pagina: paginacion.pagina + 1})}
-                    >
-                      Siguiente
-                    </Button>
-                    <Select 
-                      value={paginacion.porPagina.toString()} 
-                      onValueChange={(value) => setPaginacion({...paginacion, porPagina: parseInt(value), pagina: 1})}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="5">5</SelectItem>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Paginación Global */}
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={10}
+                    onPageChange={(page) => setCurrentPage(page)}
+                    showInfo={true}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -4217,9 +4213,9 @@ function RepuestosView() {
                           {rep.stock}
                         </Badge>
                       </TableCell>
-                      <TableCell>${rep.precio.toFixed(2)}</TableCell>
+                      <TableCell>${(rep.precio || 0).toFixed(2)}</TableCell>
                       <TableCell className="font-semibold text-green-600">
-                        ${(rep.stock * rep.precio).toFixed(2)}
+                        ${((rep.stock || 0) * (rep.precio || 0)).toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))}
