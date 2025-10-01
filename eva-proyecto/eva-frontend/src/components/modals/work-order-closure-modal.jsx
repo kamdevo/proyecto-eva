@@ -37,10 +37,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   header: {
-    textAlign: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
     borderBottom: '2 solid #000',
     paddingBottom: 10,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    objectFit: 'contain',
+  },
+  headerText: {
+    flex: 1,
+    textAlign: 'center',
+    paddingHorizontal: 10,
   },
   title: {
     fontSize: 16,
@@ -117,12 +129,24 @@ const styles = StyleSheet.create({
 const WorkOrderClosurePDF = ({ orderData, signatures, ticketData }) => (
   <Document>
     <Page size="A4" style={styles.page}>
-      {/* Header - Idéntico al formato de impresión */}
+      {/* Header - Con logo del HUV */}
       <View style={styles.header}>
-        <Text style={styles.title}>HOSPITAL UNIVERSITARIO DEL VALLE</Text>
-        <Text style={styles.subtitle}>Evaristo García</Text>
-        <Text style={styles.title}>ORDEN DE CIERRE - TRABAJO COMPLETADO</Text>
-        <Text style={styles.subtitle}>Ticket #{orderData.orderNumber}</Text>
+        {/* Logo del HUV */}
+        <Image 
+          src="/images/logo_huv.jpg" 
+          style={styles.logo}
+        />
+        
+        {/* Texto del header */}
+        <View style={styles.headerText}>
+          <Text style={styles.title}>HOSPITAL UNIVERSITARIO DEL VALLE</Text>
+          <Text style={styles.subtitle}>Evaristo García</Text>
+          <Text style={styles.title}>ORDEN DE CIERRE - TRABAJO COMPLETADO</Text>
+          <Text style={styles.subtitle}>Ticket #{orderData.orderNumber}</Text>
+        </View>
+        
+        {/* Espacio para mantener simetría */}
+        <View style={{ width: 80 }} />
       </View>
 
       {/* ENCABEZADO */}

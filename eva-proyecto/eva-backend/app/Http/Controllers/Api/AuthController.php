@@ -636,4 +636,106 @@ class AuthController extends ApiController
         }
     }
 
+    /**
+     * Actualizar contraseña del usuario autenticado
+     */
+    public function updatePassword(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'current_password' => 'required|string',
+                'new_password' => 'required|string|min:6',
+                'new_password_confirmation' => 'required|string|same:new_password'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validación fallida',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = Auth::user();
+
+            // Verificar contraseña actual
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La contraseña actual es incorrecta'
+                ], 401);
+            }
+
+            // Actualizar contraseña
+            $user->password = Hash::make($request->new_password);
+            $user->save();
+
+            Log::info('Password updated successfully', ['user_id' => $user->id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contraseña actualizada exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating password', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la contraseña'
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar sede preferida del usuario autenticado
+     */
+    public function updateSede(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'sede_preferida' => 'required|string|in:Todo,Sede principal,Sede norte'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validación fallida',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = Auth::user();
+            $user->sede_preferida = $request->sede_preferida;
+            $user->save();
+
+            Log::info('Sede updated successfully', [
+                'user_id' => $user->id,
+                'sede' => $request->sede_preferida
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sede actualizada exitosamente',
+                'data' => [
+                    'sede_preferida' => $user->sede_preferida
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating sede', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la sede'
+            ], 500);
+        }
+    }
+
 }

@@ -48,6 +48,10 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
         Route::put('user/password', [AuthController::class, 'changePassword']);
         Route::post('refresh-token', [AuthController::class, 'refreshToken']);
     
+    // Nuevos endpoints para perfil de usuario
+    Route::post('user/update-password', [AuthController::class, 'updatePassword']);
+    Route::post('user/update-sede', [AuthController::class, 'updateSede']);
+    
     // Gestión de usuarios
     Route::apiResource('usuarios', UsuarioController::class);
         Route::get('usuarios/search', [UsuarioController::class, 'search']);
