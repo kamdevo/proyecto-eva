@@ -1411,56 +1411,600 @@ Route::prefix('v1')->group(function () {
         }
     });
     
-    // Export preventive maintenance plans
+    // Exportar TODOS los preventivos (sin filtros)
     Route::get('planes-mantenimientos/export-excel', function (Request $request) {
         try {
-            $equipoId = $request->get('equipo_id');
+            \Log::info('📊 Exportando TODOS los preventivos');
             
-            $query = DB::table('planes_mantenimientos')
-                ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+            $preventivos = DB::table('mantenimiento')
+                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
                 ->select([
-                    'planes_mantenimientos.*',
-                    'equipos.name as equipo_name',
-                    'equipos.code as equipo_code'
-                ]);
+                    'mantenimiento.id',
+                    'mantenimiento.description',
+                    'mantenimiento.fecha_programada',
+                    'mantenimiento.fecha_mantenimiento',
+                    'mantenimiento.observacion',
+                    'mantenimiento.repuesto_pendiente',
+                    'mantenimiento.status',
+                    'mantenimiento.created_at',
+                    'equipos.name as equipo_nombre',
+                    'equipos.code as equipo_codigo',
+                    'equipos.marca as equipo_marca',
+                    'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serie',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'pm.name as proveedor_nombre'
+                ])
+                ->orderBy('mantenimiento.id', 'desc')
+                ->get();
+
+            \Log::info('✅ Total preventivos a exportar: ' . $preventivos->count());
+
+            // Crear archivo Excel real
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
             
-            if ($equipoId) {
-                $query->where('planes_mantenimientos.equipo_id', $equipoId);
+            // Headers
+            $headers = [
+                'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
+                'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
+                'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Fecha Creación'
+            ];
+            
+            // Estilo para headers
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
+            ];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+                $col++;
             }
             
-            $data = $query->orderBy('planes_mantenimientos.fecha_programada', 'desc')->get();
-            
-            // Create CSV content
-            $csvContent = "Tipo Mantenimiento,Fecha Programada,Fecha Mantenimiento,Equipo,Código Equipo,Descripción,Responsable,Estado,Costo Estimado,Repuestos Necesarios,Observaciones\n";
-            
-            foreach ($data as $row) {
-                $csvContent .= sprintf(
-                    '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' . "\n",
-                    $row->tipo_mantenimiento ?? '',
-                    $row->fecha_programada ?? '',
-                    $row->fecha_mantenimiento ?? '',
-                    $row->equipo_name ?? '',
-                    $row->equipo_code ?? '',
-                    str_replace('"', '""', $row->descripcion ?? ''),
-                    $row->responsable ?? '',
-                    $row->estado ?? '',
-                    $row->costo_estimado ?? '',
-                    str_replace('"', '""', $row->repuestos_necesarios ?? ''),
-                    str_replace('"', '""', $row->observaciones ?? '')
-                );
+            // Datos
+            $row = 2;
+            foreach ($preventivos as $preventivo) {
+                $sheet->setCellValue('A' . $row, $preventivo->id);
+                $sheet->setCellValue('B' . $row, $preventivo->description ?? '');
+                $sheet->setCellValue('C' . $row, $preventivo->fecha_programada ?? '');
+                $sheet->setCellValue('D' . $row, $preventivo->fecha_mantenimiento ?? '');
+                $sheet->setCellValue('E' . $row, $preventivo->observacion ?? '');
+                $sheet->setCellValue('F' . $row, $preventivo->repuesto_pendiente ?? 'no');
+                $sheet->setCellValue('G' . $row, $preventivo->status ?? '');
+                $sheet->setCellValue('H' . $row, $preventivo->equipo_nombre ?? '');
+                $sheet->setCellValue('I' . $row, $preventivo->equipo_codigo ?? '');
+                $sheet->setCellValue('J' . $row, $preventivo->equipo_marca ?? '');
+                $sheet->setCellValue('K' . $row, $preventivo->equipo_modelo ?? '');
+                $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
+                $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
+                $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
+                $sheet->setCellValue('P' . $row, $preventivo->proveedor_nombre ?? '');
+                $sheet->setCellValue('Q' . $row, $preventivo->created_at ?? '');
+                $row++;
             }
             
-            return response($csvContent, 200, [
-                'Content-Type' => 'text/csv',
-                'Content-Disposition' => 'attachment; filename="planes_mantenimiento_' . date('Y-m-d') . '.csv"'
-            ]);
+            // Crear el writer y generar el archivo
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'preventivos_TODOS_' . date('Y-m-d_His') . '.xlsx';
+            
+            // Crear archivo temporal
+            $tempFile = tempnam(sys_get_temp_dir(), 'export_');
+            $writer->save($tempFile);
+            
+            return response()->download($tempFile, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
         } catch (\Exception $e) {
+            \Log::error('❌ Error exportando todos los preventivos: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al exportar planes de mantenimiento: ' . $e->getMessage()
+                'message' => 'Error al exportar preventivos: ' . $e->getMessage()
             ], 500);
         }
     });
+    
+    // Exportar preventivos FILTRADOS/CUSTOM
+    Route::post('planes-mantenimientos/export-custom', function (Request $request) {
+        try {
+            \Log::info('📊 Exportando preventivos FILTRADOS');
+            
+            $ids = collect($request->input('data', []))->pluck('id')->toArray();
+            \Log::info('IDs a exportar: ' . json_encode($ids));
+            
+            if (empty($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay preventivos para exportar'
+                ], 400);
+            }
+            
+            $preventivos = DB::table('mantenimiento')
+                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
+                ->select([
+                    'mantenimiento.id',
+                    'mantenimiento.description',
+                    'mantenimiento.fecha_programada',
+                    'mantenimiento.fecha_mantenimiento',
+                    'mantenimiento.observacion',
+                    'mantenimiento.repuesto_pendiente',
+                    'mantenimiento.status',
+                    'mantenimiento.created_at',
+                    'equipos.name as equipo_nombre',
+                    'equipos.code as equipo_codigo',
+                    'equipos.marca as equipo_marca',
+                    'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serie',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'pm.name as proveedor_nombre'
+                ])
+                ->whereIn('mantenimiento.id', $ids)
+                ->orderBy('mantenimiento.id', 'desc')
+                ->get();
+
+            \Log::info('✅ Total preventivos filtrados: ' . $preventivos->count());
+
+            // Crear archivo Excel real
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Headers
+            $headers = [
+                'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
+                'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
+                'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Fecha Creación'
+            ];
+            
+            // Estilo para headers
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
+            ];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+                $col++;
+            }
+            
+            // Datos
+            $row = 2;
+            foreach ($preventivos as $preventivo) {
+                $sheet->setCellValue('A' . $row, $preventivo->id);
+                $sheet->setCellValue('B' . $row, $preventivo->description ?? '');
+                $sheet->setCellValue('C' . $row, $preventivo->fecha_programada ?? '');
+                $sheet->setCellValue('D' . $row, $preventivo->fecha_mantenimiento ?? '');
+                $sheet->setCellValue('E' . $row, $preventivo->observacion ?? '');
+                $sheet->setCellValue('F' . $row, $preventivo->repuesto_pendiente ?? 'no');
+                $sheet->setCellValue('G' . $row, $preventivo->status ?? '');
+                $sheet->setCellValue('H' . $row, $preventivo->equipo_nombre ?? '');
+                $sheet->setCellValue('I' . $row, $preventivo->equipo_codigo ?? '');
+                $sheet->setCellValue('J' . $row, $preventivo->equipo_marca ?? '');
+                $sheet->setCellValue('K' . $row, $preventivo->equipo_modelo ?? '');
+                $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
+                $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
+                $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
+                $sheet->setCellValue('P' . $row, $preventivo->proveedor_nombre ?? '');
+                $sheet->setCellValue('Q' . $row, $preventivo->created_at ?? '');
+                $row++;
+            }
+            
+            // Crear el writer y generar el archivo
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'preventivos_FILTRADOS_' . date('Y-m-d_His') . '.xlsx';
+            
+            // Crear archivo temporal
+            $tempFile = tempnam(sys_get_temp_dir(), 'export_');
+            $writer->save($tempFile);
+            
+            return response()->download($tempFile, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            \Log::error('❌ Error exportando preventivos filtrados: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar preventivos filtrados: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // =================== NOTIFICACIONES POR CORREO ===================
+    Route::prefix('notifications')->group(function () {
+        
+        // Enviar notificación de repuesto pendiente
+        Route::post('repuesto-pendiente', function (Request $request) {
+            try {
+                \Log::info('📧 Enviando notificación de repuesto pendiente');
+                
+                $preventivoId = $request->input('preventivo_id');
+                
+                // Obtener preventivo con información del equipo
+                $preventivo = DB::table('mantenimiento')
+                    ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                    ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                    ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                    ->select([
+                        'mantenimiento.*',
+                        'equipos.name as equipo_nombre',
+                        'equipos.code as equipo_codigo',
+                        'equipos.marca as equipo_marca',
+                        'equipos.modelo as equipo_modelo',
+                        'equipos.serial as equipo_serie',
+                        'equipos.servicio_id',
+                        'servicios.name as servicio_nombre',
+                        'areas.name as area_nombre'
+                    ])
+                    ->where('mantenimiento.id', $preventivoId)
+                    ->first();
+                
+                if (!$preventivo) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Preventivo no encontrado'
+                    ], 404);
+                }
+                
+                // Obtener usuarios del servicio
+                $usuarios = DB::table('usuarios')
+                    ->where('servicio_id', $preventivo->servicio_id)
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->get();
+                
+                \Log::info('📧 Destinatarios encontrados: ' . $usuarios->count());
+                
+                $enviados = 0;
+                foreach ($usuarios as $usuario) {
+                    try {
+                        \Mail::to($usuario->email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo, $preventivo));
+                        $enviados++;
+                    } catch (\Exception $e) {
+                        \Log::error('Error enviando a ' . $usuario->email . ': ' . $e->getMessage());
+                    }
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => "Notificaciones enviadas a $enviados usuarios",
+                    'enviados' => $enviados
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('❌ Error enviando notificación: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al enviar notificaciones: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+        
+        // Enviar notificación de nuevo ticket
+        Route::post('nuevo-ticket', function (Request $request) {
+            try {
+                \Log::info('📧 Enviando notificación de nuevo ticket');
+                
+                $ticketId = $request->input('ticket_id');
+                
+                // Obtener ticket con información del equipo
+                $ticket = DB::table('ordenes')
+                    ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+                    ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                    ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                    ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                    ->leftJoin('usuarios', 'ordenes.reportante_id', '=', 'usuarios.id')
+                    ->select([
+                        'ordenes.*',
+                        'equipos.name as equipo_nombre',
+                        'equipos.code as equipo_codigo',
+                        'equipos.marca as equipo_marca',
+                        'equipos.modelo as equipo_modelo',
+                        'equipos.serial as equipo_serie',
+                        'servicios.name as servicio_nombre',
+                        'areas.name as area_nombre',
+                        'sedes.name as sede_nombre',
+                        'usuarios.nombre as reportante_nombre'
+                    ])
+                    ->where('ordenes.id', $ticketId)
+                    ->first();
+                
+                if (!$ticket) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ticket no encontrado'
+                    ], 404);
+                }
+                
+                // Obtener técnicos y supervisores
+                $tecnicos = DB::table('tecnicos')
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->get();
+                
+                \Log::info('📧 Destinatarios encontrados: ' . $tecnicos->count());
+                
+                $enviados = 0;
+                foreach ($tecnicos as $tecnico) {
+                    try {
+                        \Mail::to($tecnico->email)->send(new \App\Mail\NuevoTicketEmail($ticket, $ticket));
+                        $enviados++;
+                    } catch (\Exception $e) {
+                        \Log::error('Error enviando a ' . $tecnico->email . ': ' . $e->getMessage());
+                    }
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => "Notificaciones enviadas a $enviados técnicos",
+                    'enviados' => $enviados
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('❌ Error enviando notificación: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al enviar notificaciones: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+        
+        // Demo de correo de repuesto pendiente
+        Route::post('demo-repuesto-pendiente', function (Request $request) {
+            try {
+                $email = $request->input('email', 'test@example.com');
+                $preventivo = (object) $request->input('preventivo', [
+                    'id' => 123,
+                    'fecha_mantenimiento' => '2024-10-02 15:30:00',
+                    'observacion' => 'Equipo requiere calibración urgente',
+                    'servicio_nombre' => 'RADIOLOGÍA',
+                    'area_nombre' => 'Diagnóstico por Imágenes',
+                    'equipo_id' => 456,
+                    'equipo_nombre' => 'Rayos X Portátil',
+                    'equipo_marca' => 'Siemens',
+                    'equipo_modelo' => 'MobileDiagnost wDR',
+                    'equipo_codigo' => 'RX-001-HUV',
+                    'equipo_serie' => 'SN123456789'
+                ]);
+                
+                \Mail::to($email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo, null));
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Demo de correo de repuesto pendiente enviado a ' . $email
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('❌ Error enviando demo de repuesto pendiente: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+        
+        // Demo de correo de nuevo ticket
+        Route::post('demo-nuevo-ticket', function (Request $request) {
+            try {
+                $email = $request->input('email', 'test@example.com');
+                $ticket = (object) $request->input('ticket', [
+                    'id' => 789,
+                    'descripcion' => 'Falla en sistema de refrigeración',
+                    'fecha_inicio' => '2024-10-02 14:15:00',
+                    'prioridad' => 3,
+                    'servicio_nombre' => 'RADIOLOGÍA',
+                    'area_nombre' => 'Resonancia Magnética',
+                    'equipo_id' => 789,
+                    'equipo_nombre' => 'Resonancia Magnética 1.5T',
+                    'equipo_marca' => 'General Electric',
+                    'equipo_modelo' => 'Signa HDxt',
+                    'equipo_codigo' => 'RM-002-HUV',
+                    'equipo_serie' => 'GE987654321',
+                    'reportante_nombre' => 'Dr. Juan Carlos Pérez'
+                ]);
+                
+                \Mail::to($email)->send(new \App\Mail\NuevoTicketEmail($ticket, null));
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Demo de correo de nuevo ticket enviado a ' . $email
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('❌ Error enviando demo de nuevo ticket: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+
+        // Probar configuración de correo
+        Route::post('test-email', function (Request $request) {
+            try {
+                $email = $request->input('email', 'test@example.com');
+                
+                $htmlContent = '
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Correo - Sistema EVA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background-color: #70bbd9;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .subtitle {
+            background-color: #5aa9c9;
+            padding: 15px 20px;
+            text-align: center;
+            color: #ffffff;
+            font-size: 16px;
+            font-style: italic;
+        }
+        .content {
+            padding: 30px 20px;
+            background-color: #ffffff;
+        }
+        .success-box {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .success-box h3 {
+            color: #2e7d32;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .success-box p {
+            color: #388e3c;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .info-section h4 {
+            color: #333333;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .info-row {
+            padding: 5px 0;
+            color: #666666;
+        }
+        .footer {
+            background-color: #ee4c50;
+            padding: 20px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .footer p {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .social-links {
+            margin-top: 15px;
+        }
+        .social-links a {
+            color: #ffffff;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🧪 PRUEBA DE CORREO</h1>
+        </div>
+        
+        <!-- Subtitle -->
+        <div class="subtitle">
+            Eva Gestiona la tecnología
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <div class="success-box">
+                <h3>✅ ¡Configuración Exitosa!</h3>
+                <p>Si recibes este mensaje, la configuración de correo del Sistema EVA está funcionando correctamente.</p>
+            </div>
+            
+            <div class="info-section">
+                <h4>📋 Información del Sistema:</h4>
+                <div class="info-row">• <strong>Sistema:</strong> EVA - Gestión Hospitalaria</div>
+                <div class="info-row">• <strong>Servidor:</strong> Hospital Universitario del Valle</div>
+                <div class="info-row">• <strong>Fecha:</strong> ' . now()->format('d/m/Y H:i:s') . '</div>
+                <div class="info-row">• <strong>Destinatario:</strong> ' . $email . '</div>
+            </div>
+            
+            <div class="info-section">
+                <h4>🎨 Características del Diseño:</h4>
+                <div class="info-row">• <strong>Header:</strong> Azul institucional (#70bbd9)</div>
+                <div class="info-row">• <strong>Footer:</strong> Rojo institucional (#ee4c50)</div>
+                <div class="info-row">• <strong>Tipografía:</strong> Arial, sans-serif</div>
+                <div class="info-row">• <strong>Responsive:</strong> Compatible con todos los dispositivos</div>
+            </div>
+            
+            <p style="text-align: center; margin-top: 30px; color: #666;">
+                <strong>El sistema de notificaciones está listo para usar.</strong>
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Electromedicina, 2019 - Hospital Universitario del valle</strong></p>
+            <div class="social-links">
+                <a href="https://twitter.com/HUValleCali" target="_blank">Twitter</a>
+                <a href="https://www.facebook.com/HUValleCali" target="_blank">Facebook</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>';
+                
+                \Mail::html($htmlContent, function ($message) use ($email) {
+                    $message->to($email)
+                            ->subject('🧪 Prueba Sistema EVA - Hospital Universitario del Valle');
+                });
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Correo de prueba enviado a ' . $email
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('❌ Error enviando correo de prueba: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+    });
+    
     Route::post('equipos/{equipoId}/dar-baja', function (Request $request, $equipoId) {
         try {
             $validator = Validator::make($request->all(), [
@@ -1564,20 +2108,27 @@ Route::prefix('v1')->group(function () {
     // Endpoint para descargar plantilla de mantenimiento
     Route::get('planes-mantenimientos/download-template', function () {
         try {
-            $templatePath = 'C:\Users\Soporte\desktop\EVA\proyecto-eva\eva-proyecto\plantillas\Plantilla importacion cronograma.xlsx';
+            // Ruta correcta: un nivel arriba de eva-backend
+            $templatePath = dirname(base_path()) . '/plantillas/Plantilla importacion cronograma.xlsx';
+            
+            \Log::info('📥 Descargando plantilla desde: ' . $templatePath);
             
             if (!file_exists($templatePath)) {
+                \Log::error('❌ Plantilla no encontrada en: ' . $templatePath);
                 return response()->json([
                     'success' => false,
                     'message' => 'Plantilla no encontrada en: ' . $templatePath
                 ], 404);
             }
             
+            \Log::info('✅ Plantilla encontrada, descargando...');
+            
             return response()->download($templatePath, 'Plantilla_Cronograma_Mantenimiento.xlsx', [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ]);
             
         } catch (\Exception $e) {
+            \Log::error('❌ Error al descargar plantilla: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al descargar plantilla: ' . $e->getMessage()
@@ -1591,33 +2142,64 @@ Route::prefix('v1')->group(function () {
             $year = $request->query('anio', date('Y'));
             $format = $request->query('formato', 'excel');
             
-            // Obtener planes de mantenimiento del año especificado
-            $planes = DB::table('planes_mantenimientos')
-                ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+            \Log::info('📊 Exportando consolidado de mantenimientos - Año: ' . $year);
+            
+            // Obtener mantenimientos del año especificado (tabla correcta: mantenimiento)
+            $planes = DB::table('mantenimiento')
+                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
                 ->select([
-                    'planes_mantenimientos.*',
+                    'mantenimiento.id',
+                    'mantenimiento.description',
+                    'mantenimiento.fecha_programada',
+                    'mantenimiento.fecha_mantenimiento',
+                    'mantenimiento.observacion',
+                    'mantenimiento.repuesto_pendiente',
+                    'mantenimiento.status',
+                    'mantenimiento.created_at',
                     'equipos.name as equipo_nombre',
-                    'equipos.code as equipo_codigo'
+                    'equipos.code as equipo_codigo',
+                    'equipos.marca as equipo_marca',
+                    'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serie',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'sedes.name as sede_nombre',
+                    'pm.name as proveedor_nombre'
                 ])
-                ->whereYear('planes_mantenimientos.fecha_programada', $year)
-                ->orderBy('planes_mantenimientos.fecha_programada')
+                ->whereYear('mantenimiento.fecha_programada', $year)
+                ->orderBy('mantenimiento.fecha_programada')
                 ->get();
+            
+            \Log::info('✅ Total mantenimientos a exportar: ' . $planes->count());
             
             if ($format === 'excel') {
                 // Crear archivo Excel
                 $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                 $sheet = $spreadsheet->getActiveSheet();
                 
-                // Headers
+                // Headers basados en la plantilla
                 $headers = [
-                    'ID', 'Equipo', 'Código', 'Tipo Mantenimiento', 'Descripción',
-                    'Fecha Programada', 'Fecha Realizada', 'Responsable', 'Estado',
-                    'Costo Estimado', 'Observaciones', 'Repuestos Necesarios'
+                    'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
+                    'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
+                    'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Sede', 'Proveedor', 'Fecha Creación'
+                ];
+                
+                // Estilo para headers
+                $headerStyle = [
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+                    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
                 ];
                 
                 $col = 'A';
                 foreach ($headers as $header) {
                     $sheet->setCellValue($col . '1', $header);
+                    $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
+                    $sheet->getColumnDimension($col)->setAutoSize(true);
                     $col++;
                 }
                 
@@ -1625,17 +2207,22 @@ Route::prefix('v1')->group(function () {
                 $row = 2;
                 foreach ($planes as $plan) {
                     $sheet->setCellValue('A' . $row, $plan->id);
-                    $sheet->setCellValue('B' . $row, $plan->equipo_nombre ?? 'Sin equipo');
-                    $sheet->setCellValue('C' . $row, $plan->equipo_codigo ?? 'Sin código');
-                    $sheet->setCellValue('D' . $row, $plan->tipo_mantenimiento);
-                    $sheet->setCellValue('E' . $row, $plan->descripcion);
-                    $sheet->setCellValue('F' . $row, $plan->fecha_programada);
-                    $sheet->setCellValue('G' . $row, $plan->fecha_mantenimiento);
-                    $sheet->setCellValue('H' . $row, $plan->responsable);
-                    $sheet->setCellValue('I' . $row, $plan->estado);
-                    $sheet->setCellValue('J' . $row, $plan->costo_estimado);
-                    $sheet->setCellValue('K' . $row, $plan->observaciones);
-                    $sheet->setCellValue('L' . $row, $plan->repuestos_necesarios);
+                    $sheet->setCellValue('B' . $row, $plan->description ?? '');
+                    $sheet->setCellValue('C' . $row, $plan->fecha_programada ?? '');
+                    $sheet->setCellValue('D' . $row, $plan->fecha_mantenimiento ?? '');
+                    $sheet->setCellValue('E' . $row, $plan->observacion ?? '');
+                    $sheet->setCellValue('F' . $row, $plan->repuesto_pendiente ?? 'no');
+                    $sheet->setCellValue('G' . $row, $plan->status ?? '');
+                    $sheet->setCellValue('H' . $row, $plan->equipo_nombre ?? '');
+                    $sheet->setCellValue('I' . $row, $plan->equipo_codigo ?? '');
+                    $sheet->setCellValue('J' . $row, $plan->equipo_marca ?? '');
+                    $sheet->setCellValue('K' . $row, $plan->equipo_modelo ?? '');
+                    $sheet->setCellValue('L' . $row, $plan->equipo_serie ?? '');
+                    $sheet->setCellValue('M' . $row, $plan->servicio_nombre ?? '');
+                    $sheet->setCellValue('N' . $row, $plan->area_nombre ?? '');
+                    $sheet->setCellValue('O' . $row, $plan->sede_nombre ?? '');
+                    $sheet->setCellValue('P' . $row, $plan->proveedor_nombre ?? '');
+                    $sheet->setCellValue('Q' . $row, $plan->created_at ?? '');
                     $row++;
                 }
                 

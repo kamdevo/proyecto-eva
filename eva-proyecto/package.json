@@ -1,5 +1,9 @@
 {
   "dependencies": {
+    "@react-email/components": "0.5.5",
     "axios": "^1.10.0"
+  },
+  "devDependencies": {
+    "react-email": "4.2.12"
   }
 }

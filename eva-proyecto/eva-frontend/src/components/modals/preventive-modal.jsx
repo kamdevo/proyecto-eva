@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
-import { Clock, Search, Filter, Download, RefreshCw, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Calendar, FileText } from 'lucide-react';
+import { Clock, Search, Filter, Download, RefreshCw, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Calendar, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import httpService from '../../services/httpService';
 import { useAuth } from '../../hooks/useAuth';
@@ -175,31 +175,100 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
     }
   };
 
-  const exportData = async () => {
-    setLoading(true);
+  /**
+   * Exportar TODOS los preventivos (sin filtros)
+   */
+  const handleExportAll = async (format = "excel") => {
     try {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (statusFilter !== 'all') params.append('estado', statusFilter);
-      if (equipoId) params.append('equipo_id', equipoId);
+      setLoading(true);
+      console.log("🔄 [EXPORT] Exportando TODOS los preventivos...");
 
-      const response = await httpService.get(`/v1/export/mantenimientos?${params}`, {
-        responseType: 'blob'
+      const response = await httpService.get(
+        `/v1/planes-mantenimientos/export-${format}`,
+        {
+          responseType: "blob",
+          headers: {
+            Accept: format === "excel"
+              ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              : "text/csv",
+          },
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type: format === "excel"
+          ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          : "text/csv",
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `mantenimientos_preventivos_${new Date().toISOString().split('T')[0]}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `preventivos_TODOS_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xlsx" : "csv"}`;
+      document.body.appendChild(a);
+      a.click();
       window.URL.revokeObjectURL(url);
-      
-      toast.success('Datos exportados exitosamente');
+      document.body.removeChild(a);
+
+      console.log("✅ [EXPORT] Exportación de TODOS completada");
+      toast.success(`Exportación COMPLETA - Todos los preventivos descargados exitosamente`);
     } catch (error) {
-      console.error('Error exporting data:', error);
-      toast.error('Error al exportar los datos');
+      console.error("❌ [EXPORT] Error exportando todos:", error);
+      toast.error("Error durante la exportación de todos los preventivos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Exportar SOLO preventivos filtrados/visibles
+   */
+  const handleExportFiltered = async (format = "excel") => {
+    try {
+      setLoading(true);
+      console.log("🔄 [EXPORT] Exportando preventivos FILTRADOS...", "Total:", preventiveData.length);
+
+      const exportData = preventiveData.map((item) => ({ id: item.id }));
+
+      const response = await httpService.post(
+        "/v1/planes-mantenimientos/export-custom",
+        {
+          data: exportData,
+          format: format,
+          filename: `preventivos_FILTRADOS_${new Date().toISOString().split("T")[0]}`,
+        },
+        {
+          responseType: "blob",
+          headers: {
+            Accept: format === "excel"
+              ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              : "text/csv",
+          },
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type: format === "excel"
+          ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          : "text/csv",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `preventivos_FILTRADOS_${new Date().toISOString().split("T")[0]}.${format === "excel" ? "xlsx" : "csv"}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      console.log("✅ [EXPORT] Exportación FILTRADA completada");
+      toast.success(`Exportación FILTRADA - ${preventiveData.length} preventivos descargados exitosamente`);
+    } catch (error) {
+      console.error("❌ [EXPORT] Error exportando filtrados:", error);
+      toast.error("Error durante la exportación de preventivos filtrados");
     } finally {
       setLoading(false);
     }
@@ -747,7 +816,33 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                 {equipoId && <Badge variant="outline" className="ml-2">Equipo #{equipoId}</Badge>}
               </DialogTitle>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {/* Botón para exportar TODOS los preventivos */}
+              <Button
+                onClick={() => handleExportAll("excel")}
+                variant="default"
+                size="sm"
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                disabled={loading}
+                title="Exportar TODOS los preventivos de la base de datos"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                📊 Exportar TODOS
+              </Button>
+
+              {/* Botón para exportar solo FILTRADOS */}
+              <Button
+                onClick={() => handleExportFiltered("excel")}
+                variant="default"
+                size="sm"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={loading || preventiveData.length === 0}
+                title="Exportar solo los preventivos filtrados/visibles"
+              >
+                <Download className="h-4 w-4" />
+                📋 Exportar Filtrados ({preventiveData.length})
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -792,15 +887,6 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                         <SelectItem value="reprogramado">Reprogramado</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={exportData}
-                      disabled={loading}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Exportar
-                    </Button>
                     {hasPermission('mantenimientos', 'insertar') && (
                       <Button
                         size="sm"

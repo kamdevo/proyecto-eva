@@ -121,7 +121,7 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[80vw] max-w-none h-[80vh] overflow-y-auto p-6">
+      <DialogContent className="w-[95vw] max-w-7xl h-[90vh] overflow-y-auto p-6" style={{width: '95vw', maxWidth: '1400px'}}>
         <DialogHeader className="bg-white border-b border-gray-200 p-4 -m-4 mb-4">
           <DialogTitle className="sr-only">Orden de Trabajo Hospital Universitario del Valle</DialogTitle>
           <DialogDescription className="sr-only">Formulario para crear una nueva orden de trabajo en el Hospital Universitario del Valle</DialogDescription>
