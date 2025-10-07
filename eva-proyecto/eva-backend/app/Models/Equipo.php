@@ -398,7 +398,7 @@ class Equipo extends Model
     public function servicio(): BelongsTo
     {
         return $this->belongsTo(Servicio::class, 'servicio_id')
-                    ->withDefault(['name' => 'Sin servicio asignado']);
+                    ->withDefault(['nombre' => 'Sin servicio asignado']); // Corregido: usar 'nombre' en lugar de 'name'
     }
 
     /**
@@ -408,7 +408,7 @@ class Equipo extends Model
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class, 'area_id')
-                    ->withDefault(['name' => 'Sin área asignada']);
+                    ->withDefault(['nombre' => 'Sin área asignada']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -448,7 +448,7 @@ class Equipo extends Model
     public function propietario(): BelongsTo
     {
         return $this->belongsTo(Propietario::class, 'propietario_id')
-                    ->withDefault(['name' => 'Sin propietario']);
+                    ->withDefault(['nombre' => 'Sin propietario']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -458,7 +458,7 @@ class Equipo extends Model
     public function estadoEquipo(): BelongsTo
     {
         return $this->belongsTo(EstadoEquipo::class, 'estadoequipo_id')
-                    ->withDefault(['name' => 'Sin estado']);
+                    ->withDefault(['nombre' => 'Sin estado']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -478,7 +478,7 @@ class Equipo extends Model
     public function fuenteAlimentacion(): BelongsTo
     {
         return $this->belongsTo(FuenteAlimentacion::class, 'fuente_id')
-                    ->withDefault(['name' => 'Sin fuente']);
+                    ->withDefault(['nombre' => 'Sin fuente']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -488,7 +488,7 @@ class Equipo extends Model
     public function clasificacionBiomedica(): BelongsTo
     {
         return $this->belongsTo(ClasificacionBiomedica::class, 'cbiomedica_id')
-                    ->withDefault(['name' => 'Sin clasificación']);
+                    ->withDefault(['nombre' => 'Sin clasificación']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -498,7 +498,7 @@ class Equipo extends Model
     public function clasificacionRiesgo(): BelongsTo
     {
         return $this->belongsTo(ClasificacionRiesgo::class, 'criesgo_id')
-                    ->withDefault(['name' => 'Sin clasificación']);
+                    ->withDefault(['nombre' => 'Sin clasificación']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -508,7 +508,7 @@ class Equipo extends Model
     public function tipoAdquisicion(): BelongsTo
     {
         return $this->belongsTo(TipoAdquisicion::class, 'tadquisicion_id')
-                    ->withDefault(['name' => 'Sin tipo']);
+                    ->withDefault(['nombre' => 'Sin tipo']); // Corregido: usar 'nombre'
     }
 
     /**
@@ -518,7 +518,7 @@ class Equipo extends Model
     public function frecuenciaMantenimiento(): BelongsTo
     {
         return $this->belongsTo(FrecuenciaMantenimiento::class, 'frecuencia_id')
-                    ->withDefault(['name' => 'Sin frecuencia']);
+                    ->withDefault(['nombre' => 'Sin frecuencia']); // Corregido: usar 'nombre'
     }
 
     /**

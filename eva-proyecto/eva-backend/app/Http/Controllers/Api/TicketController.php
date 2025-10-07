@@ -12,7 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
+use App\Mail\NuevoTicketEmail;
 
 /**
  * Controlador para gestión completa de tickets de soporte
@@ -204,12 +206,59 @@ class TicketController extends ApiController
 
             // Cargar relaciones para la respuesta
             $ticket->load([
-                'equipo:id,name,code',
+                'equipo:id,name,code,marca,modelo,serial,servicio_id,area_id',
+                'equipo.servicio:id,name',
+                'equipo.area:id,name',
                 'usuarioCreador:id,nombre,apellido',
                 'usuarioAsignado:id,nombre,apellido'
             ]);
 
             DB::commit();
+
+            // 📧 ENVÍO AUTOMÁTICO DE CORREO DE NUEVO TICKET
+            try {
+                \Log::info('📧 Enviando notificación automática de nuevo ticket: ' . $ticket->id);
+                
+                // Preparar datos del ticket para el correo
+                $ticketData = (object) [
+                    'id' => $ticket->id,
+                    'descripcion' => $ticket->descripcion,
+                    'fecha_inicio' => $ticket->fecha_creacion,
+                    'prioridad' => $this->mapPrioridad($ticket->prioridad),
+                    'servicio_nombre' => $ticket->equipo->servicio->name ?? 'N/A',
+                    'area_nombre' => $ticket->equipo->area->name ?? 'N/A',
+                    'equipo_id' => $ticket->equipo_id,
+                    'equipo_nombre' => $ticket->equipo->name ?? $ticket->titulo,
+                    'equipo_marca' => $ticket->equipo->marca ?? 'N/A',
+                    'equipo_modelo' => $ticket->equipo->modelo ?? 'N/A',
+                    'equipo_codigo' => $ticket->equipo->code ?? 'N/A',
+                    'equipo_serie' => $ticket->equipo->serial ?? 'N/A',
+                    'reportante_nombre' => $ticket->usuarioCreador->nombre . ' ' . $ticket->usuarioCreador->apellido
+                ];
+
+                // Obtener técnicos y supervisores para enviar notificación
+                $tecnicos = DB::table('usuarios')
+                    ->whereIn('rol_id', [2, 3]) // Técnicos y supervisores
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->get();
+
+                $enviados = 0;
+                foreach ($tecnicos as $tecnico) {
+                    try {
+                        Mail::to($tecnico->email)->send(new NuevoTicketEmail($ticketData));
+                        $enviados++;
+                    } catch (\Exception $e) {
+                        \Log::error('Error enviando correo a ' . $tecnico->email . ': ' . $e->getMessage());
+                    }
+                }
+
+                \Log::info("📧 Correos de nuevo ticket enviados: $enviados destinatarios");
+
+            } catch (\Exception $e) {
+                \Log::error('❌ Error enviando notificaciones automáticas: ' . $e->getMessage());
+                // No fallar la creación del ticket por errores de correo
+            }
 
             return ResponseFormatter::success($ticket, 'Ticket creado exitosamente', 201);
 
@@ -757,5 +806,20 @@ class TicketController extends ApiController
         }
 
         return round($tiempoTotal / $ticketsCerrados->count(), 2);
+    }
+
+    /**
+     * Mapear prioridad para correos
+     */
+    private function mapPrioridad($prioridad)
+    {
+        $mapa = [
+            'baja' => 1,
+            'media' => 2,
+            'alta' => 3,
+            'urgente' => 3
+        ];
+
+        return $mapa[$prioridad] ?? 2;
     }
 }

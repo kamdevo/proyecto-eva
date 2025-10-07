@@ -1,28 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import SearchableSelect from "@/components/ui/searchable-select";
 import { Building, Upload, PenTool, Search } from "lucide-react";
 import DigitalSignatureModal from "./digital-signature-modal";
 import EvidenceUploadModal from "./evidence-upload-modal";
 import EquipmentSearchModal from "./equipment-search-modal";
+import axios from "axios";
 
 export default function HospitalTicketModal({ isOpen, onClose, ticketType = "biomedico" }) {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
   const [isEquipmentSearchModalOpen, setIsEquipmentSearchModalOpen] = useState(false);
   const [currentSigner, setCurrentSigner] = useState("");
+  
+  // Estados para datos de los searchable selects
+  const [sedes, setSedes] = useState([]);
+  const [centrosCosto, setCentrosCosto] = useState([]);
+  const [servicios, setServicios] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
+  const [loadingSedes, setLoadingSedes] = useState(false);
+  const [loadingCentros, setLoadingCentros] = useState(false);
+  const [loadingServicios, setLoadingServicios] = useState(false);
+  const [loadingAreas, setLoadingAreas] = useState(false);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false);
 
   const [formData, setFormData] = useState({
-    // Campos obligatorios exactos
-    sede: "SEDE PRINCIPAL", centroCosto: "", servicio: "", numeroOT: "", ot: "", fecha: "", area: "",
+    // Campos obligatorios exactos - ahora usando IDs para los searchables
+    sede: "", centroCosto: "", servicio: "", numeroOT: "", ot: "", fecha: "", area: "",
     equipo: "", modelo: "", serie: "", marca: "", numeroInventario: "", solicitadoPor: "", correoElectronico: "",
-    empresaAsignada: "Hospital Universitario del Valle", asignacionEspecifica: "", fechaAsignacion: "",
+    empresaAsignada: "", asignacionEspecifica: "", fechaAsignacion: "",
     tipoArreglo: "", descripcionProblema: "",
     diagnostico: "", responsableDiagnostico: "", repuestosNecesarios: "", tiempoEjecucion: "",
     fechaInicio: "", fechaFinalizacion: "",
@@ -32,6 +46,189 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
     firmaCierre: null, fechaSolicitudCierre: "", fechaCierre: "",
     evidencias: []
   });
+
+  // Funciones para cargar datos de APIs
+  const fetchSedes = async () => {
+    setLoadingSedes(true);
+    try {
+      const response = await axios.get('http://localhost:8001/api/v1/sedes');
+      if (response.data?.success && response.data?.data) {
+        setSedes(response.data.data.map(sede => ({
+          id: sede.id,
+          nombre: sede.name || sede.nombre
+        })));
+      }
+    } catch (error) {
+      console.error('Error al cargar sedes:', error);
+      // Fallback con datos por defecto
+      setSedes([
+        { id: 1, nombre: "SEDE PRINCIPAL" },
+        { id: 2, nombre: "SEDE NORTE" }
+      ]);
+    } finally {
+      setLoadingSedes(false);
+    }
+  };
+
+  const fetchCentrosCosto = async () => {
+    setLoadingCentros(true);
+    try {
+      // Usar el mismo endpoint que LoginForm
+      const response = await axios.get('http://localhost:8001/api/v1/centros');
+      if (response.data?.success && response.data?.data) {
+        // Formatear igual que LoginForm
+        setCentrosCosto(response.data.data.map(centro => ({
+          id: centro.id.toString(),
+          nombre: centro.code 
+            ? `${centro.code} - ${centro.name}`
+            : centro.name,
+          codigo: centro.code || ''
+        })));
+      }
+    } catch (error) {
+      console.error('Error al cargar centros de costo:', error);
+      // Fallback con datos igual que LoginForm
+      setCentrosCosto([
+        { id: "1", nombre: "Centro de Costo 1 - Administración" },
+        { id: "2", nombre: "Centro de Costo 2 - Quirófanos" },
+        { id: "3", nombre: "Centro de Costo 3 - UCI" },
+        { id: "4", nombre: "Centro de Costo 4 - Emergencias" },
+        { id: "5", nombre: "Centro de Costo 5 - Laboratorio" },
+        { id: "6", nombre: "Centro de Costo 6 - Imagenología" },
+        { id: "7", nombre: "Centro de Costo 7 - Farmacia" },
+        { id: "8", nombre: "Centro de Costo 8 - Nutrición" },
+        { id: "9", nombre: "Centro de Costo 9 - Fisioterapia" },
+        { id: "10", nombre: "Centro de Costo 10 - Trabajo Social" }
+      ]);
+    } finally {
+      setLoadingCentros(false);
+    }
+  };
+
+  const fetchServicios = async () => {
+    setLoadingServicios(true);
+    try {
+      const response = await axios.get('http://localhost:8001/api/v1/servicios');
+      if (response.data?.success && response.data?.data) {
+        setServicios(response.data.data.map(servicio => ({
+          id: servicio.id,
+          nombre: servicio.name || servicio.nombre
+        })));
+      }
+    } catch (error) {
+      console.error('Error al cargar servicios:', error);
+      // Fallback con datos por defecto
+      setServicios([
+        { id: 1, nombre: "ACONDICIONAMIENTO FISICO" },
+        { id: 2, nombre: "RADIOTERAPIA" },
+        { id: 3, nombre: "MEDICINA INTERNA" },
+        { id: 4, nombre: "PEDIATRIA" },
+        { id: 5, nombre: "GINECOBSTETRICIA" },
+        { id: 6, nombre: "RADIOLOGIA" },
+        { id: 7, nombre: "CIRUGIA" },
+        { id: 8, nombre: "URGENCIAS" },
+        { id: 9, nombre: "UCI ADULTOS" },
+        { id: 10, nombre: "LABORATORIO CLINICO" }
+      ]);
+    } finally {
+      setLoadingServicios(false);
+    }
+  };
+
+  const fetchAreas = async () => {
+    setLoadingAreas(true);
+    try {
+      const response = await axios.get('http://localhost:8001/api/v1/areas');
+      if (response.data?.success && response.data?.data) {
+        setAreas(response.data.data.map(area => ({
+          id: area.id,
+          nombre: area.name || area.nombre
+        })));
+      }
+    } catch (error) {
+      console.error('Error al cargar áreas:', error);
+      // Fallback con datos por defecto
+      setAreas([
+        { id: 1, nombre: "CONSULTA EXTERNA" },
+        { id: 2, nombre: "HOSPITALIZACION" },
+        { id: 3, nombre: "URGENCIAS" },
+        { id: 4, nombre: "UCI" },
+        { id: 5, nombre: "QUIROFANOS" },
+        { id: 6, nombre: "DIAGNOSTICO" },
+        { id: 7, nombre: "LABORATORIO" },
+        { id: 8, nombre: "FARMACIA" },
+        { id: 9, nombre: "ADMINISTRACION" },
+        { id: 10, nombre: "MANTENIMIENTO" }
+      ]);
+    } finally {
+      setLoadingAreas(false);
+    }
+  };
+
+  const fetchEmpresas = async () => {
+    setLoadingEmpresas(true);
+    try {
+      const response = await axios.get('http://localhost:8001/api/v1/empresas');
+      if (response.data?.success && response.data?.data) {
+        setEmpresas(response.data.data.map(empresa => ({
+          id: empresa.id.toString(),
+          nombre: empresa.name || empresa.nombre
+        })));
+      }
+    } catch (error) {
+      console.error('Error al cargar empresas:', error);
+      // Fallback con datos por defecto
+      setEmpresas([
+        { id: "1", nombre: "Hospital Universitario del Valle" },
+        { id: "2", nombre: "TecnoMed S.A." },
+        { id: "3", nombre: "Biomedical Solutions" },
+        { id: "4", nombre: "Servicios Técnicos Hospitalarios" },
+        { id: "5", nombre: "MedEquip Colombia" },
+        { id: "6", nombre: "Ingeniería Biomédica HUV" },
+        { id: "7", nombre: "Soporte Técnico Especializado" },
+        { id: "8", nombre: "Mantenimiento Hospitalario S.A.S." }
+      ]);
+    } finally {
+      setLoadingEmpresas(false);
+    }
+  };
+
+  // useEffect para cargar datos al abrir el modal
+  useEffect(() => {
+    if (isOpen) {
+      fetchSedes();
+      fetchCentrosCosto();
+      fetchServicios();
+      fetchAreas();
+      fetchEmpresas();
+    }
+  }, [isOpen]);
+
+  // Funciones helper para obtener nombres de los IDs
+  const getSedeNombre = (id) => {
+    const sede = sedes.find(s => s.id.toString() === id);
+    return sede ? sede.nombre : id;
+  };
+
+  const getCentroCostoNombre = (id) => {
+    const centro = centrosCosto.find(c => c.id.toString() === id);
+    return centro ? centro.nombre : id;
+  };
+
+  const getServicioNombre = (id) => {
+    const servicio = servicios.find(s => s.id.toString() === id);
+    return servicio ? servicio.nombre : id;
+  };
+
+  const getAreaNombre = (id) => {
+    const area = areas.find(a => a.id.toString() === id);
+    return area ? area.nombre : id;
+  };
+
+  const getEmpresaNombre = (id) => {
+    const empresa = empresas.find(e => e.id.toString() === id);
+    return empresa ? empresa.nombre : id;
+  };
 
   const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
   const handleSignature = (signerType) => { setCurrentSigner(signerType); setIsSignatureModalOpen(true); };
@@ -47,8 +244,9 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
       serie: equipo.serial || '',
       marca: equipo.marca || '',
       numeroInventario: equipo.code || '',
-      servicio: equipo.servicios || prev.servicio,
-      area: equipo.area || prev.area
+      // Actualizar servicio y área si viene con el equipo
+      servicio: equipo.servicio_id ? equipo.servicio_id.toString() : prev.servicio,
+      area: equipo.area_id ? equipo.area_id.toString() : prev.area
     }));
   };
 
@@ -101,7 +299,13 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
       ...formData, estado: 'CREADO', fechaCreacion: new Date().toISOString()
     };
 
-    if (window.confirm(`¿Desea crear la Orden de Trabajo ${ticketData.numero}?\n\nTipo: ${ticketType.toUpperCase()}\nEquipo: ${formData.equipo || 'No especificado'}\n\nCampos completados: ${filledFields.join(', ')}`)) {
+    // Preparar información legible para mostrar
+    const sedeTexto = formData.sede ? getSedeNombre(formData.sede) : 'No especificado';
+    const servicioTexto = formData.servicio ? getServicioNombre(formData.servicio) : 'No especificado';
+    const areaTexto = formData.area ? getAreaNombre(formData.area) : 'No especificado';
+    const empresaTexto = formData.empresaAsignada ? getEmpresaNombre(formData.empresaAsignada) : 'No especificado';
+    
+    if (window.confirm(`¿Desea crear la Orden de Trabajo ${ticketData.numero}?\n\nTipo: ${ticketType.toUpperCase()}\nSede: ${sedeTexto}\nServicio: ${servicioTexto}\nÁrea: ${areaTexto}\nEquipo: ${formData.equipo || 'No especificado'}\nEmpresa: ${empresaTexto}\n\nCampos completados: ${filledFields.join(', ')}`)) {
       console.log('🏥 ORDEN DE TRABAJO HUV:', ticketData);
       alert(`✅ Orden de Trabajo ${ticketData.numero} creada exitosamente\n\nCampos incluidos: ${filledFields.join(', ')}`);
       onClose();
@@ -151,15 +355,36 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Sede</Label>
-                <Input value={formData.sede} onChange={(e) => handleInputChange('sede', e.target.value)} className="h-9 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full" />
+                <SearchableSelect
+                  placeholder="Seleccionar sede..."
+                  options={sedes}
+                  value={formData.sede}
+                  onValueChange={(value) => handleInputChange('sede', value)}
+                  loading={loadingSedes}
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Centro de costo</Label>
-                <Input value={formData.centroCosto} onChange={(e) => handleInputChange('centroCosto', e.target.value)} className="h-9 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full" />
+                <SearchableSelect
+                  placeholder="Seleccionar centro de costo..."
+                  options={centrosCosto}
+                  value={formData.centroCosto}
+                  onValueChange={(value) => handleInputChange('centroCosto', value)}
+                  loading={loadingCentros}
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Servicio</Label>
-                <Input value={formData.servicio} onChange={(e) => handleInputChange('servicio', e.target.value)} className="h-9 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full" />
+                <SearchableSelect
+                  placeholder="Seleccionar servicio..."
+                  options={servicios}
+                  value={formData.servicio}
+                  onValueChange={(value) => handleInputChange('servicio', value)}
+                  loading={loadingServicios}
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">O.T. #</Label>
@@ -167,7 +392,14 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Área</Label>
-                <Input value={formData.area} onChange={(e) => handleInputChange('area', e.target.value)} className="h-9 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full" />
+                <SearchableSelect
+                  placeholder="Seleccionar área..."
+                  options={areas}
+                  value={formData.area}
+                  onValueChange={(value) => handleInputChange('area', value)}
+                  loading={loadingAreas}
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">O.T / Fecha</Label>
@@ -275,7 +507,14 @@ export default function HospitalTicketModal({ isOpen, onClose, ticketType = "bio
               </div>
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Empresa Asignada</Label>
-                <Input value={formData.empresaAsignada} onChange={(e) => handleInputChange('empresaAsignada', e.target.value)} className="h-9 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full mb-4" />
+                <SearchableSelect
+                  placeholder="Seleccionar empresa..."
+                  options={empresas}
+                  value={formData.empresaAsignada}
+                  onValueChange={(value) => handleInputChange('empresaAsignada', value)}
+                  loading={loadingEmpresas}
+                  className="h-9 text-sm mb-4"
+                />
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Asignación específica</Label>
                 <Input value={formData.asignacionEspecifica} onChange={(e) => handleInputChange('asignacionEspecifica', e.target.value)} className="h-9 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full" />
               </div>

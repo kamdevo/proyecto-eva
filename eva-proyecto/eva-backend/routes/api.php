@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
-use App\Models\Equipo;
+// use App\Models\Equipo; // COMENTADO: No usar modelo, usar consultas directas
 
 // Helper function for default permissions based on roles.md
 function getDefaultPermissionsByRole($rolId, $moduleName) {
@@ -36,25 +36,63 @@ function getDefaultPermissionsByRole($rolId, $moduleName) {
         return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1];
     }
     
-    // Role 4 (Basic User) - Limited permissions as per roles.md
+    // Role 4 (Usuario Normal) - Permisos específicos según requerimientos
     if ($rolId == 4) {
-        $basicUserModules = [
-            'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
-            'guias rapidas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'contactos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'servicios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'areas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            // Explicitly deny access to admin modules
-            'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'roles' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'permisos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'administracion' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'reportes' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+        // Módulos con acceso de solo lectura
+        $readOnlyModules = [
+            'equipos',
+            'equipos industriales', 
+            'servicios',
+            'areas',
+            'contactos',
+            'guias rapidas',
+            'manuales',
+            'preventivos',
+            'calibraciones',
+            'estado equipos',
+            'observaciones',
+            'equipo archivos',
+            'soportes compra',
+            'repuestos',
+            'invimas',
+            'bajas biomedicos',
+            'planes mantenimiento',
+            'capacitaciones',
+            'propietarios',
+            'contingencias',
+            'equipos contactos',
+            'equipos especificaciones',
+            'repuestos instalados'
         ];
         
-        return $basicUserModules[$moduleName] ?? ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        // Módulos con permisos de leer + insertar (mis tickets)
+        $readWriteModules = [
+            'tickets propios',
+            'tickets activos',
+            'correctivos'
+        ];
+        
+        // Módulos restringidos (sin acceso)
+        $restrictedModules = [
+            'usuarios',
+            'roles', 
+            'permisos',
+            'administracion',
+            'reportes',
+            'tickets cerrados'  // Solo pueden ver sus propios tickets, no todos los cerrados
+        ];
+        
+        // Determinar permisos según el módulo
+        if (in_array($moduleName, $readOnlyModules)) {
+            return ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        } elseif (in_array($moduleName, $readWriteModules)) {
+            return ['leer' => 1, 'insertar' => 1, 'editar' => 0, 'eliminar' => 0];
+        } elseif (in_array($moduleName, $restrictedModules)) {
+            return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        } else {
+            // Por defecto: solo lectura para módulos no especificados
+            return ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        }
     }
     
     // Role 3 (Advanced User) - Extended permissions
@@ -1672,7 +1710,7 @@ Route::prefix('v1')->group(function () {
                 $enviados = 0;
                 foreach ($usuarios as $usuario) {
                     try {
-                        \Mail::to($usuario->email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo, $preventivo));
+                        \Mail::to($usuario->email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo));
                         $enviados++;
                     } catch (\Exception $e) {
                         \Log::error('Error enviando a ' . $usuario->email . ': ' . $e->getMessage());
@@ -1694,6 +1732,58 @@ Route::prefix('v1')->group(function () {
             }
         });
         
+        // Enviar notificación de nuevo ticket (versión simplificada para debug)
+        Route::post('nuevo-ticket-simple', function (Request $request) {
+            try {
+                $ticketId = $request->input('ticket_id');
+                
+                // Obtener ticket
+                $ticket = DB::table('ordenes')->where('id', $ticketId)->first();
+                
+                if (!$ticket) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ticket no encontrado'
+                    ], 404);
+                }
+                
+                // Obtener email de destino
+                $emailDestino = env('NOTIFICATION_EMAIL', 'camilomoralesyk@gmail.com');
+                
+                // Crear HTML simple
+                $htmlContent = "
+                <html>
+                <body>
+                    <h2>Nuevo Ticket Creado</h2>
+                    <p><strong>ID:</strong> {$ticket->id}</p>
+                    <p><strong>Descripción:</strong> {$ticket->descripcion}</p>
+                    <p><strong>Fecha:</strong> {$ticket->fecha_inicio}</p>
+                    <p>Este es un correo de prueba del Hospital Universitario del Valle</p>
+                </body>
+                </html>";
+                
+                // Enviar correo simple
+                Mail::send([], [], function ($message) use ($htmlContent, $emailDestino, $ticket) {
+                    $message->to($emailDestino)
+                            ->subject("Nuevo Ticket #{$ticket->id} - Prueba Simple")
+                            ->html($htmlContent);
+                });
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => "Correo simple enviado a $emailDestino",
+                    'ticket_id' => $ticketId
+                ]);
+                
+            } catch (\Exception $e) {
+                \Log::error('Error en nuevo-ticket-simple: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage()
+                ], 500);
+            }
+        });
+
         // Enviar notificación de nuevo ticket
         Route::post('nuevo-ticket', function (Request $request) {
             try {
@@ -1730,8 +1820,9 @@ Route::prefix('v1')->group(function () {
                     ], 404);
                 }
                 
-                // Obtener técnicos y supervisores
-                $tecnicos = DB::table('tecnicos')
+                // Obtener técnicos y supervisores de la tabla usuarios
+                $tecnicos = DB::table('usuarios')
+                    ->whereIn('rol_id', [2, 3]) // Técnicos y supervisores
                     ->whereNotNull('email')
                     ->where('email', '!=', '')
                     ->get();
@@ -1741,7 +1832,7 @@ Route::prefix('v1')->group(function () {
                 $enviados = 0;
                 foreach ($tecnicos as $tecnico) {
                     try {
-                        \Mail::to($tecnico->email)->send(new \App\Mail\NuevoTicketEmail($ticket, $ticket));
+                        \Mail::to($tecnico->email)->send(new \App\Mail\NuevoTicketEmail($ticket));
                         $enviados++;
                     } catch (\Exception $e) {
                         \Log::error('Error enviando a ' . $tecnico->email . ': ' . $e->getMessage());
@@ -2884,10 +2975,17 @@ Route::get('storage/{path}', function($path) {
 // ==========================================
 // RUTA INDEPENDIENTE PARA CREAR EQUIPOS
 // Sin middleware de throttle para evitar errores
+// MOVIDA ANTES DE CUALQUIER GRUPO DE MIDDLEWARE
 // ==========================================
-Route::post('v1/equipos', function(Request $request) {
+
+// RUTA COMPLETAMENTE INDEPENDIENTE SIN MIDDLEWARE
+Route::post('v1/equipos-create', function(Request $request) {
     try {
-        // Validaciones de campos requeridos
+        // DEBUGGING: Ver qué datos llegan
+        \Log::info('Datos recibidos para crear equipo:', $request->all());
+        
+        // TEMPORALMENTE COMENTADO: Validaciones de campos requeridos (solo mantener unicidad de serial)
+        /*
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:100|unique:equipos,code',
@@ -2901,6 +2999,14 @@ Route::post('v1/equipos', function(Request $request) {
             'servicio_id.exists' => 'El servicio seleccionado no existe.',
             'serial.unique' => 'Ya existe un equipo con este número de serie.',
         ]);
+        */
+
+        // SOLO MANTENER: Validación de unicidad del número de serie (si se proporciona)
+        $validator = Validator::make($request->all(), [
+            'serial' => 'nullable|string|max:100|unique:equipos,serial',
+        ], [
+            'serial.unique' => 'Ya existe un equipo con este número de serie.',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -2910,47 +3016,256 @@ Route::post('v1/equipos', function(Request $request) {
             ], 422)->header('Access-Control-Allow-Origin', '*');
         }
 
-        // Crear equipo usando el modelo
-        $equipo = Equipo::create([
-            'name' => $request->name,
-            'code' => $request->code,
-            'servicio_id' => $request->servicio_id,
-            'serial' => $request->serial,
-            'marca' => $request->marca,
-            'modelo' => $request->modelo,
-            'descripcion' => $request->descripcion,
+        // PROCESAMIENTO COMPLETO DE ARCHIVOS (COPIADO DEL ORIGINAL)
+        
+        // Procesar imagen (va a carpeta images)
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $extension = $image->getClientOriginalExtension();
+            $imageName = 'equipo_' . time() . '_' . uniqid() . '.' . $extension;
+            $imagePath = $image->storeAs('equipos/images', $imageName, 'public');
+            \Log::info('Imagen procesada', ['path' => $imagePath]);
+        }
+
+        // Procesar archivo Excel (va a carpeta archivos)
+        $archivoExcelPath = null;
+        if ($request->hasFile('archivo_excel')) {
+            $archivo = $request->file('archivo_excel');
+            $extension = $archivo->getClientOriginalExtension();
+
+            if (in_array(strtolower($extension), ['xlsx', 'xls'])) {
+                // Archivos Excel van a /archivos
+                $archivoName = 'excel_' . time() . '_' . uniqid() . '.' . $extension;
+                $archivoExcelPath = $archivo->storeAs('equipos/archivos', $archivoName, 'public');
+                \Log::info('Archivo Excel procesado', ['path' => $archivoExcelPath]);
+            } else {
+                // Otros documentos van a /documentos
+                $archivoName = 'documento_' . time() . '_' . uniqid() . '.' . $extension;
+                $archivoExcelPath = $archivo->storeAs('equipos/documentos', $archivoName, 'public');
+                \Log::info('Documento procesado', ['path' => $archivoExcelPath]);
+            }
+        }
+
+        // Procesar archivo INVIMA (va a carpeta registros_sanitarios)
+        $archivoInvimaPath = null;
+        if ($request->hasFile('archivo_invima')) {
+            $archivoInvima = $request->file('archivo_invima');
+            $extension = $archivoInvima->getClientOriginalExtension();
+            $archivoInvimaName = 'invima_' . time() . '_' . uniqid() . '.' . $extension;
+            $archivoInvimaPath = $archivoInvima->storeAs('equipos/registros_sanitarios', $archivoInvimaName, 'public');
+            \Log::info('Archivo INVIMA procesado', ['path' => $archivoInvimaPath]);
+        }
+
+        // Función para procesar fechas (COPIADA DEL ORIGINAL)
+        $procesarFecha = function($fecha) {
+            if (!$fecha || $fecha === '' || $fecha === '0000-00-00') return null;
+
+            try {
+                $fechaObj = null;
+
+                // Formato ISO (YYYY-MM-DD)
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+                    $fechaObj = Carbon::createFromFormat('Y-m-d', $fecha);
+                }
+                // Formato con tiempo
+                elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $fecha)) {
+                    $fechaObj = Carbon::createFromFormat('Y-m-d H:i:s', $fecha);
+                }
+                // Formato DD/MM/YYYY
+                elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fecha)) {
+                    $fechaObj = Carbon::createFromFormat('d/m/Y', $fecha);
+                }
+                else {
+                    $fechaObj = Carbon::parse($fecha);
+                }
+
+                $fechaFormateada = $fechaObj->format('Y-m-d');
+                $año = $fechaObj->year;
+
+                if ($año < 1900 || $año > 2100) {
+                    \Log::warning('Fecha fuera de rango válido', ['fecha' => $fecha, 'año' => $año]);
+                    return null;
+                }
+
+                \Log::info('Fecha procesada correctamente', ['original' => $fecha, 'procesada' => $fechaFormateada]);
+                return $fechaFormateada;
+
+            } catch (\Exception $e) {
+                \Log::warning('Error procesando fecha', ['fecha' => $fecha, 'error' => $e->getMessage()]);
+                return null;
+            }
+        };
+
+        // Función para procesar INVIMA ID (COPIADA DEL ORIGINAL)
+        $procesarInvimaId = function($numeroRegistro) {
+            if (!$numeroRegistro) return 1;
+
+            try {
+                $registroInvima = DB::table('invimas')
+                    ->where('invima', $numeroRegistro)
+                    ->first();
+
+                if ($registroInvima) {
+                    \Log::info('Registro INVIMA encontrado', [
+                        'numero_registro' => $numeroRegistro,
+                        'invima_id' => $registroInvima->id,
+                        'titulo' => $registroInvima->titulo ?? 'N/A'
+                    ]);
+                    return $registroInvima->id;
+                } else {
+                    \Log::warning('Registro INVIMA no encontrado', ['numero_registro' => $numeroRegistro]);
+                    return 1;
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error procesando INVIMA ID', [
+                    'numero_registro' => $numeroRegistro,
+                    'error' => $e->getMessage()
+                ]);
+                return 1;
+            }
+        };
+
+        // DATOS COMPLETOS DEL EQUIPO (COPIADO Y ADAPTADO DEL ORIGINAL)
+        $equipoData = [
+            // Información básica
+            'name' => $request->input('name'),
+            'code' => $request->input('code'),
+            'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
+            'servicio_id' => $request->input('servicio_id') ?: 1, // REQUERIDO - usar 1 si está vacío
+            'area_id' => $request->input('area_id') ?: 1, // REQUERIDO - usar 1 si está vacío
+            'propietario_id' => $request->input('propietario_id') ?: 1, // REQUERIDO - usar 1 si está vacío
+            'tipo_id' => $request->input('tipo_id') ?: 1, // REQUERIDO - usar 1 si está vacío
+            'marca' => $request->input('marca'),
+            'modelo' => $request->input('modelo'),
+            'descripcion' => $request->input('descripcion'),
+            'invima' => $request->input('invima'),
             'status' => 1,
-            // Valores por defecto para campos requeridos
-            'fuente_id' => 1,
-            'tecnologia_id' => 1,
-            'frecuencia_id' => 1,
-            'cbiomedica_id' => 1,
-            'criesgo_id' => 1,
-            'tadquisicion_id' => 1,
-            'invima_id' => 1,
-            'orden_compra_id' => 1,
-            'baja_id' => 1,
-            'estadoequipo_id' => 1,
-            'tipo_id' => 1,
-            'guia_id' => 1,
-            'manual_id' => 1,
-            'disponibilidad_id' => 1,
-            'area_id' => $request->area_id ?: 1,
+            'created_at' => now(),
+
+            // CAMPOS DE FECHA CON MAPEO CORRECTO
+            'fecha_ad' => $procesarFecha($request->input('fecha_adquisicion')), // Frontend: fecha_adquisicion -> DB: fecha_ad
+            'fecha_instalacion' => $procesarFecha($request->input('fecha_instalacion')),
+            'fecha_recepcion_almacen' => $procesarFecha($request->input('fecha_recepcion_almacen')),
+            'fecha_acta_recibo' => $procesarFecha($request->input('fecha_acta_recibo')),
+            'fecha_inicio_operacion' => $procesarFecha($request->input('fecha_inicio_operacion')),
+            'fecha_fabricacion' => $procesarFecha($request->input('fecha_fabricacion')),
+            'fecha_vencimiento_garantia' => $procesarFecha($request->input('fecha_vencimiento_garantia')),
+
+            // Campos adicionales CON MAPEO CORRECTO
+            'vida_util' => $request->input('vida_util'),
+            'costo' => $request->input('costo'),
+            'garantia' => $request->input('garantia'),
+            'activo_comodato' => $request->input('activo_comodato'),
+            'observacion' => $request->input('observacion') ?: $request->input('observaciones'), // Mapear observaciones -> observacion
+            'localizacion_actual' => $request->input('localizacion_actual'),
+            'codigo_antiguo' => $request->input('codigo_inventario') ?: $request->input('codigo_antiguo'), // Mapear codigo_inventario -> codigo_antiguo
+            'propiedad' => $request->input('pais_origen') ?: $request->input('propiedad'), // Mapear pais_origen -> propiedad
+            'otros' => $request->input('centro_costo') ?: $request->input('otros'), // Mapear centro_costo -> otros
+            'evaluacion_desempenio' => $request->input('evaluacion_desempeno'),
+            'periodicidad' => $request->input('periodicidad_calibracion', 'ANUAL'),
+            'calibracion' => $request->input('calibracion') ? 'SI' : 'NO',
+            'verificacion_inventario' => $request->input('verificacion_fisica', 'NO'),
+            'accesorios' => $request->input('accesorios'),
+            'movilidad' => $request->input('movilidad'),
+
+            // Required foreign keys con defaults (TODOS REQUERIDOS según migración)
+            'fuente_id' => $request->input('fuente_id') ?: 1, // REQUERIDO
+            'tecnologia_id' => $request->input('tecnologia_id') ?: 1, // REQUERIDO
+            'frecuencia_id' => $request->input('frecuencia_id') ?: 1, // REQUERIDO
+            'cbiomedica_id' => $request->input('cbiomedica_id') ?: 1, // REQUERIDO
+            'criesgo_id' => $request->input('criesgo_id') ?: 1, // REQUERIDO
+            'tadquisicion_id' => $request->input('tadquisicion_id') ?: 1, // REQUERIDO
+            'invima_id' => $procesarInvimaId($request->input('invima')), // REQUERIDO - función maneja el default
+            'orden_compra_id' => $request->input('orden_compra_id') ?: 1, // REQUERIDO
+            'baja_id' => $request->input('baja_id') ?: 1, // REQUERIDO
+            'estado_mantenimiento' => 0, // SIEMPRE 0 por defecto
+            'estadoequipo_id' => $request->input('estadoequipo_id') ?: 1, // REQUERIDO
+            'guia_id' => $request->input('guia_id') ?: 1, // REQUERIDO
+            'manual_id' => $request->input('manual_id') ?: 1, // REQUERIDO
+            'disponibilidad_id' => $request->input('disponibilidad_id') ?: 1, // REQUERIDO
+
+            // Campos de archivos
+            'image' => $imagePath,
+            'file' => $archivoExcelPath,
+            'archivo_invima' => $archivoInvimaPath,
+            
+            // Campos por defecto
+            'repuesto_pendiente' => 'no',
+            'fecha_cambio' => now(),
+        ];
+
+        // PROCESAR MANUALES Y PLANOS JSON (COPIADO DEL ORIGINAL)
+        if ($request->has('manuales')) {
+            $manuales = is_string($request->manuales) ? json_decode($request->manuales, true) : $request->manuales;
+            $equipoData['manual'] = json_encode($manuales);
+        }
+
+        if ($request->has('planos')) {
+            $planos = is_string($request->planos) ? json_decode($request->planos, true) : $request->planos;
+            $equipoData['plano'] = json_encode($planos);
+        }
+
+        // Log de datos antes de limpiar
+        \Log::info('Datos del equipo antes de limpiar', [
+            'fecha_ad' => $equipoData['fecha_ad'],
+            'fecha_instalacion' => $equipoData['fecha_instalacion'],
+            'invima_text' => $equipoData['invima'],
+            'invima_id' => $equipoData['invima_id'],
+            'archivo_invima' => $equipoData['archivo_invima'],
+            'total_fields' => count($equipoData)
         ]);
+
+        // Limpiar valores null o vacíos (PERO MANTENER fechas null para campos opcionales)
+        $insertData = array_filter($equipoData, function($value, $key) {
+            // Mantener campos de fecha incluso si son null (son opcionales)
+            $camposFecha = ['fecha_ad', 'fecha_instalacion', 'fecha_recepcion_almacen',
+                           'fecha_acta_recibo', 'fecha_inicio_operacion', 'fecha_fabricacion',
+                           'fecha_vencimiento_garantia'];
+
+            if (in_array($key, $camposFecha)) {
+                return true; // Mantener campos de fecha siempre
+            }
+
+            return $value !== null && $value !== '';
+        }, ARRAY_FILTER_USE_BOTH);
+        
+        // DEBUGGING: Ver qué datos vamos a insertar
+        \Log::info('Datos preparados para insertar:', $insertData);
+        
+        $equipoId = DB::table('equipos')->insertGetId($insertData);
+        
+        \Log::info('Equipo creado con ID:', ['id' => $equipoId]);
+
+        // Obtener el equipo creado para respuesta
+        $equipoCreado = DB::table('equipos')->where('id', $equipoId)->first();
 
         return response()->json([
             'success' => true,
             'message' => 'Equipo creado exitosamente',
-            'data' => $equipo
+            'data' => $equipoCreado
         ], 201)->header('Access-Control-Allow-Origin', '*');
 
     } catch (\Exception $e) {
+        // DEBUGGING: Log completo del error
+        \Log::error('Error al crear equipo:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
         return response()->json([
             'success' => false,
-            'message' => 'Error al crear equipo: ' . $e->getMessage()
+            'message' => 'Error al crear equipo: ' . $e->getMessage(),
+            'debug' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]
         ], 500)->header('Access-Control-Allow-Origin', '*');
     }
-});
+    
+}); // Sin withoutMiddleware - ruta independiente
 
 // ==========================================
 // ENDPOINTS PÚBLICOS PARA TICKETS Y REPUESTOS
@@ -4557,35 +4872,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     })->middleware('auth:sanctum');
 
-    Route::get('roles', function() {
-        try {
-            $roles = DB::table('roles')->get(['id', 'nombre']);
-            return response()->json([
-                'success' => true,
-                'data' => $roles
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error obteniendo roles: ' . $e->getMessage()
-            ], 500);
-        }
-    });
-
-    Route::get('modulos', function() {
-        try {
-            $modulos = DB::table('modulos')->get(['id', 'name']);
-            return response()->json([
-                'success' => true,
-                'data' => $modulos
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error obteniendo módulos: ' . $e->getMessage()
-            ], 500);
-        }
-    });
+    // Endpoints movidos al grupo v1 más abajo
 
     Route::get('empresas', function() {
         try {
@@ -4979,15 +5266,66 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 ], 404);
             }
 
-            // Activate the user
-            DB::table('usuarios')
-                ->where('id', $id)
-                ->update(['active' => 'true']);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Usuario activado exitosamente'
-            ]);
+            // Activate the user and assign default role if needed
+            DB::beginTransaction();
+            
+            try {
+                // Activate user
+                DB::table('usuarios')
+                    ->where('id', $id)
+                    ->update(['active' => 'true']);
+                
+                // Assign default role 4 (Usuario normal) if user doesn't have a role
+                if (is_null($targetUser->rol_id) || $targetUser->rol_id == 0) {
+                    DB::table('usuarios')
+                        ->where('id', $id)
+                        ->update(['rol_id' => 4]);
+                    
+                    \Log::info("Usuario $id activado con rol por defecto (Usuario normal - ID 4)");
+                }
+                
+                // SIEMPRE asignar permisos por defecto para usuarios con rol 4 que no tengan permisos
+                $userRole = DB::table('usuarios')->where('id', $id)->value('rol_id');
+                $existingPermissions = DB::table('acciones')->where('usuario_id', $id)->count();
+                
+                \Log::info("Usuario $id: rol=$userRole, permisos_existentes=$existingPermissions");
+                
+                if ($userRole == 4 && $existingPermissions == 0) {
+                    \Log::info("Asignando permisos automáticos para usuario rol 4 sin permisos");
+                    
+                    // Get all modules
+                    $modulos = DB::table('modulos')->whereNotNull('name')->get();
+                    
+                    // Assign permissions based on role 4 (Usuario normal)
+                    foreach ($modulos as $modulo) {
+                        $permissions = getDefaultPermissionsByRole(4, $modulo->name);
+                        
+                        DB::table('acciones')->insert([
+                            'usuario_id' => $id,
+                            'modulo_id' => $modulo->id,
+                            'leer' => $permissions['leer'],
+                            'insertar' => $permissions['insertar'],
+                            'editar' => $permissions['editar'],
+                            'eliminar' => $permissions['eliminar']
+                        ]);
+                    }
+                    
+                    \Log::info("✅ Permisos automáticos asignados al usuario $id (rol 4): equipos=leer, tickets_propios=leer+insertar");
+                } else if ($userRole == 4 && $existingPermissions > 0) {
+                    \Log::info("Usuario $id ya tiene $existingPermissions permisos configurados");
+                }
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Usuario activado exitosamente con rol y permisos por defecto'
+                ]);
+                
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
 
         } catch (Exception $e) {
             return response()->json([
@@ -6414,6 +6752,132 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function
     Route::get('tipocompra', [\App\Http\Controllers\Api\TipoCompraController::class, 'index']);
     Route::get('tipocompra/{id}', [\App\Http\Controllers\Api\TipoCompraController::class, 'show']);
     Route::get('tipocompra/search/{term}', [\App\Http\Controllers\Api\TipoCompraController::class, 'search']);
+    
+    // ROLES Y MÓDULOS ENDPOINTS (PUBLIC ACCESS)
+    Route::get('roles', function() {
+        try {
+            $roles = DB::table('roles')
+                ->select('id', 'nombre', 'descripcion')
+                ->orderBy('id')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $roles
+            ]);
+        } catch (Exception $e) {
+            \Log::error('Error en endpoint v1/roles: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo roles: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    Route::get('modulos', function() {
+        try {
+            $modulos = DB::table('modulos')
+                ->select('id', 'name')
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->orderBy('name')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $modulos
+            ]);
+        } catch (Exception $e) {
+            \Log::error('Error en endpoint v1/modulos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo módulos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // USER PERMISSIONS ENDPOINT (PUBLIC ACCESS PARA FRONTEND)
+    Route::get('usuarios/{id}/permissions', function($id) {
+        try {
+            \Log::info("🔍 Frontend solicitando permisos para usuario ID: $id");
+            
+            // Verificar que el usuario existe
+            $usuario = DB::table('usuarios')->where('id', $id)->first();
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+            
+            \Log::info("👤 Usuario encontrado: {$usuario->nombre} {$usuario->apellido}, Rol: {$usuario->rol_id}");
+            
+            $permissions = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $id)
+                ->select([
+                    'modulos.id as modulo_id',
+                    'modulos.name as modulo_name',
+                    'acciones.leer',
+                    'acciones.insertar',
+                    'acciones.editar',
+                    'acciones.eliminar'
+                ])
+                ->get();
+
+            \Log::info("📋 Permisos encontrados: " . count($permissions) . " para usuario $id");
+            
+            // Log de algunos permisos para debug
+            $permisosImportantes = $permissions->whereIn('modulo_name', ['equipos', 'tickets propios', 'correctivos']);
+            foreach ($permisosImportantes as $perm) {
+                \Log::info("   🔹 {$perm->modulo_name}: leer={$perm->leer}, insertar={$perm->insertar}");
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $permissions
+            ]);
+        } catch (Exception $e) {
+            \Log::error("❌ Error obteniendo permisos para usuario $id: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // ADMIN PERMISSIONS ENDPOINT (PUBLIC ACCESS)
+    Route::get('admin/users/{id}/permissions', function($id) {
+        try {
+            \Log::info("🔍 Admin solicitando permisos para usuario ID: $id");
+            
+            $permissions = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $id)
+                ->select([
+                    'modulos.id as modulo_id',
+                    'modulos.name as modulo_name',
+                    'acciones.leer',
+                    'acciones.insertar',
+                    'acciones.editar',
+                    'acciones.eliminar'
+                ])
+                ->get();
+
+            \Log::info("📋 Admin permisos encontrados: " . count($permissions) . " para usuario $id");
+
+            return response()->json([
+                'success' => true,
+                'data' => $permissions
+            ]);
+        } catch (Exception $e) {
+            \Log::error("❌ Error obteniendo permisos admin para usuario $id: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo permisos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 });
 
 // Test login endpoint without middleware

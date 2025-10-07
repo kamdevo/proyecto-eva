@@ -9,10 +9,12 @@ use App\Models\Mantenimiento;
 use App\Models\Equipo;
 use App\Models\Usuario;
 use App\Models\Observacion;
+use App\Services\ReactEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 
 /**
@@ -525,9 +527,78 @@ class MantenimientoController extends ApiController
                 $equipo->update(['proximo_mantenimiento' => $proximoMantenimiento]);
             }
 
+            // Cargar relaciones completas para el correo
+            $mantenimiento->load([
+                'equipo:id,name,code,marca,modelo,serie,servicio_id,area_id',
+                'equipo.servicio:id,name',
+                'equipo.area:id,name',
+                'tecnico:id,nombre,apellido'
+            ]);
+
+            // **ENVÍO AUTOMÁTICO DE CORREO REACT EMAIL - REPUESTO PENDIENTE**
+            try {
+                // Detectar si hay repuestos pendientes en las observaciones o repuestos utilizados
+                $observaciones = strtolower($request->observaciones ?? '');
+                $repuestos = strtolower($request->repuestos_utilizados ?? '');
+                
+                $indicadoresRepuesto = [
+                    'repuesto pendiente', 'repuesto faltante', 'falta repuesto', 
+                    'pendiente de repuesto', 'esperando repuesto', 'sin repuesto',
+                    'repuesto no disponible', 'solicitar repuesto', 'requiere repuesto'
+                ];
+                
+                $hayRepuestoPendiente = false;
+                foreach ($indicadoresRepuesto as $indicador) {
+                    if (strpos($observaciones, $indicador) !== false || strpos($repuestos, $indicador) !== false) {
+                        $hayRepuestoPendiente = true;
+                        break;
+                    }
+                }
+
+                // Si hay repuesto pendiente, enviar correo
+                if ($hayRepuestoPendiente) {
+                    // Preparar datos para el correo
+                    $preventivoData = [
+                        'id' => $mantenimiento->id,
+                        'fecha_mantenimiento' => $mantenimiento->fecha_programada,
+                        'observacion' => $request->observaciones ?? 'Repuesto pendiente detectado en mantenimiento',
+                        'servicio_nombre' => $mantenimiento->equipo->servicio->name ?? 'N/A',
+                        'area_nombre' => $mantenimiento->equipo->area->name ?? null,
+                        'equipo_id' => $mantenimiento->equipo->id,
+                        'equipo_nombre' => $mantenimiento->equipo->name,
+                        'equipo_marca' => $mantenimiento->equipo->marca ?? 'N/A',
+                        'equipo_modelo' => $mantenimiento->equipo->modelo ?? 'N/A',
+                        'equipo_codigo' => $mantenimiento->equipo->code,
+                        'equipo_serie' => $mantenimiento->equipo->serie ?? 'N/A'
+                    ];
+
+                    // Enviar correo usando React Email
+                    $reactEmailService = new ReactEmailService();
+                    $htmlContent = $reactEmailService->renderRepuestoPendiente((object)$preventivoData);
+                    
+                    // Enviar a email configurado
+                    $emailDestino = env('NOTIFICATION_EMAIL', 'camilomoralesyk@gmail.com');
+                    Mail::send([], [], function ($message) use ($htmlContent, $emailDestino, $mantenimiento) {
+                        $message->to($emailDestino)
+                                ->subject("Notificación de repuesto pendiente. ID preventivo: {$mantenimiento->id}")
+                                ->html($htmlContent);
+                    });
+
+                    \Log::info("Correo React Email de repuesto pendiente enviado para mantenimiento #{$mantenimiento->id} a {$emailDestino}");
+                }
+
+            } catch (\Exception $emailError) {
+                // Log del error pero no fallar la completación del mantenimiento
+                \Log::error("Error enviando correo de repuesto pendiente para mantenimiento #{$mantenimiento->id}: " . $emailError->getMessage());
+            }
+
             DB::commit();
 
-            return ResponseFormatter::success($mantenimiento, 'Mantenimiento completado exitosamente');
+            $mensaje = $hayRepuestoPendiente ?? false ? 
+                'Mantenimiento completado exitosamente y notificación de repuesto pendiente enviada' : 
+                'Mantenimiento completado exitosamente';
+
+            return ResponseFormatter::success($mantenimiento, $mensaje);
 
         } catch (\Exception $e) {
             DB::rollBack();

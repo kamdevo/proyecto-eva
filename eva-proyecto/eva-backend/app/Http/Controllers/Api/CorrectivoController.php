@@ -8,10 +8,12 @@ use App\ConexionesVista\ResponseFormatter;
 use App\Models\CorrectivoGeneral;
 use App\Models\Equipo;
 use App\Models\Usuario;
+use App\Services\ReactEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 
 /**
@@ -161,15 +163,55 @@ class CorrectivoController extends ApiController
                 ]);
             }
 
-            // Cargar relaciones para la respuesta
+            // Cargar relaciones completas para el correo
             $correctivo->load([
-                'equipo:id,name,code',
+                'equipo:id,name,code,marca,modelo,serie,servicio_id,area_id',
+                'equipo.servicio:id,name',
+                'equipo.area:id,name',
                 'tecnico:id,nombre,apellido'
             ]);
 
+            // **ENVÍO DE CORREO REACT EMAIL AUTOMÁTICO**
+            try {
+                // Preparar datos para el correo
+                $ticketData = [
+                    'id' => $correctivo->id,
+                    'descripcion' => $correctivo->descripcion,
+                    'fecha_inicio' => $correctivo->fecha,
+                    'prioridad' => $this->mapPrioridadToNumber($correctivo->prioridad),
+                    'servicio_nombre' => $correctivo->equipo->servicio->name ?? 'N/A',
+                    'area_nombre' => $correctivo->equipo->area->name ?? null,
+                    'equipo_id' => $correctivo->equipo->id,
+                    'equipo_nombre' => $correctivo->equipo->name,
+                    'equipo_marca' => $correctivo->equipo->marca ?? 'N/A',
+                    'equipo_modelo' => $correctivo->equipo->modelo ?? 'N/A',
+                    'equipo_codigo' => $correctivo->equipo->code,
+                    'equipo_serie' => $correctivo->equipo->serie ?? 'N/A',
+                    'reportante_nombre' => $correctivo->tecnico->nombre ?? 'Sistema EVA'
+                ];
+
+                // Enviar correo usando React Email
+                $reactEmailService = new ReactEmailService();
+                $htmlContent = $reactEmailService->renderNuevoTicket((object)$ticketData);
+                
+                // Enviar a email configurado
+                $emailDestino = env('NOTIFICATION_EMAIL', 'camilomoralesyk@gmail.com');
+                Mail::send([], [], function ($message) use ($htmlContent, $emailDestino, $correctivo) {
+                    $message->to($emailDestino)
+                            ->subject("Creación de Ticket Nro {$correctivo->id}")
+                            ->html($htmlContent);
+                });
+
+                \Log::info("Correo React Email enviado para ticket #{$correctivo->id} a {$emailDestino}");
+
+            } catch (\Exception $emailError) {
+                // Log del error pero no fallar la creación del correctivo
+                \Log::error("Error enviando correo para ticket #{$correctivo->id}: " . $emailError->getMessage());
+            }
+
             DB::commit();
 
-            return ResponseFormatter::success($correctivo, 'Correctivo creado exitosamente', 201);
+            return ResponseFormatter::success($correctivo, 'Correctivo creado exitosamente y notificación enviada', 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -702,6 +744,21 @@ class CorrectivoController extends ApiController
             return ResponseFormatter::error('Error al eliminar archivo: ' . $e->getMessage(), 500);
         }
     }
-}
 
-{{ ... }}
+    /**
+     * Mapear prioridad de texto a número para React Email
+     */
+    private function mapPrioridadToNumber($prioridad)
+    {
+        switch (strtolower($prioridad)) {
+            case 'urgente':
+            case 'alta':
+                return 3;
+            case 'media':
+                return 2;
+            case 'baja':
+            default:
+                return 1;
+        }
+    }
+}

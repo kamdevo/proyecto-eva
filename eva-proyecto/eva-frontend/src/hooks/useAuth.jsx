@@ -75,28 +75,33 @@ export const AuthProvider = ({ children }) => {
       return true;
     }
     
-    // Basic user (role 4) - very restricted permissions
-    if (userRoleId === 4) {
-      // Only read access to equipment modules
-      if (moduleName.includes('equipos') && action === 'leer') return true;
-      if (moduleName === 'tickets propios' && (action === 'leer' || action === 'insertar' || action === 'editar')) return true;
-      return false;
-    }
+    // SIEMPRE usar permisos de la base de datos para todos los roles (excepto super admin)
+    console.log(`🔍 Verificando permiso: ${moduleName} -> ${action}`);
+    console.log('📊 Permisos disponibles:', permissions.length);
+    console.log('👤 Usuario rol:', userRoleId);
     
-    // Fallback to database permissions
+    // Si no hay permisos cargados, solo permitir para admins
     if (!permissions.length) {
-      return userRoleId <= 2; // Default allow for admins
+      console.log('⚠️ Sin permisos cargados, usando fallback por rol');
+      return userRoleId <= 2; // Solo super admin y admin
     }
     
+    // Buscar el permiso específico del módulo
     const modulePermission = permissions.find(p => 
       p.modulo_name?.toLowerCase() === moduleName.toLowerCase()
     );
     
+    console.log(`🎯 Permiso encontrado para "${moduleName}":`, modulePermission);
+    
     if (!modulePermission) {
-      return userRoleId <= 2;
+      console.log(`❌ No se encontró permiso para módulo "${moduleName}"`);
+      return userRoleId <= 2; // Solo admins si no hay permiso específico
     }
     
+    // Verificar el permiso específico
     const result = modulePermission[action] === 1 || modulePermission[action] === true;
+    console.log(`✅ Resultado para "${moduleName}" (${action}): ${result ? 'PERMITIDO' : 'DENEGADO'}`);
+    
     return result;
   }, [originalUser, permissions]);
 

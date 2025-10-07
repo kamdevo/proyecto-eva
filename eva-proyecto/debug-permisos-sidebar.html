@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Permisos Sidebar</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .danger { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        .enabled { background: #d4edda; }
+        .disabled { background: #f8d7da; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Permisos del Sidebar</h1>
+    <p>Esta página simula cómo el sidebar debería verificar los permisos del usuario.</p>
+
+    <div class="debug info">
+        <h3>📋 Estado de la Verificación</h3>
+        <div id="status">🔄 Inicializando...</div>
+    </div>
+
+    <div class="debug">
+        <h3>👤 Información del Usuario</h3>
+        <div id="userInfo">⏳ Cargando...</div>
+    </div>
+
+    <div class="debug">
+        <h3>📂 Módulos y Permisos</h3>
+        <div id="modulesInfo">⏳ Cargando módulos...</div>
+    </div>
+
+    <div class="debug">
+        <h3>🎯 Simulación del Sidebar</h3>
+        <div id="sidebarSimulation">⏳ Procesando...</div>
+    </div>
+
+    <script>
+        let user = null;
+        let permissions = [];
+        let modules = [];
+
+        // Simular la función hasPermission del hook useAuth
+        function hasPermission(moduleName, action = 'leer') {
+            console.log(`🔍 Verificando permiso: ${moduleName} -> ${action}`);
+            
+            if (!user) {
+                console.log('❌ Sin usuario');
+                return false;
+            }
+
+            const userRoleId = parseInt(user.rol_id);
+            console.log('👤 Usuario rol:', userRoleId);
+
+            // Super admin tiene acceso a todo
+            if (userRoleId === 1) {
+                console.log('✅ Super admin - acceso total');
+                return true;
+            }
+
+            // Admin tiene la mayoría de permisos
+            if (userRoleId === 2) {
+                console.log('✅ Admin - acceso amplio');
+                return true;
+            }
+
+            // Advanced user - permisos limitados para eliminar
+            if (userRoleId === 3) {
+                if (action === 'eliminar') {
+                    console.log('❌ Advanced user - sin permiso eliminar');
+                    return false;
+                }
+                console.log('✅ Advanced user - otros permisos ok');
+                return true;
+            }
+
+            // Para otros roles, usar permisos de la BD
+            console.log('📊 Permisos disponibles:', permissions.length);
+
+            if (!permissions.length) {
+                console.log('⚠️ Sin permisos cargados');
+                return false;
+            }
+
+            const modulePermission = permissions.find(p => 
+                p.modulo_name?.toLowerCase() === moduleName.toLowerCase()
+            );
+
+            console.log(`🎯 Permiso encontrado para "${moduleName}":`, modulePermission);
+
+            if (!modulePermission) {
+                console.log(`❌ No se encontró permiso para módulo "${moduleName}"`);
+                return false;
+            }
+
+            const result = modulePermission[action] === 1 || modulePermission[action] === true;
+            console.log(`✅ Resultado para "${moduleName}" (${action}): ${result ? 'PERMITIDO' : 'DENEGADO'}`);
+
+            return result;
+        }
+
+        function hasModuleAccess(moduleName) {
+            return hasPermission(moduleName, 'leer');
+        }
+
+        async function loadUserData() {
+            try {
+                // Simular datos del usuario tomy1 (ID 387)
+                user = {
+                    id: 387,
+                    nombre: 'tomy1',
+                    rol_id: 4
+                };
+
+                document.getElementById('userInfo').innerHTML = `
+                    <strong>Usuario:</strong> ${user.nombre}<br>
+                    <strong>ID:</strong> ${user.id}<br>
+                    <strong>Rol:</strong> ${user.rol_id} (Usuario Normal)
+                `;
+
+                updateStatus('✅ Usuario cargado');
+                return true;
+            } catch (error) {
+                updateStatus('❌ Error cargando usuario: ' + error.message);
+                return false;
+            }
+        }
+
+        async function loadPermissions() {
+            try {
+                updateStatus('🔄 Cargando permisos...');
+                
+                const response = await fetch('http://localhost:8001/api/v1/usuarios/387/permissions');
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    permissions = data.data;
+                    updateStatus(`✅ ${permissions.length} permisos cargados`);
+                    return true;
+                } else {
+                    updateStatus('❌ Error: permisos vacíos');
+                    return false;
+                }
+            } catch (error) {
+                updateStatus('❌ Error cargando permisos: ' + error.message);
+                return false;
+            }
+        }
+
+        async function loadModules() {
+            try {
+                updateStatus('🔄 Cargando módulos...');
+                
+                const response = await fetch('http://localhost:8001/api/v1/modulos');
+                const data = await response.json();
+
+                if (data.success && data.data) {
+                    modules = data.data;
+                    updateStatus(`✅ ${modules.length} módulos cargados`);
+                    return true;
+                } else {
+                    updateStatus('❌ Error: módulos vacíos');
+                    return false;
+                }
+            } catch (error) {
+                updateStatus('❌ Error cargando módulos: ' + error.message);
+                return false;
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').innerHTML = message;
+        }
+
+        function simulateSidebar() {
+            updateStatus('🔄 Simulando sidebar...');
+
+            let html = '<table>';
+            html += '<tr><th>Módulo</th><th>Tiene Permiso</th><th>Estado en Sidebar</th><th>Detalles</th></tr>';
+
+            let enabledCount = 0;
+            let disabledCount = 0;
+
+            modules.forEach(module => {
+                const hasAccess = hasModuleAccess(module.name);
+                const permission = permissions.find(p => 
+                    p.modulo_name?.toLowerCase() === module.name.toLowerCase()
+                );
+
+                const estado = hasAccess ? 'HABILITADO' : 'DESHABILITADO';
+                const cssClass = hasAccess ? 'enabled' : 'disabled';
+                
+                if (hasAccess) enabledCount++;
+                else disabledCount++;
+
+                html += `<tr class="${cssClass}">
+                    <td><strong>${module.name}</strong></td>
+                    <td>${hasAccess ? '✅ SÍ' : '❌ NO'}</td>
+                    <td>${estado}</td>
+                    <td>${permission ? `Leer: ${permission.leer}, Insertar: ${permission.insertar}` : 'Sin permiso'}</td>
+                </tr>`;
+            });
+
+            html += '</table>';
+
+            html += `<div class="debug info">
+                <strong>📊 Resumen:</strong><br>
+                Habilitados: ${enabledCount}<br>
+                Deshabilitados: ${disabledCount}<br>
+                Total: ${modules.length}
+            </div>`;
+
+            document.getElementById('sidebarSimulation').innerHTML = html;
+
+            // Mostrar algunos permisos importantes
+            const importantModules = ['equipos', 'usuarios', 'tickets propios', 'correctivos', 'reportes'];
+            let permissionsHtml = '<h4>🎯 Permisos Importantes:</h4><ul>';
+            
+            importantModules.forEach(moduleName => {
+                const hasAccess = hasModuleAccess(moduleName);
+                const permission = permissions.find(p => 
+                    p.modulo_name?.toLowerCase() === moduleName.toLowerCase()
+                );
+                
+                permissionsHtml += `<li><strong>${moduleName}:</strong> ${hasAccess ? '✅ Habilitado' : '❌ Deshabilitado'}`;
+                if (permission) {
+                    permissionsHtml += ` (BD: leer=${permission.leer}, insertar=${permission.insertar})`;
+                }
+                permissionsHtml += '</li>';
+            });
+            
+            permissionsHtml += '</ul>';
+            
+            document.getElementById('modulesInfo').innerHTML = permissionsHtml;
+
+            updateStatus('✅ Simulación completada');
+        }
+
+        // Ejecutar la simulación
+        async function runSimulation() {
+            updateStatus('🚀 Iniciando simulación...');
+
+            const userLoaded = await loadUserData();
+            if (!userLoaded) return;
+
+            const permissionsLoaded = await loadPermissions();
+            if (!permissionsLoaded) return;
+
+            const modulesLoaded = await loadModules();
+            if (!modulesLoaded) return;
+
+            simulateSidebar();
+        }
+
+        // Iniciar cuando la página esté lista
+        document.addEventListener('DOMContentLoaded', runSimulation);
+    </script>
+</body>
+</html>

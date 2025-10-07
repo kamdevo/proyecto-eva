@@ -1,9 +1,24 @@
 {
-  
   "compilerOptions": {
     "baseUrl": ".",
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@emails/*": ["./emails/*"]
     }
-  }
+  },
+  "include": [
+    "src/**/*",
+    "emails/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

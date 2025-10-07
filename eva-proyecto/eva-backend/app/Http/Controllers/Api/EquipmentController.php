@@ -1797,14 +1797,14 @@ class EquipmentController extends ApiController
 
             $userHistory = [];
 
-            // 1. Obtener historial de observaciones
-            $observaciones = DB::table('observaciones_equipos as oe')
-                ->leftJoin('usuarios as u', 'oe.usuario_id', '=', 'u.id')
-                ->where('oe.equipo_id', $id)
+            // 1. Obtener historial de observaciones (CORREGIDO: columna se llama 'description')
+            $observaciones = DB::table('observaciones as o')
+                ->leftJoin('usuarios as u', 'o.usuario_id', '=', 'u.id')
+                ->where('o.equipo_id', $id)
                 ->select([
-                    'oe.id',
-                    'oe.observacion as detalle',
-                    'oe.created_at as fecha',
+                    'o.id',
+                    'o.description as detalle', // CORREGIDO: usar 'description' en lugar de 'observacion'
+                    'o.created_at as fecha',
                     'u.nombre as usuario',
                     DB::raw("'observacion' as tipo"),
                     DB::raw("'Agregó observación' as accion")
@@ -1822,17 +1822,17 @@ class EquipmentController extends ApiController
                 ];
             }
 
-            // 2. Obtener historial de documentos/archivos
-            $documentos = DB::table('archivos_equipos as ae')
-                ->leftJoin('usuarios as u', 'ae.usuario_id', '=', 'u.id')
-                ->where('ae.equipo_id', $id)
+            // 2. Obtener historial de documentos/archivos (CORREGIDO: equipo_archivo NO tiene usuario_id)
+            $documentos = DB::table('equipo_archivo as ea')
+                ->leftJoin('archivos as a', 'ea.archivo_id', '=', 'a.id')
+                ->where('ea.equipo_id', $id)
                 ->select([
-                    'ae.id',
-                    'ae.nombre_archivo as detalle',
-                    'ae.created_at as fecha',
-                    'u.nombre as usuario',
+                    'ea.id',
+                    'a.name as detalle', // Usar name de tabla archivos
+                    'ea.created_at as fecha',
+                    DB::raw("'Sistema' as usuario"), // No hay usuario_id en equipo_archivo
                     DB::raw("'documento' as tipo"),
-                    DB::raw("'Subió documento' as accion")
+                    DB::raw("'Archivo vinculado' as accion")
                 ])
                 ->get();
 
@@ -1847,17 +1847,16 @@ class EquipmentController extends ApiController
                 ];
             }
 
-            // 3. Obtener historial de mantenimientos (opcional)
-            $mantenimientos = DB::table('mantenimientos as m')
-                ->leftJoin('usuarios as u', 'm.usuario_id', '=', 'u.id')
+            // 3. Obtener historial de mantenimientos (CORREGIDO: columna es 'description', sin usuario_id)
+            $mantenimientos = DB::table('mantenimiento as m')
                 ->where('m.equipo_id', $id)
                 ->select([
                     'm.id',
-                    'm.descripcion as detalle',
+                    'm.description as detalle', // CORREGIDO: usar 'description' no 'descripcion'
                     'm.created_at as fecha',
-                    'u.nombre as usuario',
+                    DB::raw("'Sistema' as usuario"), // No hay usuario_id en mantenimiento
                     DB::raw("'mantenimiento' as tipo"),
-                    DB::raw("'Registró mantenimiento' as accion")
+                    DB::raw("'Mantenimiento registrado' as accion")
                 ])
                 ->get();
 

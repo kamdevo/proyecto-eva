@@ -5,6 +5,7 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use App\Services\ReactEmailService;
 
 class NuevoTicketEmail extends Mailable
 {
@@ -16,7 +17,7 @@ class NuevoTicketEmail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct($ticket, $equipo)
+    public function __construct($ticket, $equipo = null)
     {
         $this->ticket = $ticket;
         $this->equipo = $equipo;
@@ -27,7 +28,24 @@ class NuevoTicketEmail extends Mailable
      */
     public function build()
     {
-        return $this->subject('Creación de Ticket Nro ' . $this->ticket->id)
-                    ->view('emails.nuevo-ticket');
+        try {
+            // Usar ReactEmailService para generar el HTML
+            $reactEmailService = new ReactEmailService();
+            $htmlContent = $reactEmailService->renderNuevoTicket($this->ticket);
+            
+            return $this->subject("Creación de Ticket Nro {$this->ticket->id}")
+                        ->html($htmlContent);
+                        
+        } catch (\Exception $e) {
+            \Log::error('Error en NuevoTicketEmail: ' . $e->getMessage());
+            
+            // Fallback a HTML básico si React Email falla
+            return $this->subject("Creación de Ticket Nro {$this->ticket->id}")
+                        ->view('emails.nuevo-ticket-fallback')
+                        ->with([
+                            'ticket' => $this->ticket,
+                            'equipo' => $this->equipo
+                        ]);
+        }
     }
 }

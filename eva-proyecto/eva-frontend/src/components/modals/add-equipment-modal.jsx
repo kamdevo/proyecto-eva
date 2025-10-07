@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import axios from "axios";
+import apiClient from "@/config/apiClient"; // Usar cliente configurado en lugar de axios directo
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
 
 export function AddEquipmentModal({
@@ -163,12 +163,8 @@ export function AddEquipmentModal({
     if (!value) return;
 
     try {
-      const response = await axios.get(`/api/v1/equipos/validate-unique`, {
+      const response = await apiClient.get(`/v1/equipos/validate-unique`, {
         params: { field, value },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("eva_auth_token")}`,
-          Accept: "application/json",
-        },
       });
 
       if (!response.data.unique) {
@@ -210,11 +206,7 @@ export function AddEquipmentModal({
     try {
       setLoadingCatalogs(true);
       // Usar endpoint público directamente (sin autenticación)
-      const response = await axios.get("/api/v1/test/modal-equipment-data", {
-        headers: {
-          Accept: "application/json",
-        },
-      });
+      const response = await apiClient.get("/v1/test/modal-equipment-data");
 
       if (response.data.success) {
         setCatalogs(response.data.data);
@@ -366,7 +358,7 @@ export function AddEquipmentModal({
   const loadRegistrosInvima = async () => {
     try {
       setLoadingInvima(true);
-      const response = await axios.get("/api/v1/registros-invima");
+      const response = await apiClient.get("/v1/registros-invima");
 
       if (response.data.success) {
         setRegistrosInvima(response.data.data);
@@ -402,7 +394,8 @@ export function AddEquipmentModal({
           { id: "validate-invima" }
         );
       } else {
-        // Validación básica de formato si no está en BD
+        // TEMPORALMENTE COMENTADO: Validación básica de formato si no está en BD
+        /*
         const invimaPattern = /^[A-Z0-9-]+$/;
         if (
           !invimaPattern.test(formData.invima) ||
@@ -413,7 +406,8 @@ export function AddEquipmentModal({
           });
           return;
         }
-        toast.warning("Registro no encontrado en BD, pero formato válido", {
+        */
+        toast.success("Registro INVIMA aceptado", {
           id: "validate-invima",
         });
       }
@@ -520,9 +514,7 @@ export function AddEquipmentModal({
       });
 
       // Construir URL del archivo usando la ruta de storage directa
-      const fileUrl = `${
-        axios.defaults.baseURL || "http://localhost:8001"
-      }/storage/invimas/${registroSeleccionado.archivo_pdf}`;
+      const fileUrl = `http://localhost:8001/storage/invimas/${registroSeleccionado.archivo_pdf}`;
 
       console.log("🔗 URL construida:", fileUrl);
 
@@ -601,7 +593,8 @@ export function AddEquipmentModal({
   const validateForm = () => {
     const newErrors = {};
 
-    // Campos obligatorios
+    // TEMPORALMENTE COMENTADO: Campos obligatorios (solo mantener validación de serie única)
+    /*
     const requiredFields = {
       name: "Nombre del equipo",
       serial: "Serie",
@@ -643,6 +636,10 @@ export function AddEquipmentModal({
         newErrors[field] = `${label} es obligatorio`;
       }
     });
+    */
+
+    // SOLO MANTENER: Validación de unicidad del número de serie (si está lleno)
+    // La validación de unicidad ya se maneja en validateUniqueness() llamado por useEffect
 
     // Validaciones específicas
     if (formData.costo && isNaN(parseFloat(formData.costo))) {
@@ -670,7 +667,8 @@ export function AddEquipmentModal({
         "La fecha de adquisición no puede ser anterior a la fecha de fabricación";
     }
 
-    // Validación específica para INVIMA
+    // TEMPORALMENTE COMENTADO: Validación específica para INVIMA
+    /*
     if (formData.invima) {
       const invimaPattern = /^[A-Z0-9-]+$/;
       if (!invimaPattern.test(formData.invima)) {
@@ -682,6 +680,7 @@ export function AddEquipmentModal({
           "El registro INVIMA debe tener al menos 8 caracteres";
       }
     }
+    */
 
     // Validación de archivo INVIMA
     if (formData.archivo_invima) {
@@ -703,7 +702,7 @@ export function AddEquipmentModal({
   // Función para enviar formulario
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("Por favor, complete todos los campos obligatorios");
+      toast.error("Verifique los campos marcados con errores");
       return;
     }
 
@@ -743,7 +742,7 @@ export function AddEquipmentModal({
         }
       });
 
-      const response = await axios.post("/api/v1/equipos", submitData, {
+      const response = await apiClient.post("/v1/equipos-create", submitData, {
         headers: {
           "Content-Type": "multipart/form-data",
           Accept: "application/json",
@@ -844,6 +843,12 @@ export function AddEquipmentModal({
           <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
             Agregar - Equipo biomédico
           </DialogTitle>
+          <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-2">
+            <p className="text-sm text-yellow-800">
+              📝 <strong>Modo de prueba:</strong> Temporalmente todos los campos son opcionales. 
+              Solo se valida la unicidad del número de serie si se proporciona.
+            </p>
+          </div>
         </DialogHeader>
 
         <div className="space-y-6 p-4">
@@ -866,7 +871,7 @@ export function AddEquipmentModal({
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Nombre del equipo:
-                      <span className="text-destructive">*</span>
+                      {/* <span className="text-destructive">*</span> */} {/* TEMPORALMENTE OPCIONAL */}
                     </Label>
                     <Input
                       placeholder="NOMBRE"

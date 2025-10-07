@@ -24,12 +24,22 @@ class StoreEquipmentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // TEMPORALMENTE COMENTADO: Validaciones obligatorias (solo mantener unicidad de serial)
+            /*
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:equipos,code|max:100',
             'servicio_id' => 'required|exists:servicios,id',
+            */
+            
+            // Campos opcionales (sin required)
+            'name' => 'nullable|string|max:255',
+            'code' => 'nullable|string|max:100', // Temporalmente sin unique
+            'servicio_id' => 'nullable|exists:servicios,id',
             'area_id' => 'nullable|numeric|min:0',
             'marca' => 'nullable|string|max:100',
             'modelo' => 'nullable|string|max:100',
+            
+            // SOLO MANTENER: Validación de unicidad del número de serie
             'serial' => 'nullable|string|max:100|unique:equipos,serial',
             'descripcion' => 'nullable|string|max:1000',
             'costo' => 'nullable|numeric|min:0|max:999999999.99',
@@ -62,7 +72,7 @@ class StoreEquipmentRequest extends FormRequest
             'periodicidad' => 'nullable|string|max:100',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120|dimensions:max_width=2048,max_height=2048',
             'archivo_excel' => 'nullable|file|mimes:xlsx,xls,pdf|max:20480', // 20MB max
-            'codigo_antiguo' => 'nullable|string|max:100|unique:equipos,codigo_antiguo',
+            'codigo_antiguo' => 'nullable|string|max:100', // Temporalmente sin unique
             'evaluacion_desempenio' => 'nullable|string|max:100',
             'periodicidad_calibracion' => 'nullable|string|max:100',
             'disponibilidad_id' => 'nullable|numeric|min:1',

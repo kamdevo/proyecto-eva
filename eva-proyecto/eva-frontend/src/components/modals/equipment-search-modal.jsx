@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, X, CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Pagination from "@/components/common/Pagination";
 
 export default function EquipmentSearchModal({ 
   isOpen, 
@@ -17,6 +18,12 @@ export default function EquipmentSearchModal({
   const [equipos, setEquipos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
+  
+  // Estados de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 25; // 25 equipos por página
   
   // Filtros
   const [sedeFilter, setSedeFilter] = useState("all");
@@ -35,7 +42,12 @@ export default function EquipmentSearchModal({
       fetchFilterData();
       fetchEquipments();
     }
-  }, [isOpen, sedeFilter, servicioFilter, areaFilter, searchTerm]);
+  }, [isOpen, sedeFilter, servicioFilter, areaFilter, searchTerm, currentPage]);
+  
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sedeFilter, servicioFilter, areaFilter, searchTerm]);
 
   const fetchFilterData = async () => {
     try {
@@ -71,17 +83,28 @@ export default function EquipmentSearchModal({
       // Usar el endpoint correcto según el tipo de ticket
       let url = '';
       if (ticketType === 'biomedico') {
-        url = 'http://localhost:8001/api/v1/equipos/medical-devices-complete?per_page=200';
+        url = `http://localhost:8001/api/v1/equipos/medical-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
       } else if (ticketType === 'industrial') {
-        url = 'http://localhost:8001/api/v1/equipos/industrial-devices-complete?per_page=200';
+        url = `http://localhost:8001/api/v1/equipos/industrial-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
       } else {
         // Para infraestructura, usar endpoint general
-        url = 'http://localhost:8001/api/v1/equipos?per_page=200';
+        url = `http://localhost:8001/api/v1/equipos?per_page=${itemsPerPage}&page=${currentPage}`;
       }
       
-      // Agregar búsqueda si existe
+      // Agregar filtros de búsqueda
       if (searchTerm) {
         url += `&search=${encodeURIComponent(searchTerm)}`;
+      }
+      
+      // Agregar filtros de sede, servicio y área
+      if (sedeFilter !== 'all') {
+        url += `&sede_id=${sedeFilter}`;
+      }
+      if (servicioFilter !== 'all') {
+        url += `&servicio_id=${servicioFilter}`;
+      }
+      if (areaFilter !== 'all') {
+        url += `&area_id=${areaFilter}`;
       }
 
       const response = await fetch(url);
@@ -94,10 +117,10 @@ export default function EquipmentSearchModal({
       
       if (result.success) {
         // La estructura es: result.data.data (array de equipos)
-        let equiposData = result.data?.data || [];
+        const equiposData = result.data?.data || [];
         
         // Transformar la estructura anidada a formato plano para la tabla
-        equiposData = equiposData.map(item => ({
+        const transformedData = equiposData.map(item => ({
           id: item.id,
           name: item.equipo?.name || '',
           code: item.equipo?.code || '',
@@ -109,32 +132,12 @@ export default function EquipmentSearchModal({
           sede: item.ubicacion?.sede || ''
         }));
         
-        // Aplicar filtros en el frontend
-        if (sedeFilter !== 'all') {
-          equiposData = equiposData.filter(eq => {
-            const sedeNombre = eq.sede;
-            const sedeObj = sedes.find(s => s.id.toString() === sedeFilter);
-            return sedeObj && sedeNombre === sedeObj.name;
-          });
-        }
+        setEquipos(transformedData);
         
-        if (servicioFilter !== 'all') {
-          equiposData = equiposData.filter(eq => {
-            const servicioNombre = eq.servicios;
-            const servicioObj = servicios.find(s => s.id.toString() === servicioFilter);
-            return servicioObj && servicioNombre === servicioObj.name;
-          });
-        }
-        
-        if (areaFilter !== 'all') {
-          equiposData = equiposData.filter(eq => {
-            const areaNombre = eq.area;
-            const areaObj = areas.find(a => a.id.toString() === areaFilter);
-            return areaObj && areaNombre === areaObj.name;
-          });
-        }
-        
-        setEquipos(equiposData);
+        // Actualizar información de paginación
+        setTotalPages(result.data?.last_page || 1);
+        setTotalItems(result.data?.total || 0);
+        setCurrentPage(result.data?.current_page || 1);
       } else {
         console.error('Error en respuesta:', result.message);
         setEquipos([]);
@@ -149,6 +152,11 @@ export default function EquipmentSearchModal({
 
   const handleSelectEquipment = (equipo) => {
     setSelectedEquipment(equipo);
+  };
+  
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    setSelectedEquipment(null); // Limpiar selección al cambiar página
   };
 
   const handleConfirmSelection = () => {
@@ -190,7 +198,7 @@ export default function EquipmentSearchModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-6xl h-[85vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="w-[90vw] max-w-6xl h-[85vh] overflow-hidden flex flex-col p-0" style={{width: '95vw', maxWidth: '1400px'}}>
         <DialogHeader className={`${getHeaderColor()} text-white p-6`}>
           <DialogTitle className="text-xl font-bold flex items-center">
             <Search className="w-6 h-6 mr-2" />
@@ -372,23 +380,38 @@ export default function EquipmentSearchModal({
           )}
         </div>
 
-        {/* Footer con botones */}
-        <div className="border-t border-gray-200 p-4 bg-gray-50 flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="px-6"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleConfirmSelection}
-            disabled={!selectedEquipment}
-            className={`px-6 ${getHeaderColor()} text-white hover:opacity-90`}
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Seleccionar Equipo
-          </Button>
+        {/* Footer fijo con paginación y botones */}
+        <div className="border-t border-gray-200 bg-gray-50 p-4">
+          {/* Paginación */}
+          <div className="mb-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              showInfo={true}
+            />
+          </div>
+          
+          {/* Botones */}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="px-6"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmSelection}
+              disabled={!selectedEquipment}
+              className={`px-6 ${getHeaderColor()} text-white hover:opacity-90`}
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Seleccionar Equipo
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

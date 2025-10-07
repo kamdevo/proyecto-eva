@@ -111,6 +111,16 @@ const AppSidebar = () => {
   const { permissionService, isAdmin, user } = useAuth();
   const { hasModuleAccess, isAdmin: isPermissionAdmin } = usePermissions();
 
+  // Debug: mostrar información del usuario y permisos
+  useEffect(() => {
+    if (user) {
+      console.log('🔍 Navbar - Usuario:', user.nombre, 'Rol:', user.rol_id);
+      console.log('🔍 Navbar - isPermissionAdmin():', isPermissionAdmin());
+      console.log('🔍 Navbar - Debe ver CONFIGURACIÓN:', user.rol_id === 1);
+      console.log('🔍 Navbar - Debe ver DASHBOARD:', user.rol_id <= 2);
+    }
+  }, [user, isPermissionAdmin]);
+
   // Initialize permissions when user changes
   useEffect(() => {
     if (user) {
@@ -158,15 +168,17 @@ const AppSidebar = () => {
       label: "CAPACITACIONES",
       submenu: [{ label: "CAPACITACIONES", href: "/capacitaciones" }],
     },
-    {
+    // Only show DASHBOARD/REPORTES for admins (rol_id <= 2)
+    ...(user?.rol_id <= 2 ? [{
       icon: BarChart3,
       label: "DASHBOARD",
       submenu: [
         { label: "REPORTES", href: "/dashboard/reportes" },
         { label: "GRAFICAS", href: "/dashboard/graficas" },
       ],
-    },
-    {
+    }] : []),
+    // Only show CONFIGURACIÓN for superadmin (rol_id = 1) 
+    ...(user?.rol_id === 1 ? [{
       icon: Settings,
       label: "CONFIGURACIÓN",
       submenu: [
@@ -174,8 +186,8 @@ const AppSidebar = () => {
         { label: "CONTACTOS", href: "/config/contactos" },
         { label: "AREAS", href: "/config/areas" },
       ],
-    },
-    // Only show admin module for users with admin permissions
+    }] : []),
+    // Only show admin module for users with admin permissions (superadmin + admin)
     ...(isPermissionAdmin() ? [{
       icon: User,
       label: "ADMINISTRADOR",

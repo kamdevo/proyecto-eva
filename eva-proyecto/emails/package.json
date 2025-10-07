@@ -1,0 +1,25 @@
+{
+  "name": "eva-emails",
+  "version": "1.0.0",
+  "description": "Email templates for EVA Hospital System using React Email",
+  "type": "module",
+  "scripts": {
+    "dev": "email dev",
+    "build": "email export",
+    "export": "email export",
+    "preview": "email dev --port 3001"
+  },
+  "dependencies": {
+    "@react-email/components": "latest",
+    "@react-email/render": "latest",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@react-email/preview-server": "^4.2.12",
+    "react-email": "latest",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
