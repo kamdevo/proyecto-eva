@@ -47,10 +47,7 @@ export function ViewEquipmentModal({
   // PDF generation hook - switch between components for testing
   // Use EquipmentLifecyclePDFCompact for compact, single-page format
   const [instance, updateInstance] = usePDF({
-    document: equipmentDetails ? (
-      <EquipmentLifecyclePDFCompact equipment={equipmentDetails} />
-    ) : null,
-    // document: equipmentDetails ? <MinimalTestPDF equipment={equipmentDetails} /> : null  // For testing
+    document: null, // Initialize as null to prevent initial render errors
   });
 
   // Function to fetch user history for equipment (PUBLIC ENDPOINT)
@@ -164,26 +161,40 @@ export function ViewEquipmentModal({
 
   // Update PDF when equipment details change
   useEffect(() => {
-    if (equipmentDetails) {
-      updateInstance(
-        <EquipmentLifecyclePDFCompact equipment={equipmentDetails} />
-      );
-      // updateInstance(<MinimalTestPDF equipment={equipmentDetails} />);  // For testing
+    if (equipmentDetails && EquipmentLifecyclePDFCompact) {
+      try {
+        updateInstance(
+          <EquipmentLifecyclePDFCompact equipment={equipmentDetails} />
+        );
+        // updateInstance(<MinimalTestPDF equipment={equipmentDetails} />);  // For testing
+      } catch (error) {
+        console.error("Error updating PDF instance:", error);
+      }
     }
   }, [equipmentDetails, updateInstance]);
 
   // Handle PDF download
   const handleDownloadPDF = () => {
-    if (instance.url) {
-      const link = document.createElement("a");
-      link.href = instance.url;
-      link.download = `equipo_${
-        equipmentDetails?.code || equipment?.id
-      }_reporte.pdf`;
-      link.click();
-      toast.success("Reporte PDF descargado exitosamente");
-    } else {
-      toast.error("Error al generar el PDF. Intente nuevamente.");
+    try {
+      if (instance.url && !instance.loading && !instance.error) {
+        const link = document.createElement("a");
+        link.href = instance.url;
+        link.download = `equipo_${
+          equipmentDetails?.code || equipment?.id
+        }_reporte.pdf`;
+        link.click();
+        toast.success("Reporte PDF descargado exitosamente");
+      } else if (instance.loading) {
+        toast.info("El PDF se está generando, espere un momento...");
+      } else if (instance.error) {
+        console.error("PDF generation error:", instance.error);
+        toast.error("Error al generar el PDF. Verifique los datos del equipo.");
+      } else {
+        toast.error("Error al generar el PDF. Intente nuevamente.");
+      }
+    } catch (error) {
+      console.error("Error in PDF download:", error);
+      toast.error("Error al descargar el PDF. Intente nuevamente.");
     }
   };
 

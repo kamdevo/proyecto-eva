@@ -176,9 +176,9 @@ export function MedicalDevicesView() {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      // Fetch maintenance data for the equipment - solo PREVENTIVOS
+      // Fetch maintenance data for the equipment using correct endpoint
       const response = await fetch(
-        `http://127.0.0.1:8001/api/v1/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1&order_by=fecha_mantenimiento&order_direction=desc`,
+        `http://localhost:8001/api/v1/planes-mantenimientos?equipo_id=${equipmentId}&sort_by=created_at&sort_order=desc&per_page=100`,
         { headers }
       );
 
@@ -187,9 +187,9 @@ export function MedicalDevicesView() {
 
       if (response.status === 401) {
         console.warn('🔒 No autorizado - intentando sin autenticación...');
-        // Intentar con endpoint público si existe - solo PREVENTIVOS
+        // Intentar con endpoint público
         const publicResponse = await fetch(
-          `http://127.0.0.1:8001/api/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1`
+          `http://localhost:8001/api/v1/planes-mantenimientos?equipo_id=${equipmentId}&sort_by=created_at&sort_order=desc&per_page=100`
         );
         
         if (!publicResponse.ok) {
@@ -199,11 +199,23 @@ export function MedicalDevicesView() {
         const publicData = await publicResponse.json();
         console.log('📊 Public data received:', publicData);
         
-        // Procesar respuesta pública...
-        if (publicData && publicData.length > 0) {
-          const maintenance = publicData[0];
-          if (maintenance.file) {
-            const fileUrl = `http://127.0.0.1:8001/storage/mantenimientos/${maintenance.file}`;
+        // Procesar respuesta pública - la API ya ordena por created_at DESC
+        if (publicData.success && publicData.data && publicData.data.data && publicData.data.data.length > 0) {
+          const maintenanceList = publicData.data.data;
+          
+          // Ordenar por created_at para garantizar el más reciente
+          const sortedPublicData = maintenanceList.sort((a, b) => {
+            const dateA = new Date(a.created_at || a.fecha_mantenimiento || 0);
+            const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
+            return dateB.getTime() - dateA.getTime();
+          });
+          
+          const latestMaintenance = sortedPublicData[0];
+          console.log('📄 Latest public maintenance by created_at:', latestMaintenance);
+          
+          if (latestMaintenance.file) {
+            const fileUrl = `http://localhost:8001/storage/mantenimientos/${latestMaintenance.file}`;
+            console.log('📅 Public document created_at:', latestMaintenance.created_at);
             window.open(fileUrl, "_blank");
             return;
           }
@@ -221,12 +233,12 @@ export function MedicalDevicesView() {
       const data = await response.json();
       console.log('📊 Data received:', data);
 
-      // Verificar diferentes estructuras de respuesta
+      // La respuesta de planes-mantenimientos tiene estructura: { success, data: { data: [], total, ... } }
       let maintenanceData = null;
       
       if (data.success && data.data) {
         if (Array.isArray(data.data.data)) {
-          // Estructura paginada: data.data.data
+          // Estructura paginada correcta: data.data.data
           maintenanceData = data.data.data;
         } else if (Array.isArray(data.data)) {
           // Estructura simple: data.data
@@ -240,24 +252,27 @@ export function MedicalDevicesView() {
       console.log('🔧 Maintenance data:', maintenanceData);
 
       if (maintenanceData && maintenanceData.length > 0) {
-        const maintenance = maintenanceData[0];
-        console.log('📄 Latest maintenance:', maintenance);
+        // La API ya ordena por created_at DESC, pero lo hacemos nuevamente por seguridad
+        const sortedMaintenance = maintenanceData.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.fecha_mantenimiento || 0);
+          const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
+          return dateB.getTime() - dateA.getTime(); // Más reciente primero
+        });
+        
+        const latestMaintenance = sortedMaintenance[0];
+        console.log('📄 Latest maintenance by created_at:', latestMaintenance);
 
-        if (maintenance.file) {
-          // Construct the file URL - archivos preventivos están en mantenimientos
-          const possibleUrls = [
-            `http://127.0.0.1:8001/storage/mantenimientos/${maintenance.file}`,
-            `http://127.0.0.1:8001/storage/correctivos_asociados/${maintenance.file}`,
-            `http://127.0.0.1:8001/storage/correctivos_generales/${maintenance.file}`
-          ];
-
-          console.log('🌐 Trying URLs:', possibleUrls);
+        if (latestMaintenance.file) {
+          // Construct the file URL using Laravel's storage symlink
+          const fileUrl = `http://localhost:8001/storage/mantenimientos/${latestMaintenance.file}`;
+          console.log('🌐 Opening latest maintenance document:', fileUrl);
+          console.log('📅 Document created_at:', latestMaintenance.created_at);
           
-          // Intentar abrir la primera URL (mantenimientos preventivos)
-          window.open(possibleUrls[0], "_blank");
+          // Abrir el documento de mantenimiento más reciente
+          window.open(fileUrl, "_blank");
           
         } else {
-          console.warn('⚠️ No file found in preventive maintenance record');
+          console.warn('⚠️ No file found in latest preventive maintenance record');
           alert(
             "No hay documento de mantenimiento preventivo disponible para este equipo"
           );
@@ -269,6 +284,116 @@ export function MedicalDevicesView() {
     } catch (error) {
       console.error("❌ Error al abrir documento de mantenimiento preventivo:", error);
       alert(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
+    }
+  };
+
+  // Function to handle calibration document opening
+  const handleOpenCalibrationDocument = async (equipmentId) => {
+    try {
+      console.log('🔬 Opening calibration document for equipment:', equipmentId);
+      
+      // Try to get calibration data for this equipment
+      let response;
+      const authToken = localStorage.getItem("eva_auth_token") || localStorage.getItem("auth_token");
+      
+      if (authToken) {
+        response = await httpService.get(`/v1/equipos/${equipmentId}/calibraciones`);
+      } else {
+        // Fallback to public endpoint
+        response = await fetch(`http://localhost:8001/api/v1/equipos/${equipmentId}/calibraciones`, {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const publicData = await response.json();
+        if (publicData && publicData.length > 0) {
+          const calibration = publicData[0];
+          if (calibration.file) {
+            const fileUrl = `http://localhost:8001/storage/calibraciones/${calibration.file}`;
+            window.open(fileUrl, "_blank");
+            return;
+          }
+        }
+        throw new Error('No se encontraron registros de calibración');
+      }
+
+      const data = response.data;
+      if (data && data.length > 0) {
+        const calibration = data[0];
+        if (calibration.file) {
+          const fileUrl = `http://localhost:8001/storage/calibraciones/${calibration.file}`;
+          console.log('🌐 Opening calibration document:', fileUrl);
+          window.open(fileUrl, "_blank");
+        } else {
+          alert("No hay documento de calibración disponible para este equipo");
+        }
+      } else {
+        alert("No se encontraron registros de calibración para este equipo");
+      }
+    } catch (error) {
+      console.error("❌ Error al abrir documento de calibración:", error);
+      alert(`Error al acceder al documento de calibración: ${error.message}`);
+    }
+  };
+
+  // Function to handle corrective document opening
+  const handleOpenCorrectiveDocument = async (equipmentId) => {
+    try {
+      console.log('🔧 Opening corrective document for equipment:', equipmentId);
+      
+      // Try to get corrective data for this equipment
+      let response;
+      const authToken = localStorage.getItem("eva_auth_token") || localStorage.getItem("auth_token");
+      
+      if (authToken) {
+        response = await httpService.get(`/v1/equipos/${equipmentId}/correctivos`);
+      } else {
+        // Fallback to public endpoint
+        response = await fetch(`http://localhost:8001/api/v1/equipos/${equipmentId}/correctivos`, {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const publicData = await response.json();
+        if (publicData && publicData.length > 0) {
+          const corrective = publicData[0];
+          if (corrective.file) {
+            const fileUrl = `http://localhost:8001/storage/correctivos_asociados/${corrective.file}`;
+            window.open(fileUrl, "_blank");
+            return;
+          }
+        }
+        throw new Error('No se encontraron registros de correctivo');
+      }
+
+      const data = response.data;
+      if (data && data.length > 0) {
+        const corrective = data[0];
+        if (corrective.file) {
+          const fileUrl = `http://localhost:8001/storage/correctivos_asociados/${corrective.file}`;
+          console.log('🌐 Opening corrective document:', fileUrl);
+          window.open(fileUrl, "_blank");
+        } else {
+          alert("No hay documento de correctivo disponible para este equipo");
+        }
+      } else {
+        alert("No se encontraron registros de correctivo para este equipo");
+      }
+    } catch (error) {
+      console.error("❌ Error al abrir documento de correctivo:", error);
+      alert(`Error al acceder al documento de correctivo: ${error.message}`);
     }
   };
 
@@ -988,24 +1113,40 @@ export function MedicalDevicesView() {
                             Última Calibración:
                           </span>
                         </div>
-                        <div className="text-slate-600 bg-blue-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
+                        <div className="text-slate-600 bg-blue-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-blue-200 flex justify-between items-center">
                           {device.mantenimiento?.ultimaCalibración
                             ? new Date(
                                 device.mantenimiento.ultimaCalibración
                               ).toLocaleDateString()
                             : "Sin registros"}
+                          <Link
+                            size={15}
+                            className="cursor-pointer hover:text-blue-600 transition-colors"
+                            onClick={() =>
+                              handleOpenCalibrationDocument(device.id)
+                            }
+                            title="Abrir documento de calibración"
+                          />
                         </div>
                         <div>
                           <span className="font-medium text-slate-700">
                             Último Correctivo:
                           </span>
                         </div>
-                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
+                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200 flex justify-between items-center">
                           {device.mantenimiento?.ultimoCorrectivo
                             ? new Date(
                                 device.mantenimiento.ultimoCorrectivo
                               ).toLocaleDateString()
                             : "Sin registros"}
+                          <Link
+                            size={15}
+                            className="cursor-pointer hover:text-amber-600 transition-colors"
+                            onClick={() =>
+                              handleOpenCorrectiveDocument(device.id)
+                            }
+                            title="Abrir documento de correctivo"
+                          />
                         </div>
                         <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
                           <div>
