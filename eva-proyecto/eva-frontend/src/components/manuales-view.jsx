@@ -1,36 +1,84 @@
-"use client"
-
-import { useState } from "react"
-import { Search, Plus, Edit, Trash2, Eye, ExternalLink } from 'lucide-react'
+import { useState, useEffect } from "react"
+import { Search, Plus, Edit, Trash2, Eye, ExternalLink, BookOpen, AlertCircle } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import Pagination from "@/components/common/Pagination"
+import { toast } from "sonner"
 import { AddManualesModal } from "@/components/modals/add-manuales-modal"
 import { EditManualesModal } from "@/components/modals/edit-manuales-modal"
 import { DeleteManualesModal } from "@/components/modals/delete-manuales-modal"
 
-const manualesData = [
-    { id: 1, descripcion: "MICROSCOPIO QUIRÚRGICO TIVATO 7001", url: "https://drive.google.com/drive/folders/1g03Se0Y37OYP8iF5QRHDMx" },
-    { id: 2, descripcion: "EQUIPO DE BRAQUITERAPIA VARIAN BRAVOS", url: "https://drive.google.com/drive/folders/1h04Tf1Z48PZQ9jG6RSIENy" },
-    { id: 3, descripcion: "ACELERADOR LINEAL VARIAN TRUE BEAM", url: "https://drive.google.com/drive/folders/1i05Ug2A59QAR0kH7STJFOz" },
-    { id: 4, descripcion: "MANUAL DE PROCEDIMIENTO DE VERIFICACIÓN DEL ALQON", url: "https://drive.google.com/drive/folders/1j06Vh3B60RBS1lI8TUKGPa" },
-    { id: 5, descripcion: "MONITOR DE NERVIO INTRAOPERATORIO MEDTRONIC", url: "https://drive.google.com/drive/folders/1k07Wi4C71SCT2mJ9UVLHQb" },
-    { id: 6, descripcion: "ELECTROBISTURÍ CONMED F700", url: "https://drive.google.com/drive/folders/1l08Xj5D82TDU3nK0VWMIRc" },
-    { id: 7, descripcion: "DESFIBRILADOR ENERGETH DC70", url: "https://drive.google.com/drive/folders/1m09Yk6E93UEV4oL1WXNJSd" },
-    { id: 8, descripcion: "VIDEOLARINGOSCOPIO HUGEMED", url: "https://drive.google.com/drive/folders/1n10Zl7F04VFW5pM2XYOKTe" },
-    { id: 9, descripcion: "RAYOS X PORTÁTIL FOR GO PLUS", url: "https://drive.google.com/drive/folders/1o11Am8G15WGX6qN3YZPLUf" },
-    { id: 10, descripcion: "VENTILADOR SLE 6000", url: "https://drive.google.com/drive/folders/1p12Bn9H26XHY7rO4ZAQMVg" },
-]
+// Los datos ahora vienen de la API real
 
 export function ManualesView() {
+    // Estados principales
+    const [manuales, setManuales] = useState([])
+    const [loading, setLoading] = useState(true)
     const [addModalOpen, setAddModalOpen] = useState(false)
     const [editModalOpen, setEditModalOpen] = useState(false)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [selectedManual, setSelectedManual] = useState(null)
     const [searchTerm, setSearchTerm] = useState("")
-    const [entriesPerPage, setEntriesPerPage] = useState("10")
+    
+    // Estados de paginación
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(1)
+    const [totalItems, setTotalItems] = useState(0)
+    const [itemsPerPage] = useState(10)
+
+    // Función para obtener manuales del API
+    const fetchManuales = async () => {
+        try {
+            setLoading(true)
+            
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                per_page: itemsPerPage.toString(),
+            })
+            
+            if (searchTerm.trim()) {
+                params.append('search', searchTerm.trim())
+            }
+            
+            const response = await fetch(`http://192.168.2.146:8001/api/v1/manuales?${params}`)
+            const data = await response.json()
+            
+            if (data.success) {
+                setManuales(data.data.data || [])
+                setCurrentPage(data.data.current_page || 1)
+                setTotalPages(data.data.total_pages || 1)
+                setTotalItems(data.data.total || 0)
+            } else {
+                toast.error('Error al cargar manuales')
+                setManuales([])
+            }
+        } catch (error) {
+            console.error('Error fetching manuales:', error)
+            toast.error('Error al cargar manuales')
+            setManuales([])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Efectos
+    useEffect(() => {
+        fetchManuales()
+    }, [currentPage, searchTerm])
+
+    // Función para manejar búsqueda
+    const handleSearch = (value) => {
+        setSearchTerm(value)
+        setCurrentPage(1) // Reset a primera página cuando se busca
+    }
+
+    // Función para cambiar página
+    const handlePageChange = (page) => {
+        setCurrentPage(page)
+    }
 
     const handleEdit = (manual) => {
         setSelectedManual(manual)
@@ -46,141 +94,189 @@ export function ManualesView() {
         window.open(url, "_blank")
     }
 
-    const filteredManuales = manualesData.filter((manual) =>
-        manual.descripcion.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
+    // Callback para refrescar datos después de operaciones CRUD
+    const handleRefreshData = () => {
+        fetchManuales()
+    }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-            {/* Header */}
-            <div className="bg-slate-600 text-white p-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+            {/* Header Refinado */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 mx-6 mt-6 p-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-xl sm:text-2xl font-semibold">Manuales</h1>
-                    <div className="hidden sm:flex items-center gap-2">
-                        <Search className="w-4 h-4 text-slate-300" />
-                        <Input
-                            placeholder="Buscar..."
-                            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-300 w-64"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <BookOpen className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-900">Gestión de Manuales</h1>
+                            <p className="text-slate-600">Administra los manuales de equipos del sistema</p>
+                        </div>
                     </div>
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                        {totalItems} manuales registrados
+                    </Badge>
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="p-4 sm:p-6">
-                <div className="mb-6">
-                    <Button onClick={() => setAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Agregar
-                    </Button>
-                </div>
-
-                {/* Table Controls */}
-                <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-600">Mostrar</span>
-                        <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
-                            <SelectTrigger className="w-20">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="10">10</SelectItem>
-                                <SelectItem value="25">25</SelectItem>
-                                <SelectItem value="50">50</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <span className="text-sm text-slate-600">entradas</span>
-                    </div>
-
-                    {/* Mobile Search */}
-                    <div className="sm:hidden flex items-center gap-2">
-                        <Search className="w-4 h-4 text-slate-400" />
-                        <Input
-                            placeholder="Buscar manuales..."
-                            className="flex-1"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                {/* Table (desktop) */}
-                <div className="hidden md:block">
-                    <Card className="shadow-lg">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="bg-slate-500 text-white">
-                                        <th className="text-left p-4">#</th>
-                                        <th className="text-left p-4">Descripción</th>
-                                        <th className="text-left p-4">Url</th>
-                                        <th className="text-left p-4">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredManuales.map((manual, index) => (
-                                        <tr key={manual.id} className="border-b hover:bg-slate-50">
-                                            <td className="p-4">{index + 1}</td>
-                                            <td className="p-4">{manual.descripcion}</td>
-                                            <td className="p-4">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleViewUrl(manual.url)}
-                                                    className="text-blue-600 hover:text-blue-800 p-1"
-                                                >
-                                                    <ExternalLink className="w-4 h-4" />
-                                                </Button>
-                                            </td>
-                                            <td className="p-4 flex gap-2">
-                                                <Button variant="ghost" size="sm" onClick={() => handleViewUrl(manual.url)}>
-                                                    <Eye className="w-4 h-4 text-blue-600" />
-                                                </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleEdit(manual)}>
-                                                    <Edit className="w-4 h-4 text-green-600" />
-                                                </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(manual)}>
-                                                    <Trash2 className="w-4 h-4 text-red-600" />
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+            {/* Controles */}
+            <div className="mx-6 mt-6">
+                <Card className="bg-white shadow-sm border-slate-200">
+                    <CardContent className="p-6">
+                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                            <div className="relative flex-1 max-w-md">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                <Input
+                                    placeholder="Buscar por descripción o URL..."
+                                    value={searchTerm}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    className="pl-10 bg-slate-50 border-slate-200 focus:border-blue-300 focus:ring-blue-200"
+                                />
+                            </div>
+                            <Button
+                                onClick={() => setAddModalOpen(true)}
+                                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Nuevo Manual
+                            </Button>
                         </div>
-                    </Card>
-                </div>
+                    </CardContent>
+                </Card>
+            </div>
 
-                {/* Mobile cards */}
-                <div className="md:hidden space-y-4">
-                    {filteredManuales.map((manual, index) => (
-                        <Card key={manual.id} className="shadow-md">
+            {/* Tabla Mejorada */}
+            <div className="mx-6 mt-6">
+                <Card className="bg-white shadow-sm border-slate-200">
+                    <CardContent className="p-0">
+                        {loading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                    <p className="text-slate-600">Cargando manuales...</p>
+                                </div>
+                            </div>
+                        ) : manuales.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <AlertCircle className="w-12 h-12 text-slate-400 mb-4" />
+                                <h3 className="text-lg font-semibold text-slate-700 mb-2">No se encontraron manuales</h3>
+                                <p className="text-slate-500 mb-4">
+                                    {searchTerm ? 'No hay manuales que coincidan con tu búsqueda' : 'No hay manuales registrados en el sistema'}
+                                </p>
+                                {!searchTerm && (
+                                    <Button onClick={() => setAddModalOpen(true)} variant="outline">
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Crear primer manual
+                                    </Button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-slate-200">
+                                            <th className="text-left p-4 font-semibold text-slate-700">ID</th>
+                                            <th className="text-left p-4 font-semibold text-slate-700">Descripción</th>
+                                            <th className="text-left p-4 font-semibold text-slate-700">URL</th>
+                                            <th className="text-center p-4 font-semibold text-slate-700">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {manuales.map((manual) => (
+                                            <tr key={manual.id} className="hover:bg-slate-50 transition-colors border-slate-100 border-b">
+                                                <td className="p-4">
+                                                    <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-300">
+                                                        #{manual.id}
+                                                    </Badge>
+                                                </td>
+                                                <td className="p-4 text-slate-700 font-medium">{manual.descripcion}</td>
+                                                <td className="p-4 max-w-md">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="text-slate-600 truncate font-mono text-sm bg-slate-50 px-2 py-1 rounded">
+                                                            {manual.url}
+                                                        </span>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleViewUrl(manual.url)}
+                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1"
+                                                        >
+                                                            <ExternalLink className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center justify-center space-x-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleEdit(manual)}
+                                                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleDelete(manual)}
+                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Cards Móviles */}
+            {!loading && manuales.length > 0 && (
+                <div className="lg:hidden mx-6 mt-6 space-y-4">
+                    {manuales.map((manual) => (
+                        <Card key={manual.id} className="shadow-sm border-slate-200">
                             <CardContent className="p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1">
-                                        <Badge variant="outline" className="text-xs mb-1">#{index + 1}</Badge>
-                                        <h3 className="font-medium text-slate-900 mb-2">{manual.descripcion}</h3>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleViewUrl(manual.url)}
-                                            className="text-blue-600 text-xs p-1"
-                                        >
-                                            <ExternalLink className="w-3 h-3 mr-1" />
-                                            Ver URL
-                                        </Button>
+                                        <Badge variant="outline" className="text-xs mb-2 bg-slate-50 text-slate-600 border-slate-300">
+                                            #{manual.id}
+                                        </Badge>
+                                        <h3 className="font-medium text-slate-900 mb-3">{manual.descripcion}</h3>
+                                        <div className="flex items-center space-x-2 mb-2">
+                                            <span className="text-slate-600 truncate font-mono text-xs bg-slate-50 px-2 py-1 rounded">
+                                                {manual.url}
+                                            </span>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleViewUrl(manual.url)}
+                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1"
+                                            >
+                                                <ExternalLink className="w-3 h-3" />
+                                            </Button>
+                                        </div>
                                     </div>
                                     <div className="flex flex-col gap-1">
-                                        <Button variant="ghost" size="sm" onClick={() => handleViewUrl(manual.url)}>
-                                            <Eye className="w-4 h-4 text-blue-600" />
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => handleEdit(manual)}
+                                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                        >
+                                            <Edit className="w-4 h-4" />
                                         </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleEdit(manual)}>
-                                            <Edit className="w-4 h-4 text-green-600" />
-                                        </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(manual)}>
-                                            <Trash2 className="w-4 h-4 text-red-600" />
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={() => handleDelete(manual)}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
                                         </Button>
                                     </div>
                                 </div>
@@ -188,23 +284,40 @@ export function ManualesView() {
                         </Card>
                     ))}
                 </div>
+            )}
 
-                {/* Pagination */}
-                <div className="mt-6 flex flex-col sm:flex-row sm:justify-between items-center gap-4">
-                    <span className="text-sm text-slate-600">Mostrando 1 a 10 de {filteredManuales.length} manuales</span>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" disabled>Anterior</Button>
-                        <Button variant="default" size="sm" className="bg-blue-600">1</Button>
-                        <Button variant="outline" size="sm">2</Button>
-                        <Button variant="outline" size="sm">Siguiente</Button>
-                    </div>
+            {/* Paginación Global */}
+            {!loading && manuales.length > 0 && (
+                <div className="flex justify-center mx-6 mt-6 mb-6">
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={handlePageChange}
+                        showInfo={true}
+                    />
                 </div>
-            </div>
+            )}
 
             {/* Modals */}
-            <AddManualesModal open={addModalOpen} onOpenChange={setAddModalOpen} />
-            <EditManualesModal open={editModalOpen} onOpenChange={setEditModalOpen} manual={selectedManual} />
-            <DeleteManualesModal open={deleteModalOpen} onOpenChange={setDeleteModalOpen} manual={selectedManual} />
+            <AddManualesModal 
+                open={addModalOpen} 
+                onOpenChange={setAddModalOpen} 
+                onSuccess={handleRefreshData}
+            />
+            <EditManualesModal 
+                open={editModalOpen} 
+                onOpenChange={setEditModalOpen} 
+                manual={selectedManual}
+                onSuccess={handleRefreshData}
+            />
+            <DeleteManualesModal 
+                open={deleteModalOpen} 
+                onOpenChange={setDeleteModalOpen} 
+                manual={selectedManual}
+                onSuccess={handleRefreshData}
+            />
         </div>
     )
 }

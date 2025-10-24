@@ -157,10 +157,12 @@ function IndustrialDevicesView() {
     changePageSize(parseInt(newSize));
   };
 
-  // Handle export equipment counts
+  // Handle export equipment list (listado completo de equipos)
   const handleExportEquipmentCounts = async () => {
     try {
-      const response = await httpService.get('/v1/export/equipment-counts', {
+      console.log('📊 Exportando listado completo de equipos industriales...');
+      
+      const response = await httpService.get('/v1/export/equipment-list', {
         responseType: 'blob',
         params: { type: 'industrial' }
       });
@@ -168,13 +170,15 @@ function IndustrialDevicesView() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'CantidadesEquiposIndustriales.xlsx');
+      link.setAttribute('download', 'EquiposIndustrialesHUV.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      console.log('✅ Listado de equipos industriales exportado exitosamente');
     } catch (err) {
-      console.error('Error exporting equipment counts:', err);
+      console.error('❌ Error exportando listado de equipos:', err);
       // You could add a toast notification here
     }
   };
@@ -736,30 +740,20 @@ function IndustrialDevicesView() {
                             </div>
                             <div>
                               <div className="font-medium text-slate-700">
-                                Archivos:
+                                Calibraciones:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {equipment.informacion_adicional
-                                  ?.cuenta_archivos || 0}{" "}
-                                documentos
+                                {equipment.cuenta_calibraciones || 0}{" "}
+                                registros
                               </div>
                             </div>
                             <div>
                               <div className="font-medium text-slate-700">
-                                Planes Mant.:
+                                Preventivos:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {equipment.informacion_adicional
-                                  ?.cuenta_planes_mantenimientos || 0}{" "}
-                                planes
-                              </div>
-                            </div>
-                            <div>
-                              <div className="font-medium text-slate-700">
-                                Orden de Compra:
-                              </div>
-                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {equipment.compra?.orden_compra || "Sin orden"}
+                                {equipment.cuenta_preventivos || 0}{" "}
+                                mantenimientos
                               </div>
                             </div>
                           </div>

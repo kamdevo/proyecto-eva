@@ -22,21 +22,18 @@ import {
 import { 
   Search, 
   Plus, 
-  Edit, 
-  Trash2, 
   FileText, 
   Download,
   Calendar,
-  Upload,
+  Filter,
   X,
   AlertCircle,
   RefreshCw,
-  Filter,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight
-} from "lucide-react";
+} from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
 import httpService from "@/services/httpService";
 
@@ -278,41 +275,16 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
     }
   };
 
-  // Handle edit
-  const handleEdit = (calibration) => {
-    setSelectedCalibration(calibration);
-    setFormData({
-      codigo: calibration.description || '',
-      fecha_calibracion: calibration.fecha_calibracion || '',
-      fecha_programada: calibration.fecha_programada || '',
-      observaciones: calibration.observaciones || ''
-    });
-    setViewMode('edit');
-  };
-
-  // Handle delete
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Está seguro de eliminar esta calibración?')) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await httpService.delete(`/v1/calibracion/${id}`);
-      loadCalibraciones(currentPage, searchTerm);
-    } catch (err) {
-      console.error('Error deleting calibration:', err);
-      setError('Error al eliminar la calibración');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Handle document view
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
     
-    const documentUrl = `/storage/calibraciones/${fileName}`;
+    // Usar la URL del backend para acceder a los archivos
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
+    const documentUrl = `${API_BASE_URL}/storage/calibraciones/${fileName}`;
+    
+    console.log('🔍 Abriendo documento:', documentUrl);
+    
     const newWindow = window.open(documentUrl, "_blank");
     if (newWindow) {
       newWindow.focus();
@@ -708,41 +680,26 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                             </TableCell>
                             <TableCell>
                               {calibration.file ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewDocument(calibration.file)}
-                                  className="text-green-600 hover:bg-green-50 border-green-200"
-                                >
-                                  <FileText className="h-4 w-4 mr-1" />
-                                  Ver
-                                </Button>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                                  Disponible
+                                </span>
                               ) : (
-                                <span className="text-gray-400 text-sm italic">Sin archivo</span>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">
+                                  No disponible
+                                </span>
                               )}
                             </TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-1">
-                                {hasPermission('calibraciones', 'editar') && (
+                            <TableCell className="text-center">
+                              <div className="flex items-center gap-2">
+                                {hasPermission('calibraciones', 'leer') && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleEdit(calibration)}
-                                    className="p-2 hover:bg-yellow-50 rounded-full transition-colors"
-                                    title="Editar calibración"
+                                    onClick={() => handleViewDocument(calibration.file)}
+                                    className="p-2 hover:bg-blue-50 rounded-full transition-colors"
+                                    title="Ver documento"
                                   >
-                                    <Edit className="h-4 w-4 text-yellow-600" />
-                                  </Button>
-                                )}
-                                {hasPermission('calibraciones', 'eliminar') && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDelete(calibration.id)}
-                                    className="p-2 hover:bg-red-50 rounded-full transition-colors"
-                                    title="Eliminar calibración"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                    <FileText className="h-4 w-4 text-blue-600" />
                                   </Button>
                                 )}
                               </div>

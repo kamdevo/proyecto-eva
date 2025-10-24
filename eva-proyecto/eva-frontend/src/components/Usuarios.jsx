@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useFormSubmit } from "../hooks/useFormSubmit";
 import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
@@ -45,6 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 export default function Usuarios() {
   // Hooks para datos reales
@@ -147,6 +149,22 @@ export default function Usuarios() {
     },
   });
 
+  // Transformar datos reales de los hooks para SearchableSelect (igual que LoginForm)
+  const centrosCostoOptions = centros
+    .filter((centro) => centro && centro.id && centro.nombre)
+    .map((centro) => ({
+      id: centro.id.toString(),
+      nombre: centro.nombre,
+      codigo: centro.codigo || centro.id
+    }));
+
+  const empresasOptions = empresas
+    .filter((empresa) => empresa && empresa.id && empresa.name)
+    .map((empresa) => ({
+      id: empresa.id.toString(), 
+      nombre: empresa.name
+    }));
+
   // Cargar módulos al montar el componente
   useEffect(() => {
     const loadModules = async () => {
@@ -179,6 +197,13 @@ export default function Usuarios() {
       }
     };
   }, [searchTimeout]);
+  
+  // Cargar datos de relaciones zonas-usuarios
+  useEffect(() => {
+    fetchZoneRelations();
+    fetchAvailableUsers();
+    fetchAvailableZones();
+  }, []);
 
   // Funciones para manejar usuarios
   const handleSearch = (e) => {
@@ -224,87 +249,116 @@ export default function Usuarios() {
     }
   };
 
-  // Datos de relación zonas-usuarios
-  const zoneRelationsData = [
-    {
-      id: 1,
-      nombre_zona: "uci",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 2,
-      nombre_zona: "consultorios",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 3,
-      nombre_zona: "consultorios",
-      nombre_usuario: "natalia",
-      correo_electronico: "mantenimientobiomedicalhuila@gmail.com",
-    },
-    {
-      id: 4,
-      nombre_zona: "consultorios",
-      nombre_usuario: "angelica maria",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 5,
-      nombre_zona: "zonasangelica",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 6,
-      nombre_zona: "zonaguillermo",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 7,
-      nombre_zona: "consultorios",
-      nombre_usuario: "administrador",
-      correo_electronico: "pedroalejo@gmail.com",
-    },
-    {
-      id: 8,
-      nombre_zona: "zonasangelica",
-      nombre_usuario: "juan sebastian",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 9,
-      nombre_zona: "zonasangelica",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 10,
-      nombre_zona: "consultorios",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 11,
-      nombre_zona: "zonasangelica",
-      nombre_usuario: "dayana raigosa",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 12,
-      nombre_zona: "consultorios",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-    {
-      id: 13,
-      nombre_zona: "consultorios",
-      nombre_usuario: "julio cesar",
-      correo_electronico: "electromedicalhuila@gmail.com",
-    },
-  ];
+  // Estados para relaciones zonas-usuarios - DATOS REALES
+  const [zoneRelationsData, setZoneRelationsData] = useState([]);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [availableZones, setAvailableZones] = useState([]);
+  const [loadingRelations, setLoadingRelations] = useState(false);
+  
+  // Datos del modal de agregar relación
+  const [newRelation, setNewRelation] = useState({
+    usuario_id: '',
+    zona_id: ''
+  });
+  
+  // Los hooks de accesibilidad se definirán después de las funciones
+  
+  // Funciones para cargar datos reales de usuarios-zonas
+  const fetchZoneRelations = async () => {
+    try {
+      setLoadingRelations(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas`);
+      const data = await response.json();
+      if (data.success) {
+        setZoneRelationsData(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading zone relations:', error);
+    } finally {
+      setLoadingRelations(false);
+    }
+  };
+  
+  const fetchAvailableUsers = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/usuarios-disponibles`);
+      const data = await response.json();
+      if (data.success) {
+        setAvailableUsers(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+  
+  const fetchAvailableZones = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/zonas-disponibles`);
+      const data = await response.json();
+      if (data.success) {
+        setAvailableZones(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading zones:', error);
+    }
+  };
+  
+  const handleAddRelation = async () => {
+    if (!newRelation.usuario_id || !newRelation.zona_id) {
+      alert('Selecciona usuario y zona');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(newRelation)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Relación creada exitosamente');
+        setNewRelation({ usuario_id: '', zona_id: '' });
+        setIsAddRelationModalOpen(false);
+        fetchZoneRelations(); // Actualizar lista
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error creating relation:', error);
+      alert('Error creando relación');
+    }
+  };
+  
+  const deleteRelationDirect = async (relationId) => {
+    if (!confirm('¿Estás seguro de eliminar esta relación?')) return;
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/${relationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Relación eliminada exitosamente');
+        fetchZoneRelations(); // Actualizar lista
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting relation:', error);
+      alert('Error eliminando relación');
+    }
+  };
 
   // Datos de empresas y usuarios pertenecientes
   const companyUsersData = [
@@ -662,7 +716,17 @@ export default function Usuarios() {
     }
   };
 
-  const handleSubmitAddUser = async () => {
+  const handleSubmitAddUser = async (e) => {
+    // Prevenir submit si es evento de form
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    // Validar campos requeridos
+    if (!addUserForm.nombre || !addUserForm.email || !addUserForm.username || !addUserForm.password) {
+      alert('Por favor complete los campos obligatorios: Nombre, Email, Username y Password');
+      return;
+    }
+    
     try {
       const userData = {
         nombre: addUserForm.nombre,
@@ -671,32 +735,55 @@ export default function Usuarios() {
         email: addUserForm.email,
         username: addUserForm.username,
         password: addUserForm.password,
-        rol_id: parseInt(addUserForm.rol),
-        centro_id: addUserForm.centroCosto,
-        id_empresa: parseInt(addUserForm.empresa) || 1,
-        estado: 1,
-        active: "false", // NUEVO: Usuarios inactivos por defecto
+        rol_id: parseInt(addUserForm.rol) || 4, // Default Usuario Básico (rol 4)
+        centro_id: addUserForm.centroCosto || null, // Centro de costo correcto
+        id_empresa: addUserForm.empresa || null, // Empresa correcta
+        servicio_id: null, // Campo separado
+        zona_id: null, // Campo separado
+        estado: 0, // DESACTIVADO por defecto como se implementó
+        active: 'false' // Usuarios INACTIVOS por defecto
       };
 
-      await createUsuario(userData);
-
-      setIsAddUserModalOpen(false);
-      setAddUserForm({
-        nombre: "",
-        apellidos: "",
-        telefono: "",
-        email: "",
-        username: "",
-        password: "",
-        rol: "",
-        centroCosto: "",
-        empresa: "",
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/usuarios`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(userData)
       });
+      
+      const result = await response.json();
+      
+      if (result.success || response.ok) {
+        alert('Usuario creado exitosamente');
+        setIsAddUserModalOpen(false);
+        setAddUserForm({
+          nombre: "",
+          apellidos: "",
+          telefono: "",
+          email: "",
+          username: "",
+          password: "",
+          rol: "",
+          centroCosto: "",
+          empresa: "",
+        });
+        
+        // Recargar lista de usuarios
+        refreshUsuarios();
+      } else {
+        alert(`Error: ${result.message || 'Error creando usuario'}`);
+      }
     } catch (error) {
       console.error("Error creando usuario:", error);
       alert("Error al crear usuario: " + error.message);
     }
   };
+
+  // Hooks para accesibilidad de formularios (Enter para submit)
+  const { formProps } = useFormSubmit(handleSubmitAddUser);
+  const relationFormProps = useFormSubmit(handleAddRelation);
 
   const handleSubmitEditUser = async () => {
     try {
@@ -742,7 +829,7 @@ export default function Usuarios() {
       const endpoint = user.active === 'true' || user.active === true ? 'deactivate' : 'activate';
 
       // Llamar al endpoint de activación correcto
-      const response = await fetch(`http://127.0.0.1:8001/api/v1/usuarios/${user.id}/${endpoint}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios/${user.id}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -790,7 +877,7 @@ export default function Usuarios() {
         return;
       }
 
-      const response = await fetch('http://127.0.0.1:8001/api/v1/usuarios/bulk-activate', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios/bulk-activate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -824,7 +911,7 @@ export default function Usuarios() {
         return;
       }
 
-      const response = await fetch('http://127.0.0.1:8001/api/v1/usuarios/bulk-deactivate', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios/bulk-deactivate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -941,7 +1028,7 @@ export default function Usuarios() {
                     </Button>
                   </DialogTrigger>
 
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
                         Agregar Nuevo Usuario
@@ -951,8 +1038,8 @@ export default function Usuarios() {
                       </DialogDescription>
                     </DialogHeader>
 
-                  <div className="space-y-6 py-4">
-                    <div className="grid grid-cols-1 gap-6">
+                  <form {...formProps} className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
                       {/* Nombre Input */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium text-gray-700">
@@ -1113,90 +1200,55 @@ export default function Usuarios() {
                         </Select>
                       </div>
 
-                      {/* Centro de Costo Select */}
+                      {/* Centro de Costo SearchableSelect */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium text-gray-700">
                           Centro de Costo{" "}
                           <span className="text-red-500">*</span>
                         </Label>
-                        <Select
+                        <SearchableSelect
+                          placeholder="Buscar o seleccionar centro de costo..."
+                          options={centrosCostoOptions}
                           value={addUserForm.centroCosto}
-                          onValueChange={(value) =>
-                            handleAddUserInputChange("centroCosto", value)
-                          }
-                        >
-                          <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
-                            <SelectValue placeholder="Seleccione un centro de costo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {centrosLoading ? (
-                              <SelectItem value="" disabled>
-                                Cargando centros...
-                              </SelectItem>
-                            ) : (
-                              centros.map((centro) => (
-                                <SelectItem
-                                  key={centro.id}
-                                  value={centro.id.toString()}
-                                >
-                                  {centro.nombre}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                          onChange={(value) => handleAddUserInputChange("centroCosto", value)}
+                          disabled={centrosLoading}
+                          loading={centrosLoading}
+                        />
                       </div>
 
-                      {/* Empresa Select */}
+                      {/* Empresa SearchableSelect */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium text-gray-700">
                           Empresa
                         </Label>
-                        <Select
+                        <SearchableSelect
+                          placeholder="Buscar o seleccionar empresa..."
+                          options={empresasOptions}
                           value={addUserForm.empresa}
-                          onValueChange={(value) =>
-                            handleAddUserInputChange("empresa", value)
-                          }
-                        >
-                          <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
-                            <SelectValue placeholder="Seleccione una empresa" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {empresasLoading ? (
-                              <SelectItem value="" disabled>
-                                Cargando empresas...
-                              </SelectItem>
-                            ) : (
-                              empresas.map((empresa) => (
-                                <SelectItem
-                                  key={empresa.id}
-                                  value={empresa.id.toString()}
-                                >
-                                  {empresa.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                          onChange={(value) => handleAddUserInputChange("empresa", value)}
+                          disabled={empresasLoading}
+                          loading={empresasLoading}
+                        />
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-6">
-                    <Button
-                      onClick={handleSubmitAddUser}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-                    >
-                      Ingresar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsAddUserModalOpen(false)}
-                      className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
+                  
+                    <div className="flex gap-3 pt-6">
+                      <Button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+                      >
+                        Ingresar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddUserModalOpen(false)}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
                 </DialogContent>
               </Dialog>
 
@@ -1220,86 +1272,97 @@ export default function Usuarios() {
                 )}
               </div>
 
-            {/* Search and Pagination Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-4">
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-gray-400" />
-                <div className="relative">
-                  <Input
-                    placeholder="Buscar por nombre, email, username, teléfono, rol..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="w-80 pr-8"
-                  />
-                  {searchTerm && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearSearch}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
-                      title="Limpiar búsqueda"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
+            {/* Search and Pagination Controls - Reorganized */}
+            <div className="mt-4 space-y-4">
+              {/* Primera fila: Búsqueda principal */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-3 flex-1">
+                  <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <div className="relative flex-1 max-w-md">
+                    <Input
+                      placeholder="Buscar por nombre, email, username, teléfono, rol..."
+                      value={searchTerm}
+                      onChange={handleSearch}
+                      className="w-full pr-8"
+                    />
+                    {searchTerm && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearSearch}
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                        title="Limpiar búsqueda"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Mostrar</span>
-                <Select
-                  value={pagination.per_page.toString()}
-                  onValueChange={handlePageSizeChange}
+                
+                {/* Botón actualizar */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshUsuarios}
+                  className="flex-shrink-0"
                 >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-gray-600">
-                  registros por página
-                </span>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Actualizar
+                </Button>
               </div>
 
-              {/* Go to Page */}
-              {pagination.last_page > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Ir a página:</span>
-                  <form onSubmit={handleGoToPage} className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min="1"
-                      max={pagination.last_page}
-                      value={goToPage}
-                      onChange={(e) => setGoToPage(e.target.value)}
-                      placeholder="1"
-                      className="w-16 h-8 text-center"
-                    />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-2"
-                      disabled={!goToPage || parseInt(goToPage) < 1 || parseInt(goToPage) > pagination.last_page}
-                    >
-                      Ir
-                    </Button>
-                  </form>
+              {/* Segunda fila: Controles de paginación */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-gray-50 p-3 rounded-lg">
+                {/* Registros por página */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-gray-600">Mostrar</span>
+                  <Select
+                    value={pagination.per_page.toString()}
+                    onValueChange={handlePageSizeChange}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-gray-600">registros por página</span>
                 </div>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refreshUsuarios}
-                className="ml-auto"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Actualizar
-              </Button>
+
+                {/* Ir a página específica */}
+                {pagination.last_page > 1 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-gray-600">Ir a página:</span>
+                    <form onSubmit={handleGoToPage} className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        min="1"
+                        max={pagination.last_page}
+                        value={goToPage}
+                        onChange={(e) => setGoToPage(e.target.value)}
+                        placeholder="1"
+                        className="w-16 h-8 text-center"
+                      />
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3"
+                        disabled={!goToPage || parseInt(goToPage) < 1 || parseInt(goToPage) > pagination.last_page}
+                      >
+                        Ir
+                      </Button>
+                    </form>
+                    <span className="text-xs text-gray-500">
+                      de {pagination.last_page} páginas
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           </CardHeader>
@@ -1307,9 +1370,20 @@ export default function Usuarios() {
           <CardContent>
             {/* Loading State */}
             {usuariosLoading && (
-              <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-gray-600">Cargando usuarios...</span>
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+                      <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse"></div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="w-8 h-8 bg-gray-100 rounded animate-pulse"></div>
+                      <div className="w-8 h-8 bg-gray-100 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -1714,76 +1788,72 @@ export default function Usuarios() {
                     </DialogTitle>
                   </DialogHeader>
 
-                  <div className="space-y-6 py-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Nombre de la zona{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500 text-sm">🏢</span>
-                        </div>
-                        <Input
-                          placeholder="Ingrese el nombre de la zona"
-                          value={addRelationForm.nombreZona}
-                          onChange={(e) =>
-                            handleAddRelationInputChange(
-                              "nombreZona",
-                              e.target.value
-                            )
-                          }
-                          className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                        />
-                      </div>
-                    </div>
+                  <form {...relationFormProps.formProps} className="space-y-6 py-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium text-gray-700">
                         Zona <span className="text-red-500">*</span>
                       </Label>
                       <Select
-                        value={addRelationForm.zona}
+                        value={newRelation.zona_id}
                         onValueChange={(value) =>
-                          handleAddRelationInputChange("zona", value)
+                          setNewRelation(prev => ({ ...prev, zona_id: value }))
                         }
                       >
                         <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
-                          <SelectValue placeholder="Seleccione una zona" />
+                          <SelectValue placeholder="----Seleccione----" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="uci">UCI</SelectItem>
-                          <SelectItem value="consultorios">
-                            Consultorios
-                          </SelectItem>
-                          <SelectItem value="zonasangelica">
-                            Zonas Angelica
-                          </SelectItem>
-                          <SelectItem value="zonaguillermo">
-                            Zona Guillermo
-                          </SelectItem>
+                          {availableZones.map(zone => (
+                            <SelectItem key={zone.id} value={zone.id.toString()}>
+                              {zone.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Usuario <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={newRelation.usuario_id}
+                        onValueChange={(value) =>
+                          setNewRelation(prev => ({ ...prev, usuario_id: value }))
+                        }
+                      >
+                        <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 w-full">
+                          <SelectValue placeholder="----Seleccione----" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableUsers.map(user => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.nombre} ({user.email})
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-gray-500">
                         Seleccione la zona donde trabajará el usuario
                       </p>
                     </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-6">
-                    <Button
-                      onClick={handleSubmitAddRelation}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-                    >
-                      Agregar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsAddRelationModalOpen(false)}
-                      className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
-                    >
-                      Cerrar
-                    </Button>
-                  </div>
+                  
+                    <div className="flex gap-3 pt-6">
+                      <Button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+                      >
+                        Agregar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddRelationModalOpen(false)}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+                      >
+                        Cerrar
+                      </Button>
+                    </div>
+                  </form>
                 </DialogContent>
               </Dialog>
             </div>
@@ -1809,30 +1879,52 @@ export default function Usuarios() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {zoneRelationsData.map((relation) => (
-                    <TableRow key={relation.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900">
-                        {relation.nombre_zona}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {relation.nombre_usuario}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {relation.correo_electronico}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center">
-                          <Button
-                            size="sm"
-                            onClick={() => handleDeleteRelation(relation)}
-                            className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-lg"
-                          >
-                            <X className="h-4 w-4 text-white" />
-                          </Button>
+                  {loadingRelations ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <div className="space-y-2">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="h-8 bg-gray-100 rounded animate-pulse"></div>
+                          ))}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : zoneRelationsData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <div className="text-gray-500">
+                          <p className="text-lg font-medium">No hay relaciones configuradas</p>
+                          <p className="text-sm">Agregue una nueva relación usando el botón "Agregar Nueva relación"</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    zoneRelationsData.map((relation) => (
+                      <TableRow key={relation.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-gray-900">
+                          {relation.nombre_zona || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {relation.nombre_usuario || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {relation.correo_electronico || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center">
+                            <Button
+                              size="sm"
+                              onClick={() => deleteRelationDirect(relation.id)}
+                              className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-lg"
+                              title="Eliminar relación"
+                            >
+                              <X className="h-4 w-4 text-white" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -2012,9 +2104,20 @@ export default function Usuarios() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="administrador">Administrador</SelectItem>
-                  <SelectItem value="usuario">Usuario</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {rolesLoading ? (
+                    <SelectItem value="" disabled>
+                      Cargando roles...
+                    </SelectItem>
+                  ) : (
+                    roles.map((rol) => (
+                      <SelectItem
+                        key={rol.id}
+                        value={rol.id.toString()}
+                      >
+                        {rol.nombre}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -2023,36 +2126,27 @@ export default function Usuarios() {
                 Centro de Costo{" "}
                 <span className="text-gray-400">(Opcional)</span>
               </Label>
-              <Input
+              <SearchableSelect
+                placeholder="Buscar o seleccionar centro de costo..."
+                options={centrosCostoOptions}
                 value={addUserForm.centroCosto}
-                onChange={(e) =>
-                  handleAddUserInputChange("centroCosto", e.target.value)
-                }
-                className="h-11 bg-gray-50 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all duration-200"
-                placeholder="Código del centro de costo"
+                onChange={(value) => handleAddUserInputChange("centroCosto", value)}
+                disabled={centrosLoading}
+                loading={centrosLoading}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label className="text-sm font-medium text-gray-700">
                 Empresa
               </Label>
-              <Select
+              <SearchableSelect
+                placeholder="Buscar o seleccionar empresa..."
+                options={empresasOptions}
                 value={addUserForm.empresa}
-                onValueChange={(value) =>
-                  handleAddUserInputChange("empresa", value)
-                }
-              >
-                <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
-                  <SelectValue placeholder="Seleccione una empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hlv">HLV</SelectItem>
-                  <SelectItem value="sysmed">SYSMED</SelectItem>
-                  <SelectItem value="hcv">
-                    HCV MANTENIMIENTO BIOMEDICO
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(value) => handleAddUserInputChange("empresa", value)}
+                disabled={empresasLoading}
+                loading={empresasLoading}
+              />
             </div>
           </div>
 
@@ -2248,7 +2342,7 @@ export default function Usuarios() {
               </div>
               <div>
                 <span className="font-semibold text-gray-700">rol: </span>
-                <span className="text-gray-600">{selectedUser.rol}</span>
+                <span className="text-gray-600">{typeof selectedUser.rol === 'object' ? selectedUser.rol.nombre : selectedUser.rol}</span>
               </div>
             </div>
           )}

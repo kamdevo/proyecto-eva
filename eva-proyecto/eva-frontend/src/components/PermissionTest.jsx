@@ -59,7 +59,7 @@ const PermissionTest = () => {
         <div className="text-sm text-gray-600">
           <p><strong>Nombre:</strong> {user.nombre} {user.apellido}</p>
           <p><strong>Username:</strong> {user.username}</p>
-          <p><strong>Rol:</strong> {user.rol} (ID: {user.rol_id})</p>
+          <p><strong>Rol:</strong> {typeof user.rol === 'object' ? user.rol.nombre : user.rol} (ID: {user.rol_id})</p>
           <p><strong>Es Admin:</strong> {isAdmin() ? '✅ Sí' : '❌ No'}</p>
         </div>
       </div>

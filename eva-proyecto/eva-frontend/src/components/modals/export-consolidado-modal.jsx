@@ -59,20 +59,35 @@ export function ExportConsolidadoModal({ open, onOpenChange, equipos = [] }) {
 
   const handleExport = async () => {
     try {
-      const result = await exportConsolidado({
+      console.log("🚀 Iniciando exportación consolidado PreventivosEB.xls...");
+      
+      // Preparar filtros según selección
+      const filters = {
         anio: selectedYear,
         formato: exportFormat,
         incluir_opciones: includeOptions
-      });
+      };
+      
+      // Si hay equipos seleccionados, agregarlos al filtro
+      if (selectedEquipos.length > 0) {
+        filters.equipos_ids = selectedEquipos.join(',');
+        console.log("📋 Exportando equipos seleccionados:", selectedEquipos.length);
+      } else {
+        console.log("📋 Exportando TODOS los equipos");
+      }
+      
+      console.log("🔧 Filtros aplicados:", filters);
+      
+      const result = await exportConsolidado(filters);
       
       if (result.success) {
-        console.log("Exportación exitosa");
+        console.log("✅ Exportación exitosa - Archivo: PreventivosEB.xls");
         onOpenChange(false);
       } else {
-        console.error("Error en exportación:", result.message);
+        console.error("❌ Error en exportación:", result.message);
       }
     } catch (error) {
-      console.error("Error during export:", error);
+      console.error("❌ Error during export:", error);
     }
   };
 

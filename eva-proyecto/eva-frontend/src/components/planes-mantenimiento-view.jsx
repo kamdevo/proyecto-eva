@@ -29,13 +29,14 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { ObservacionesModal } from "@/components/modals/observaciones-modal";
 import { ExportConsolidadoModal } from "@/components/modals/export-consolidado-modal";
-import { ExportPlantillaModal } from "@/components/modals/export-plantilla-modal";
+// import { ExportPlantillaModal } from "@/components/modals/export-plantilla-modal"; // Modal removido - ahora descarga directa
 import { AgregarObservacionModal } from "@/components/modals/agregar-observacion-modal";
 import { EditarObservacionesModal } from "@/components/modals/editar-observaciones-modal";
 import { ConcluirObservacionModal } from "@/components/modals/concluir-observacion-modal";
 import { VerDocumentacionModal } from "@/components/modals/ver-documentacion-modal";
 import { EliminarEquipoModal } from "@/components/modals/eliminar-equipo-modal";
 import { useMantenimientoData } from "@/hooks/useMantenimientoData";
+import Pagination from "@/components/common/Pagination";
 
 export function PlanesMantenimientoView() {
   // Hook para manejar datos de mantenimiento
@@ -50,6 +51,7 @@ export function PlanesMantenimientoView() {
     loadProveedores,
     loadEquipos,
     uploadExcel,
+    downloadTemplate, // Agregada función para descarga directa de plantilla
     clearError: clearDataError
   } = useMantenimientoData();
 
@@ -62,8 +64,7 @@ export function PlanesMantenimientoView() {
   const [observacionesModalOpen, setObservacionesModalOpen] = useState(false);
   const [exportConsolidadoModalOpen, setExportConsolidadoModalOpen] =
     useState(false);
-  const [exportPlantillaModalOpen, setExportPlantillaModalOpen] =
-    useState(false);
+  // const [exportPlantillaModalOpen, setExportPlantillaModalOpen] = useState(false); // Removido - ahora descarga directa
   const [agregarObservacionModalOpen, setAgregarObservacionModalOpen] =
     useState(false);
   const [editarObservacionesModalOpen, setEditarObservacionesModalOpen] =
@@ -299,12 +300,35 @@ export function PlanesMantenimientoView() {
     await loadPlanes({ anio: selectedYear, per_page: entriesPerPage, search: newSearchTerm });
   };
 
-  // Datos filtrados localmente para búsqueda instantánea
-  const filteredEquipos = planesData.filter(
+  const handlePageChange = async (newPage) => {
+    // Recargar datos con nueva página
+    await loadPlanes({ anio: selectedYear, per_page: entriesPerPage, search: searchTerm, page: newPage });
+  };
+
+  // Manejar descarga directa de plantilla
+  const handleDownloadTemplate = async () => {
+    try {
+      console.log("📄 Descargando plantilla de mantenimiento...");
+      const result = await downloadTemplate();
+      
+      if (result.success) {
+        console.log("✅ Plantilla descargada exitosamente");
+      } else {
+        console.error("❌ Error al descargar plantilla:", result.message);
+      }
+    } catch (error) {
+      console.error("❌ Error durante descarga de plantilla:", error);
+    }
+  };
+
+  // Datos filtrados localmente para búsqueda instantánea (usando nuevos campos)
+  const filteredPlanes = planesData.filter(
     (plan) =>
-      (plan.equipo?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (plan.equipo?.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (plan.responsable || '').toLowerCase().includes(searchTerm.toLowerCase())
+      (plan.equipo_nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.equipo_codigo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.responsable || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.equipo_serie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (plan.equipo_marca || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Mostrar estado de carga combinado
@@ -351,9 +375,15 @@ export function PlanesMantenimientoView() {
       )}
 
       {isLoadingData && (
-        <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg flex items-center gap-2">
-          <HelpCircle className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Cargando datos...</span>
+        <div className="mb-4 space-y-3">
+          <div className="bg-white rounded-lg shadow p-4 space-y-3">
+            <div className="h-6 bg-blue-100 rounded w-1/3 animate-pulse"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse"></div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -560,11 +590,13 @@ export function PlanesMantenimientoView() {
           📄 Exportar Consolidado
         </Button>
         <Button
-          onClick={() => setExportPlantillaModalOpen(true)}
-          className="bg-green-600 hover:bg-green-700 text-white h-8 sm:h-9 text-xs sm:text-sm"
+          onClick={handleDownloadTemplate}
+          disabled={dataLoading}
+          className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white h-8 sm:h-9 text-xs sm:text-sm"
         >
           <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
           📄 Exportar Plantilla
+          {dataLoading && <span className="ml-1">...</span>}
         </Button>
       </div>
 
@@ -611,178 +643,168 @@ export function PlanesMantenimientoView() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-slate-500 text-white">
-                  <th className="text-left p-1.5 font-semibold min-w-[60px]">
-                    ID
+                  <th className="text-left p-1.5 font-semibold min-w-[100px]">
+                    Acciones
                   </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[120px]">
+                  <th className="text-left p-1.5 font-semibold min-w-[80px]">
+                    ID Equipo
+                  </th>
+                  <th className="text-left p-1.5 font-semibold min-w-[150px]">
                     Equipo
                   </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[80px]">
+                  <th className="text-left p-1.5 font-semibold min-w-[100px]">
                     Código
                   </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Tipo
+                  <th className="text-left p-1.5 font-semibold min-w-[100px]">
+                    Serie
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Estado
+                    Marca
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
+                    Modelo
+                  </th>
+                  <th className="text-left p-1.5 font-semibold min-w-[120px]">
                     Responsable
                   </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Fecha Programada
+                  <th className="text-left p-1.5 font-semibold min-w-[150px]">
+                    Rango Programado 1
+                  </th>
+                  <th className="text-left p-1.5 font-semibold min-w-[150px]">
+                    Rango Programado 2
+                  </th>
+                  <th className="text-left p-1.5 font-semibold min-w-[150px]">
+                    Rango Programado 3
+                  </th>
+                  <th className="text-left p-1.5 font-semibold min-w-[100px]">
+                    Ejecutados
+                  </th>
+                  <th className="text-left p-1.5 font-semibold min-w-[100px]">
+                    Programados
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Fecha Realizada
-                  </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Descripción
-                  </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Costo
-                  </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    Estado
-                  </th>
-                  <th className="text-left p-1.5 font-semibold min-w-[140px]">
-                    Acciones
+                    Cumplimiento Global
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredEquipos.map((equipo) => (
+                {planesData.map((plan) => (
                   <tr
-                    key={equipo.id}
+                    key={plan.id}
                     className="border-b hover:bg-slate-50 transition-colors"
                   >
-                    <td className="p-1.5">
-                      <div className="flex items-center gap-1">
-                        <Edit className="w-3 h-3 text-blue-600 cursor-pointer" />
-                        <span className="font-medium text-xs">{equipo.id}</span>
-                      </div>
-                    </td>
-                    <td
-                      className="p-1.5 font-medium text-xs max-w-[120px] truncate"
-                      title={equipo.equipo?.name}
-                    >
-                      {equipo.equipo?.name || 'Sin nombre'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
-                      title={equipo.equipo?.code}
-                    >
-                      {equipo.equipo?.code || 'Sin código'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
-                      title={equipo.serie}
-                    >
-                      {equipo.serie}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate"
-                      title={equipo.tipo_mantenimiento}
-                    >
-                      {equipo.tipo_mantenimiento || 'No definido'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[80px] truncate"
-                      title={equipo.estado}
-                    >
-                      {equipo.estado || 'Sin estado'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate"
-                      title={equipo.responsable}
-                    >
-                      {equipo.responsable || 'Sin asignar'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate"
-                      title={equipo.fecha_programada}
-                    >
-                      {equipo.fecha_programada || 'No programada'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate"
-                      title={equipo.fecha_mantenimiento}
-                    >
-                      {equipo.fecha_mantenimiento || 'No realizada'}
-                    </td>
-                    <td
-                      className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate"
-                      title={equipo.descripcion}
-                    >
-                      {equipo.descripcion || 'Sin descripción'}
-                    </td>
-                    <td className="p-1.5 text-center">
-                      <Badge
-                        variant="outline"
-                        className="bg-yellow-50 text-yellow-700 text-xs px-1 py-0.5"
-                      >
-                        ${equipo.costo_estimado || 0}
-                      </Badge>
-                    </td>
-                    <td className="p-1.5 text-center">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs px-1 py-0.5 ${
-                          equipo.estado === 'completado' 
-                            ? 'bg-green-50 text-green-700' 
-                            : 'bg-red-50 text-red-700'
-                        }`}
-                      >
-                        {equipo.estado === 'completado' ? 'Completado' : 'Pendiente'}
-                      </Badge>
-                    </td>
+                    {/* Columna 1: Acciones */}
                     <td className="p-1.5">
                       <div className="flex items-center gap-0.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleAgregarObservacion(equipo)}
+                          onClick={() => handleEditarObservaciones(plan)}
                           className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 w-6 h-6 p-0"
-                          title="Agregar observación"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditarObservaciones(equipo)}
-                          className="text-green-600 hover:text-green-800 hover:bg-green-50 w-6 h-6 p-0"
-                          title="Editar observaciones"
+                          title="Editar plan"
                         >
                           <Edit className="w-3 h-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleConcluirObservacion(equipo)}
-                          className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 w-6 h-6 p-0"
-                          title="Concluir observación"
-                        >
-                          <CheckCircle className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleVerDocumentacion(equipo)}
-                          className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 w-6 h-6 p-0"
-                          title="Ver documentación"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEliminarEquipo(equipo)}
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50 w-6 h-6 p-0"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        {plan.cuenta_cambios > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVerDocumentacion(plan)}
+                            className="text-green-600 hover:text-green-800 hover:bg-green-50 w-6 h-6 p-0"
+                            title="Ver historial"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        )}
                       </div>
+                    </td>
+                    
+                    {/* Columna 2: ID Equipo */}
+                    <td className="p-1.5 font-medium text-xs" title={`ID Equipo: ${plan.equipo_id}`}>
+                      {plan.equipo_id}
+                    </td>
+                    
+                    {/* Columna 3: Equipo */}
+                    <td className="p-1.5 font-medium text-xs max-w-[150px] truncate" title={plan.equipo_nombre}>
+                      {plan.equipo_nombre}
+                    </td>
+                    
+                    {/* Columna 4: Código */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate" title={plan.equipo_codigo}>
+                      {plan.equipo_codigo}
+                    </td>
+                    
+                    {/* Columna 5: Serie */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate" title={plan.equipo_serie}>
+                      {plan.equipo_serie}
+                    </td>
+                    
+                    {/* Columna 6: Marca */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate" title={plan.equipo_marca}>
+                      {plan.equipo_marca}
+                    </td>
+                    
+                    {/* Columna 7: Modelo */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[100px] truncate" title={plan.equipo_modelo}>
+                      {plan.equipo_modelo}
+                    </td>
+                    
+                    {/* Columna 8: Responsable */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[120px] truncate" title={plan.responsable}>
+                      {plan.responsable}
+                    </td>
+                    
+                    {/* Columna 9: Rango Programado 1 */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[150px] truncate" title={plan.rango_programado_1}>
+                      {plan.rango_programado_1}
+                    </td>
+                    
+                    {/* Columna 10: Rango Programado 2 */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[150px] truncate" title={plan.rango_programado_2}>
+                      {plan.rango_programado_2}
+                    </td>
+                    
+                    {/* Columna 11: Rango Programado 3 */}
+                    <td className="p-1.5 text-slate-600 text-xs max-w-[150px] truncate" title={plan.rango_programado_3}>
+                      {plan.rango_programado_3}
+                    </td>
+                    
+                    {/* Columna 12: Cantidad Ejecutados */}
+                    <td className="p-1.5 text-center">
+                      <Badge
+                        variant="outline"
+                        className="bg-green-50 text-green-700 text-xs px-2 py-0.5"
+                      >
+                        {plan.cantidad_ejecutados}
+                      </Badge>
+                    </td>
+                    
+                    {/* Columna 13: Cantidad Programados */}
+                    <td className="p-1.5 text-center">
+                      <Badge
+                        variant="outline"
+                        className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5"
+                      >
+                        {plan.cantidad_programados}
+                      </Badge>
+                    </td>
+                    
+                    {/* Columna 14: Cumplimiento Global */}
+                    <td className="p-1.5 text-center">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs px-2 py-0.5 ${
+                          plan.estado_cumplimiento === 'COMPLETO' 
+                            ? 'bg-green-50 text-green-700' 
+                            : plan.estado_cumplimiento === 'ALTO'
+                            ? 'bg-blue-50 text-blue-700'
+                            : plan.estado_cumplimiento === 'MEDIO'
+                            ? 'bg-yellow-50 text-yellow-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {plan.cumplimiento_porcentaje}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
@@ -803,9 +825,9 @@ export function PlanesMantenimientoView() {
                 </tr>
               </thead>
               <tbody>
-                {filteredEquipos.map((equipo) => (
+                {filteredPlanes.map((plan) => (
                   <tr
-                    key={equipo.id}
+                    key={plan.id}
                     className="border-b hover:bg-slate-50 transition-colors"
                   >
                     <td className="p-2">
@@ -813,14 +835,14 @@ export function PlanesMantenimientoView() {
                         <div className="flex items-center gap-1">
                           <Edit className="w-3 h-3 text-blue-600" />
                           <span className="font-medium text-xs">
-                            #{equipo.id}
+                            #{plan.equipo_id}
                           </span>
                         </div>
                         <div
                           className="font-medium text-xs text-slate-900 max-w-[150px] truncate"
-                          title={equipo.equipo?.name}
+                          title={plan.equipo_nombre}
                         >
-                          {equipo.equipo?.name || 'Sin nombre'}
+                          {plan.equipo_nombre}
                         </div>
                       </div>
                     </td>
@@ -828,94 +850,62 @@ export function PlanesMantenimientoView() {
                       <div className="space-y-1 text-xs text-slate-600">
                         <div
                           className="max-w-[120px] truncate"
-                          title={equipo.equipo?.code}
+                          title={plan.equipo_codigo}
                         >
-                          Código: {equipo.equipo?.code || 'Sin código'}
+                          Código: {plan.equipo_codigo}
                         </div>
                         <div
                           className="max-w-[120px] truncate"
-                          title={equipo.tipo_mantenimiento}
+                          title={plan.equipo_marca}
                         >
-                          Tipo: {equipo.tipo_mantenimiento || 'No definido'}
+                          Marca: {plan.equipo_marca}
                         </div>
                       </div>
                     </td>
                     <td
                       className="p-2 text-xs text-slate-600 max-w-[100px] truncate"
-                      title={equipo.responsable}
+                      title={plan.responsable}
                     >
-                      {equipo.responsable || 'Sin asignar'}
+                      {plan.responsable}
                     </td>
                     <td className="p-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1">
-                          {equipo.estado === 'completado' ? (
-                            <CheckCircle className="w-3 h-3 text-green-600" />
-                          ) : (
-                            <XCircle className="w-3 h-3 text-red-600" />
-                          )}
-                          <span
-                            className={`text-xs ${
-                              equipo.estado === 'completado'
-                                ? "text-green-700"
-                                : "text-red-700"
-                            }`}
-                          >
-                            {equipo.cumplimientoGlobal === "Si cumple"
-                              ? "Cumple"
-                              : "No cumple"}
-                          </span>
-                        </div>
-                        <div className="flex gap-1">
-                          <Badge
-                            variant="outline"
-                            className="bg-blue-50 text-blue-700 text-xs px-1 py-0.5"
-                          >
-                            E: {equipo.cantidadEjecutados}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className="bg-green-50 text-green-700 text-xs px-1 py-0.5"
-                          >
-                            P: {equipo.cantidadProgramados}
-                          </Badge>
-                        </div>
-                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs px-2 py-0.5 ${
+                          plan.estado_cumplimiento === 'COMPLETO' 
+                            ? 'bg-green-50 text-green-700' 
+                            : plan.estado_cumplimiento === 'ALTO'
+                            ? 'bg-blue-50 text-blue-700'
+                            : plan.estado_cumplimiento === 'MEDIO'
+                            ? 'bg-yellow-50 text-yellow-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {plan.cumplimiento_porcentaje}
+                      </Badge>
                     </td>
                     <td className="p-2">
                       <div className="flex items-center gap-0.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleAgregarObservacion(equipo)}
+                          onClick={() => handleEditarObservaciones(plan)}
                           className="text-blue-600 hover:bg-blue-50 w-6 h-6 p-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditarObservaciones(equipo)}
-                          className="text-green-600 hover:bg-green-50 w-6 h-6 p-0"
+                          title="Editar plan"
                         >
                           <Edit className="w-3 h-3" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleVerDocumentacion(equipo)}
-                          className="text-orange-600 hover:bg-orange-50 w-6 h-6 p-0"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEliminarEquipo(equipo)}
-                          className="text-red-600 hover:bg-red-50 w-6 h-6 p-0"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        {plan.cuenta_cambios > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVerDocumentacion(plan)}
+                            className="text-green-600 hover:bg-green-50 w-6 h-6 p-0"
+                            title="Ver historial"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -926,8 +916,8 @@ export function PlanesMantenimientoView() {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-3 p-3">
-            {filteredEquipos.map((equipo) => (
-              <Card key={equipo.id} className="border border-slate-200">
+            {filteredPlanes.map((plan) => (
+              <Card key={plan.id} className="border border-slate-200">
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex-1 min-w-0">
@@ -937,185 +927,109 @@ export function PlanesMantenimientoView() {
                           variant="outline"
                           className="text-xs px-1 py-0.5"
                         >
-                          #{equipo.id}
+                          #{plan.equipo_id}
                         </Badge>
                       </div>
                       <h3 className="font-medium text-slate-900 text-sm leading-tight mb-1">
-                        {equipo.equipo?.name || 'Sin nombre'}
+                        {plan.equipo_nombre}
                       </h3>
                       <p className="text-xs text-slate-600">
-                        Código: {equipo.equipo?.code || 'Sin código'}
+                        Código: {plan.equipo_codigo}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {equipo.estado === 'completado' ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-red-600" />
-                      )}
+                      <Badge
+                        variant="outline"
+                        className={`text-xs px-2 py-0.5 ${
+                          plan.estado_cumplimiento === 'COMPLETO' 
+                            ? 'bg-green-50 text-green-700' 
+                            : plan.estado_cumplimiento === 'ALTO'
+                            ? 'bg-blue-50 text-blue-700'
+                            : plan.estado_cumplimiento === 'MEDIO'
+                            ? 'bg-yellow-50 text-yellow-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {plan.cumplimiento_porcentaje}
+                      </Badge>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                     <div>
-                      <span className="font-medium text-slate-700">
-                        Tipo:
-                      </span>
-                      <div
-                        className="text-slate-900 truncate"
-                        title={equipo.tipo_mantenimiento}
-                      >
-                        {equipo.tipo_mantenimiento || 'No definido'}
+                      <span className="font-medium text-slate-700">Serie:</span>
+                      <div className="text-slate-900 truncate" title={plan.equipo_serie}>
+                        {plan.equipo_serie}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">Estado:</span>
-                      <div
-                        className="text-slate-900 truncate"
-                        title={equipo.estado}
-                      >
-                        {equipo.estado || 'Sin estado'}
+                      <span className="font-medium text-slate-700">Marca:</span>
+                      <div className="text-slate-900 truncate" title={plan.equipo_marca}>
+                        {plan.equipo_marca}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">
-                        Descripción:
-                      </span>
-                      <div
-                        className="text-slate-900 truncate"
-                        title={equipo.descripcion}
-                      >
-                        {equipo.descripcion || 'Sin descripción'}
+                      <span className="font-medium text-slate-700">Modelo:</span>
+                      <div className="text-slate-900 truncate" title={plan.equipo_modelo}>
+                        {plan.equipo_modelo}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">
-                        Fecha programada:
-                      </span>
-                      <div
-                        className="text-slate-900 truncate"
-                        title={equipo.fecha_programada}
-                      >
-                        {equipo.fecha_programada || 'No programada'}
+                      <span className="font-medium text-slate-700">Responsable:</span>
+                      <div className="text-slate-900 truncate" title={plan.responsable}>
+                        {plan.responsable}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">
-                        Responsable:
-                      </span>
-                      <div
-                        className="text-slate-900 truncate"
-                        title={equipo.responsable}
-                      >
-                        {equipo.responsable || 'Sin asignar'}
-                      </div>
+                      <span className="font-medium text-slate-700">Ejecutados:</span>
+                      <div className="text-slate-900">{plan.cantidad_ejecutados}</div>
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">
-                        Costo estimado:
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-yellow-50 text-yellow-700 text-xs px-1 py-0.5"
-                      >
-                        ${equipo.costo_estimado || 0}
-                      </Badge>
+                      <span className="font-medium text-slate-700">Programados:</span>
+                      <div className="text-slate-900">{plan.cantidad_programados}</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="text-xs text-slate-600">
+                      Estado: {plan.estado_cumplimiento}
+                    </div>
+                    <div className="flex items-center gap-0.5">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleAgregarObservacion(equipo)}
+                        onClick={() => handleEditarObservaciones(plan)}
                         className="text-blue-600 hover:bg-blue-50 w-7 h-7 p-0"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditarObservaciones(equipo)}
-                        className="text-green-600 hover:bg-green-50 w-7 h-7 p-0"
+                        title="Editar plan"
                       >
                         <Edit className="w-3 h-3" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleConcluirObservacion(equipo)}
-                        className="text-purple-600 hover:bg-purple-50 w-7 h-7 p-0"
-                      >
-                        <CheckCircle className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleVerDocumentacion(equipo)}
-                        className="text-orange-600 hover:bg-orange-50 w-7 h-7 p-0"
-                      >
-                        <Eye className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEliminarEquipo(equipo)}
-                        className="text-red-600 hover:bg-red-50 w-7 h-7 p-0"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      {plan.cuenta_cambios > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleVerDocumentacion(plan)}
+                          className="text-green-600 hover:bg-green-50 w-7 h-7 p-0"
+                          title="Ver historial"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-
-          {/* Pagination Responsivo */}
           <div className="p-3 sm:p-4 border-t bg-slate-50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div className="text-xs sm:text-sm text-slate-600">
-                Mostrando{" "}
-                {Math.min(
-                  Number.parseInt(entriesPerPage),
-                  filteredEquipos.length
-                )}{" "}
-                de {filteredEquipos.length} registros
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                >
-                  1
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                >
-                  2
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={pagination?.current_page || 1}
+              totalPages={pagination?.last_page || 1}
+              totalItems={pagination?.total || 0}
+              itemsPerPage={pagination?.per_page || parseInt(entriesPerPage)}
+              onPageChange={handlePageChange}
+              showInfo={true}
+            />
           </div>
         </CardContent>
       </Card>
@@ -1128,12 +1042,9 @@ export function PlanesMantenimientoView() {
       <ExportConsolidadoModal
         open={exportConsolidadoModalOpen}
         onOpenChange={setExportConsolidadoModalOpen}
-        equipos={filteredEquipos}
+        equipos={filteredPlanes}
       />
-      <ExportPlantillaModal
-        open={exportPlantillaModalOpen}
-        onOpenChange={setExportPlantillaModalOpen}
-      />
+      {/* Modal de exportar plantilla removido - ahora es descarga directa */}
       <AgregarObservacionModal
         open={agregarObservacionModalOpen}
         onOpenChange={setAgregarObservacionModalOpen}

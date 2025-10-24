@@ -293,10 +293,14 @@ class AuthController extends ApiController
                 return ResponseFormatter::error('Usuario no encontrado', 401);
             }
             
-            // Cargar relaciones necesarias
-            $usuario->load(['zonasUsuario']);
+            // CARGAR RELACIONES NECESARIAS (especialmente 'rol' para el sidebar)
+            $usuario->load(['rol', 'servicio', 'zona']);
             
-            Log::info('Usuario obtenido exitosamente', ['user_id' => $usuario->id]);
+            Log::info('Usuario obtenido exitosamente con relaciones', [
+                'user_id' => $usuario->id,
+                'rol_loaded' => $usuario->rol ? 'YES' : 'NO',
+                'rol_name' => $usuario->rol?->nombre
+            ]);
             
             return ResponseFormatter::success($usuario, 'Usuario obtenido exitosamente');
             
@@ -318,7 +322,7 @@ class AuthController extends ApiController
     public function profile(Request $request)
     {
         try {
-            $usuario = $request->user()->load(['zonasUsuario', 'equiposAsignados', 'mantenimientosAsignados']);
+            $usuario = $request->user(); // Sin cargar relaciones
             return ResponseFormatter::success($usuario, 'Perfil obtenido exitosamente');
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener perfil: ' . $e->getMessage(), 500);
@@ -735,6 +739,43 @@ class AuthController extends ApiController
                 'success' => false,
                 'message' => 'Error al actualizar la sede'
             ], 500);
+        }
+    }
+
+    /**
+     * Obtener permisos del usuario autenticado (self-permissions)
+     */
+    public function getAuthUserPermissions(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return ResponseFormatter::error('Usuario no autenticado', 401);
+            }
+            
+            Log::info('getAuthUserPermissions API called', [
+                'user_id' => $user->id,
+                'role_id' => $user->rol_id
+            ]);
+            
+            // Usar el método privado existente
+            $permissions = $this->getUserPermissionsForLogin($user->id);
+            
+            Log::info('getAuthUserPermissions API response', [
+                'user_id' => $user->id,
+                'permissions_count' => count($permissions)
+            ]);
+            
+            return ResponseFormatter::success($permissions, 'Permisos obtenidos correctamente');
+            
+        } catch (\Exception $e) {
+            Log::error('Error getting user permissions', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id()
+            ]);
+            
+            return ResponseFormatter::error('Error al obtener permisos: ' . $e->getMessage(), 500);
         }
     }
 

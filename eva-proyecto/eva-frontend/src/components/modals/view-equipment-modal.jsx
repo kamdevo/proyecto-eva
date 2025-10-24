@@ -29,8 +29,11 @@ import {
 import { usePDF } from "@react-pdf/renderer";
 import { EquipmentLifecyclePDFCompact   } from "../pdf/equipment-lifecycle-pdf-compact";
 import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
+import EquipmentModalReplicaPDF from "../pdf/equipment-modal-replica-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import { ManualSearchModal } from "./manual-search-modal";
+import { QuickGuideSearchModal } from "./quick-guide-search-modal";
 
 export function ViewEquipmentModal({
   open,
@@ -43,9 +46,18 @@ export function ViewEquipmentModal({
   const [error, setError] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [userHistory, setUserHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para modales de apoyo técnico
+  const [showManualSearchModal, setShowManualSearchModal] = useState(false);
+  const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
-  // PDF generation hook - switch between components for testing
-  // Use EquipmentLifecyclePDFCompact for compact, single-page format
+  // Estados para información completa de manuales y guías
+  const [selectedManualInfo, setSelectedManualInfo] = useState(null);
+  const [selectedGuideInfo, setSelectedGuideInfo] = useState(null);
+
+  // PDF generation hook - using new modal replica component
   const [instance, updateInstance] = usePDF({
     document: null, // Initialize as null to prevent initial render errors
   });
@@ -54,7 +66,7 @@ export function ViewEquipmentModal({
   const fetchUserHistory = async (equipmentId) => {
     try {
       const response = await fetch(
-        `http://localhost:8001/api/v1/equipos/${equipmentId}/user-history`,
+        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/user-history`,
         {
           headers: {
             Accept: "application/json",
@@ -85,7 +97,7 @@ export function ViewEquipmentModal({
   // Define fetchEquipmentDetailsPublic function first
   const fetchEquipmentDetailsPublic = async (equipmentId) => {
     const response = await fetch(
-      `http://localhost:8001/api/v1/equipos/${equipmentId}/complete-info`,
+      `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/complete-info`,
       {
         headers: {
           Accept: "application/json",
@@ -159,19 +171,117 @@ export function ViewEquipmentModal({
     }
   }, [open, equipment?.id, fetchEquipmentDetails]);
 
-  // Update PDF when equipment details change
+  // Cargar información completa de manuales y guías cuando se cargan los detalles del equipo
   useEffect(() => {
-    if (equipmentDetails && EquipmentLifecyclePDFCompact) {
+    const loadAssociatedInfo = async () => {
+      if (!equipmentDetails) return;
+
+      // Limpiar estados previos
+      setSelectedManualInfo(null);
+      setSelectedGuideInfo(null);
+
+      // Cargar información del manual si existe manual_id
+      if (equipmentDetails.manual_id && equipmentDetails.manual_id !== 0) {
+        try {
+          const response = await httpService.get(`/v1/manuales`);
+          console.log("📖 Respuesta completa de manuales:", response.data);
+          
+          let manualesArray = [];
+          
+          // Manejar diferentes estructuras de respuesta
+          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
+            // Estructura con paginación: { data: { data: [...] } }
+            manualesArray = response.data.data.data;
+          } else if (response.data?.data && Array.isArray(response.data.data)) {
+            // Estructura simple: { data: [...] }
+            manualesArray = response.data.data;
+          } else if (Array.isArray(response.data)) {
+            // Array directo: [...]
+            manualesArray = response.data;
+          }
+          
+          console.log("📖 Array de manuales procesado:", manualesArray);
+          
+          if (manualesArray.length > 0) {
+            const manual = manualesArray.find(m => 
+              m.id.toString() === equipmentDetails.manual_id.toString()
+            );
+            console.log("📖 Manual encontrado:", manual);
+            if (manual) {
+              setSelectedManualInfo(manual);
+              console.log("📖 Manual cargado en vista:", manual.descripcion);
+            } else {
+              console.warn("📖 Manual no encontrado con ID:", equipmentDetails.manual_id);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading manual in view:", error);
+        }
+      }
+
+      // Cargar información de la guía si existe guia_id
+      if (equipmentDetails.guia_id && equipmentDetails.guia_id !== 0) {
+        try {
+          const response = await httpService.get(`/v1/guias-rapidas`);
+          console.log("🚀 Respuesta completa de guías:", response.data);
+          
+          let guiasArray = [];
+          
+          // Manejar diferentes estructuras de respuesta
+          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
+            // Estructura con paginación: { data: { data: [...] } }
+            guiasArray = response.data.data.data;
+          } else if (response.data?.data && Array.isArray(response.data.data)) {
+            // Estructura simple: { data: [...] }
+            guiasArray = response.data.data;
+          } else if (Array.isArray(response.data)) {
+            // Array directo: [...]
+            guiasArray = response.data;
+          }
+          
+          console.log("🚀 Array de guías procesado:", guiasArray);
+          
+          if (guiasArray.length > 0) {
+            const guide = guiasArray.find(g => 
+              g.id.toString() === equipmentDetails.guia_id.toString()
+            );
+            console.log("🚀 Guía encontrada:", guide);
+            if (guide) {
+              setSelectedGuideInfo(guide);
+              console.log("🚀 Guía cargada en vista:", guide.name);
+            } else {
+              console.warn("🚀 Guía no encontrada con ID:", equipmentDetails.guia_id);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading guide in view:", error);
+        }
+      }
+    };
+
+    loadAssociatedInfo();
+  }, [equipmentDetails]);
+
+  // Update PDF when equipment details change - using new modal replica component
+  useEffect(() => {
+    if (equipmentDetails && EquipmentModalReplicaPDF) {
       try {
+        // Combinar todos los datos para el PDF incluyendo información cargada
+        const pdfData = {
+          ...equipmentDetails,
+          selectedManualInfo,
+          selectedGuideInfo,
+          userHistory
+        };
+        
         updateInstance(
-          <EquipmentLifecyclePDFCompact equipment={equipmentDetails} />
+          <EquipmentModalReplicaPDF data={pdfData} />
         );
-        // updateInstance(<MinimalTestPDF equipment={equipmentDetails} />);  // For testing
       } catch (error) {
         console.error("Error updating PDF instance:", error);
       }
     }
-  }, [equipmentDetails, updateInstance]);
+  }, [equipmentDetails, selectedManualInfo, selectedGuideInfo, userHistory, updateInstance]);
 
   // Handle PDF download
   const handleDownloadPDF = () => {
@@ -215,17 +325,33 @@ export function ViewEquipmentModal({
   const formatDate = (date, fallback = "No disponible") => {
     if (!date || date === null || date === undefined || date === "")
       return fallback;
+    
     try {
-      const dateObj = new Date(date);
-      if (isNaN(dateObj.getTime())) return fallback;
-      return dateObj.toLocaleDateString("es-ES", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-    } catch {
+      if (typeof date === "string" && date.includes("-")) {
+        return new Date(date).toLocaleDateString("es-ES");
+      }
+      if (typeof date === "number") {
+        return new Date(date).toLocaleDateString("es-ES");
+      }
+      return String(date);
+    } catch (error) {
+      console.warn("Error formatting date:", date, error);
       return fallback;
     }
+  };
+
+  // Handle manual selection (read-only modal, no actual selection)
+  const handleSelectManual = (manual) => {
+    console.log("Manual selection in view modal (read-only):", manual);
+    // In view modal, this is just for logging/debugging
+    // The modal will close automatically
+  };
+
+  // Handle guide selection (read-only modal, no actual selection)
+  const handleSelectGuide = (guide) => {
+    console.log("Guide selection in view modal (read-only):", guide);
+    // In view modal, this is just for logging/debugging
+    // The modal will close automatically
   };
 
   // Calculate age function
@@ -239,6 +365,29 @@ export function ViewEquipmentModal({
     } catch {
       return "No calculable";
     }
+  };
+
+  // Handlers para manuales y guías (solo visualización en modal de vista)
+  const handleViewManual = () => {
+    const manualId = equipmentDetails?.manual_id;
+    if (!manualId) {
+      toast.error("No hay manual asociado a este equipo");
+      return;
+    }
+
+    // Para el modal de vista, abrir modal de búsqueda para ver detalles
+    setShowManualSearchModal(true);
+  };
+
+  const handleViewGuide = () => {
+    const guideId = equipmentDetails?.guia_id;
+    if (!guideId) {
+      toast.error("No hay guía rápida asociada a este equipo");
+      return;
+    }
+
+    // Para el modal de vista, abrir modal de búsqueda para ver detalles
+    setShowGuideSearchModal(true);
   };
 
   // Use equipment details if available, otherwise fallback to passed equipment
@@ -296,812 +445,523 @@ export function ViewEquipmentModal({
         )}
 
         {displayData && (
-          <div className="space-y-6 p-2">
-            {/* SECCIÓN 1: ENCABEZADO E IDENTIFICACIÓN PRINCIPAL */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
-              <div className="flex items-start gap-6">
-                <div className="w-32 h-24 bg-gray-200 rounded-lg flex items-center justify-center border-2 border-blue-200">
-                  {displayData.image && !imageError ? (
-                    <img
-                      src={displayData.image_url || displayData.image}
-                      alt={displayData.name}
-                      className="w-full h-full object-cover rounded-lg"
-                      onError={() => setImageError(true)}
-                      onLoad={() => setImageError(false)}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center text-gray-500">
-                      <FileText className="h-8 w-8 mb-1" />
-                      <span className="text-xs">Sin imagen</span>
-                    </div>
-                  )}
+          <div className="max-h-[70vh] overflow-y-auto">
+            {/* HEADER IDÉNTICO AL PDF */}
+            <div className="flex items-center justify-between p-6 border-b-2 border-blue-600 bg-white">
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 flex-shrink-0">
+                  <img 
+                    src="/images/logo_huv.jpg" 
+                    alt="Hospital Universitario del Valle"
+                    className="w-full h-full object-contain rounded-lg"
+                  />
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-blue-800 mb-4">
-                    {safeValue(displayData.name)}
-                  </h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">
-                        ID del Equipo:
-                      </span>
-                      <Badge className="ml-2 bg-orange-100 text-orange-800">
-                        {safeValue(displayData.id)}
-                      </Badge>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">
-                        Código:
-                      </span>
-                      <Badge className="ml-2 bg-blue-100 text-blue-800">
-                        {safeValue(displayData.code)}
-                      </Badge>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">
-                        Serie:
-                      </span>
-                      <span className="ml-2 text-sm">
-                        {safeValue(displayData.serial)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">
-                        Estado:
-                      </span>
-                      <Badge
-                        className={`ml-2 ${
-                          displayData.estado_nombre
-                            ?.toLowerCase()
-                            .includes("operativo") ||
-                          displayData.estado_nombre
-                            ?.toLowerCase()
-                            .includes("funcionando")
-                            ? "bg-green-100 text-green-800"
-                            : displayData.estado_nombre
-                                ?.toLowerCase()
-                                .includes("mantenimiento")
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {safeValue(displayData.estado_nombre)}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">
-                        Marca:
-                      </span>
-                      <span className="ml-2 text-sm">
-                        {safeValue(displayData.marca)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-gray-600">
-                        Modelo:
-                      </span>
-                      <span className="ml-2 text-sm">
-                        {safeValue(displayData.modelo)}
-                      </span>
-                    </div>
-                  </div>
-                  {displayData.descripcion && (
-                    <div className="mt-4">
-                      <span className="text-sm font-semibold text-gray-600">
-                        Descripción:
-                      </span>
-                      <p className="text-sm text-gray-700 mt-1 bg-white p-3 rounded border">
-                        {displayData.descripcion}
-                      </p>
-                    </div>
-                  )}
+                <div className="text-center flex-1">
+                  <h1 className="text-xl font-bold text-blue-700 mb-1">
+                    HOSPITAL UNIVERSITARIO DEL VALLE "EVARISTO GARCÍA"
+                  </h1>
+                  <p className="text-lg text-blue-600 font-medium">
+                    HOJA DE VIDA - {safeValue(displayData.name?.toUpperCase())}
+                  </p>
+                  <p className="text-sm text-blue-500">
+                    Sistema de Gestión EVA - Electromedicina
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* SECCIÓN 2: INFORMACIÓN TÉCNICA DEL FABRICANTE */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <Settings className="h-5 w-5 text-blue-600" />
-                2. Información Técnica del Fabricante
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Año de Fabricación:</span>
-                    <span className="font-medium text-gray-800">
-                      {formatDate(displayData.fecha_fabricacion)}
-                    </span>
+            {/* SECCIÓN DE EQUIPO CON IMAGEN */}
+            <div className="flex gap-6 p-6 bg-gray-50 border-b">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-blue-800 mb-4">
+                  {safeValue(displayData.name)}
+                </h2>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><strong>ID:</strong> {safeValue(displayData.id)}</div>
+                  <div><strong>Código:</strong> {safeValue(displayData.code)}</div>
+                  <div><strong>Serie:</strong> {safeValue(displayData.serial)}</div>
+                  <div><strong>Marca:</strong> {safeValue(displayData.marca)}</div>
+                  <div><strong>Modelo:</strong> {safeValue(displayData.modelo)}</div>
+                  <div><strong>Estado:</strong> {safeValue(displayData.estado_nombre)}</div>
+                </div>
+              </div>
+              <div className="w-24 h-24 border border-gray-300 rounded flex items-center justify-center bg-white">
+                {displayData.image && !imageError ? (
+                  <img
+                    src={displayData.image_url || displayData.image}
+                    alt={displayData.name}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
+                    onLoad={() => setImageError(false)}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-gray-400">
+                    <FileText className="h-8 w-8" />
+                    <span className="text-xs">Sin imagen</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">País de Origen:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(
-                        displayData.propiedad || displayData.pais_origen
+                )}
+              </div>
+            </div>
+
+            {/* INFORMACIÓN GENERAL Y UBICACIÓN - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                INFORMACIÓN GENERAL Y UBICACIÓN
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">ID del Equipo</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.id)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Código</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.code)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Serie</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.serial)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Estado</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.estado_nombre)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Sede</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.sede_nombre)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Servicio</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.servicio_nombre)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Área</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.area_nombre)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Piso</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.piso)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* CARACTERÍSTICAS TÉCNICAS - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                CARACTERÍSTICAS TÉCNICAS Y ESPECIFICACIONES
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Marca</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.marca)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Modelo</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.modelo)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Potencia</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.potencia)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Corriente</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.corriente)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">País Origen</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.pais_origen)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Frecuencia</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.frecuencia)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Año Fabricación</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion, new Date(displayData.fecha_fabricacion).getFullYear())}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Garantía</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.garantia)} años</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Vida Útil</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.vida_util)} años</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Voltaje</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.v1)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* INFORMACIÓN REGULATORIA Y FECHAS CRÍTICAS - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                INFORMACIÓN REGULATORIA Y FECHAS CRÍTICAS
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Reg. INVIMA</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.registro_sanitario)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Estado INVIMA</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.estado_invima)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Fabricación</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Instalación</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_instalacion)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Acta Recibo</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_acta_recibo)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Operación</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_inicio_operacion)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Venc. Garantía</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_vencimiento_garantia)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Venc. INVIMA</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_vencimiento_invima)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* INFORMACIÓN FINANCIERA Y CONTRACTUAL - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                INFORMACIÓN FINANCIERA Y CONTRACTUAL
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Costo</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.costo)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Propietario</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.propietario_nombre)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Propiedad</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.propiedad)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Comodato</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.activo_comodato)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* MANTENIMIENTOS PREVENTIVOS RECIENTES - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                MANTENIMIENTOS PREVENTIVOS RECIENTES
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-blue-100">
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Tipo</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Técnico</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.mantenimientos_preventivos && displayData.mantenimientos_preventivos.length > 0 ? (
+                      displayData.mantenimientos_preventivos.slice(0, 5).map((mant, index) => (
+                        <tr key={index}>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(mant.fecha_programada)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(mant.tipo)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(mant.tecnico_nombre)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(mant.estado)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay mantenimientos preventivos registrados
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* CALIBRACIONES RECIENTES - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                CALIBRACIONES RECIENTES
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-blue-100">
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha Calibración</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Tipo</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Próxima</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.calibraciones && displayData.calibraciones.length > 0 ? (
+                      displayData.calibraciones.slice(0, 4).map((cal, index) => (
+                        <tr key={index}>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(cal.fecha_calibracion)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cal.tipo_calibracion)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(cal.proxima_calibracion)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cal.resultado)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay calibraciones registradas
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* MANTENIMIENTOS CORRECTIVOS RECIENTES - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                MANTENIMIENTOS CORRECTIVOS RECIENTES
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-blue-100">
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Descripción</th>
+                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.contingencias && displayData.contingencias.length > 0 ? (
+                      displayData.contingencias.slice(0, 6).map((cont, index) => (
+                        <tr key={index}>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(cont.fecha_reporte)}</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cont.descripcion_problema).substring(0, 100)}...</td>
+                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cont.usuario_nombre)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay mantenimientos correctivos registrados
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* DOCUMENTOS ASOCIADOS - ESTILO TABULAR EXCEL CON ENLACES FUNCIONALES */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                DOCUMENTOS ASOCIADOS
+              </h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="border border-blue-300">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-blue-100">
+                        <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Nombre</th>
+                        <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Tipo de Documento</th>
+                        <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayData.documentos && displayData.documentos.length > 0 ? (
+                        displayData.documentos.slice(0, 6).map((doc, index) => (
+                          <tr key={index}>
+                            <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(doc.nombre_archivo)}</td>
+                            <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(doc.tipo_documento)}</td>
+                            <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(doc.fecha_documento)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                            No hay documentos asociados
+                          </td>
+                        </tr>
                       )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Voltaje 1:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.v1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Voltaje 2:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.v2)}
-                    </span>
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Voltaje 3:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.v3)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Frecuencia:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.frecuencia)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Garantía:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.garantia)} años
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Periodicidad:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.periodicidad)}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Edad del Equipo:</span>
-                    <Badge className="bg-blue-100 text-blue-800">
-                      {calculateAge(displayData.fecha_fabricacion)}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Movilidad:</span>
-                    <Badge
-                      className={`${
-                        displayData.movilidad?.toLowerCase() === "movil"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {safeValue(displayData.movilidad)}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Evaluación Desempeño:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.evaluacion_desempenio)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Calibración:</span>
-                    <Badge
-                      className={`${
-                        displayData.calibracion?.toLowerCase() === "si"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {safeValue(displayData.calibracion)}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 3: CLASIFICACIONES Y CATEGORIZACIÓN */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <Shield className="h-5 w-5 text-purple-600" />
-                3. Clasificaciones y Categorización
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Clasificación Biomédica:
-                    </span>
-                    <Badge className="bg-purple-100 text-purple-800">
-                      {safeValue(displayData.clasificacion_nombre)}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Clasificación de Riesgo:
-                    </span>
-                    <Badge
-                      className={`${
-                        displayData.riesgo_nombre
-                          ?.toLowerCase()
-                          .includes("alto")
-                          ? "bg-red-100 text-red-800"
-                          : displayData.riesgo_nombre
-                              ?.toLowerCase()
-                              .includes("medio")
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
-                      {safeValue(displayData.riesgo_nombre)}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Registro INVIMA:</span>
-                    <span className="font-medium text-gray-800 bg-gray-100 px-2 py-1 rounded">
-                      {safeValue(displayData.registro_sanitario)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Archivos Disponibles:</span>
-                    <Badge className="bg-blue-100 text-blue-800">
-                      {safeValue(displayData.cuenta_archivos, "0")} archivos
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 4: UBICACIÓN Y CONTEXTO OPERATIVO */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <MapPin className="h-5 w-5 text-green-600" />
-                4. Ubicación y Contexto Operativo
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Sede:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.sede_nombre)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Servicio:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.servicio_nombre)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Área:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.area_nombre)}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Piso:</span>
-                    <span className="text-gray-800">
-                      {safeValue(displayData.piso)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Sector:</span>
-                    <span className="text-gray-800">
-                      {safeValue(displayData.sector)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Localización Actual:</span>
-                    <span className="text-gray-800">
-                      {safeValue(displayData.localizacion_actual)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <span className="text-sm font-semibold text-blue-800">
-                  Hospital:
-                </span>
-                <p className="text-sm text-blue-700 mt-1">
-                  Hospital Universitario del Valle Evaristo García
-                </p>
-              </div>
-            </div>
-
-            {/* SECCIÓN 4.5: ACCESORIOS Y ESPECIFICACIONES ADICIONALES */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <Package className="h-5 w-5 text-orange-600" />
-                4.5. Accesorios y Especificaciones Adicionales
-              </h3>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-3">
-                  <div className="text-sm">
-                    <span className="text-gray-600 font-medium">Accesorios Incluidos:</span>
-                    <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
-                      <div 
-                        className="text-gray-800 text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{
-                          __html: displayData.accesorios || "No se han especificado accesorios"
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Repuesto Pendiente:</span>
-                      <Badge
-                        className={`${
-                          displayData.repuesto_pendiente?.toLowerCase() === "si"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
-                      >
-                        {safeValue(displayData.repuesto_pendiente)}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Código Antiguo:</span>
-                      <span className="font-medium text-gray-800">
-                        {safeValue(displayData.codigo_antiguo)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Verificación Inventario:</span>
-                      <span className="font-medium text-gray-800">
-                        {safeValue(displayData.verificacion_inventario)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 5: INFORMACIÓN FINANCIERA Y CONTRACTUAL */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
-                5. Información Financiera y Contractual
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Costo de Adquisición:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.costo)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tipo de Adquisición:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.tipo_compra)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Vida Útil Estimada:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.vida_util)} años
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Propietario Legal:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.propietario_nombre)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Número de Contrato:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.numero_contrato)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Orden de Compra:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.orden_compra)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 6: CRONOLOGÍA DE FECHAS CRÍTICAS */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <Calendar className="h-5 w-5 text-purple-600" />
-                6. Cronología de Fechas Críticas
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-700 text-sm">
-                    Fechas de Adquisición
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Fecha de Adquisición:
-                      </span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_ad)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Recepción Almacén:</span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_recepcion_almacen)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Acta de Recibo:</span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_acta_recibo)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-700 text-sm">
-                    Fechas Operativas
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Fecha de Instalación:
-                      </span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_instalacion)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Inicio de Operación:
-                      </span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_inicio_operacion)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Entrega al Servicio:
-                      </span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_entrega_servicio)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-gray-700 text-sm">
-                    Fechas de Mantenimiento
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Último Mantenimiento:
-                      </span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.ultimo_mantenimiento)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Última Calibración:</span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.ultima_calibracion)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        Fecha de Mantenimiento:
-                      </span>
-                      <span className="text-gray-800">
-                        {formatDate(displayData.fecha_mantenimiento)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 7: ESTADO OPERATIVO Y DISPONIBILIDAD */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <Wrench className="h-5 w-5 text-orange-600" />
-                7. Estado Operativo y Disponibilidad
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Requiere Calibración:</span>
-                    <Badge
-                      className={`${
-                        displayData.calibracion?.toLowerCase() === "si"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
-                      {safeValue(displayData.calibracion)}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Evaluación Desempeño:</span>
-                    <Badge
-                      className={`${
-                        displayData.evaluacion_desempenio?.toLowerCase() ===
-                        "si"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {safeValue(displayData.evaluacion_desempenio)}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Verificación Inventario:
-                    </span>
-                    <Badge
-                      className={`${
-                        displayData.verificacion_inventario?.toLowerCase() ===
-                        "verificado"
-                          ? "bg-green-100 text-green-800"
-                          : displayData.verificacion_inventario?.toLowerCase() ===
-                            "nuevo"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {safeValue(displayData.verificacion_inventario)}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Status del Registro:</span>
-                    <Badge
-                      className={`${
-                        displayData.status
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {displayData.status ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Estado Mantenimiento:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.estado_mantenimiento)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Plan de Mantenimiento:
-                    </span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.plan)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 8: INFORMACIÓN DE AUDITORÍA Y TRAZABILIDAD */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <User className="h-5 w-5 text-indigo-600" />
-                8. Información de Auditoría y Trazabilidad
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Fecha de Creación:</span>
-                    <span className="font-medium text-gray-800">
-                      {formatDate(displayData.created_at)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Fecha de Cambio:</span>
-                    <span className="font-medium text-gray-800">
-                      {formatDate(displayData.fecha_cambio)}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Usuario Creador:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.usuario_creador_nombre)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Periodicidad:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.periodicidad)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {displayData.observacion && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm font-semibold text-gray-700">
-                    Observaciones:
-                  </span>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {displayData.observacion}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* SECCIÓN 9: DOCUMENTACIÓN Y ARCHIVOS DIGITALES */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <FileText className="h-5 w-5 text-gray-600" />
-                9. Documentación y Archivos Digitales
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Archivos Disponibles:</span>
-                    <Badge className="bg-blue-100 text-blue-800">
-                      {safeValue(displayData.cuenta_archivos, "0")} archivos
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Manual Técnico:</span>
-                    <span className="font-medium text-gray-800">
-                      {displayData.manual ? "Disponible" : "No disponible"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Planos Técnicos:</span>
-                    <span className="font-medium text-gray-800">
-                      {displayData.plano ? "Disponible" : "No disponible"}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Archivo Excel:</span>
-                    <span className="font-medium text-gray-800">
-                      {displayData.file ? "Disponible" : "No disponible"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Archivo INVIMA:</span>
-                    <span className="font-medium text-gray-800">
-                      {displayData.archivo_registro_sanitario
-                        ? "Disponible"
-                        : "No disponible"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Accesorios:</span>
-                    <span className="font-medium text-gray-800">
-                      {safeValue(displayData.accesorios)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 10: INFORMACIÓN ADICIONAL */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-blue-800 mb-4">
-                <Info className="h-5 w-5 text-blue-600" />
-                Información Adicional del Sistema
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <div className="text-2xl mb-2">📊</div>
-                  <h4 className="font-semibold text-gray-800">
-                    Estado General
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-2">
-                    {displayData.status ? "Sistema Activo" : "Sistema Inactivo"}
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <div className="text-2xl mb-2">🔧</div>
-                  <h4 className="font-semibold text-gray-800">Mantenimiento</h4>
-                  <p className="text-sm text-gray-600 mt-2">
-                    {displayData.ultimo_mantenimiento
-                      ? "Registrado"
-                      : "Sin registros"}
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <div className="text-2xl mb-2">📋</div>
-                  <h4 className="font-semibold text-gray-800">Documentación</h4>
-                  <p className="text-sm text-gray-600 mt-2">
-                    {parseInt(displayData.cuenta_archivos || 0) > 0
-                      ? "Completa"
-                      : "Incompleta"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 11: HISTORIAL DE USUARIOS */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-                <History className="h-5 w-5 text-purple-600" />
-                11. Historial de Actividad de Usuarios
-              </h3>
-              
-              {userHistory.length > 0 ? (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {userHistory.map((entry) => (
-                    <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex-shrink-0 mt-1">
-                        {entry.tipo === 'observacion' ? (
-                          <UserCheck className="h-4 w-4 text-blue-600" />
+                <div className="space-y-4">
+                  {/* Documentación Asociada con Enlaces Funcionales */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-3 bg-blue-50 px-3 py-2 border border-blue-200">📚 Documentación Asociada</h4>
+                    <div className="space-y-3 border border-blue-300 p-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">📖 Manual Asociado:</span>
+                        {selectedManualInfo ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-green-100 text-green-800">
+                              {selectedManualInfo.descripcion}
+                            </Badge>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(selectedManualInfo.url, "_blank")}
+                              className="text-green-600 hover:bg-green-100 h-6 w-6 p-0"
+                              title="Ver manual"
+                            >
+                              <FileText className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ) : displayData.manual_id ? (
+                          <Badge className="bg-yellow-100 text-yellow-800">Cargando manual...</Badge>
                         ) : (
-                          <FileText className="h-4 w-4 text-green-600" />
+                          <span className="text-gray-500">Sin manual asociado</span>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-gray-900">
-                            {entry.usuario}
-                          </p>
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Clock className="h-3 w-3" />
-                            {new Date(entry.fecha).toLocaleDateString('es-ES', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">🚀 Guía Rápida Asociada:</span>
+                        {selectedGuideInfo ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-purple-100 text-purple-800">
+                              {selectedGuideInfo.name}
+                            </Badge>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/guias/${selectedGuideInfo.file}`;
+                                window.open(fileUrl, "_blank");
+                              }}
+                              className="text-purple-600 hover:bg-purple-100 h-6 w-6 p-0"
+                              title="Ver guía rápida"
+                            >
+                              <FileText className="w-3 h-3" />
+                            </Button>
                           </div>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-medium">{entry.accion}:</span> {entry.detalle}
-                        </p>
-                        <div className="mt-2">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            entry.tipo === 'observacion' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {entry.tipo === 'observacion' ? '📝 Observación' : '📄 Documento'}
-                          </span>
-                        </div>
+                        ) : displayData.guia_id ? (
+                          <Badge className="bg-yellow-100 text-yellow-800">Cargando guía...</Badge>
+                        ) : (
+                          <span className="text-gray-500 text-sm">Sin guía rápida asociada</span>
+                        )}
+                      </div>
+                      <div className="mt-4 p-3 bg-gray-50 rounded border border-blue-200">
+                        <strong className="text-gray-700">Accesorios:</strong>
+                        <div 
+                          className="mt-1 text-gray-600 text-xs"
+                          dangerouslySetInnerHTML={{
+                            __html: displayData.accesorios || "No especificados"
+                          }}
+                        />
                       </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <History className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 text-sm">
-                    No hay actividad registrada para este equipo
-                  </p>
-                </div>
-              )}
-              
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Info className="h-4 w-4 text-blue-600" />
-                  <p className="text-xs text-blue-700">
-                    <strong>Nota:</strong> Este historial muestra las últimas actividades de usuarios que han agregado observaciones o documentos a este equipo.
-                  </p>
+              </div>
+            </div>
+
+            {/* INFORMACIÓN ADICIONAL - ESTILO TABULAR EXCEL */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+                INFORMACIÓN ADICIONAL
+              </h3>
+              <div className="border border-blue-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Verificación Inventario</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.verificacion_inventario)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Código Antiguo</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.codigo_antiguo)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Repuesto Pendiente</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.repuesto_pendiente)}</td>
+                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Plan Mantenimiento</td>
+                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.plan)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* BOTÓN VER HISTORIAL FUERA DEL FORMATO PDF */}
+            <div className="p-6 bg-gray-50">
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  {showHistory ? 'Ocultar Historial' : 'Ver Historial de Usuarios'}
+                </Button>
+              </div>
+            </div>
+
+            {/* HISTORIAL DE USUARIOS CON ANIMACIÓN */}
+            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
+              showHistory ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <div className="p-6 bg-white border-t">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 border-b border-gray-200 pb-2">
+                  📋 HISTORIAL DE ACTIVIDAD DE USUARIOS
+                </h3>
+                
+                {userHistory.length > 0 ? (
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {userHistory.map((entry) => (
+                      <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className="flex-shrink-0 mt-1">
+                          {entry.tipo === 'observacion' ? (
+                            <UserCheck className="h-4 w-4 text-blue-600" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-green-600" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-gray-900">
+                              {entry.usuario}
+                            </p>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Clock className="h-3 w-3" />
+                              {new Date(entry.fecha).toLocaleDateString('es-ES', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            <span className="font-medium">{entry.accion}:</span> {entry.detalle}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <History className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-sm">
+                      No hay actividad registrada para este equipo
+                    </p>
+                  </div>
+                )}
+                
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <p className="text-xs text-blue-700">
+                      <strong>Nota:</strong> Este historial muestra las últimas actividades de usuarios que han agregado observaciones o documentos a este equipo.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Read-Only Notice */}
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg m-6">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-yellow-600" />
                 <div>
@@ -1117,13 +977,21 @@ export function ViewEquipmentModal({
             </div>
           </div>
         )}
-
-        <div className="flex justify-end p-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-        </div>
       </DialogContent>
+
+      {/* Modal de búsqueda de manuales */}
+      <ManualSearchModal
+        open={showManualSearchModal}
+        onOpenChange={setShowManualSearchModal}
+        onSelectManual={handleSelectManual}
+      />
+
+      {/* Modal de búsqueda de guías */}
+      <QuickGuideSearchModal
+        open={showGuideSearchModal}
+        onOpenChange={setShowGuideSearchModal}
+        onSelectGuide={handleSelectGuide}
+      />
     </Dialog>
   );
 }

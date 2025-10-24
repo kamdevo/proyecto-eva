@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,8 +9,140 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "../hooks/useAuth";
+import httpService from "../services/httpService";
+import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ProfilePage() {
+  const { user: authUser } = useAuth()
+  const [userProfile, setUserProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [passwordData, setPasswordData] = useState({
+    current_password: "",
+    new_password: "",
+    new_password_confirmation: ""
+  })
+
+  // Estado para visibilidad de contraseñas
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirmation: false
+  })
+
+  // Función para alternar visibilidad de contraseña
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }))
+  }
+
+  // Función para cargar el perfil del usuario actual
+  const loadUserProfile = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await httpService.get('/v1/user')
+      
+      if (response.data.success) {
+        setUserProfile(response.data.data)
+      } else {
+        toast.error('Error al cargar el perfil')
+      }
+    } catch (error) {
+      // Fallback: usar datos del AuthContext
+      if (authUser) {
+        setUserProfile({
+          ...authUser,
+          rol_nombre: authUser.rol?.name || authUser.rol_nombre || 'Usuario',
+          centro_nombre: authUser.centro?.name || authUser.centro_nombre || 'Sin asignar'
+        })
+        toast.info('Usando datos locales')
+      } else {
+        toast.error('Error al cargar el perfil')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Función para cambiar contraseña
+  const handleUpdatePassword = async (e) => {
+    e?.preventDefault?.()
+    if (!passwordData.current_password || !passwordData.new_password || !passwordData.new_password_confirmation) {
+      toast.error("Completa todos los campos de contraseña")
+      return
+    }
+
+    if (passwordData.new_password !== passwordData.new_password_confirmation) {
+      toast.error("Las contraseñas nuevas no coinciden")
+      return
+    }
+
+    if (passwordData.new_password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('eva_auth_token')
+      console.log('🔐 Enviando POST con token:', token ? token.substring(0, 30) + '...' : 'NO HAY TOKEN')
+      
+      const response = await fetch('http://192.168.2.146:8001/api/v1/user/update-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(passwordData)
+      })
+
+      console.log('📡 Respuesta:', response.status, response.statusText)
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        toast.success("Contraseña actualizada exitosamente")
+        setPasswordData({
+          current_password: "",
+          new_password: "",
+          new_password_confirmation: ""
+        })
+      } else {
+        toast.error(data.message || "Error al actualizar la contraseña")
+      }
+    } catch (error) {
+      console.error('❌ Error:', error)
+      toast.error("Error al actualizar la contraseña")
+    }
+  }
+
+  useEffect(() => {
+    loadUserProfile()
+  }, [authUser])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="max-w-3xl w-full mx-auto p-6">
+          <div className="bg-white rounded-lg shadow-lg p-6 space-y-4">
+            <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+            <div className="space-y-3 pt-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col pt-16">
       {/* Header */}
@@ -49,7 +182,8 @@ export default function ProfilePage() {
               </Label>
               <Input
                 id="nombre"
-                defaultValue="ADMINISTRADOR"
+                value={userProfile?.nombre || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
@@ -64,7 +198,8 @@ export default function ProfilePage() {
               </Label>
               <Input
                 id="apellidos"
-                defaultValue="PRINCIPAL"
+                value={userProfile?.apellido || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
@@ -79,7 +214,8 @@ export default function ProfilePage() {
               </Label>
               <Input
                 id="telefono"
-                defaultValue="3002069768"
+                value={userProfile?.telefono || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
@@ -90,12 +226,13 @@ export default function ProfilePage() {
                 htmlFor="email"
                 className="text-sm font-medium text-gray-700"
               >
-                email
+                Email
               </Label>
               <Input
                 id="email"
                 type="email"
-                defaultValue="JSEBASTIANGB.12@GMAIL.COM"
+                value={userProfile?.email || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
@@ -106,11 +243,12 @@ export default function ProfilePage() {
                 htmlFor="username"
                 className="text-sm font-medium text-gray-700"
               >
-                username
+                Username
               </Label>
               <Input
                 id="username"
-                defaultValue="ADMIN"
+                value={userProfile?.username || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
@@ -121,11 +259,12 @@ export default function ProfilePage() {
                 htmlFor="rol"
                 className="text-sm font-medium text-gray-700"
               >
-                rol
+                Rol
               </Label>
               <Input
                 id="rol"
-                defaultValue="SUPERADMIN"
+                value={userProfile?.rol_nombre || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
@@ -140,27 +279,74 @@ export default function ProfilePage() {
               </Label>
               <Input
                 id="centro-costo"
-                defaultValue="MANTENIMIENTO BIOMEDICO"
+                value={userProfile?.centro_nombre || 'N/A'}
+                readOnly
                 className="bg-gray-100 border-gray-300 h-10"
               />
             </div>
 
-            {/* Password */}
-            <div className="space-y-2 lg:col-span-1">
-              <Label
-                htmlFor="password"
-                className="text-sm font-medium text-gray-700"
-              >
-                password
+            {/* Cambiar Password */}
+            <div className="space-y-2 lg:col-span-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Cambiar Contraseña
               </Label>
               <div className="space-y-3">
-                <Input
-                  id="password"
-                  type="password"
-                  defaultValue="PASSWORD"
-                  className="bg-gray-100 border-gray-300 h-10"
-                />
+                {/* Contraseña Actual */}
+                <div className="relative">
+                  <Input
+                    type={showPasswords.current ? "text" : "password"}
+                    placeholder="Contraseña actual"
+                    value={passwordData.current_password}
+                    onChange={(e) => setPasswordData({...passwordData, current_password: e.target.value})}
+                    className="bg-white border-gray-300 h-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('current')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* Nueva Contraseña */}
+                <div className="relative">
+                  <Input
+                    type={showPasswords.new ? "text" : "password"}
+                    placeholder="Nueva contraseña"
+                    value={passwordData.new_password}
+                    onChange={(e) => setPasswordData({...passwordData, new_password: e.target.value})}
+                    className="bg-white border-gray-300 h-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('new')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* Confirmar Nueva Contraseña */}
+                <div className="relative">
+                  <Input
+                    type={showPasswords.confirmation ? "text" : "password"}
+                    placeholder="Confirmar nueva contraseña"
+                    value={passwordData.new_password_confirmation}
+                    onChange={(e) => setPasswordData({...passwordData, new_password_confirmation: e.target.value})}
+                    className="bg-white border-gray-300 h-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility('confirmation')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPasswords.confirmation ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <Button
+                  type="button"
+                  onClick={handleUpdatePassword}
                   size="sm"
                   className="bg-[#367FA9] hover:bg-blue-700 text-white p-5 text-md font-medium"
                 >
@@ -168,6 +354,7 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </div>
+
           </div>
         </div>
       </div>

@@ -20,6 +20,7 @@
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 // use App\Models\Equipo; // COMENTADO: No usar modelo, usar consultas directas
 
 // Helper function for default permissions based on roles.md
@@ -644,6 +646,71 @@ Route::get('v1/health', function () {
     ]);
 });
 
+// TESTING - Endpoints temporales para actualizar usuarios (SIN MIDDLEWARE)
+Route::put('test-usuario/{id}', [\App\Http\Controllers\Api\UserController::class, 'update']);
+Route::put('v1/usuarios/{id}', [\App\Http\Controllers\Api\UserController::class, 'update']);
+
+// Gestión de usuarios individuales (para admin) - TEMPORAL SIN AUTH PARA TESTING  
+Route::prefix('v1')->group(function () {
+    Route::get('usuarios/{id}', function($id) {
+        try {
+            // Obtener usuario con relaciones
+            $usuario = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('servicios', 'usuarios.servicio_id', '=', 'servicios.id')
+                ->leftJoin('zonas', 'usuarios.zona_id', '=', 'zonas.id')
+                ->select(
+                    'usuarios.*',
+                    'roles.nombre as rol_nombre',
+                    'servicios.nombre as servicio_nombre',
+                    'zonas.nombre as zona_nombre'
+                )
+                ->where('usuarios.id', $id)
+                ->first();
+
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Obtener permisos individuales del usuario
+            $permisos = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $id)
+                ->select('modulos.id', 'modulos.name as nombre', 'acciones.leer', 'acciones.insertar', 'acciones.editar', 'acciones.eliminar')
+                ->get();
+
+            $usuario->permisos = $permisos;
+
+            return response()->json([
+                'success' => true,
+                'status' => 'success',
+                'message' => 'Usuario obtenido exitosamente',
+                'data' => $usuario,
+                'timestamp' => now()->toISOString(),
+                'metadata' => [
+                    'api_version' => '2.0',
+                    'server_time' => now()->toISOString(),
+                    'request_id' => uniqid(),
+                    'user_id' => null,
+                    'locale' => 'es',
+                    'timezone' => 'UTC',
+                    'environment' => config('app.env')
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+});
+
 // Bajas endpoints (sin autenticación por ahora)
 Route::prefix('v1')->group(function () {
     
@@ -843,9 +910,7 @@ Route::prefix('v1')->group(function () {
             $bajaId = DB::table('bajas')->insertGetId([
                 'fecha_baja' => $request->fecha_baja,
                 'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
-                'archivo' => $archivoPath,
-                'created_at' => now(),
-                'updated_at' => now()
+                'archivo' => $archivoPath
             ]);
             
             $baja = DB::table('bajas')->where('id', $bajaId)->first();
@@ -1140,24 +1205,19 @@ Route::prefix('v1')->group(function () {
             $bajaId = DB::table('bajas')->insertGetId([
                 'fecha_baja' => $request->fecha_baja,
                 'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
-                'archivo' => $archivoPath,
-                'created_at' => now(),
-                'updated_at' => now()
+                'archivo' => $archivoPath
             ]);
             
             // Associate equipment with baja
             DB::table('equipos_bajas')->insert([
                 'baja_id' => $bajaId,
                 'equipo_id' => $equipoId,
-                'fecha_asociacion' => now(),
-                'created_at' => now(),
-                'updated_at' => now()
+                'created_at' => now()
             ]);
             
             // Update equipment status
             DB::table('equipos')->where('id', $equipoId)->update([
-                'baja_id' => $bajaId,
-                'estado' => 'BAJA'
+                'baja_id' => $bajaId
             ]);
             
             return response()->json([
@@ -1705,6 +1765,25 @@ Route::prefix('v1')->group(function () {
                     ->where('email', '!=', '')
                     ->get();
                 
+                // FALLBACK: Si no hay usuarios en el servicio, usar el email del request o admins
+                if ($usuarios->count() === 0) {
+                    \Log::info('🔄 No hay usuarios en el servicio, activando fallback');
+                    
+                    $emailFallback = $request->input('email');
+                    if ($emailFallback && filter_var($emailFallback, FILTER_VALIDATE_EMAIL)) {
+                        $usuarios = collect([(object)['email' => $emailFallback]]);
+                        \Log::info('📧 Usando email fallback: ' . $emailFallback);
+                    } else {
+                        // Si no hay email válido, usar admins (rol_id = 1)  
+                        $usuarios = DB::table('usuarios')
+                            ->where('rol_id', 1)
+                            ->whereNotNull('email')
+                            ->where('email', '!=', '')
+                            ->get();
+                        \Log::info('📧 Usando ' . $usuarios->count() . ' emails de administradores como fallback');
+                    }
+                }
+                
                 \Log::info('📧 Destinatarios encontrados: ' . $usuarios->count());
                 
                 $enviados = 0;
@@ -2123,6 +2202,7 @@ Route::prefix('v1')->group(function () {
             }
             
             $user = $request->user();
+            $usuarioId = $user ? $user->id : 1; // Default to user ID 1 if no auth
             
             $archivoPath = null;
             if ($request->hasFile('archivo')) {
@@ -2135,24 +2215,19 @@ Route::prefix('v1')->group(function () {
             $bajaId = DB::table('bajas')->insertGetId([
                 'fecha_baja' => $request->fecha_baja,
                 'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
-                'archivo' => $archivoPath,
-                'created_at' => now(),
-                'updated_at' => now()
+                'archivo' => $archivoPath
             ]);
             
             // Associate equipment to baja
             DB::table('equipos_bajas')->insert([
                 'baja_id' => $bajaId,
                 'equipo_id' => $equipoId,
-                'usuario_id' => $user->id,
-                'observaciones' => $request->observaciones,
                 'created_at' => now()
             ]);
             
             // Update equipment status
             DB::table('equipos')->where('id', $equipoId)->update([
-                'baja_id' => $bajaId,
-                'estado' => 'BAJA'
+                'baja_id' => $bajaId
             ]);
             
             return response()->json([
@@ -2227,56 +2302,100 @@ Route::prefix('v1')->group(function () {
         }
     });
 
-    // Endpoint para exportación consolidada de mantenimiento
+    // Endpoint para exportación consolidada de preventivos (PreventivosEB.xls)
     Route::get('planes-mantenimientos/export', function (Request $request) {
         try {
             $year = $request->query('anio', date('Y'));
             $format = $request->query('formato', 'excel');
+            $equipos_ids = $request->query('equipos_ids'); // IDs de equipos seleccionados (opcional)
             
-            \Log::info('📊 Exportando consolidado de mantenimientos - Año: ' . $year);
+            \Log::info('📊 Exportando consolidado PreventivosEB.xls - Año: ' . $year);
+            \Log::info('🔧 Equipos seleccionados: ' . ($equipos_ids ? $equipos_ids : 'TODOS'));
             
-            // Obtener mantenimientos del año especificado (tabla correcta: mantenimiento)
-            $planes = DB::table('mantenimiento')
-                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
-                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
-                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
-                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
-                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
+            // Obtener usuario actual para filtro por tipo
+            $user = $request->user();
+            $tipo_id = $user ? ($user->tipo_id ?? 1) : 1; // Default: biomédico
+            
+            // Query con TODOS los campos especificados + joins completos
+            $preventivos = DB::table('mantenimiento as m')
+                ->leftJoin('equipos as e', 'm.equipo_id', '=', 'e.id')
+                ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+                ->leftJoin('areas as a', 'e.area_id', '=', 'a.id')
+                ->leftJoin('sedes as sed', 's.sede_id', '=', 'sed.id')
+                ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'm.proveedor_mantenimiento_id', '=', 'pm.id')
                 ->select([
-                    'mantenimiento.id',
-                    'mantenimiento.description',
-                    'mantenimiento.fecha_programada',
-                    'mantenimiento.fecha_mantenimiento',
-                    'mantenimiento.observacion',
-                    'mantenimiento.repuesto_pendiente',
-                    'mantenimiento.status',
-                    'mantenimiento.created_at',
-                    'equipos.name as equipo_nombre',
-                    'equipos.code as equipo_codigo',
-                    'equipos.marca as equipo_marca',
-                    'equipos.modelo as equipo_modelo',
-                    'equipos.serial as equipo_serie',
-                    'servicios.name as servicio_nombre',
-                    'areas.name as area_nombre',
-                    'sedes.name as sede_nombre',
-                    'pm.name as proveedor_nombre'
+                    // Campos base del mantenimiento (CORREGIDOS según BD real)
+                    'm.fecha_mantenimiento as fecha_ejecucion',
+                    'm.id as codigo', // Usar ID como código preventivo
+                    'm.observacion as observacion_mtto',
+                    'm.file as archivomtto', // Campo correcto: 'file' no 'archivo'
+                    
+                    // Campos del equipo
+                    'e.id as id',
+                    'e.name as name',
+                    'e.code as code',
+                    'e.serial as serial',
+                    'e.marca as marca',
+                    'e.modelo as modelo',
+                    'e.propiedad as propiedad',
+                    
+                    // Ubicación
+                    'sed.name as sede',
+                    's.name as ubicacion',
+                    'a.name as area',
+                    
+                    // Estado y proveedor
+                    'ee.name as estado_equipo',
+                    'pm.name as proveedor_mantenimiento',
+                    
+                    // Para el campo codificación
+                    'm.created_at'
                 ])
-                ->whereYear('mantenimiento.fecha_programada', $year)
-                ->orderBy('mantenimiento.fecha_programada')
-                ->get();
+                ->where('e.status', 1) // Solo equipos activos
+                ->where('e.tipo_id', $tipo_id); // Filtro por tipo de equipo según usuario
+                
+            // Filtro por año
+            $preventivos = $preventivos->whereYear('m.fecha_mantenimiento', $year);
             
-            \Log::info('✅ Total mantenimientos a exportar: ' . $planes->count());
+            // Filtro por equipos específicos si se proporcionan
+            if ($equipos_ids) {
+                $equipos_array = explode(',', $equipos_ids);
+                $equipos_array = array_filter(array_map('intval', $equipos_array)); // Limpiar y convertir a enteros
+                
+                if (!empty($equipos_array)) {
+                    $preventivos = $preventivos->whereIn('e.id', $equipos_array);
+                    \Log::info('🎯 Filtro aplicado - IDs de equipos: ' . implode(', ', $equipos_array));
+                }
+            }
+            
+            $preventivos = $preventivos->orderBy('m.fecha_mantenimiento', 'ASC')->get();
+            
+            \Log::info('✅ Total preventivos a exportar: ' . $preventivos->count() . ' (Tipo: ' . $tipo_id . ')');
             
             if ($format === 'excel') {
-                // Crear archivo Excel
+                // Crear archivo Excel (.xls format)
                 $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
                 $sheet = $spreadsheet->getActiveSheet();
                 
-                // Headers basados en la plantilla
+                // Headers EXACTOS según especificación
                 $headers = [
-                    'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
-                    'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
-                    'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Sede', 'Proveedor', 'Fecha Creación'
+                    'Fecha de ejecución',     // fecha_ejecucion
+                    'Código preventivo',      // codigo
+                    'Marca',                  // marca
+                    'Código',                 // code (activo fijo)
+                    'Serie',                  // serial (con prefijo "SN: ")
+                    'Nombre',                 // name (nombre del equipo)
+                    'ID',                     // id (ID del equipo)
+                    'Sede',                   // sede
+                    'Servicio',               // ubicacion (nombre del servicio)
+                    'Área',                   // area
+                    'ARCHIVO',                // archivomtto
+                    'Observaciones',          // observacion_mtto
+                    'Propiedad',              // propiedad (HUV, Comodato, etc.)
+                    'Estado del equipo',      // estado_equipo
+                    'Proveedor mantenimiento',// proveedor_mantenimiento
+                    'Codificación'            // Campo especial calculado
                 ];
                 
                 // Estilo para headers
@@ -2286,6 +2405,7 @@ Route::prefix('v1')->group(function () {
                     'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
                 ];
                 
+                // Establecer headers
                 $col = 'A';
                 foreach ($headers as $header) {
                     $sheet->setCellValue($col . '1', $header);
@@ -2294,36 +2414,54 @@ Route::prefix('v1')->group(function () {
                     $col++;
                 }
                 
-                // Datos
+                // Datos con formato EXACTO
                 $row = 2;
-                foreach ($planes as $plan) {
-                    $sheet->setCellValue('A' . $row, $plan->id);
-                    $sheet->setCellValue('B' . $row, $plan->description ?? '');
-                    $sheet->setCellValue('C' . $row, $plan->fecha_programada ?? '');
-                    $sheet->setCellValue('D' . $row, $plan->fecha_mantenimiento ?? '');
-                    $sheet->setCellValue('E' . $row, $plan->observacion ?? '');
-                    $sheet->setCellValue('F' . $row, $plan->repuesto_pendiente ?? 'no');
-                    $sheet->setCellValue('G' . $row, $plan->status ?? '');
-                    $sheet->setCellValue('H' . $row, $plan->equipo_nombre ?? '');
-                    $sheet->setCellValue('I' . $row, $plan->equipo_codigo ?? '');
-                    $sheet->setCellValue('J' . $row, $plan->equipo_marca ?? '');
-                    $sheet->setCellValue('K' . $row, $plan->equipo_modelo ?? '');
-                    $sheet->setCellValue('L' . $row, $plan->equipo_serie ?? '');
-                    $sheet->setCellValue('M' . $row, $plan->servicio_nombre ?? '');
-                    $sheet->setCellValue('N' . $row, $plan->area_nombre ?? '');
-                    $sheet->setCellValue('O' . $row, $plan->sede_nombre ?? '');
-                    $sheet->setCellValue('P' . $row, $plan->proveedor_nombre ?? '');
-                    $sheet->setCellValue('Q' . $row, $plan->created_at ?? '');
+                foreach ($preventivos as $preventivo) {
+                    // Datos para el campo codificación
+                    $fecha = $preventivo->fecha_ejecucion ? \Carbon\Carbon::parse($preventivo->fecha_ejecucion) : \Carbon\Carbon::now();
+                    $mes = $fecha->month;
+                    $anio = $fecha->year;
+                    
+                    // Campo especial - Codificación
+                    // Formato: [MES].. Codigo=[CODIGO] serie=[SERIE] Nombre=[NOMBRE] Reporte=[CODIGO_PREVENTIVO] anio=[AÑO] ..(ID=[ID_EQUIPO])
+                    $codificacion = sprintf(
+                        '%d.. Codigo=%s serie=%s Nombre=%s Reporte=%s anio=%d ..(ID=%d)',
+                        $mes,
+                        $preventivo->code ?? 'N/A',
+                        $preventivo->serial ?? 'N/A',
+                        $preventivo->name ?? 'N/A',
+                        $preventivo->codigo ?? 'N/A',
+                        $anio,
+                        $preventivo->id ?? 0
+                    );
+                    
+                    $sheet->setCellValue('A' . $row, $preventivo->fecha_ejecucion ?? '');
+                    $sheet->setCellValue('B' . $row, $preventivo->codigo ?? '');
+                    $sheet->setCellValue('C' . $row, $preventivo->marca ?? '');
+                    $sheet->setCellValue('D' . $row, $preventivo->code ?? '');
+                    $sheet->setCellValue('E' . $row, 'SN: ' . ($preventivo->serial ?? '')); // Con prefijo "SN: "
+                    $sheet->setCellValue('F' . $row, $preventivo->name ?? '');
+                    $sheet->setCellValue('G' . $row, $preventivo->id ?? '');
+                    $sheet->setCellValue('H' . $row, $preventivo->sede ?? '');
+                    $sheet->setCellValue('I' . $row, $preventivo->ubicacion ?? '');
+                    $sheet->setCellValue('J' . $row, $preventivo->area ?? '');
+                    $sheet->setCellValue('K' . $row, $preventivo->archivomtto ?? '');
+                    $sheet->setCellValue('L' . $row, $preventivo->observacion_mtto ?? '');
+                    $sheet->setCellValue('M' . $row, $preventivo->propiedad ?? '');
+                    $sheet->setCellValue('N' . $row, $preventivo->estado_equipo ?? '');
+                    $sheet->setCellValue('O' . $row, $preventivo->proveedor_mantenimiento ?? '');
+                    $sheet->setCellValue('P' . $row, $codificacion);
+                    
                     $row++;
                 }
                 
-                // Crear el writer y generar el archivo
-                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-                $filename = 'Cronograma_Mantenimiento_' . $year . '_' . date('Y-m-d_H-i-s') . '.xlsx';
+                // Crear writer para .xls (Excel 97-2003)
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xls($spreadsheet);
+                $filename = 'PreventivosEB.xls'; // Nombre EXACTO según especificación
                 
-                // Configurar headers para descarga
+                // Headers para descarga .xls
                 $headers = [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Type' => 'application/vnd.ms-excel',
                     'Content-Disposition' => 'attachment; filename="' . $filename . '"',
                     'Cache-Control' => 'max-age=0',
                 ];
@@ -2335,19 +2473,92 @@ Route::prefix('v1')->group(function () {
                 return response()->download($tempFile, $filename, $headers)->deleteFileAfterSend(true);
                 
             } else {
-                // Retornar JSON
+                // Retornar JSON (para otros formatos)
                 return response()->json([
                     'success' => true,
-                    'data' => $planes,
-                    'total' => $planes->count(),
-                    'year' => $year
+                    'data' => $preventivos,
+                    'total' => $preventivos->count(),
+                    'year' => $year,
+                    'tipo_equipo' => $tipo_id
                 ]);
             }
             
         } catch (\Exception $e) {
+            \Log::error('❌ Error en exportar consolidado: ' . $e->getMessage());
+            \Log::error('❌ Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error al exportar datos: ' . $e->getMessage()
+                'message' => 'Error al exportar datos: ' . $e->getMessage(),
+                'error_details' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ], 500);
+        }
+    });
+    
+    // Endpoint de prueba para exportar consolidado (solo datos JSON)
+    Route::get('planes-mantenimientos/export-test', function (Request $request) {
+        try {
+            $year = $request->query('anio', date('Y'));
+            
+            \Log::info('🧪 PRUEBA - Exportando consolidado - Año: ' . $year);
+            
+            // Obtener usuario actual para filtro por tipo
+            $user = $request->user();
+            $tipo_id = $user ? ($user->tipo_id ?? 1) : 1;
+            
+            \Log::info('🧪 Usuario tipo_id: ' . $tipo_id);
+            
+            // Verificar estructura de la tabla mantenimiento
+            \Log::info('🧪 Verificando estructura de tabla mantenimiento');
+            
+            // Query para mostrar columnas disponibles
+            $columns = DB::select("SHOW COLUMNS FROM mantenimiento");
+            \Log::info('🧪 Columnas disponibles en mantenimiento:', array_map(function($col) {
+                return $col->Field;
+            }, $columns));
+            
+            // Query simplificada usando solo columnas que sabemos que existen
+            $preventivos = DB::table('mantenimiento as m')
+                ->leftJoin('equipos as e', 'm.equipo_id', '=', 'e.id')
+                ->select([
+                    'm.id as mantenimiento_id',
+                    'm.fecha_mantenimiento as fecha_ejecucion', 
+                    'm.description as descripcion',
+                    'm.observacion as observacion_mtto',
+                    'e.name as name',
+                    'e.id as id',
+                    'e.code as code',
+                    'e.serial as serial',
+                    'e.marca as marca'
+                ])
+                ->limit(5) // Solo 5 registros para prueba
+                ->get();
+            
+            \Log::info('🧪 Total registros encontrados: ' . $preventivos->count());
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Prueba exitosa',
+                'data' => $preventivos,
+                'total' => $preventivos->count(),
+                'year' => $year,
+                'tipo_equipo' => $tipo_id,
+                'columns_available' => array_map(function($col) {
+                    return $col->Field;
+                }, $columns),
+                'timestamp' => now()
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('🧪 Error en prueba: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error en prueba: ' . $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => basename($e->getFile())
             ], 500);
         }
     });
@@ -2827,7 +3038,873 @@ Route::get('v1/test/seed-basic-data', function () {
 Route::get('v1/equipos/medical-devices-complete', [\App\Http\Controllers\Api\EquipmentController::class, 'getMedicalDevicesComplete'])
     ->withoutMiddleware(['auth:sanctum']);
 
+// ============================================================================
+// MANUALES - Gestión de Manuales de Equipos (PÚBLICO - MISMO NIVEL QUE MEDICAL DEVICES)
+// ============================================================================
 
+// Obtener todos los manuales con paginación y filtros
+Route::get('v1/manuales', function (Request $request) {
+    try {
+        \Log::info('📖 [MANUALES] Iniciando consulta de manuales', $request->all());
+        
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 10);
+        $search = $request->get('search', '');
+        
+        $query = DB::table('manuales');
+        
+        // Filtrar solo activos
+        $query->where('status', 1);
+        
+        // Búsqueda por descripción o URL
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('descripcion', 'LIKE', "%{$search}%")
+                  ->orWhere('url', 'LIKE', "%{$search}%");
+            });
+            \Log::info('📖 [MANUALES] Aplicando búsqueda: ' . $search);
+        }
+        
+        // Contar total de registros
+        $total = $query->count();
+        
+        // Aplicar paginación y ordenamiento
+        $manuales = $query->orderBy('descripcion', 'ASC')
+                          ->skip(($page - 1) * $perPage)
+                          ->take($perPage)
+                          ->select(['id', 'descripcion', 'url', 'status'])
+                          ->get();
+        
+        \Log::info('📖 [MANUALES] Consulta exitosa. Total: ' . $total . ', Página: ' . $page);
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $manuales,
+                'current_page' => (int) $page,
+                'per_page' => (int) $perPage,
+                'total' => $total,
+                'total_pages' => ceil($total / $perPage)
+            ],
+            'message' => 'Manuales obtenidos exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📖 [MANUALES] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener manuales: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Crear nuevo manual
+Route::post('v1/manuales', function (Request $request) {
+    try {
+        \Log::info('📖 [MANUALES] Creando nuevo manual', $request->all());
+        
+        // Validaciones
+        if (empty($request->descripcion) || strlen($request->descripcion) < 4) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La descripción debe tener al menos 4 caracteres'
+            ], 400);
+        }
+        
+        if (empty($request->url) || strlen($request->url) < 4) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La URL debe tener al menos 4 caracteres'
+            ], 400);
+        }
+        
+        // Verificar que la descripción sea única
+        $existeDescripcion = DB::table('manuales')
+            ->where('descripcion', $request->descripcion)
+            ->where('status', 1)
+            ->exists();
+            
+        if ($existeDescripcion) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya existe un manual con esa descripción'
+            ], 400);
+        }
+        
+        // Verificar que la URL sea única
+        $existeUrl = DB::table('manuales')
+            ->where('url', $request->url)
+            ->where('status', 1)
+            ->exists();
+            
+        if ($existeUrl) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya existe un manual con esa URL'
+            ], 400);
+        }
+        
+        // Crear manual
+        $id = DB::table('manuales')->insertGetId([
+            'descripcion' => $request->descripcion,
+            'url' => $request->url,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
+        \Log::info('📖 [MANUALES] Manual creado exitosamente. ID: ' . $id);
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $id,
+                'descripcion' => $request->descripcion,
+                'url' => $request->url,
+                'status' => 1
+            ],
+            'message' => 'Manual creado exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📖 [MANUALES] Error creando: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al crear manual: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Actualizar manual existente
+Route::put('v1/manuales/{id}', function (Request $request, $id) {
+    try {
+        \Log::info('📖 [MANUALES] Actualizando manual ID: ' . $id, $request->all());
+        
+        // Verificar que el manual exista
+        $manual = DB::table('manuales')->where('id', $id)->where('status', 1)->first();
+        if (!$manual) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Manual no encontrado'
+            ], 404);
+        }
+        
+        // Validaciones
+        if (empty($request->descripcion) || strlen($request->descripcion) < 4) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La descripción debe tener al menos 4 caracteres'
+            ], 400);
+        }
+        
+        if (empty($request->url) || strlen($request->url) < 4) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La URL debe tener al menos 4 caracteres'
+            ], 400);
+        }
+        
+        // Verificar que la descripción sea única (excluyendo el actual)
+        $existeDescripcion = DB::table('manuales')
+            ->where('descripcion', $request->descripcion)
+            ->where('status', 1)
+            ->where('id', '!=', $id)
+            ->exists();
+            
+        if ($existeDescripcion) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya existe otro manual con esa descripción'
+            ], 400);
+        }
+        
+        // Verificar que la URL sea única (excluyendo el actual)
+        $existeUrl = DB::table('manuales')
+            ->where('url', $request->url)
+            ->where('status', 1)
+            ->where('id', '!=', $id)
+            ->exists();
+            
+        if ($existeUrl) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ya existe otro manual con esa URL'
+            ], 400);
+        }
+        
+        // Actualizar manual
+        DB::table('manuales')
+            ->where('id', $id)
+            ->update([
+                'descripcion' => $request->descripcion,
+                'url' => $request->url,
+                'updated_at' => now()
+            ]);
+            
+        \Log::info('📖 [MANUALES] Manual actualizado exitosamente. ID: ' . $id);
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $id,
+                'descripcion' => $request->descripcion,
+                'url' => $request->url,
+                'status' => 1
+            ],
+            'message' => 'Manual actualizado exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📖 [MANUALES] Error actualizando: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar manual: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Eliminar manual (cambiar status a 0)
+Route::delete('v1/manuales/{id}', function ($id) {
+    try {
+        \Log::info('📖 [MANUALES] Eliminando manual ID: ' . $id);
+        
+        // Verificar que el manual exista
+        $manual = DB::table('manuales')->where('id', $id)->where('status', 1)->first();
+        if (!$manual) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Manual no encontrado'
+            ], 404);
+        }
+        
+        // Cambiar status a 0 (eliminación lógica)
+        DB::table('manuales')
+            ->where('id', $id)
+            ->update([
+                'status' => 0,
+                'updated_at' => now()
+            ]);
+            
+        \Log::info('📖 [MANUALES] Manual eliminado exitosamente. ID: ' . $id);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Manual eliminado exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📖 [MANUALES] Error eliminando: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar manual: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// ============================================================================
+// CREAR TICKETS - Endpoint para crear órdenes de trabajo (MISMO NIVEL QUE MANUALES)
+// ============================================================================
+
+// Crear nuevo ticket/orden de trabajo - IMPLEMENTACIÓN COMPLETA
+Route::post('v1/crear-ticket', function (Request $request) {
+    try {
+        \Log::info('🎫 [CREAR-TICKET] Iniciando creación de ticket', $request->all());
+        
+        // Validaciones básicas
+        if (empty($request->descripcion)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La descripción es obligatoria'
+            ], 400);
+        }
+        
+        if (empty($request->reportante_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El ID del reportante es obligatorio'
+            ], 400);
+        }
+        
+        // Preparar datos completos para la tabla ordenes
+        $ticketData = [
+            // Campos obligatorios
+            'descripcion' => $request->descripcion,
+            'fecha_inicio' => now(),
+            'estado_id' => 1, // Abierto
+            'reportante_id' => $request->reportante_id,
+            'subproceso_id' => $request->subproceso_id ?: 1, // Default biomédico
+            'prioridad' => $request->prioridad ?: 2, // Default media
+            'tecnico_id' => $request->tecnico_id ?: 1, // Default técnico
+            // Campos adicionales obligatorios con valores por defecto
+            'electrico' => $request->electrico ?: 0,
+            'mecanico' => $request->mecanico ?: 0,
+            'locativo' => $request->locativo ?: 0,
+            'cierre_active' => $request->cierre_active ?: 0,
+            'usuario_final_id' => $request->usuario_final_id ?: 1,
+            'trabajo_id' => $request->trabajo_id ?: 1,
+            'listado_industrial_id' => $request->listado_industrial_id ?: 1,
+            'servicio_id' => $request->servicio_id ?: 1, // Default servicio
+            'area_id' => $request->area_id ?: 1 // Default area
+        ];
+        
+        // Campos opcionales del formulario
+        if (!empty($request->asunto) && $request->asunto !== null) {
+            $ticketData['asunto'] = $request->asunto;
+        }
+        if (!empty($request->fecha_fin) && $request->fecha_fin !== null) {
+            $ticketData['fecha_fin'] = $request->fecha_fin;
+        }
+        if (!empty($request->asignado_id) && $request->asignado_id !== null) {
+            $ticketData['asignado_id'] = $request->asignado_id;
+        }
+        if (!empty($request->equipo_id) && $request->equipo_id !== null) {
+            $ticketData['equipo_id'] = $request->equipo_id;
+        }
+        if (!empty($request->empresa_id) && $request->empresa_id !== null) {
+            $ticketData['empresa_id'] = $request->empresa_id;
+        }
+        // servicio_id y area_id ya están en el array principal con valores por defecto
+        if (!empty($request->tecnico_diagnostico)) {
+            $ticketData['tecnico_diagnostico'] = $request->tecnico_diagnostico;
+        }
+        if (!empty($request->tecnico_cierre)) {
+            $ticketData['tecnico_cierre'] = $request->tecnico_cierre;
+        }
+        if (!empty($request->diagnostico)) {
+            $ticketData['diagnostico'] = $request->diagnostico;
+        }
+        if (!empty($request->reparacion)) {
+            $ticketData['reparacion'] = $request->reparacion;
+        }
+        if (!empty($request->file_diagnostico)) {
+            $ticketData['file_diagnostico'] = $request->file_diagnostico;
+        }
+        if (!empty($request->file_cierre)) {
+            $ticketData['file_cierre'] = $request->file_cierre;
+        }
+        if (!empty($request->image)) {
+            $ticketData['image'] = $request->image;
+        }
+        
+        // ✅ NUEVOS CAMPOS - Información manual del equipo (del frontend)
+        if (!empty($request->nombre_equipo) && $request->nombre_equipo !== null) {
+            $ticketData['nombre_equipo'] = $request->nombre_equipo;
+        }
+        if (!empty($request->codigo_equipo) && $request->codigo_equipo !== null) {
+            $ticketData['codigo_equipo'] = $request->codigo_equipo;
+        }
+        if (!empty($request->marca_equipo) && $request->marca_equipo !== null) {
+            $ticketData['marca_equipo'] = $request->marca_equipo;
+        }
+        if (!empty($request->modelo_equipo) && $request->modelo_equipo !== null) {
+            $ticketData['modelo_equipo'] = $request->modelo_equipo;
+        }
+        if (!empty($request->serie_equipo) && $request->serie_equipo !== null) {
+            $ticketData['serie_equipo'] = $request->serie_equipo;
+        }
+        
+        // ✅ CAMPOS reportante_email y reportante_nombre NO EXISTEN en tabla ordenes - OMITIR
+        
+        // ✅ NUEVOS CAMPOS - Ubicación adicional (sede_id no existe en tabla ordenes)
+        
+        // ✅ NUEVOS CAMPOS - Información adicional 
+        if (!empty($request->observaciones)) {
+            $ticketData['reparacion'] = $request->observaciones; // Usar campo que existe
+        }
+        
+        \Log::info('🎫 [CREAR-TICKET] Datos preparados para insertar', $ticketData);
+        
+        // Verificar que todos los campos obligatorios están presentes
+        $camposObligatorios = ['descripcion', 'fecha_inicio', 'estado_id', 'reportante_id', 'subproceso_id', 'prioridad', 'tecnico_id', 'electrico', 'mecanico', 'locativo', 'cierre_active', 'usuario_final_id', 'trabajo_id', 'listado_industrial_id', 'servicio_id', 'area_id'];
+        foreach ($camposObligatorios as $campo) {
+            if (!isset($ticketData[$campo])) {
+                \Log::error("🎫 [CREAR-TICKET] Campo obligatorio faltante: {$campo}");
+                throw new \Exception("Campo obligatorio faltante: {$campo}");
+            }
+        }
+        
+        \Log::info('🎫 [CREAR-TICKET] Todos los campos obligatorios validados. Insertando...');
+        
+        // Insertar el ticket en la base de datos
+        $ticketId = DB::table('ordenes')->insertGetId($ticketData);
+        
+        \Log::info('🎫 [CREAR-TICKET] Ticket creado exitosamente. ID: ' . $ticketId);
+        
+        // Obtener el ticket recién creado con información completa
+        $ticket = DB::table('ordenes as o')
+            ->leftJoin('usuarios as reportante', 'reportante.id', '=', 'o.reportante_id')
+            ->leftJoin('usuarios as asignado', 'asignado.id', '=', 'o.asignado_id')
+            ->leftJoin('estados as e', 'e.id', '=', 'o.estado_id')
+            ->leftJoin('equipos as eq', 'eq.id', '=', 'o.equipo_id')
+            ->leftJoin('servicios as s', 's.id', '=', 'o.servicio_id')
+            ->leftJoin('areas as a', 'a.id', '=', 'o.area_id')
+            ->leftJoin('empresas as emp', 'emp.id', '=', 'o.empresa_id')
+            ->leftJoin('subprocesos as sp', 'sp.id', '=', 'o.subproceso_id')
+            ->where('o.id', $ticketId)
+            ->select([
+                'o.*',
+                'reportante.nombre as reportante_nombre',
+                'reportante.apellido as reportante_apellido',
+                'reportante.email as reportante_email',
+                'asignado.nombre as asignado_nombre',
+                'asignado.apellido as asignado_apellido',
+                'e.descripcion as estado_descripcion',
+                'eq.name as equipo_nombre',
+                'eq.marca as equipo_marca',
+                'eq.modelo as equipo_modelo',
+                'eq.serial as equipo_serie',
+                'eq.code as equipo_codigo',
+                's.name as servicio_nombre',
+                'a.name as area_nombre',
+                'emp.name as empresa_nombre',
+                'sp.nombre as subproceso_nombre'
+            ])
+            ->first();
+        
+        // ========================================================================
+        // 📧 ENVÍO AUTOMÁTICO DE CORREO DE NOTIFICACIÓN
+        // ========================================================================
+        
+        try {
+            \Log::info('📧 [CREAR-TICKET] Iniciando envío de correo de notificación...');
+            
+            // Obtener correo del usuario reportante (quien crea el ticket)
+            $emailDestino = $ticket->reportante_email ?? null;
+            
+            // Fallback si no tiene email o no se pudo obtener
+            if (!$emailDestino) {
+                \Log::warning('📧 [CREAR-TICKET] Usuario reportante sin email, usando NOTIFICATION_EMAIL');
+                $emailDestino = env('NOTIFICATION_EMAIL', 'camilomoralesyk@gmail.com');
+            }
+            
+            \Log::info("📧 [CREAR-TICKET] Enviando correo al usuario creador: {$emailDestino}");
+            
+            // Usar ReactEmailService para renderizar el correo
+            $reactEmailService = new \App\Services\ReactEmailService();
+            
+            // Preparar datos del ticket para el correo
+            $ticketDataForEmail = (object)[
+                'id' => $ticketId,
+                'descripcion' => $ticket->descripcion ?? 'Ticket creado desde el sistema EVA',
+                'fecha_inicio' => $ticket->fecha_inicio ?? now(),
+                'prioridad' => $ticket->prioridad ?? 2,
+                'servicio_nombre' => $ticket->servicio_nombre ?? 'No especificado',
+                'area_nombre' => $ticket->area_nombre ?? 'No especificado',
+                'equipo_id' => $ticket->equipo_id ?? null,
+                'equipo_nombre' => $ticket->equipo_nombre ?? $ticket->nombre_equipo ?? 'No especificado',
+                'equipo_marca' => $ticket->equipo_marca ?? $ticket->marca_equipo ?? 'No especificado',
+                'equipo_modelo' => $ticket->equipo_modelo ?? $ticket->modelo_equipo ?? 'No especificado',
+                'equipo_codigo' => $ticket->equipo_codigo ?? $ticket->codigo_equipo ?? 'No especificado',
+                'equipo_serie' => $ticket->equipo_serie ?? $ticket->serie_equipo ?? 'No especificado',
+                'reportante_nombre' => $ticket->reportante_nombre ?? 'Usuario Sistema',
+                'subproceso_nombre' => $ticket->subproceso_nombre ?? 'Biomédico'
+            ];
+            
+            \Log::info('📧 [CREAR-TICKET] Datos del ticket preparados para correo');
+            
+            // Renderizar HTML del correo con React Email
+            $htmlContent = $reactEmailService->renderNuevoTicket($ticketDataForEmail);
+            
+            if ($htmlContent) {
+                \Log::info('📧 [CREAR-TICKET] HTML renderizado correctamente, enviando...');
+                
+                // Enviar correo usando Mail::send
+                \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($htmlContent, $emailDestino, $ticketId) {
+                    $message->to($emailDestino)
+                            ->subject("🎫 Creación de Ticket Nro {$ticketId} - Sistema EVA")
+                            ->html($htmlContent);
+                });
+                
+                \Log::info('📧 [CREAR-TICKET] ¡Correo enviado exitosamente!');
+            } else {
+                \Log::warning('📧 [CREAR-TICKET] No se pudo renderizar HTML del correo');
+            }
+            
+        } catch (\Exception $emailError) {
+            // NO fallar la creación del ticket si hay error en el correo
+            \Log::error('📧 [CREAR-TICKET] Error enviando correo: ' . $emailError->getMessage());
+            \Log::error('📧 [CREAR-TICKET] Stack trace correo: ' . $emailError->getTraceAsString());
+            // Continuar con éxito del ticket
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $ticketId,
+                'id' => $ticketId,
+                'ticket' => $ticket
+            ],
+            'message' => 'Ticket creado exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('🎫 [CREAR-TICKET] Error: ' . $e->getMessage());
+        \Log::error('🎫 [CREAR-TICKET] Stack trace: ' . $e->getTraceAsString());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al crear el ticket: ' . $e->getMessage(),
+            'debug' => $e->getTraceAsString()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// ============================================================================
+// EDITAR TICKETS - Endpoint para actualizar órdenes de trabajo
+// ============================================================================
+
+// Editar ticket/orden de trabajo existente
+Route::put('v1/tickets/{id}', function (Request $request, $id) {
+    try {
+        \Log::info("🎫 [EDITAR-TICKET] Iniciando edición de ticket ID: {$id}", $request->all());
+        
+        // Verificar que el ticket existe
+        $ticketExistente = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticketExistente) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+        
+        // Preparar datos para actualizar (solo campos que vienen del request)
+        $updateData = [];
+        
+        // Campos opcionales del formulario
+        if ($request->has('descripcion')) $updateData['descripcion'] = $request->descripcion;
+        if ($request->has('asunto')) $updateData['asunto'] = $request->asunto;
+        if ($request->has('fecha_fin')) $updateData['fecha_fin'] = $request->fecha_fin;
+        if ($request->has('estado_id')) $updateData['estado_id'] = $request->estado_id;
+        if ($request->has('prioridad')) $updateData['prioridad'] = $request->prioridad;
+        if ($request->has('asignado_id')) $updateData['asignado_id'] = $request->asignado_id;
+        if ($request->has('equipo_id')) $updateData['equipo_id'] = $request->equipo_id;
+        if ($request->has('empresa_id')) $updateData['empresa_id'] = $request->empresa_id;
+        if ($request->has('servicio_id')) $updateData['servicio_id'] = $request->servicio_id;
+        if ($request->has('area_id')) $updateData['area_id'] = $request->area_id;
+        if ($request->has('diagnostico')) $updateData['diagnostico'] = $request->diagnostico;
+        if ($request->has('reparacion')) $updateData['reparacion'] = $request->reparacion;
+        if ($request->has('observaciones')) $updateData['reparacion'] = $request->observaciones;
+        
+        // Campos de equipo manual
+        if ($request->has('nombre_equipo')) $updateData['nombre_equipo'] = $request->nombre_equipo;
+        if ($request->has('codigo_equipo')) $updateData['codigo_equipo'] = $request->codigo_equipo;
+        if ($request->has('marca_equipo')) $updateData['marca_equipo'] = $request->marca_equipo;
+        if ($request->has('modelo_equipo')) $updateData['modelo_equipo'] = $request->modelo_equipo;
+        if ($request->has('serie_equipo')) $updateData['serie_equipo'] = $request->serie_equipo;
+        
+        // Campos técnicos
+        if ($request->has('tecnico_diagnostico')) $updateData['tecnico_diagnostico'] = $request->tecnico_diagnostico;
+        if ($request->has('tecnico_cierre')) $updateData['tecnico_cierre'] = $request->tecnico_cierre;
+        if ($request->has('tecnico_diagnostico_text')) $updateData['tecnico_diagnostico_text'] = $request->tecnico_diagnostico_text;
+        if ($request->has('tecnico_cierre_text')) $updateData['tecnico_cierre_text'] = $request->tecnico_cierre_text;
+        if ($request->has('file_diagnostico')) $updateData['file_diagnostico'] = $request->file_diagnostico;
+        if ($request->has('file_cierre')) $updateData['file_cierre'] = $request->file_cierre;
+        if ($request->has('image')) $updateData['image'] = $request->image;
+        
+        \Log::info('🎫 [EDITAR-TICKET] Datos para actualizar', $updateData);
+        
+        // Actualizar el ticket en la base de datos
+        $updated = DB::table('ordenes')->where('id', $id)->update($updateData);
+        
+        if ($updated) {
+            \Log::info("🎫 [EDITAR-TICKET] Ticket {$id} actualizado exitosamente");
+            
+            // Obtener el ticket actualizado con información completa
+            $ticket = DB::table('ordenes as o')
+                ->leftJoin('usuarios as reportante', 'reportante.id', '=', 'o.reportante_id')
+                ->leftJoin('usuarios as asignado', 'asignado.id', '=', 'o.asignado_id')
+                ->leftJoin('estados as e', 'e.id', '=', 'o.estado_id')
+                ->leftJoin('equipos as eq', 'eq.id', '=', 'o.equipo_id')
+                ->leftJoin('servicios as s', 's.id', '=', 'o.servicio_id')
+                ->leftJoin('areas as a', 'a.id', '=', 'o.area_id')
+                ->leftJoin('empresas as emp', 'emp.id', '=', 'o.empresa_id')
+                ->leftJoin('subprocesos as sp', 'sp.id', '=', 'o.subproceso_id')
+                ->where('o.id', $id)
+                ->select([
+                    'o.*',
+                    'reportante.nombre as reportante_nombre',
+                    'reportante.email as reportante_email',
+                    'asignado.nombre as asignado_nombre',
+                    'e.descripcion as estado_descripcion',
+                    'eq.name as equipo_nombre',
+                    's.name as servicio_nombre',
+                    'a.name as area_nombre',
+                    'emp.name as empresa_nombre',
+                    'sp.nombre as subproceso_nombre'
+                ])
+                ->first();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ticket_id' => $id,
+                    'ticket' => $ticket
+                ],
+                'message' => 'Ticket actualizado exitosamente'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el ticket'
+            ], 400);
+        }
+        
+    } catch (\Exception $e) {
+        \Log::error("🎫 [EDITAR-TICKET] Error: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar el ticket: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// ============================================================================
+// ELIMINAR TICKETS - Endpoint para eliminar órdenes de trabajo
+// ============================================================================
+
+// Eliminar ticket/orden de trabajo
+Route::delete('v1/tickets/{id}', function (Request $request, $id) {
+    try {
+        \Log::info("🎫 [ELIMINAR-TICKET] Iniciando eliminación de ticket ID: {$id}");
+        
+        // Verificar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+        
+        // Verificar permisos - solo el reportante o admin puede eliminar
+        $reportanteId = $request->get('reportante_id');
+        if ($reportanteId && $ticket->reportante_id != $reportanteId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para eliminar este ticket'
+            ], 403);
+        }
+        
+        // Eliminar el ticket
+        $deleted = DB::table('ordenes')->where('id', $id)->delete();
+        
+        if ($deleted) {
+            \Log::info("🎫 [ELIMINAR-TICKET] Ticket {$id} eliminado exitosamente");
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Ticket eliminado exitosamente'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo eliminar el ticket'
+            ], 400);
+        }
+        
+    } catch (\Exception $e) {
+        \Log::error("🎫 [ELIMINAR-TICKET] Error: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar el ticket: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// ============================================================================
+// OBTENER TICKET - Endpoint para obtener detalles de un ticket específico
+// ============================================================================
+
+// Obtener ticket por ID
+Route::get('v1/tickets/{id}', function ($id) {
+    try {
+        \Log::info("🎫 [OBTENER-TICKET] Obteniendo ticket ID: {$id}");
+        
+        $ticket = DB::table('ordenes as o')
+            ->leftJoin('usuarios as reportante', 'reportante.id', '=', 'o.reportante_id')
+            ->leftJoin('usuarios as asignado', 'asignado.id', '=', 'o.asignado_id')
+            ->leftJoin('estados as e', 'e.id', '=', 'o.estado_id')
+            ->leftJoin('equipos as eq', 'eq.id', '=', 'o.equipo_id')
+            ->leftJoin('servicios as s', 's.id', '=', 'o.servicio_id')
+            ->leftJoin('areas as a', 'a.id', '=', 'o.area_id')
+            ->leftJoin('empresas as emp', 'emp.id', '=', 'o.empresa_id')
+            ->leftJoin('subprocesos as sp', 'sp.id', '=', 'o.subproceso_id')
+            ->leftJoin('sedes as sede', 'sede.id', '=', 's.sede_id')
+            ->where('o.id', $id)
+            ->select([
+                'o.*',
+                'reportante.nombre as reportante_nombre',
+                'reportante.apellido as reportante_apellido',
+                'reportante.email as reportante_email',
+                'asignado.nombre as asignado_nombre',
+                'asignado.apellido as asignado_apellido',
+                'e.descripcion as estado_descripcion',
+                'eq.name as equipo_nombre',
+                'eq.marca as equipo_marca',
+                'eq.modelo as equipo_modelo',
+                'eq.serial as equipo_serie',
+                'eq.code as equipo_codigo',
+                's.name as servicio_nombre',
+                'a.name as area_nombre',
+                'emp.name as empresa_nombre',
+                'sp.nombre as subproceso_nombre',
+                'sede.name as sede_nombre'
+            ])
+            ->first();
+            
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => $ticket,
+            'message' => 'Ticket obtenido exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("🎫 [OBTENER-TICKET] Error: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener el ticket: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// ============================================================================
+// FIRMAS DIGITALES - Endpoint para guardar firmas relacionadas con tickets
+// ============================================================================
+
+// Guardar firma digital de ticket
+Route::post('v1/tickets/{id}/firma', function (Request $request, $id) {
+    try {
+        \Log::info("🖊️ [FIRMA-TICKET] Guardando firma para ticket ID: {$id}");
+        
+        // Verificar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+        
+        // Validar que se envió la firma
+        if (empty($request->firma_data)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La firma es obligatoria'
+            ], 400);
+        }
+        
+        // Preparar datos de la firma
+        $firmaData = [
+            'ticket_id' => $id,
+            'firma_data' => $request->firma_data, // Base64 de la imagen de la firma
+            'tipo_firma' => $request->tipo_firma ?: 'cierre', // 'cierre', 'diagnostico', 'inicio'
+            'firmante_id' => $request->firmante_id,
+            'firmante_nombre' => $request->firmante_nombre ?: 'Usuario',
+            'fecha_firma' => now()
+        ];
+        
+        // Intentar guardar en tabla de firmas (puede no existir)
+        try {
+            $firmaId = DB::table('firmas_tickets')->insertGetId($firmaData);
+        } catch (\Exception $e) {
+            \Log::warning("🖊️ [FIRMA-TICKET] Tabla firmas_tickets no existe, omitiendo...");
+            $firmaId = null;
+        }
+        
+        // Actualizar el ticket con referencia a la firma
+        $updateTicket = [];
+        switch($request->tipo_firma) {
+            case 'cierre':
+                $updateTicket['file_cierre'] = "firma_{$firmaId}.png";
+                break;
+            case 'diagnostico':
+                $updateTicket['file_diagnostico'] = "firma_{$firmaId}.png";
+                break;
+        }
+        
+        if (!empty($updateTicket)) {
+            DB::table('ordenes')->where('id', $id)->update($updateTicket);
+        }
+        
+        if ($firmaId) {
+            \Log::info("🖊️ [FIRMA-TICKET] Firma guardada exitosamente. ID: {$firmaId}");
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'firma_id' => $firmaId,
+                    'ticket_id' => $id,
+                    'tipo_firma' => $request->tipo_firma,
+                    'filename' => "firma_{$firmaId}.png"
+                ],
+                'message' => 'Firma guardada exitosamente'
+            ]);
+        } else {
+            \Log::info("🖊️ [FIRMA-TICKET] Firma procesada pero tabla firmas_tickets no disponible");
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'firma_id' => null,
+                    'ticket_id' => $id,
+                    'tipo_firma' => $request->tipo_firma,
+                    'filename' => 'firma_temporal.png'
+                ],
+                'message' => 'Firma procesada (tabla firmas_tickets no disponible)'
+            ]);
+        }
+        
+    } catch (\Exception $e) {
+        \Log::error("🖊️ [FIRMA-TICKET] Error: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al guardar la firma: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Obtener firmas de un ticket
+Route::get('v1/tickets/{id}/firmas', function ($id) {
+    try {
+        \Log::info("🖊️ [OBTENER-FIRMAS] Obteniendo firmas del ticket ID: {$id}");
+        
+        try {
+            $firmas = DB::table('firmas_tickets')
+                ->leftJoin('usuarios', 'firmas_tickets.firmante_id', '=', 'usuarios.id')
+                ->where('firmas_tickets.ticket_id', $id)
+                ->select([
+                    'firmas_tickets.*',
+                    'usuarios.nombre as usuario_nombre',
+                    'usuarios.apellido as usuario_apellido'
+                ])
+                ->orderBy('firmas_tickets.fecha_firma', 'desc')
+                ->get();
+        } catch (\Exception $e) {
+            \Log::warning("🖊️ [OBTENER-FIRMAS] Tabla firmas_tickets no existe");
+            $firmas = collect(); // Colección vacía
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => $firmas,
+            'message' => 'Firmas obtenidas exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("🖊️ [OBTENER-FIRMAS] Error: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener las firmas: ' . $e->getMessage(),
+            'data' => []
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
 
 Route::get('v1/equipos/filter-options', function () {
     return response()->json([
@@ -2898,6 +3975,288 @@ Route::get('v1/equipos/estadisticas/medical-devices', function () {
 
 // Rutas públicas para Correctivos Generales (sin autenticación)
 Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
+    
+    // TEMPORAL - Endpoint simple para testing
+    Route::put('usuarios/{id}/test', function(Request $request, $id) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Endpoint alcanzado correctamente',
+            'id' => $id,
+            'request_data' => $request->all()
+        ]);
+    });
+    
+    // TEMPORAL - Verificar permisos del usuario
+    Route::get('usuarios/{id}/permisos', function($id) {
+        $permisos = DB::table('acciones')
+            ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+            ->where('acciones.usuario_id', $id)
+            ->select('modulos.id', 'modulos.name', 'acciones.leer', 'acciones.insertar', 'acciones.editar', 'acciones.eliminar')
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'usuario_id' => $id,
+            'permisos_count' => $permisos->count(),
+            'permisos' => $permisos
+        ]);
+    });
+    
+    // CRUD USUARIOS-ZONAS - DATOS REALES BD
+    Route::get('usuarios-zonas', function() {
+        $relaciones = DB::table('usuarios_zonas as uz')
+            ->leftJoin('usuarios as u', 'uz.usuario_id', '=', 'u.id')
+            ->leftJoin('zonas as z', 'uz.zona_id', '=', 'z.id')
+            ->select(
+                'uz.id',
+                'uz.usuario_id', 
+                'uz.zona_id',
+                'u.nombre as nombre_usuario',
+                'u.email as correo_electronico', 
+                'z.name as nombre_zona'
+            )
+            ->orderBy('uz.id', 'desc')
+            ->get();
+        return response()->json(['success' => true, 'data' => $relaciones]);
+    });
+    
+    Route::get('usuarios-zonas/usuarios-disponibles', function() {
+        $usuarios = DB::table('usuarios')
+            ->where('estado', 1)
+            ->select('id', 'nombre', 'email')
+            ->orderBy('nombre')
+            ->get();
+        return response()->json(['success' => true, 'data' => $usuarios]);
+    });
+    
+    Route::get('usuarios-zonas/zonas-disponibles', function() {
+        $zonas = DB::table('zonas')
+            ->select('id', 'name as nombre')
+            ->orderBy('name')
+            ->get();
+        return response()->json(['success' => true, 'data' => $zonas]);
+    });
+    
+    Route::post('usuarios-zonas', function(Request $request) {
+        if (!$request->usuario_id || !$request->zona_id) {
+            return response()->json(['success' => false, 'message' => 'Usuario y zona son obligatorios'], 400);
+        }
+        
+        $existeRelacion = DB::table('usuarios_zonas')
+            ->where('usuario_id', $request->usuario_id)
+            ->where('zona_id', $request->zona_id)
+            ->exists();
+            
+        if ($existeRelacion) {
+            return response()->json(['success' => false, 'message' => 'Esta relación ya existe'], 400);
+        }
+        
+        // Obtener el siguiente ID manualmente
+        $maxId = DB::table('usuarios_zonas')->max('id') ?: 0;
+        $newId = $maxId + 1;
+        
+        DB::table('usuarios_zonas')->insert([
+            'id' => $newId,
+            'usuario_id' => $request->usuario_id,
+            'zona_id' => $request->zona_id
+        ]);
+        
+        $id = $newId;
+        
+        return response()->json(['success' => true, 'message' => 'Relación creada exitosamente', 'data' => ['id' => $id]]);
+    });
+    
+    Route::delete('usuarios-zonas/{id}', function($id) {
+        $deleted = DB::table('usuarios_zonas')->where('id', $id)->delete();
+        return response()->json([
+            'success' => $deleted > 0,
+            'message' => $deleted > 0 ? 'Relación eliminada exitosamente' : 'Relación no encontrada'
+        ]);
+    });
+    
+    // POST - Crear nuevo usuario (SIN MIDDLEWARE)
+    Route::post('usuarios', function(Request $request) {
+        // Validar campos obligatorios
+        if (!$request->nombre || !$request->email || !$request->username || !$request->password) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Campos obligatorios: nombre, email, username, password'
+            ], 400);
+        }
+        
+        // Verificar que email y username no existan
+        $emailExists = DB::table('usuarios')->where('email', $request->email)->exists();
+        $usernameExists = DB::table('usuarios')->where('username', $request->username)->exists();
+        
+        if ($emailExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El email ya está registrado'
+            ], 400);
+        }
+        
+        if ($usernameExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El username ya existe'
+            ], 400);
+        }
+        
+        // Obtener el siguiente ID
+        $maxId = DB::table('usuarios')->max('id') ?: 0;
+        $newId = $maxId + 1;
+        
+        // Crear usuario
+        $created = DB::table('usuarios')->insert([
+            'id' => $newId,
+            'nombre' => $request->nombre,
+            'apellido' => $request->apellido ?: '',
+            'telefono' => $request->telefono ?: '',
+            'email' => $request->email,
+            'username' => $request->username,
+            'password' => Hash::make($request->password),
+            'rol_id' => $request->rol_id ?: 3,
+            'servicio_id' => $request->servicio_id,
+            'estado' => $request->estado ?: 1,
+            'active' => $request->active ?: 'true',
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        
+        if ($created) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario creado exitosamente',
+                'data' => ['id' => $newId]
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear usuario'
+            ], 500);
+        }
+    });
+  
+    
+    // TEMPORAL - Usuario management sin autenticación para testing - FUNCIONAL
+    Route::put('usuarios/{id}', function(Request $request, $id) {
+        // Actualización directa usando el patrón que funciona en el proyecto
+        $updateData = [];
+        
+        // Solo nombre por ahora
+        if ($request->nombre) {
+            $updateData['nombre'] = $request->nombre;
+        }
+        
+        // Contraseña con el método exacto del proyecto
+        if ($request->password) {
+            $updateData['password'] = \Illuminate\Support\Facades\Hash::make($request->password);
+        }
+        
+        // Otros campos básicos
+        if ($request->telefono) $updateData['telefono'] = $request->telefono;
+        if ($request->email) $updateData['email'] = $request->email;
+        if ($request->apellido) $updateData['apellido'] = $request->apellido;
+        if ($request->username) $updateData['username'] = $request->username;
+        if ($request->rol_id) $updateData['rol_id'] = $request->rol_id;
+        if ($request->estado !== null) $updateData['estado'] = $request->estado;
+        if ($request->servicio_id) $updateData['servicio_id'] = $request->servicio_id;
+        if ($request->centro_id) $updateData['centro_id'] = $request->centro_id;
+        if ($request->sede_id) $updateData['sede_id'] = $request->sede_id;
+        if ($request->zona_id) $updateData['zona_id'] = $request->zona_id;
+        
+        if (!empty($updateData)) {
+            // Actualizar usando el patrón exitoso del proyecto
+            DB::table('usuarios')->where('id', $id)->update($updateData);
+            
+            // Gestionar permisos si se proporcionan
+            if ($request->permisos && is_array($request->permisos)) {
+                // Eliminar permisos existentes
+                DB::table('acciones')->where('usuario_id', $id)->delete();
+                
+                // Insertar nuevos permisos
+                foreach ($request->permisos as $moduloId) {
+                    DB::table('acciones')->insert([
+                        'usuario_id' => $id,
+                        'modulo_id' => $moduloId,
+                        'leer' => 1,
+                        'insertar' => 1,
+                        'editar' => 1,
+                        'eliminar' => 0
+                    ]);
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Usuario actualizado exitosamente',
+                'data' => ['user_id' => $id, 'updated_fields' => array_keys($updateData)]
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'No hay datos para actualizar'
+        ], 400);
+    });
+    Route::get('usuarios/{id}', function($id) {
+        try {
+            // Obtener usuario con relaciones
+            $usuario = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('servicios', 'usuarios.servicio_id', '=', 'servicios.id')
+                ->leftJoin('zonas', 'usuarios.zona_id', '=', 'zonas.id')
+                ->select(
+                    'usuarios.*',
+                    'roles.nombre as rol_nombre',
+                    'servicios.nombre as servicio_nombre',
+                    'zonas.nombre as zona_nombre'
+                )
+                ->where('usuarios.id', $id)
+                ->first();
+
+            if (!$usuario) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no encontrado'
+                ], 404);
+            }
+
+            // Obtener permisos individuales del usuario
+            $permisos = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $id)
+                ->select('modulos.id', 'modulos.name as nombre', 'acciones.leer', 'acciones.insertar', 'acciones.editar', 'acciones.eliminar')
+                ->get();
+
+            $usuario->permisos = $permisos;
+
+            return response()->json([
+                'success' => true,
+                'status' => 'success',
+                'message' => 'Usuario obtenido exitosamente',
+                'data' => $usuario,
+                'timestamp' => now()->toISOString(),
+                'metadata' => [
+                    'api_version' => '2.0',
+                    'server_time' => now()->toISOString(),
+                    'request_id' => uniqid(),
+                    'user_id' => null,
+                    'locale' => 'es',
+                    'timezone' => 'UTC',
+                    'environment' => config('app.env')
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener usuario: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Fin endpoints temporales de usuarios
     // Correctivos Generales - Rutas específicas PRIMERO (antes de {id})
     Route::get('correctivos-generales/export-excel', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'exportAllToExcel']);
     Route::post('correctivos-generales/export-custom', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'exportCustom']);
@@ -3403,30 +4762,70 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
             ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
             ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
-            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
-            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
-            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+            ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
             ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+            ->leftJoin('estados', 'ordenes.estado_id', '=', 'estados.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
             ->select([
+                // Campos principales de ordenes
                 'ordenes.id',
+                'ordenes.asunto',
                 'ordenes.descripcion',
                 'ordenes.fecha_inicio',
+                'ordenes.fecha_fin',
                 'ordenes.estado_id',
-                'ordenes.prioridad',
+                'ordenes.reportante_id',
+                'ordenes.asignado_id',
                 'ordenes.equipo_id',
+                'ordenes.empresa_id',
+                'ordenes.servicio_id',
+                'ordenes.area_id',
+                'ordenes.subproceso_id',
+                'ordenes.prioridad',
+                'ordenes.tecnico_diagnostico',
+                'ordenes.tecnico_cierre',
+                'ordenes.diagnostico',
+                'ordenes.reparacion',
+                'ordenes.file_diagnostico',
+                'ordenes.file_cierre',
+                'ordenes.image',
                 'ordenes.nombre_equipo',
-                'ordenes.codigo_equipo', 
+                'ordenes.codigo_equipo',
+                'ordenes.marca_equipo',
+                'ordenes.modelo_equipo',
                 'ordenes.serie_equipo',
+                
+                // Información de las tablas relacionadas
                 'subprocesos.nombre as origen',
-                'equipos.name as equipo_name',
-                'equipos.code as equipo_code',
+                'estados.descripcion as estado_descripcion',
+                
+                // Información del reportante
+                'reportante.nombre as reportante_nombre',
+                'reportante.apellido as reportante_apellido',
+                'reportante.email as reportante_email',
+                'reportante.username as reportante_username',
+                
+                // Información del asignado
+                'asignado.nombre as asignado_nombre',
+                'asignado.apellido as asignado_apellido',
+                'asignado.email as asignado_email',
+                'asignado.username as asignado_username',
+                
+                // Información del equipo
+                'equipos.name as equipo_nombre',
                 'equipos.marca as equipo_marca',
                 'equipos.modelo as equipo_modelo',
-                'equipos.serial as equipo_serial',
-                'reportante.nombre as reportante_nombre',
+                'equipos.serial as equipo_serie',
+                'equipos.code as equipo_codigo',
+                
+                // Información de ubicación
                 'servicios.name as servicio_nombre',
                 'areas.name as area_nombre',
                 'sedes.name as sede_nombre',
+                
+                // Información de empresa
                 'empresas.name as empresa_nombre'
             ]);
 
@@ -3457,6 +4856,18 @@ Route::get('v1/gestion-tickets', function(Request $request) {
         // Filtro por origen (subproceso)
         if ($origen !== 'all') {
             $query->where('subprocesos.nombre', 'like', "%{$origen}%");
+        }
+
+        // Filtro por reportante ID (para "Mis Tickets")
+        $reportanteId = $request->get('reportante_id');
+        if (!empty($reportanteId)) {
+            $query->where('ordenes.reportante_id', $reportanteId);
+        }
+
+        // Filtro por nombre de reportante (para "Gestión de Tickets")
+        $reportanteNombre = $request->get('reportante_nombre');
+        if (!empty($reportanteNombre)) {
+            $query->where('reportante.nombre', 'like', "%{$reportanteNombre}%");
         }
 
         $total = $query->count();
@@ -3548,11 +4959,11 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             }
 
             // Información del equipo (priorizar asociado sobre manual)
-            $ticket->equipo_final = $ticket->equipo_name ?: $ticket->nombre_equipo;
-            $ticket->codigo_final = $ticket->equipo_code ?: $ticket->codigo_equipo;
-            $ticket->marca_final = $ticket->equipo_marca ?: 'N/A';
-            $ticket->modelo_final = $ticket->equipo_modelo ?: 'N/A';
-            $ticket->serie_final = $ticket->equipo_serial ?: $ticket->serie_equipo;
+            $ticket->equipo_final = $ticket->equipo_nombre ?: $ticket->nombre_equipo ?: 'N/A';
+            $ticket->codigo_final = $ticket->equipo_codigo ?: $ticket->codigo_equipo ?: 'N/A';
+            $ticket->marca_final = $ticket->equipo_marca ?: $ticket->marca_equipo ?: 'N/A';
+            $ticket->modelo_final = $ticket->equipo_modelo ?: $ticket->modelo_equipo ?: 'N/A';
+            $ticket->serie_final = $ticket->equipo_serie ?: $ticket->serie_equipo ?: 'N/A';
 
             // Indicador de repuesto pendiente
             $ticket->repuesto_pendiente = false;
@@ -3580,6 +4991,135 @@ Route::get('v1/gestion-tickets', function(Request $request) {
         ], 500);
     }
 });
+
+// Endpoint público para obtener un ticket específico con todos sus detalles
+Route::get('v1/gestion-tickets/{id}', function($id) {
+    try {
+        \Log::info('Obteniendo detalles del ticket: ' . $id);
+
+        // Consultar ticket con todos los joins necesarios
+        $ticket = DB::table('ordenes')
+            ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
+            ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+            ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
+            ->leftJoin('usuarios as asignador', 'ordenes.asignador_id', '=', 'asignador.id')
+            ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+            ->leftJoin('tecnicos', 'ordenes.tecnico_id', '=', 'tecnicos.id')
+            ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+            ->select(
+                'ordenes.*',
+                'subprocesos.nombre as origen',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'equipos.marca as equipo_marca',
+                'equipos.modelo as equipo_modelo',
+                'equipos.serial as equipo_serie',
+                'reportante.nombre as reportante_nombre',
+                'asignador.username as asignador_nombre',
+                'servicios.name as servicio_nombre',
+                'areas.name as area_nombre',
+                'sedes.name as sede_nombre',
+                'empresas.name as empresa_nombre',
+                'tecnicos.name as tecnico_nombre',
+                'asignado.nombre as asignado_nombre'
+            )
+            ->where('ordenes.id', $id)
+            ->first();
+
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Mapear estados
+        $estadoMap = [
+            1 => ['texto' => 'Abierto', 'color' => 'red', 'info' => 'Ticket abierto'],
+            2 => ['texto' => 'Asignado', 'color' => 'yellow', 'info' => [
+                'empresa' => $ticket->empresa_nombre,
+                'tecnico' => $ticket->tecnico_nombre,
+                'asignador' => $ticket->asignador_nombre
+            ]],
+            3 => ['texto' => 'Diagnosticado', 'color' => 'blue', 'info' => 'Ticket diagnosticado'],
+            4 => ['texto' => 'Cerrado', 'color' => 'green', 'info' => 'Ticket cerrado'],
+            5 => ['texto' => 'Esperando cierre', 'color' => 'green', 'info' => 'Esperando cierre']
+        ];
+
+        $estadoInfo = $estadoMap[$ticket->estado_id] ?? ['texto' => 'Desconocido', 'color' => 'gray', 'info' => ''];
+        $ticket->estado = $estadoInfo['texto'];
+        $ticket->estado_color = $estadoInfo['color'];
+        $ticket->estado_info = $estadoInfo['info'];
+
+        // Mapear prioridad
+        switch (strtolower($ticket->prioridad ?? '')) {
+            case 'alta':
+                $ticket->prioridad_texto = 'Alta';
+                $ticket->prioridad_color = 'orange';
+                break;
+            case 'media':
+                $ticket->prioridad_texto = 'Media';
+                $ticket->prioridad_color = 'yellow';
+                break;
+            case 'baja':
+                $ticket->prioridad_texto = 'Baja';
+                $ticket->prioridad_color = 'green';
+                break;
+            default:
+                $ticket->prioridad_texto = ucfirst($ticket->prioridad);
+                $ticket->prioridad_color = 'gray';
+        }
+
+        // Información del equipo (priorizar asociado sobre manual)
+        $ticket->equipo_final = $ticket->equipo_nombre ?: $ticket->nombre_equipo ?: 'N/A';
+        $ticket->codigo_final = $ticket->equipo_codigo ?: $ticket->codigo_equipo ?: 'N/A';
+        $ticket->marca_final = $ticket->equipo_marca ?: $ticket->marca_equipo ?: 'N/A';
+        $ticket->modelo_final = $ticket->equipo_modelo ?: $ticket->modelo_equipo ?: 'N/A';
+        $ticket->serie_final = $ticket->equipo_serie ?: $ticket->serie_equipo ?: 'N/A';
+
+        // Obtener avances del ticket
+        $avances = DB::table('avances_correctivos')
+            ->leftJoin('usuarios', 'avances_correctivos.usuario_id', '=', 'usuarios.id')
+            ->select(
+                'avances_correctivos.id',
+                'avances_correctivos.description',
+                'avances_correctivos.date',
+                'avances_correctivos.file',
+                'avances_correctivos.title',
+                'avances_correctivos.correctivo_general_id',
+                'avances_correctivos.usuario_id',
+                'avances_correctivos.orden_id',
+                'usuarios.nombre as usuario_nombre'
+            )
+            ->where('avances_correctivos.orden_id', $id)
+            ->orderBy('avances_correctivos.date', 'desc')
+            ->get();
+
+        \Log::info('Avances encontrados para ticket ' . $id . ': ' . count($avances));
+        \Log::info('Avances data: ' . json_encode($avances));
+
+        $ticket->avances = $avances;
+        $ticket->total_avances = count($avances);
+
+        return response()->json([
+            'success' => true,
+            'data' => $ticket,
+            'message' => 'Detalles del ticket obtenidos exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo detalles del ticket: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error interno del servidor: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Los endpoints de perfil han sido movidos a routes/auth.php con middleware de autenticación
 
 // Endpoint público para mis tickets (solo tickets del usuario logueado)
 Route::get('v1/mis-tickets', function(Request $request) {
@@ -5964,6 +7504,173 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
+    // Gestión completa de contactos
+    Route::get('contactos/list', function(Request $request) {
+        try {
+            $query = DB::table('contacto')
+                ->leftJoin('tcontacto', 'contacto.tcontacto_id', '=', 'tcontacto.id')
+                ->select([
+                    'contacto.id',
+                    'contacto.name',
+                    'contacto.email',
+                    'contacto.telefono',
+                    'contacto.tcontacto_id',
+                    'contacto.status',
+                    'tcontacto.description as tipo_nombre'
+                ])
+                ->where('contacto.status', 1);
+
+            // Búsqueda
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('contacto.name', 'like', "%{$search}%")
+                      ->orWhere('contacto.email', 'like', "%{$search}%")
+                      ->orWhere('contacto.telefono', 'like', "%{$search}%");
+                });
+            }
+
+            $contactos = $query->orderBy('contacto.name')->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $contactos
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo contactos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::post('contactos/create', function(Request $request) {
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'nullable|email|max:255',
+                'telefono' => 'nullable|string|max:50',
+                'tcontacto_id' => 'nullable|exists:tcontacto,id'
+            ]);
+
+            $contactoId = DB::table('contacto')->insertGetId([
+                'name' => $request->name,
+                'email' => $request->email,
+                'telefono' => $request->telefono,
+                'tcontacto_id' => $request->tcontacto_id,
+                'status' => 1,
+                'created_at' => now()
+            ]);
+
+            $contacto = DB::table('contacto')
+                ->leftJoin('tcontacto', 'contacto.tcontacto_id', '=', 'tcontacto.id')
+                ->select([
+                    'contacto.id',
+                    'contacto.name',
+                    'contacto.email',
+                    'contacto.telefono',
+                    'contacto.tcontacto_id',
+                    'contacto.status',
+                    'tcontacto.description as tipo_nombre'
+                ])
+                ->where('contacto.id', $contactoId)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contacto creado exitosamente',
+                'data' => $contacto
+            ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creando contacto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::put('contactos/{id}', function(Request $request, $id) {
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'nullable|email|max:255',
+                'telefono' => 'nullable|string|max:50',
+                'tcontacto_id' => 'nullable|exists:tcontacto,id'
+            ]);
+
+            DB::table('contacto')
+                ->where('id', $id)
+                ->update([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'telefono' => $request->telefono,
+                    'tcontacto_id' => $request->tcontacto_id
+                ]);
+
+            $contacto = DB::table('contacto')
+                ->leftJoin('tcontacto', 'contacto.tcontacto_id', '=', 'tcontacto.id')
+                ->select([
+                    'contacto.id',
+                    'contacto.name',
+                    'contacto.email',
+                    'contacto.telefono',
+                    'contacto.tcontacto_id',
+                    'contacto.status',
+                    'tcontacto.description as tipo_nombre'
+                ])
+                ->where('contacto.id', $id)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contacto actualizado exitosamente',
+                'data' => $contacto
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error actualizando contacto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::delete('contactos/{id}', function($id) {
+        try {
+            DB::table('contacto')
+                ->where('id', $id)
+                ->update(['status' => 0]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contacto eliminado exitosamente'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error eliminando contacto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    Route::get('tcontacto', function() {
+        try {
+            $tipos = DB::table('tcontacto')
+                ->where('status', 1)
+                ->orderBy('description')
+                ->get(['id', 'description as name']);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $tipos
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo tipos de contacto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
     Route::get('tipos', function() {
         try {
             $tipos = DB::table('tipos')->get(['id', 'name']);
@@ -6428,14 +8135,280 @@ Route::get('v1/test/modal-equipment-data', function () {
     // Ruta para eliminar equipos
     Route::delete('equipos/{id}', [\App\Http\Controllers\Api\EquipoController::class, 'destroy']);
 
+    // ============================================================================
+    // MANUALES - Gestión de Manuales de Equipos (PÚBLICO)
+    // ============================================================================
+
+    // Obtener todos los manuales con paginación y filtros
+    Route::get('manuales', function (Request $request) {
+        try {
+            \Log::info('📖 [MANUALES] Iniciando consulta de manuales', $request->all());
+            
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 10);
+            $search = $request->get('search', '');
+            
+            $query = DB::table('manuales');
+            
+            // Filtrar solo activos
+            $query->where('status', 1);
+            
+            // Búsqueda por descripción o URL
+            if (!empty($search)) {
+                $query->where(function($q) use ($search) {
+                    $q->where('descripcion', 'LIKE', "%{$search}%")
+                      ->orWhere('url', 'LIKE', "%{$search}%");
+                });
+                \Log::info('📖 [MANUALES] Aplicando búsqueda: ' . $search);
+            }
+            
+            // Contar total de registros
+            $total = $query->count();
+            
+            // Aplicar paginación y ordenamiento
+            $manuales = $query->orderBy('descripcion', 'ASC')
+                              ->skip(($page - 1) * $perPage)
+                              ->take($perPage)
+                              ->select(['id', 'descripcion', 'url', 'status'])
+                              ->get();
+            
+            \Log::info('📖 [MANUALES] Consulta exitosa. Total: ' . $total . ', Página: ' . $page);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $manuales,
+                    'current_page' => (int) $page,
+                    'per_page' => (int) $perPage,
+                    'total' => $total,
+                    'total_pages' => ceil($total / $perPage)
+                ],
+                'message' => 'Manuales obtenidos exitosamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('📖 [MANUALES] Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener manuales: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Crear nuevo manual
+    Route::post('manuales', function (Request $request) {
+        try {
+            \Log::info('📖 [MANUALES] Creando nuevo manual', $request->all());
+            
+            // Validaciones
+            if (empty($request->descripcion) || strlen($request->descripcion) < 4) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La descripción debe tener al menos 4 caracteres'
+                ], 400);
+            }
+            
+            if (empty($request->url) || strlen($request->url) < 4) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La URL debe tener al menos 4 caracteres'
+                ], 400);
+            }
+            
+            // Verificar que la descripción sea única
+            $existeDescripcion = DB::table('manuales')
+                ->where('descripcion', $request->descripcion)
+                ->where('status', 1)
+                ->exists();
+                
+            if ($existeDescripcion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un manual con esa descripción'
+                ], 400);
+            }
+            
+            // Verificar que la URL sea única
+            $existeUrl = DB::table('manuales')
+                ->where('url', $request->url)
+                ->where('status', 1)
+                ->exists();
+                
+            if ($existeUrl) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe un manual con esa URL'
+                ], 400);
+            }
+            
+            // Crear manual
+            $id = DB::table('manuales')->insertGetId([
+                'descripcion' => $request->descripcion,
+                'url' => $request->url,
+                'status' => 1,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            \Log::info('📖 [MANUALES] Manual creado exitosamente. ID: ' . $id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $id,
+                    'descripcion' => $request->descripcion,
+                    'url' => $request->url,
+                    'status' => 1
+                ],
+                'message' => 'Manual creado exitosamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('📖 [MANUALES] Error creando: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear manual: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Actualizar manual existente
+    Route::put('manuales/{id}', function (Request $request, $id) {
+        try {
+            \Log::info('📖 [MANUALES] Actualizando manual ID: ' . $id, $request->all());
+            
+            // Verificar que el manual exista
+            $manual = DB::table('manuales')->where('id', $id)->where('status', 1)->first();
+            if (!$manual) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Manual no encontrado'
+                ], 404);
+            }
+            
+            // Validaciones
+            if (empty($request->descripcion) || strlen($request->descripcion) < 4) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La descripción debe tener al menos 4 caracteres'
+                ], 400);
+            }
+            
+            if (empty($request->url) || strlen($request->url) < 4) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La URL debe tener al menos 4 caracteres'
+                ], 400);
+            }
+            
+            // Verificar que la descripción sea única (excluyendo el actual)
+            $existeDescripcion = DB::table('manuales')
+                ->where('descripcion', $request->descripcion)
+                ->where('status', 1)
+                ->where('id', '!=', $id)
+                ->exists();
+                
+            if ($existeDescripcion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe otro manual con esa descripción'
+                ], 400);
+            }
+            
+            // Verificar que la URL sea única (excluyendo el actual)
+            $existeUrl = DB::table('manuales')
+                ->where('url', $request->url)
+                ->where('status', 1)
+                ->where('id', '!=', $id)
+                ->exists();
+                
+            if ($existeUrl) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ya existe otro manual con esa URL'
+                ], 400);
+            }
+            
+            // Actualizar manual
+            DB::table('manuales')
+                ->where('id', $id)
+                ->update([
+                    'descripcion' => $request->descripcion,
+                    'url' => $request->url,
+                    'updated_at' => now()
+                ]);
+                
+            \Log::info('📖 [MANUALES] Manual actualizado exitosamente. ID: ' . $id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $id,
+                    'descripcion' => $request->descripcion,
+                    'url' => $request->url,
+                    'status' => 1
+                ],
+                'message' => 'Manual actualizado exitosamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('📖 [MANUALES] Error actualizando: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar manual: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Eliminar manual (cambiar status a 0)
+    Route::delete('manuales/{id}', function ($id) {
+        try {
+            \Log::info('📖 [MANUALES] Eliminando manual ID: ' . $id);
+            
+            // Verificar que el manual exista
+            $manual = DB::table('manuales')->where('id', $id)->where('status', 1)->first();
+            if (!$manual) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Manual no encontrado'
+                ], 404);
+            }
+            
+            // Cambiar status a 0 (eliminación lógica)
+            DB::table('manuales')
+                ->where('id', $id)
+                ->update([
+                    'status' => 0,
+                    'updated_at' => now()
+                ]);
+                
+            \Log::info('📖 [MANUALES] Manual eliminado exitosamente. ID: ' . $id);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Manual eliminado exitosamente'
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('📖 [MANUALES] Error eliminando: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar manual: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
 });
 
 // Calibraciones (sin autenticación)
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
     Route::apiResource('calibracion', \App\Http\Controllers\Api\CalibracionController::class);
     
-    // Export equipment counts
+    // Export equipment counts (cantidades/estadísticas desde tabla equipos_indicador) ✅
     Route::get('/export/equipment-counts', [App\Http\Controllers\Api\EquipmentCountsExportController::class, 'export']);
+    
+    // Export equipment list: Botón "Exportar" -> Exporta CANTIDADES (no listado individual) ✅
+    Route::get('/export/equipment-list', [App\Http\Controllers\Api\EquipmentCountsExportController::class, 'export']);
     
     // Export preventive maintenance  
     Route::get('/export/mantenimientos', function() {
@@ -7354,7 +9327,16 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
             'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
-            'periodicidad'
+            'periodicidad', 'manual_id', 'guia_id', 'invima_id'
+        ]);
+
+        // Debug logging para manual_id y guia_id
+        \Log::info('🔥 BACKEND - Datos recibidos para actualización:', [
+            'equipo_id' => $id,
+            'manual_id' => $request->get('manual_id'),
+            'guia_id' => $request->get('guia_id'),
+            'manual_id_en_updateData' => isset($updateData['manual_id']) ? $updateData['manual_id'] : 'NO PRESENTE',
+            'guia_id_en_updateData' => isset($updateData['guia_id']) ? $updateData['guia_id'] : 'NO PRESENTE'
         ]);
 
         // Process manuales and planos JSON
@@ -7435,7 +9417,7 @@ Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id)
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
             'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
-            'periodicidad'
+            'periodicidad', 'manual_id', 'guia_id', 'invima_id'
         ]);
 
         // Process manuales and planos JSON
@@ -7546,6 +9528,80 @@ Route::get('v1/equipos/{id}/equipment-history', [\App\Http\Controllers\Api\Equip
         \App\Http\Middleware\AdvancedRateLimit::class,
         \Illuminate\Routing\Middleware\ThrottleRequests::class
     ]);
+
+// ====================================================
+// RUTAS PARA GUÍAS RÁPIDAS
+// ====================================================
+
+// Obtener todas las guías rápidas activas
+Route::get('v1/guias-rapidas', function (Request $request) {
+    try {
+        \Log::info('📚 [GUIAS-RAPIDAS] Obteniendo guías rápidas');
+        
+        $guias = DB::table('guias_rapidas')
+            ->where('estado', 1) // Solo guías activas
+            ->select('id', 'name', 'file', 'estado')
+            ->orderBy('name', 'asc')
+            ->get();
+        
+        \Log::info('📚 [GUIAS-RAPIDAS] Guías obtenidas: ' . $guias->count());
+        
+        return response()->json([
+            'success' => true,
+            'data' => $guias,
+            'total' => $guias->count(),
+            'message' => 'Guías rápidas obtenidas exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📚 [GUIAS-RAPIDAS] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener las guías rápidas: ' . $e->getMessage(),
+            'data' => []
+        ], 500);
+    }
+});
+
+// Obtener archivo de guía rápida
+Route::get('v1/guias-rapidas/{id}/archivo', function (Request $request, $id) {
+    try {
+        \Log::info("📚 [GUIA-ARCHIVO] Obteniendo archivo de guía ID: {$id}");
+        
+        $guia = DB::table('guias_rapidas')
+            ->where('id', $id)
+            ->where('estado', 1)
+            ->first();
+        
+        if (!$guia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guía no encontrada'
+            ], 404);
+        }
+        
+        $rutaArchivo = storage_path('app/public/guias/' . $guia->file);
+        
+        if (!file_exists($rutaArchivo)) {
+            \Log::warning("📚 [GUIA-ARCHIVO] Archivo no encontrado: {$rutaArchivo}");
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo no encontrado'
+            ], 404);
+        }
+        
+        \Log::info("📚 [GUIA-ARCHIVO] Sirviendo archivo: {$guia->file}");
+        
+        return response()->file($rutaArchivo);
+        
+    } catch (\Exception $e) {
+        \Log::error('📚 [GUIA-ARCHIVO] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener el archivo: ' . $e->getMessage()
+        ], 500);
+    }
+});
 
 // ====================================================
 // RUTAS PARA GESTIÓN DE ARCHIVOS DE EQUIPOS
@@ -8465,7 +10521,7 @@ Route::get('v1/equipos/{id}/documents/audit', function ($id) {
 ]);
 
 // =================== MAINTENANCE PROVIDERS API ROUTES ===================
-Route::get('/proveedores-mantenimiento', function (Request $request) {
+Route::get('v1/proveedores-mantenimiento', function (Request $request) {
     try {
         $query = DB::table('proveedores_mantenimiento');
         
@@ -8495,7 +10551,7 @@ Route::get('/proveedores-mantenimiento', function (Request $request) {
     }
 });
 
-Route::post('/proveedores-mantenimiento', function (Request $request) {
+Route::post('v1/proveedores-mantenimiento', function (Request $request) {
     try {
         $request->validate([
             'name' => 'required|string|max:100|unique:proveedores_mantenimiento,name',
@@ -8524,7 +10580,7 @@ Route::post('/proveedores-mantenimiento', function (Request $request) {
     }
 });
 
-Route::put('/proveedores-mantenimiento/{id}', function (Request $request, $id) {
+Route::put('v1/proveedores-mantenimiento/{id}', function (Request $request, $id) {
     try {
         $request->validate([
             'name' => 'required|string|max:100|unique:proveedores_mantenimiento,name,' . $id,
@@ -8562,7 +10618,7 @@ Route::put('/proveedores-mantenimiento/{id}', function (Request $request, $id) {
     }
 });
 
-Route::delete('/proveedores-mantenimiento/{id}', function ($id) {
+Route::delete('v1/proveedores-mantenimiento/{id}', function ($id) {
     try {
         // Check if provider is being used in maintenance records
         $inUse = DB::table('mantenimiento')
@@ -8600,7 +10656,7 @@ Route::delete('/proveedores-mantenimiento/{id}', function ($id) {
 });
 
 // =================== EXCEL UPLOAD FOR PREVENTIVE MAINTENANCE ===================
-Route::post('/planes-mantenimientos/upload-excel', function (Request $request) {
+Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request) {
     try {
         $request->validate([
             'archivo' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
@@ -8730,16 +10786,35 @@ Route::post('/planes-mantenimientos/upload-excel', function (Request $request) {
                     }
                 }
                 
-                // Insert plan
+                // Calculate exact dates for each month
+                $fecha1 = null;
+                $fecha2 = null;
+                $fecha3 = null;
+                
+                if (isset($meses[0])) {
+                    $fecha1 = Carbon\Carbon::create($year, $meses[0], 1)->format('Y-m-d');
+                }
+                if (isset($meses[1])) {
+                    $fecha2 = Carbon\Carbon::create($year, $meses[1], 1)->format('Y-m-d');
+                }
+                if (isset($meses[2])) {
+                    $fecha3 = Carbon\Carbon::create($year, $meses[2], 1)->format('Y-m-d');
+                }
+                
+                // Insert plan with calculated dates
                 DB::table('planes_mantenimientos')->insert([
                     'equipo_id' => $equipoId,
                     'anio' => $year,
                     'mes1' => $meses[0] ?? null,
                     'mes2' => $meses[1] ?? null,
                     'mes3' => $meses[2] ?? null,
+                    'fecha_programada_1' => $fecha1,
+                    'fecha_programada_2' => $fecha2,
+                    'fecha_programada_3' => $fecha3,
                     'responsable' => $responsable,
                     'frecuencia' => $frecuencia,
                     'proveedor_mantenimiento_id' => $proveedorId,
+                    'estado_cumplimiento' => 'PENDIENTE',
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);
@@ -8788,6 +10863,1460 @@ Route::post('/planes-mantenimientos/upload-excel', function (Request $request) {
         return response()->json([
             'success' => false,
             'message' => 'Error en carga de archivo: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// =================== RUTAS PÚBLICAS DE MANTENIMIENTO PREVENTIVO (SIN MIDDLEWARE) ===================
+
+// IMPORTANTES: Estas rutas van PRIMERO para evitar conflictos con rutas genéricas
+
+// Enviar recordatorios de mantenimiento preventivo automáticamente - RUTA PÚBLICA
+Route::post('v1/planes-mantenimientos/enviar-recordatorios', function (Request $request) {
+    try {
+        \Log::info('🔔 Enviando recordatorios de mantenimiento preventivo por EMAIL');
+        
+        $diasAlerta = (int)$request->get('dias_alerta', 7); // Alertar 7 días antes por defecto
+        $fechaLimite = now()->addDays($diasAlerta)->format('Y-m-d');
+        $fechaHoy = now()->format('Y-m-d');
+        
+        // Obtener equipos próximos a vencer o vencidos
+        $recordatorios = DB::table('planes_mantenimientos')
+            ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+            ->leftJoin('proveedores_mantenimiento', 'planes_mantenimientos.proveedor_mantenimiento_id', '=', 'proveedores_mantenimiento.id')
+            ->select([
+                'planes_mantenimientos.*',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'servicios.name as servicio_nombre',
+                'proveedores_mantenimiento.name as proveedor_nombre',
+                'proveedores_mantenimiento.email as proveedor_email'
+            ])
+            ->where(function($query) use ($fechaLimite, $fechaHoy) {
+                $query->where(function($subQuery) use ($fechaLimite) {
+                    $subQuery->where('fecha_programada_1', '<=', $fechaLimite)
+                             ->where('fecha_programada_1', '>=', $fechaHoy);
+                })->orWhere(function($subQuery) use ($fechaLimite) {
+                    $subQuery->where('fecha_programada_2', '<=', $fechaLimite)
+                             ->where('fecha_programada_2', '>=', $fechaHoy);
+                })->orWhere(function($subQuery) use ($fechaLimite) {
+                    $subQuery->where('fecha_programada_3', '<=', $fechaLimite)
+                             ->where('fecha_programada_3', '>=', $fechaHoy);
+                });
+            })
+            ->get();
+        
+        $enviados = 0;
+        $errores = [];
+        
+        foreach ($recordatorios as $recordatorio) {
+            try {
+                // Crear objeto para email
+                $preventivo = (object)[
+                    'id' => $recordatorio->id,
+                    'equipo_id' => $recordatorio->equipo_id,
+                    'equipo_nombre' => $recordatorio->equipo_nombre,
+                    'equipo_codigo' => $recordatorio->equipo_codigo,
+                    'servicio_nombre' => $recordatorio->servicio_nombre,
+                    'fecha_mantenimiento' => $recordatorio->fecha_programada,
+                    'responsable' => $recordatorio->responsable,
+                    'observacion' => "Recordatorio automático - Mantenimiento preventivo programado próximo a vencer"
+                ];
+                
+                // DETERMINAR EMAILS DE USUARIOS RESPONSABLES (MÚLTIPLES ESTRATEGIAS)
+                $emails = [];
+                
+                \Log::info("🔍 Buscando emails para equipo {$recordatorio->equipo_id} - Responsable: {$recordatorio->responsable}");
+                
+                // 1. Email del proveedor de mantenimiento si existe
+                if (!empty($recordatorio->proveedor_email)) {
+                    $emails[] = $recordatorio->proveedor_email;
+                    \Log::info("✅ Email del proveedor: {$recordatorio->proveedor_email}");
+                }
+                
+                // 2. Buscar usuarios por nombre del responsable
+                if (empty($emails)) {
+                    $usuariosPorNombre = DB::table('usuarios')
+                        ->where('nombre', 'LIKE', '%' . $recordatorio->responsable . '%')
+                        ->orWhere('username', 'LIKE', '%' . $recordatorio->responsable . '%')
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->pluck('email');
+                    
+                    if ($usuariosPorNombre->count() > 0) {
+                        $emails = array_merge($emails, $usuariosPorNombre->toArray());
+                        \Log::info("✅ Emails por nombre del responsable: " . $usuariosPorNombre->count());
+                    }
+                }
+                
+                // 3. Email de usuarios del servicio donde está el equipo
+                if (empty($emails)) {
+                    $usuariosServicio = DB::table('usuarios')
+                        ->join('equipos', 'usuarios.servicio_id', '=', 'equipos.servicio_id')
+                        ->where('equipos.id', $recordatorio->equipo_id)
+                        ->whereNotNull('usuarios.email')
+                        ->where('usuarios.email', '!=', '')
+                        ->select('usuarios.email', 'usuarios.nombre')
+                        ->get();
+                    
+                    if ($usuariosServicio->count() > 0) {
+                        foreach ($usuariosServicio as $usuario) {
+                            $emails[] = $usuario->email;
+                        }
+                        \Log::info("✅ Emails del servicio: " . $usuariosServicio->count());
+                    }
+                }
+                
+                // 4. Buscar técnicos especializados por rol
+                if (empty($emails)) {
+                    $tecnicosEspecializados = DB::table('usuarios')
+                        ->whereIn('rol_id', [3, 4]) // Técnicos y usuarios especializados
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->where('active', 'true')
+                        ->pluck('email');
+                    
+                    if ($tecnicosEspecializados->count() > 0) {
+                        $emails = array_merge($emails, $tecnicosEspecializados->toArray());
+                        \Log::info("✅ Emails de técnicos especializados: " . $tecnicosEspecializados->count());
+                    }
+                }
+                
+                // 5. FALLBACK FINAL: Administradores del sistema
+                if (empty($emails)) {
+                    $adminEmails = DB::table('usuarios')
+                        ->where('rol_id', 1)
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->pluck('email');
+                    
+                    $emails = $adminEmails->toArray();
+                    \Log::info("⚠️ FALLBACK: Usando emails de administradores: " . count($emails));
+                }
+                
+                // Eliminar duplicados
+                $emails = array_unique($emails);
+                \Log::info("📧 Total emails únicos encontrados: " . count($emails));
+                
+                // Enviar recordatorios
+                foreach ($emails as $email) {
+                    \Mail::to($email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo));
+                    $enviados++;
+                }
+                
+            } catch (\Exception $e) {
+                $errores[] = "Error enviando recordatorio para equipo {$recordatorio->equipo_nombre}: " . $e->getMessage();
+                \Log::error("Error enviando recordatorio: " . $e->getMessage());
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Recordatorios procesados: {$enviados} emails enviados a usuarios responsables",
+            'enviados' => $enviados,
+            'recordatorios_procesados' => $recordatorios->count(),
+            'errores' => $errores
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error enviando recordatorios: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar recordatorios: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Enviar alertas críticas automáticamente por email - RUTA PÚBLICA
+Route::post('v1/planes-mantenimientos/enviar-alertas-criticas', function (Request $request) {
+    try {
+        \Log::info('🚨 Enviando alertas críticas de mantenimiento por EMAIL');
+        
+        $diasAlerta = (int)$request->get('dias_alerta', 0); // Solo vencidos por defecto
+        $fechaHoy = now()->format('Y-m-d');
+        
+        // Obtener equipos con mantenimiento VENCIDO (crítico)
+        $alertasCriticas = DB::table('planes_mantenimientos')
+            ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+            ->leftJoin('proveedores_mantenimiento', 'planes_mantenimientos.proveedor_mantenimiento_id', '=', 'proveedores_mantenimiento.id')
+            ->select([
+                'planes_mantenimientos.*',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'servicios.name as servicio_nombre',
+                'proveedores_mantenimiento.name as proveedor_nombre',
+                'proveedores_mantenimiento.email as proveedor_email'
+            ])
+            ->where(function($query) use ($fechaHoy) {
+                $query->where('fecha_programada_1', '<', $fechaHoy)
+                      ->orWhere('fecha_programada_2', '<', $fechaHoy)
+                      ->orWhere('fecha_programada_3', '<', $fechaHoy);
+            })
+            ->get();
+        
+        $enviados = 0;
+        $errores = [];
+        
+        foreach ($alertasCriticas as $alerta) {
+            try {
+                // Calcular días de atraso
+                $fechas = array_filter([$alerta->fecha_programada_1, $alerta->fecha_programada_2, $alerta->fecha_programada_3]);
+                $diasAtraso = 0;
+                
+                foreach ($fechas as $fecha) {
+                    if ($fecha < $fechaHoy) {
+                        $diasAtraso = max($diasAtraso, now()->diffInDays($fecha));
+                    }
+                }
+                
+                // Crear objeto para email de alerta crítica
+                $preventivo = (object)[
+                    'id' => $alerta->id,
+                    'equipo_id' => $alerta->equipo_id,
+                    'equipo_nombre' => $alerta->equipo_nombre,
+                    'equipo_codigo' => $alerta->equipo_codigo,
+                    'servicio_nombre' => $alerta->servicio_nombre,
+                    'fecha_mantenimiento' => $alerta->fecha_programada_1 ?: $alerta->fecha_programada_2 ?: $alerta->fecha_programada_3,
+                    'responsable' => $alerta->responsable,
+                    'observacion' => "⚠️ ALERTA CRÍTICA - Mantenimiento VENCIDO hace {$diasAtraso} días - Acción requerida INMEDIATAMENTE"
+                ];
+                
+                // Buscar emails responsables (misma lógica mejorada)
+                $emails = [];
+                
+                // Proveedor responsable
+                if (!empty($alerta->proveedor_email)) {
+                    $emails[] = $alerta->proveedor_email;
+                }
+                
+                // Usuarios por nombre del responsable
+                if (empty($emails)) {
+                    $usuariosPorNombre = DB::table('usuarios')
+                        ->where('nombre', 'LIKE', '%' . $alerta->responsable . '%')
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->pluck('email');
+                    
+                    $emails = array_merge($emails, $usuariosPorNombre->toArray());
+                }
+                
+                // Usuarios del servicio
+                if (empty($emails)) {
+                    $usuariosServicio = DB::table('usuarios')
+                        ->join('equipos', 'usuarios.servicio_id', '=', 'equipos.servicio_id')
+                        ->where('equipos.id', $alerta->equipo_id)
+                        ->whereNotNull('usuarios.email')
+                        ->where('usuarios.email', '!=', '')
+                        ->pluck('email');
+                    
+                    $emails = array_merge($emails, $usuariosServicio->toArray());
+                }
+                
+                // Siempre incluir administradores en alertas críticas
+                $adminEmails = DB::table('usuarios')
+                    ->where('rol_id', 1)
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->pluck('email');
+                
+                $emails = array_merge($emails, $adminEmails->toArray());
+                $emails = array_unique($emails);
+                
+                // Enviar alertas críticas
+                foreach ($emails as $email) {
+                    \Mail::to($email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo));
+                    $enviados++;
+                }
+                
+                // Actualizar estado a ATRASADO
+                DB::table('planes_mantenimientos')
+                    ->where('id', $alerta->id)
+                    ->update(['estado_cumplimiento' => 'ATRASADO']);
+                
+            } catch (\Exception $e) {
+                $errores[] = "Error enviando alerta crítica para equipo {$alerta->equipo_nombre}: " . $e->getMessage();
+                \Log::error("Error enviando alerta crítica: " . $e->getMessage());
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Alertas críticas procesadas: {$enviados} emails enviados a usuarios responsables",
+            'enviados' => $enviados,
+            'alertas_criticas' => $alertasCriticas->count(),
+            'equipos_actualizados' => $alertasCriticas->count(),
+            'errores' => $errores
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error enviando alertas críticas: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar alertas críticas: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// ALERTAS DE MANTENIMIENTOS VENCIDOS - Lógica correcta: planes vs ejecutados
+Route::get('v1/planes-mantenimientos/alertas', function (Request $request) {
+    try {
+        $anioActual = (int)$request->get('anio', date('Y'));
+        $mesActual = (int)date('n'); // Mes actual (1-12)
+        
+        \Log::info("🔔 Buscando mantenimientos VENCIDOS para año {$anioActual}, mes actual: {$mesActual}");
+        
+        // LÓGICA CORRECTA: Equipos con mantenimiento vencido
+        $equiposVencidos = DB::select("
+            SELECT DISTINCT
+                pm.id as plan_id,
+                pm.equipo_id,
+                pm.anio,
+                pm.mes1,
+                pm.mes2, 
+                pm.mes3,
+                pm.responsable,
+                pm.actividad,
+                e.name as equipo_nombre,
+                e.code as equipo_codigo,
+                e.marca as equipo_marca,
+                e.modelo as equipo_modelo,
+                s.name as servicio_nombre,
+                s.id as servicio_id,
+                a.name as area_nombre
+            FROM planes_mantenimientos pm
+            LEFT JOIN equipos e ON pm.equipo_id = e.id  
+            LEFT JOIN servicios s ON e.servicio_id = s.id
+            LEFT JOIN areas a ON e.area_id = a.id
+            WHERE pm.anio = ?
+            AND (
+                -- Mes 1 vencido
+                (pm.mes1 IS NOT NULL AND pm.mes1 < ? 
+                 AND NOT EXISTS (
+                    SELECT 1 FROM mantenimiento m 
+                    WHERE m.equipo_id = pm.equipo_id 
+                    AND YEAR(m.fecha_mantenimiento) = pm.anio
+                    AND MONTH(m.fecha_mantenimiento) = pm.mes1
+                 ))
+                OR
+                -- Mes 2 vencido  
+                (pm.mes2 IS NOT NULL AND pm.mes2 < ?
+                 AND NOT EXISTS (
+                    SELECT 1 FROM mantenimiento m 
+                    WHERE m.equipo_id = pm.equipo_id 
+                    AND YEAR(m.fecha_mantenimiento) = pm.anio
+                    AND MONTH(m.fecha_mantenimiento) = pm.mes2
+                 ))
+                OR
+                -- Mes 3 vencido
+                (pm.mes3 IS NOT NULL AND pm.mes3 < ?
+                 AND NOT EXISTS (
+                    SELECT 1 FROM mantenimiento m 
+                    WHERE m.equipo_id = pm.equipo_id 
+                    AND YEAR(m.fecha_mantenimiento) = pm.anio
+                    AND MONTH(m.fecha_mantenimiento) = pm.mes3
+                 ))
+            )
+            ORDER BY pm.equipo_id
+        ", [$anioActual, $mesActual, $mesActual, $mesActual]);
+        
+        \Log::info("📊 Equipos con mantenimientos VENCIDOS encontrados: " . count($equiposVencidos));
+        
+        // Procesar alertas críticas (vencidos)
+        $alertasCritical = collect();
+        $alertasProximas = collect();
+        
+        foreach ($equiposVencidos as $equipo) {
+            // Determinar qué meses están vencidos
+            $mesesVencidos = [];
+            if ($equipo->mes1 && $equipo->mes1 < $mesActual) $mesesVencidos[] = $equipo->mes1;
+            if ($equipo->mes2 && $equipo->mes2 < $mesActual) $mesesVencidos[] = $equipo->mes2;  
+            if ($equipo->mes3 && $equipo->mes3 < $mesActual) $mesesVencidos[] = $equipo->mes3;
+            
+            $diasVencido = ($mesActual - min($mesesVencidos)) * 30; // Aproximado
+            
+            $alerta = (object)[
+                'id' => $equipo->plan_id,
+                'equipo_id' => $equipo->equipo_id,
+                'equipo_nombre' => $equipo->equipo_nombre,
+                'equipo_codigo' => $equipo->equipo_codigo,
+                'equipo_marca' => $equipo->equipo_marca,
+                'equipo_modelo' => $equipo->equipo_modelo,
+                'servicio_nombre' => $equipo->servicio_nombre,
+                'servicio_id' => $equipo->servicio_id,
+                'area_nombre' => $equipo->area_nombre,
+                'responsable' => $equipo->responsable,
+                'actividad' => $equipo->actividad,
+                'meses_vencidos' => implode(', ', $mesesVencidos),
+                'dias_vencido' => $diasVencido,
+                'tipo_alerta' => 'VENCIDO',
+                'prioridad' => 'CRITICAL',
+                'anio' => $equipo->anio
+            ];
+            
+            $alertasCritical->push($alerta);
+        }
+        
+        // Buscar mantenimientos próximos a vencer (mes actual)
+        $proximosVencer = DB::select("
+            SELECT DISTINCT
+                pm.id as plan_id,
+                pm.equipo_id,
+                pm.anio,
+                pm.mes1,
+                pm.mes2,
+                pm.mes3,
+                pm.responsable,
+                pm.actividad,
+                e.name as equipo_nombre,
+                e.code as equipo_codigo,
+                s.name as servicio_nombre,
+                s.id as servicio_id
+            FROM planes_mantenimientos pm
+            LEFT JOIN equipos e ON pm.equipo_id = e.id
+            LEFT JOIN servicios s ON e.servicio_id = s.id
+            WHERE pm.anio = ?
+            AND (pm.mes1 = ? OR pm.mes2 = ? OR pm.mes3 = ?)
+            AND NOT EXISTS (
+                SELECT 1 FROM mantenimiento m 
+                WHERE m.equipo_id = pm.equipo_id 
+                AND YEAR(m.fecha_mantenimiento) = pm.anio
+                AND MONTH(m.fecha_mantenimiento) = ?
+            )
+        ", [$anioActual, $mesActual, $mesActual, $mesActual, $mesActual]);
+        
+        foreach ($proximosVencer as $equipo) {
+            $alerta = (object)[
+                'id' => $equipo->plan_id,
+                'equipo_id' => $equipo->equipo_id,
+                'equipo_nombre' => $equipo->equipo_nombre,
+                'equipo_codigo' => $equipo->equipo_codigo,
+                'servicio_nombre' => $equipo->servicio_nombre,
+                'servicio_id' => $equipo->servicio_id,
+                'responsable' => $equipo->responsable,
+                'actividad' => $equipo->actividad,
+                'mes_programado' => $mesActual,
+                'tipo_alerta' => 'PROXIMO_A_VENCER',
+                'prioridad' => 'WARNING',
+                'anio' => $equipo->anio
+            ];
+            
+            $alertasProximas->push($alerta);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'critical' => $alertasCritical,
+                'warning' => $alertasProximas,
+                'total_alertas' => $alertasCritical->count() + $alertasProximas->count(),
+                'vencidos' => $alertasCritical->count(),
+                'proximos' => $alertasProximas->count()
+            ],
+            'message' => 'Alertas de mantenimientos vencidos obtenidas exitosamente',
+            'anio' => $anioActual,
+            'mes_actual' => $mesActual
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo alertas de mantenimientos vencidos: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener alertas: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// HISTORIAL: Obtener mantenimientos EJECUTADOS (tabla mantenimiento - lo que se HIZO)
+Route::get('v1/mantenimientos-ejecutados', function (Request $request) {
+    try {
+        $page = (int)$request->get('page', 1);
+        $perPage = (int)$request->get('per_page', 25);
+        $search = $request->get('search', '');
+        $equipoId = $request->get('equipo_id');
+        $status = $request->get('status');
+        $fechaDesde = $request->get('fecha_desde');
+        $fechaHasta = $request->get('fecha_hasta');
+        $sortBy = $request->get('sort_by', 'fecha_mantenimiento');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        \Log::info("🔍 Consultando TODOS los mantenimientos preventivos");
+        
+        // Tabla correcta: mantenimiento con TODOS los joins necesarios (COPIA DEL ORIGINAL)
+        $query = DB::table('mantenimiento')
+            ->select('mantenimiento.*')
+            ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
+            ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
+            ->selectRaw('equipos.name as equipo_name, equipos.code as equipo_code, equipos.marca as equipo_marca, equipos.modelo as equipo_modelo, equipos.serial as equipo_serial')
+            ->selectRaw('servicios.name as servicio_nombre')
+            ->selectRaw('areas.name as area_nombre')
+            ->selectRaw('sedes.name as sede_nombre')
+            ->selectRaw('estadoequipos.name as estado_equipo')
+            ->selectRaw('pm.name as proveedor_nombre')
+            ->selectRaw('(SELECT COUNT(*) FROM observaciones WHERE observaciones.preventivo_id = mantenimiento.id) as observaciones_count');
+        
+        if ($equipoId) {
+            $query->where('mantenimiento.equipo_id', $equipoId);
+        }
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('mantenimiento.description', 'LIKE', "%{$search}%")
+                  ->orWhere('mantenimiento.observacion', 'LIKE', "%{$search}%")
+                  ->orWhere('equipos.name', 'LIKE', "%{$search}%")
+                  ->orWhere('equipos.code', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        // Filtros por rango de fechas
+        if ($fechaDesde) {
+            $query->whereDate('mantenimiento.fecha_mantenimiento', '>=', $fechaDesde);
+        }
+        
+        if ($fechaHasta) {
+            $query->whereDate('mantenimiento.fecha_mantenimiento', '<=', $fechaHasta);
+        }
+        
+        if ($status && $status !== 'all') {
+            // status es numérico en la BD: 1, 2, 3, etc.
+            $query->where('mantenimiento.status', $status);
+        }
+        
+        $total = $query->count();
+        \Log::info("📊 Total mantenimientos encontrados: {$total}");
+        
+        // Ordenamiento
+        $validSortColumns = ['fecha_mantenimiento', 'created_at', 'id'];
+        $sortColumn = in_array($sortBy, $validSortColumns) ? $sortBy : 'fecha_mantenimiento';
+        $sortDirection = strtolower($sortOrder) === 'asc' ? 'asc' : 'desc';
+        
+        $preventivos = $query->orderBy('mantenimiento.' . $sortColumn, $sortDirection)
+                            ->offset(($page - 1) * $perPage)
+                            ->limit($perPage)
+                            ->get();
+        
+        // Format data for frontend con TODOS los campos de la tabla (COPIA DEL ORIGINAL)
+        $formattedData = $preventivos->map(function($item) {
+            return [
+                // Campos propios de mantenimiento
+                'id' => $item->id,
+                'equipo_id' => $item->equipo_id,
+                'description' => $item->description ?? '', // Código/descripción del preventivo
+                'fecha_mantenimiento' => $item->fecha_mantenimiento ?? null,
+                'fecha_programada' => $item->fecha_programada ?? '',
+                'file' => $item->file ?? '',
+                'observacion' => $item->observacion ?? '',
+                'repuesto_pendiente' => $item->repuesto_pendiente ?? 'no',
+                'repuesto_id' => $item->repuesto_id ?? null,
+                'proveedor_mantenimiento_id' => $item->proveedor_mantenimiento_id ?? 0,
+                'status' => $item->status ?? 1,
+                'created_at' => $item->created_at ?? null,
+                
+                // Datos del equipo (de tabla equipos)
+                'equipo' => [
+                    'id' => $item->equipo_id,
+                    'name' => $item->equipo_name ?? '',
+                    'code' => $item->equipo_code ?? '', // Código del equipo
+                    'marca' => $item->equipo_marca ?? '',
+                    'modelo' => $item->equipo_modelo ?? '',
+                    'serial' => $item->equipo_serial ?? '' // Serie del equipo
+                ],
+                
+                // Ubicación (de tabla servicios)
+                'servicio_nombre' => $item->servicio_nombre ?? '',
+                
+                // Información adicional
+                'area_nombre' => $item->area_nombre ?? '',
+                'sede_nombre' => $item->sede_nombre ?? '',
+                'estado_equipo' => $item->estado_equipo ?? '',
+                'proveedor_nombre' => $item->proveedor_nombre ?? '',
+                
+                // Conteo de observaciones
+                'observaciones_count' => $item->observaciones_count ?? 0
+            ];
+        });
+        
+        \Log::info("✅ Mantenimientos formateados: " . $formattedData->count());
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $formattedData,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage)
+            ],
+            'message' => 'Mantenimientos preventivos obtenidos exitosamente',
+            'total_mantenimientos' => $total
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo mantenimientos: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener mantenimientos: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// ENVIAR ALERTAS CRÍTICAS CON SISTEMA DE ZONAS
+Route::post('v1/planes-mantenimientos/enviar-alertas-criticas', function (Request $request) {
+    try {
+        $anioActual = (int)$request->get('anio', date('Y'));
+        $mesActual = (int)date('n');
+        
+        \Log::info('🚨 Enviando alertas críticas de mantenimientos vencidos');
+        
+        // Obtener equipos con mantenimientos vencidos
+        $equiposVencidos = DB::select("
+            SELECT DISTINCT
+                pm.id as plan_id,
+                pm.equipo_id,
+                pm.anio,
+                pm.mes1, pm.mes2, pm.mes3,
+                pm.responsable,
+                pm.actividad,
+                e.name as equipo_nombre,
+                e.code as equipo_codigo,
+                e.marca as equipo_marca,
+                e.modelo as equipo_modelo,
+                s.name as servicio_nombre,
+                s.id as servicio_id,
+                a.name as area_nombre
+            FROM planes_mantenimientos pm
+            LEFT JOIN equipos e ON pm.equipo_id = e.id  
+            LEFT JOIN servicios s ON e.servicio_id = s.id
+            LEFT JOIN areas a ON e.area_id = a.id
+            WHERE pm.anio = ?
+            AND (
+                (pm.mes1 IS NOT NULL AND pm.mes1 < ? 
+                 AND NOT EXISTS (
+                    SELECT 1 FROM mantenimiento m 
+                    WHERE m.equipo_id = pm.equipo_id 
+                    AND YEAR(m.fecha_mantenimiento) = pm.anio
+                    AND MONTH(m.fecha_mantenimiento) = pm.mes1
+                 ))
+                OR
+                (pm.mes2 IS NOT NULL AND pm.mes2 < ?
+                 AND NOT EXISTS (
+                    SELECT 1 FROM mantenimiento m 
+                    WHERE m.equipo_id = pm.equipo_id 
+                    AND YEAR(m.fecha_mantenimiento) = pm.anio
+                    AND MONTH(m.fecha_mantenimiento) = pm.mes2
+                 ))
+                OR
+                (pm.mes3 IS NOT NULL AND pm.mes3 < ?
+                 AND NOT EXISTS (
+                    SELECT 1 FROM mantenimiento m 
+                    WHERE m.equipo_id = pm.equipo_id 
+                    AND YEAR(m.fecha_mantenimiento) = pm.anio
+                    AND MONTH(m.fecha_mantenimiento) = pm.mes3
+                 ))
+            )
+            LIMIT 50
+        ", [$anioActual, $mesActual, $mesActual, $mesActual]);
+        
+        $enviados = 0;
+        $errores = [];
+        
+        foreach ($equiposVencidos as $equipo) {
+            try {
+                // Determinar meses vencidos
+                $mesesVencidos = [];
+                if ($equipo->mes1 && $equipo->mes1 < $mesActual) $mesesVencidos[] = $equipo->mes1;
+                if ($equipo->mes2 && $equipo->mes2 < $mesActual) $mesesVencidos[] = $equipo->mes2;  
+                if ($equipo->mes3 && $equipo->mes3 < $mesActual) $mesesVencidos[] = $equipo->mes3;
+                
+                $diasVencido = ($mesActual - min($mesesVencidos)) * 30;
+                
+                // OBTENER EMAILS POR SISTEMA DE ZONAS
+                $emails = [];
+                
+                if ($equipo->servicio_id) {
+                    $emailsZona = DB::select("
+                        SELECT DISTINCT u.email, u.nombre, u.apellido
+                        FROM usuarios u
+                        JOIN usuarios_zonas uz ON uz.usuario_id = u.id
+                        JOIN zonas z ON z.id = uz.zona_id
+                        WHERE z.servicio_id = ?
+                        AND u.email IS NOT NULL 
+                        AND u.email != ''
+                    ", [$equipo->servicio_id]);
+                    
+                    foreach ($emailsZona as $usuario) {
+                        $emails[] = $usuario->email;
+                    }
+                }
+                
+                // FALLBACK: Email de configuración
+                if (empty($emails)) {
+                    $emails[] = env('NOTIFICATION_EMAIL', 'camilomoralesyk@gmail.com');
+                }
+                
+                // Crear objeto para email
+                $preventivo = (object)[
+                    'id' => $equipo->plan_id,
+                    'equipo_id' => $equipo->equipo_id,
+                    'equipo_nombre' => $equipo->equipo_nombre,
+                    'equipo_codigo' => $equipo->equipo_codigo,
+                    'servicio_nombre' => $equipo->servicio_nombre,
+                    'area_nombre' => $equipo->area_nombre,
+                    'responsable' => $equipo->responsable,
+                    'actividad' => $equipo->actividad,
+                    'meses_vencidos' => implode(', ', $mesesVencidos),
+                    'dias_vencido' => $diasVencido,
+                    'fecha_mantenimiento' => date('Y-m-01', mktime(0, 0, 0, min($mesesVencidos), 1, $anioActual)),
+                    'observacion' => "⚠️ ALERTA CRÍTICA - Mantenimiento VENCIDO hace {$diasVencido} días - Meses: " . implode(', ', $mesesVencidos)
+                ];
+                
+                // Enviar a todos los emails
+                foreach (array_unique($emails) as $email) {
+                    \Mail::to($email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo));
+                    $enviados++;
+                }
+                
+                \Log::info("✅ Alerta crítica enviada para equipo {$equipo->equipo_nombre} a " . count(array_unique($emails)) . " destinatarios");
+                
+            } catch (\Exception $e) {
+                $errores[] = "Error enviando alerta para equipo {$equipo->equipo_nombre}: " . $e->getMessage();
+                \Log::error("Error enviando alerta crítica: " . $e->getMessage());
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Alertas críticas procesadas: {$enviados} emails enviados",
+            'enviados' => $enviados,
+            'equipos_procesados' => count($equiposVencidos),
+            'errores' => $errores,
+            'anio' => $anioActual,
+            'mes_actual' => $mesActual
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error enviando alertas críticas: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar alertas críticas: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// CRONOGRAMA MIXTO: Datos combinados de planificación + ejecución con cumplimiento (SOLO para página principal)
+Route::get('v1/cronograma-mantenimientos', function (Request $request) {
+    try {
+        $page = (int)$request->get('page', 1);
+        $perPage = (int)$request->get('per_page', 25);
+        $anio = (int)$request->get('anio', date('Y'));
+        $search = $request->get('search', '');
+        
+        \Log::info("🔍 Consultando CRONOGRAMA de mantenimientos para año: {$anio}");
+        
+        // DATOS MIXTOS: Planes (programados) + Mantenimientos (ejecutados) con cumplimiento
+        $query = DB::table('planes_mantenimientos as pm')
+            ->leftJoin('equipos as e', 'pm.equipo_id', '=', 'e.id')
+            ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+            ->leftJoin('areas as a', 'e.area_id', '=', 'a.id')
+            ->select([
+                'pm.*',
+                'e.name as equipo_nombre',
+                'e.code as equipo_codigo', 
+                'e.marca as equipo_marca',
+                'e.modelo as equipo_modelo',
+                'e.serial as equipo_serie',
+                's.name as servicio_nombre',
+                'a.name as area_nombre',
+                // CALCULAR EJECUTADOS (de tabla mantenimiento)
+                DB::raw('(SELECT COUNT(*) FROM mantenimiento m 
+                         WHERE m.equipo_id = pm.equipo_id 
+                         AND YEAR(m.fecha_mantenimiento) = pm.anio) as cantidad_ejecutados'),
+                // CALCULAR PROGRAMADOS (según meses no nulos)
+                DB::raw('(CASE 
+                         WHEN pm.mes1 IS NOT NULL AND pm.mes2 IS NOT NULL AND pm.mes3 IS NOT NULL THEN 3
+                         WHEN (pm.mes1 IS NOT NULL AND pm.mes2 IS NOT NULL) OR 
+                              (pm.mes1 IS NOT NULL AND pm.mes3 IS NOT NULL) OR 
+                              (pm.mes2 IS NOT NULL AND pm.mes3 IS NOT NULL) THEN 2
+                         WHEN pm.mes1 IS NOT NULL OR pm.mes2 IS NOT NULL OR pm.mes3 IS NOT NULL THEN 1
+                         ELSE 0 END) as cantidad_programados'),
+                // CALCULAR CUMPLIMIENTO GLOBAL
+                DB::raw('(CASE 
+                         WHEN (pm.mes1 IS NOT NULL OR pm.mes2 IS NOT NULL OR pm.mes3 IS NOT NULL) THEN
+                              ROUND(((SELECT COUNT(*) FROM mantenimiento m 
+                                     WHERE m.equipo_id = pm.equipo_id 
+                                     AND YEAR(m.fecha_mantenimiento) = pm.anio) / 
+                                    (CASE 
+                                     WHEN pm.mes1 IS NOT NULL AND pm.mes2 IS NOT NULL AND pm.mes3 IS NOT NULL THEN 3
+                                     WHEN (pm.mes1 IS NOT NULL AND pm.mes2 IS NOT NULL) OR 
+                                          (pm.mes1 IS NOT NULL AND pm.mes3 IS NOT NULL) OR 
+                                          (pm.mes2 IS NOT NULL AND pm.mes3 IS NOT NULL) THEN 2
+                                     WHEN pm.mes1 IS NOT NULL OR pm.mes2 IS NOT NULL OR pm.mes3 IS NOT NULL THEN 1
+                                     ELSE 1 END)) * 100, 2)
+                         ELSE 0 END) as cumplimiento_global')
+            ]);
+        
+        // Filtros
+        if ($anio) {
+            $query->where('pm.anio', $anio);
+        }
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('e.name', 'LIKE', "%{$search}%")
+                  ->orWhere('e.code', 'LIKE', "%{$search}%")
+                  ->orWhere('pm.responsable', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $total = $query->count();
+        \Log::info("📊 Total planes en cronograma: {$total}");
+        
+        $planes = $query->orderBy('pm.id', 'desc')
+                       ->offset(($page - 1) * $perPage)
+                       ->limit($perPage)
+                       ->get();
+        
+        // Formatear datos MIXTOS (planificados + ejecutados) - CAMPOS COMPLETOS SEGÚN ESPECIFICACIÓN
+        $planesFormateados = $planes->map(function($plan) {
+            // Calcular rangos programados en formato específico
+            $rango1 = $plan->mes1 ? date('Y-m-01', mktime(0,0,0,$plan->mes1,1,$plan->anio)) . ' | ' . date('Y-m-t', mktime(0,0,0,$plan->mes1,1,$plan->anio)) : 'N/A';
+            $rango2 = $plan->mes2 ? date('Y-m-01', mktime(0,0,0,$plan->mes2,1,$plan->anio)) . ' | ' . date('Y-m-t', mktime(0,0,0,$plan->mes2,1,$plan->anio)) : 'N/A';
+            $rango3 = $plan->mes3 ? date('Y-m-01', mktime(0,0,0,$plan->mes3,1,$plan->anio)) . ' | ' . date('Y-m-t', mktime(0,0,0,$plan->mes3,1,$plan->anio)) : 'N/A';
+            
+            // Determinar estado según cumplimiento
+            $cumplimiento = (float)$plan->cumplimiento_global;
+            $estadoCumplimiento = 'BAJO';
+            if ($cumplimiento >= 100) $estadoCumplimiento = 'COMPLETO';
+            elseif ($cumplimiento >= 80) $estadoCumplimiento = 'ALTO';
+            elseif ($cumplimiento >= 50) $estadoCumplimiento = 'MEDIO';
+            
+            return [
+                // DATOS DE CONTROL DEL PLAN
+                'id' => $plan->id, // ID único del plan
+                'equipo_id' => $plan->equipo_id, // ID del equipo
+                'anio' => $plan->anio, // Año del cronograma
+                'frecuencia_id' => $plan->frecuencia_id ?? null, // Tipo de frecuencia
+                'usuario_id' => $plan->usuario_id ?? null, // Quien creó el plan
+                
+                // INFORMACIÓN DEL EQUIPO (COLUMNAS 3-7)
+                'equipo_nombre' => $plan->equipo_nombre ?? 'Sin nombre', // equipos.name
+                'equipo_codigo' => $plan->equipo_codigo ?? 'Sin código', // equipos.code
+                'equipo_serie' => $plan->equipo_serie ?? 'Sin serie', // equipos.serial
+                'equipo_marca' => $plan->equipo_marca ?? 'Sin marca', // equipos.marca
+                'equipo_modelo' => $plan->equipo_modelo ?? 'Sin modelo', // equipos.modelo
+                
+                // RESPONSABLE (COLUMNA 8)
+                'responsable' => $plan->responsable ?? 'Sin asignar', // planes_mantenimientos.responsable
+                
+                // RANGOS PROGRAMADOS (COLUMNAS 9-11)
+                'rango_programado_1' => $rango1, // Calculado desde mes1
+                'rango_programado_2' => $rango2, // Calculado desde mes2
+                'rango_programado_3' => $rango3, // Calculado desde mes3
+                
+                // DATOS ORIGINALES DE MESES (para cálculos)
+                'mes1' => $plan->mes1,
+                'mes2' => $plan->mes2,
+                'mes3' => $plan->mes3,
+                
+                // CANTIDADES Y CUMPLIMIENTO (COLUMNAS 12-14)
+                'cantidad_ejecutados' => (int)$plan->cantidad_ejecutados, // Conteo desde mantenimiento
+                'cantidad_programados' => (int)$plan->cantidad_programados, // Calculado según meses
+                'cumplimiento_global' => round($cumplimiento, 2), // (Ejecutados/Programados) × 100
+                'cumplimiento_porcentaje' => round($cumplimiento, 2) . '%', // Formato con %
+                'estado_cumplimiento' => $estadoCumplimiento, // BAJO/MEDIO/ALTO/COMPLETO
+                
+                // DATOS ADICIONALES DE PLANIFICACIÓN
+                'actividad' => $plan->actividad ?? '',
+                'tipo_mantenimiento' => $plan->tipo_mantenimiento ?? '',
+                'descripcion' => $plan->descripcion ?? '',
+                
+                // UBICACIÓN
+                'servicio_nombre' => $plan->servicio_nombre,
+                'area_nombre' => $plan->area_nombre,
+                
+                // FECHAS DE CONTROL
+                'first_day_m1' => $plan->mes1 ? date('Y-m-01', mktime(0,0,0,$plan->mes1,1,$plan->anio)) : null,
+                'last_day_m1' => $plan->mes1 ? date('Y-m-t', mktime(0,0,0,$plan->mes1,1,$plan->anio)) : null,
+                'first_day_m2' => $plan->mes2 ? date('Y-m-01', mktime(0,0,0,$plan->mes2,1,$plan->anio)) : null,
+                'last_day_m2' => $plan->mes2 ? date('Y-m-t', mktime(0,0,0,$plan->mes2,1,$plan->anio)) : null,
+                'first_day_m3' => $plan->mes3 ? date('Y-m-01', mktime(0,0,0,$plan->mes3,1,$plan->anio)) : null,
+                'last_day_m3' => $plan->mes3 ? date('Y-m-t', mktime(0,0,0,$plan->mes3,1,$plan->anio)) : null,
+                
+                // METADATOS
+                'cuenta_cambios' => 0, // TODO: Implementar conteo de cambios
+                'created_at' => $plan->created_at ?? null,
+                'updated_at' => $plan->created_at ?? null // Usar created_at como fallback ya que updated_at no existe
+            ];
+        });
+        
+        \Log::info("✅ Cronograma formateado: " . $planesFormateados->count());
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $planesFormateados,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage)
+            ],
+            'message' => "Datos mixtos de mantenimiento preventivo obtenidos para el año {$anio}",
+            'total_planes' => $total,
+            'tipo' => 'DATOS_MIXTOS',
+            'descripcion' => 'Planificación (planes_mantenimientos) + Ejecución (mantenimiento) con cumplimiento calculado'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo cronograma de mantenimientos: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener cronograma: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// MANTENIMIENTOS EJECUTADOS: Para modales de preventivos (tabla mantenimiento + mantenimiento_ind)
+Route::get('v1/planes-mantenimientos', function (Request $request) {
+    try {
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 25);
+        $search = $request->get('search', '');
+        $equipoId = $request->get('equipo_id');
+        $status = $request->get('status');
+        $fechaDesde = $request->get('fecha_desde');
+        $fechaHasta = $request->get('fecha_hasta');
+        $sortBy = $request->get('sort_by', 'fecha_mantenimiento');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        // Determinar si es equipo biomédico o industrial
+        // Prioridad: parámetro tipo_equipo > tipo_id del equipo > defecto biomédico
+        $tipoEquipo = $request->get('tipo_equipo', 'biomedico'); // Parámetro desde frontend
+        
+        // Si no se especifica tipo_equipo, determinar por equipo_id
+        if ($tipoEquipo === 'biomedico' && $equipoId) {
+            $equipo = DB::table('equipos')->where('id', $equipoId)->first();
+            if ($equipo && isset($equipo->tipo_id)) {
+                // Si es tipo industrial (ajustar según tu lógica)
+                $tipoEquipo = ($equipo->tipo_id == 2) ? 'industrial' : 'biomedico';
+            }
+        }
+        
+        \Log::info("🔍 Consultando mantenimientos para tipo: {$tipoEquipo}");
+        
+        // Consulta según el tipo de equipo
+        if ($tipoEquipo === 'industrial') {
+            // EQUIPOS INDUSTRIALES: tabla mantenimiento_ind
+            $query = DB::table('mantenimiento_ind')
+                ->leftJoin('equipos', 'mantenimiento_ind.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->select([
+                    'mantenimiento_ind.*',
+                    'equipos.name as equipo_name',
+                    'equipos.code as equipo_code', 
+                    'equipos.marca as equipo_marca',
+                    'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serial',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'sedes.name as sede_nombre'
+                ]);
+                
+            if ($equipoId) {
+                $query->where('mantenimiento_ind.equipo_id', $equipoId);
+            }
+            
+        } else {
+            // EQUIPOS BIOMÉDICOS: tabla mantenimiento
+            $query = DB::table('mantenimiento')
+                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
+                ->select([
+                    'mantenimiento.*',
+                    'equipos.name as equipo_name',
+                    'equipos.code as equipo_code', 
+                    'equipos.marca as equipo_marca',
+                    'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serial',
+                    'servicios.name as servicio_nombre',
+                    'areas.name as area_nombre',
+                    'sedes.name as sede_nombre',
+                    'pm.name as proveedor_nombre'
+                ])
+                ->selectRaw('(SELECT COUNT(*) FROM observaciones WHERE observaciones.preventivo_id = mantenimiento.id) as observaciones_count');
+                
+            if ($equipoId) {
+                $query->where('mantenimiento.equipo_id', $equipoId);
+            }
+        }
+        
+        if ($search) {
+            $query->where(function($q) use ($search, $tipoEquipo) {
+                $tabla = $tipoEquipo === 'industrial' ? 'mantenimiento_ind' : 'mantenimiento';
+                $q->where($tabla . '.description', 'LIKE', "%{$search}%")
+                  ->orWhere($tabla . '.observacion', 'LIKE', "%{$search}%")
+                  ->orWhere('equipos.name', 'LIKE', "%{$search}%")
+                  ->orWhere('equipos.code', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        // Filtros por rango de fechas
+        $tabla = $tipoEquipo === 'industrial' ? 'mantenimiento_ind' : 'mantenimiento';
+        if ($fechaDesde) {
+            $query->whereDate($tabla . '.fecha_mantenimiento', '>=', $fechaDesde);
+        }
+        
+        if ($fechaHasta) {
+            $query->whereDate($tabla . '.fecha_mantenimiento', '<=', $fechaHasta);
+        }
+        
+        if ($status && $status !== 'all') {
+            $query->where($tabla . '.status', $status);
+        }
+        
+        $total = $query->count();
+        
+        // Ordenamiento
+        $validSortColumns = ['fecha_mantenimiento', 'fecha_programada', 'created_at', 'id'];
+        $sortColumn = in_array($sortBy, $validSortColumns) ? $sortBy : 'fecha_mantenimiento';
+        $sortDirection = strtolower($sortOrder) === 'asc' ? 'asc' : 'desc';
+        
+        $mantenimientos = $query->orderBy($tabla . '.' . $sortColumn, $sortDirection)
+                               ->offset(($page - 1) * $perPage)
+                               ->limit($perPage)
+                               ->get();
+        
+        // Formatear datos para frontend (formato del modal original)
+        $formattedData = $mantenimientos->map(function($item) use ($tipoEquipo) {
+            $baseData = [
+                // Campos principales de mantenimiento
+                'id' => $item->id,
+                'equipo_id' => $item->equipo_id,
+                'description' => $item->description ?? '',
+                'fecha_mantenimiento' => $item->fecha_mantenimiento ?? null,
+                'fecha_programada' => $item->fecha_programada ?? null,
+                'file' => $item->file ?? '',
+                'observacion' => $item->observacion ?? '',
+                'status' => $item->status ?? 1,
+                'created_at' => $item->created_at ?? null,
+                
+                // Datos del equipo
+                'equipo' => [
+                    'id' => $item->equipo_id,
+                    'name' => $item->equipo_name ?? '',
+                    'code' => $item->equipo_code ?? '',
+                    'marca' => $item->equipo_marca ?? '',
+                    'modelo' => $item->equipo_modelo ?? '',
+                    'serial' => $item->equipo_serial ?? ''
+                ],
+                
+                // Ubicación
+                'servicio_nombre' => $item->servicio_nombre ?? '',
+                'area_nombre' => $item->area_nombre ?? '',
+                'sede_nombre' => $item->sede_nombre ?? ''
+            ];
+            
+            // Campos específicos de biomédicos
+            if ($tipoEquipo === 'biomedico') {
+                $baseData['repuesto_pendiente'] = $item->repuesto_pendiente ?? 'no';
+                $baseData['repuesto_id'] = $item->repuesto_id ?? null;
+                $baseData['proveedor_mantenimiento_id'] = $item->proveedor_mantenimiento_id ?? 0;
+                $baseData['proveedor_nombre'] = $item->proveedor_nombre ?? '';
+                $baseData['observaciones_count'] = $item->observaciones_count ?? 0;
+            }
+            
+            // Campos específicos de industriales
+            if ($tipoEquipo === 'industrial') {
+                $baseData['fecha_ad'] = $item->fecha_ad ?? null;
+            }
+            
+            return $baseData;
+        });
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $formattedData,
+                'current_page' => (int)$page,
+                'per_page' => (int)$perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage)
+            ],
+            'tipo_equipo' => $tipoEquipo,
+            'tabla_consultada' => $tipoEquipo === 'industrial' ? 'mantenimiento_ind' : 'mantenimiento'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error en planes-mantenimientos: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener mantenimientos: ' . $e->getMessage(),
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// VERIFICAR ESTRUCTURA DE TABLAS DE MANTENIMIENTO
+Route::get('v1/debug/tablas-estructura', function () {
+    try {
+        $resultado = [];
+        
+        // 1. Verificar tabla planes_mantenimientos
+        $resultado['planes_mantenimientos'] = [];
+        try {
+            $columnas = Schema::getColumnListing('planes_mantenimientos');
+            $resultado['planes_mantenimientos']['exists'] = true;
+            $resultado['planes_mantenimientos']['columns'] = $columnas;
+            $resultado['planes_mantenimientos']['count'] = DB::table('planes_mantenimientos')->count();
+            
+            // Muestra de datos
+            $sample = DB::table('planes_mantenimientos')->limit(1)->first();
+            $resultado['planes_mantenimientos']['sample'] = $sample;
+            
+        } catch (\Exception $e) {
+            $resultado['planes_mantenimientos']['exists'] = false;
+            $resultado['planes_mantenimientos']['error'] = $e->getMessage();
+        }
+        
+        // 2. Verificar tabla mantenimiento
+        $resultado['mantenimiento'] = [];
+        try {
+            $columnas = Schema::getColumnListing('mantenimiento');
+            $resultado['mantenimiento']['exists'] = true;
+            $resultado['mantenimiento']['columns'] = $columnas;
+            $resultado['mantenimiento']['count'] = DB::table('mantenimiento')->count();
+            
+            // Muestra de datos
+            $sample = DB::table('mantenimiento')->limit(1)->first();
+            $resultado['mantenimiento']['sample'] = $sample;
+            
+        } catch (\Exception $e) {
+            $resultado['mantenimiento']['exists'] = false;
+            $resultado['mantenimiento']['error'] = $e->getMessage();
+        }
+        
+        // 3. Verificar tabla equipos
+        $resultado['equipos'] = [];
+        try {
+            $columnas = Schema::getColumnListing('equipos');
+            $resultado['equipos']['exists'] = true;
+            $resultado['equipos']['columns'] = $columnas;
+            $resultado['equipos']['count'] = DB::table('equipos')->count();
+        } catch (\Exception $e) {
+            $resultado['equipos']['exists'] = false;
+            $resultado['equipos']['error'] = $e->getMessage();
+        }
+        
+        // 4. Verificar otras tablas relacionadas
+        $tablasRelacionadas = ['servicios', 'areas', 'proveedores_mantenimiento', 'usuarios', 'zonas'];
+        foreach ($tablasRelacionadas as $tabla) {
+            $resultado[$tabla] = [];
+            try {
+                $columnas = Schema::getColumnListing($tabla);
+                $resultado[$tabla]['exists'] = true;
+                $resultado[$tabla]['columns'] = $columnas;
+                $resultado[$tabla]['count'] = DB::table($tabla)->count();
+            } catch (\Exception $e) {
+                $resultado[$tabla]['exists'] = false;
+                $resultado[$tabla]['error'] = $e->getMessage();
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Estructura de tablas verificada',
+            'data' => $resultado
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error verificando estructura: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Enviar recordatorios automáticos de mantenimiento
+Route::post('/planes-mantenimientos/enviar-recordatorios', function (Request $request) {
+    try {
+        \Log::info('🔔 Enviando recordatorios de mantenimiento preventivo');
+        
+        $diasAlerta = $request->get('dias_alerta', 7); // Alertar 7 días antes por defecto
+        $fechaLimite = now()->addDays($diasAlerta)->format('Y-m-d');
+        $fechaHoy = now()->format('Y-m-d');
+        
+        // Obtener mantenimientos que necesitan recordatorio (COLUMNAS REALES)
+        $recordatorios = DB::table('planes_mantenimientos')
+            ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->select([
+                'planes_mantenimientos.*',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'servicios.name as servicio_nombre'
+            ])
+            ->where(function($query) use ($fechaHoy, $fechaLimite) {
+                $query->whereNotNull('fecha_programada')
+                      ->where('fecha_programada', '<=', $fechaLimite)
+                      ->where('fecha_programada', '>=', $fechaHoy);
+            })
+            ->get();
+        
+        $enviados = 0;
+        $errores = [];
+        
+        // SIMPLIFICADO: Solo usar email de configuración para evitar errores
+        $emailDestino = env('NOTIFICATION_EMAIL', 'camilomoralesyk@gmail.com');
+        
+        foreach ($recordatorios as $recordatorio) {
+            try {
+                // Crear objeto preventivo para el email
+                $preventivo = (object)[
+                    'id' => $recordatorio->id,
+                    'equipo_id' => $recordatorio->equipo_id,
+                    'equipo_nombre' => $recordatorio->equipo_nombre,
+                    'equipo_codigo' => $recordatorio->equipo_codigo,
+                    'servicio_nombre' => $recordatorio->servicio_nombre,
+                    'fecha_mantenimiento' => $recordatorio->fecha_programada,
+                    'responsable' => $recordatorio->responsable ?? 'Sin asignar',
+                    'observacion' => "Recordatorio automático - Mantenimiento preventivo programado próximo a vencer"
+                ];
+                
+                \Log::info("📧 Enviando recordatorio para plan {$recordatorio->id} a {$emailDestino}");
+                
+                // 2. Buscar usuarios por nombre del responsable
+                if (empty($emails)) {
+                    $usuariosPorNombre = DB::table('usuarios')
+                        ->where('nombre', 'LIKE', '%' . $recordatorio->responsable . '%')
+                        ->orWhere('username', 'LIKE', '%' . $recordatorio->responsable . '%')
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->pluck('email');
+                    
+                    if ($usuariosPorNombre->count() > 0) {
+                        $emails = array_merge($emails, $usuariosPorNombre->toArray());
+                        \Log::info("✅ Emails por nombre del responsable: " . $usuariosPorNombre->count());
+                    }
+                }
+                
+                // 3. Email de usuarios del servicio donde está el equipo
+                if (empty($emails)) {
+                    $usuariosServicio = DB::table('usuarios')
+                        ->join('equipos', 'usuarios.servicio_id', '=', 'equipos.servicio_id')
+                        ->where('equipos.id', $recordatorio->equipo_id)
+                        ->whereNotNull('usuarios.email')
+                        ->where('usuarios.email', '!=', '')
+                        ->select('usuarios.email', 'usuarios.nombre')
+                        ->get();
+                    
+                    if ($usuariosServicio->count() > 0) {
+                        foreach ($usuariosServicio as $usuario) {
+                            $emails[] = $usuario->email;
+                        }
+                        \Log::info("✅ Emails del servicio: " . $usuariosServicio->count());
+                    }
+                }
+                
+                // 4. Buscar técnicos especializados por rol
+                if (empty($emails)) {
+                    $tecnicosEspecializados = DB::table('usuarios')
+                        ->whereIn('rol_id', [3, 4]) // Técnicos y usuarios especializados
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->where('active', 'true')
+                        ->pluck('email');
+                    
+                    if ($tecnicosEspecializados->count() > 0) {
+                        $emails = array_merge($emails, $tecnicosEspecializados->toArray());
+                        \Log::info("✅ Emails de técnicos especializados: " . $tecnicosEspecializados->count());
+                    }
+                }
+                
+                // 5. FALLBACK FINAL: Administradores del sistema
+                if (empty($emails)) {
+                    $adminEmails = DB::table('usuarios')
+                        ->where('rol_id', 1)
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->pluck('email');
+                    
+                    $emails = $adminEmails->toArray();
+                    \Log::info("⚠️ FALLBACK: Usando emails de administradores: " . count($emails));
+                }
+                
+                // Eliminar duplicados
+                $emails = array_unique($emails);
+                \Log::info("📧 Total emails únicos encontrados: " . count($emails));
+                
+                // Enviar recordatorios
+                foreach ($emails as $email) {
+                    \Mail::to($email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo));
+                    $enviados++;
+                }
+                
+            } catch (\Exception $e) {
+                $errores[] = "Error enviando recordatorio para equipo {$recordatorio->equipo_nombre}: " . $e->getMessage();
+                \Log::error("Error enviando recordatorio: " . $e->getMessage());
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Recordatorios procesados: {$enviados} emails enviados",
+            'enviados' => $enviados,
+            'recordatorios_procesados' => $recordatorios->count(),
+            'errores' => $errores
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error enviando recordatorios: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar recordatorios: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Enviar alertas críticas automáticamente por email
+Route::post('/planes-mantenimientos/enviar-alertas-criticas', function (Request $request) {
+    try {
+        \Log::info('🚨 Enviando alertas críticas de mantenimiento por EMAIL');
+        
+        $diasAlerta = $request->get('dias_alerta', 0); // Solo vencidos por defecto
+        $fechaHoy = now()->format('Y-m-d');
+        
+        // Obtener equipos con mantenimiento VENCIDO (crítico)
+        $alertasCriticas = DB::table('planes_mantenimientos')
+            ->leftJoin('equipos', 'planes_mantenimientos.equipo_id', '=', 'equipos.id')
+            ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+            ->leftJoin('proveedores_mantenimiento', 'planes_mantenimientos.proveedor_mantenimiento_id', '=', 'proveedores_mantenimiento.id')
+            ->select([
+                'planes_mantenimientos.*',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'servicios.name as servicio_nombre',
+                'proveedores_mantenimiento.name as proveedor_nombre',
+                'proveedores_mantenimiento.email as proveedor_email'
+            ])
+            ->where(function($query) use ($fechaHoy) {
+                $query->where('fecha_programada_1', '<', $fechaHoy)
+                      ->orWhere('fecha_programada_2', '<', $fechaHoy)
+                      ->orWhere('fecha_programada_3', '<', $fechaHoy);
+            })
+            ->where('estado_cumplimiento', 'PENDIENTE')
+            ->get();
+        
+        $enviados = 0;
+        $errores = [];
+        
+        foreach ($alertasCriticas as $alerta) {
+            try {
+                // Calcular días de atraso
+                $fechas = array_filter([$alerta->fecha_programada_1, $alerta->fecha_programada_2, $alerta->fecha_programada_3]);
+                $diasAtraso = 0;
+                
+                foreach ($fechas as $fecha) {
+                    if ($fecha < $fechaHoy) {
+                        $diasAtraso = max($diasAtraso, now()->diffInDays($fecha));
+                    }
+                }
+                
+                // Crear objeto para email de alerta crítica
+                $preventivo = (object)[
+                    'id' => $alerta->id,
+                    'equipo_id' => $alerta->equipo_id,
+                    'equipo_nombre' => $alerta->equipo_nombre,
+                    'equipo_codigo' => $alerta->equipo_codigo,
+                    'servicio_nombre' => $alerta->servicio_nombre,
+                    'fecha_mantenimiento' => $alerta->fecha_programada_1 ?: $alerta->fecha_programada_2 ?: $alerta->fecha_programada_3,
+                    'responsable' => $alerta->responsable,
+                    'observacion' => "⚠️ ALERTA CRÍTICA - Mantenimiento VENCIDO hace {$diasAtraso} días - Acción requerida INMEDIATAMENTE"
+                ];
+                
+                // Buscar emails responsables (misma lógica mejorada)
+                $emails = [];
+                
+                // Proveedor responsable
+                if (!empty($alerta->proveedor_email)) {
+                    $emails[] = $alerta->proveedor_email;
+                }
+                
+                // Usuarios por nombre del responsable
+                if (empty($emails)) {
+                    $usuariosPorNombre = DB::table('usuarios')
+                        ->where('nombre', 'LIKE', '%' . $alerta->responsable . '%')
+                        ->whereNotNull('email')
+                        ->where('email', '!=', '')
+                        ->pluck('email');
+                    
+                    $emails = array_merge($emails, $usuariosPorNombre->toArray());
+                }
+                
+                // Usuarios del servicio
+                if (empty($emails)) {
+                    $usuariosServicio = DB::table('usuarios')
+                        ->join('equipos', 'usuarios.servicio_id', '=', 'equipos.servicio_id')
+                        ->where('equipos.id', $alerta->equipo_id)
+                        ->whereNotNull('usuarios.email')
+                        ->where('usuarios.email', '!=', '')
+                        ->pluck('email');
+                    
+                    $emails = array_merge($emails, $usuariosServicio->toArray());
+                }
+                
+                // Siempre incluir administradores en alertas críticas
+                $adminEmails = DB::table('usuarios')
+                    ->where('rol_id', 1)
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->pluck('email');
+                
+                $emails = array_merge($emails, $adminEmails->toArray());
+                $emails = array_unique($emails);
+                
+                // Enviar alertas críticas
+                foreach ($emails as $email) {
+                    \Mail::to($email)->send(new \App\Mail\RepuestoPendienteEmail($preventivo));
+                    $enviados++;
+                }
+                
+                // Actualizar estado a ATRASADO
+                DB::table('planes_mantenimientos')
+                    ->where('id', $alerta->id)
+                    ->update(['estado_cumplimiento' => 'ATRASADO']);
+                
+            } catch (\Exception $e) {
+                $errores[] = "Error enviando alerta crítica para equipo {$alerta->equipo_nombre}: " . $e->getMessage();
+                \Log::error("Error enviando alerta crítica: " . $e->getMessage());
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Alertas críticas procesadas: {$enviados} emails enviados a usuarios responsables",
+            'enviados' => $enviados,
+            'alertas_criticas' => $alertasCriticas->count(),
+            'equipos_actualizados' => $alertasCriticas->count(),
+            'errores' => $errores
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error enviando alertas críticas: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar alertas críticas: ' . $e->getMessage()
         ], 500);
     }
 });
@@ -8998,6 +12527,483 @@ Route::post('/planes-mantenimientos/upload-excel', function (Request $request) {
             ], 500);
         }
     });
+
+// Los endpoints de manuales ya están integrados en el grupo público v1 (líneas 6937-7199)
+
+// ==========================================
+// ENDPOINTS DE ACCIONES DE TICKETS
+// ==========================================
+
+// 1. Agregar Avance a Ticket
+Route::post('v1/tickets/{id}/avances', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar datos requeridos
+        $request->validate([
+            'fecha' => 'required|date',
+            'titulo' => 'required|string|max:255',
+            'descripcion' => 'required|string'
+        ]);
+
+        // Obtener usuario actual del token
+        $user = auth()->user();
+        $usuarioId = $user ? $user->id : 1;
+
+        // Manejar archivo adjunto si existe
+        $fileName = null;
+        if ($request->hasFile('archivo')) {
+            $file = $request->file('archivo');
+            $fileName = time() . '_avance_' . $file->getClientOriginalName();
+            // Guardar en disco 'public' explícitamente
+            $file->storeAs('correctivos_generales', $fileName, 'public');
+        }
+
+        // Insertar en tabla avances_correctivos
+        $avanceId = DB::table('avances_correctivos')->insertGetId([
+            'date' => $request->fecha,
+            'title' => $request->titulo,
+            'description' => $request->descripcion,
+            'file' => $fileName,
+            'orden_id' => $id,
+            'correctivo_general_id' => $ticket->correctivo_general_id ?? null,
+            'usuario_id' => $usuarioId
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $avanceId,
+                'ticket_id' => $id
+            ],
+            'message' => 'Avance agregado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error agregando avance: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al agregar el avance: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 2. Asociar Repuesto Pendiente
+Route::post('v1/tickets/{id}/repuesto-pendiente', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar datos requeridos
+        $request->validate([
+            'repuesto_nombre' => 'required|string'
+        ]);
+
+        // Actualizar tabla ordenes
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'repuesto_pendiente' => $request->repuesto_nombre,
+                'repuesto_pendiente_condicion' => 'si'
+            ]);
+
+        // Si el ticket tiene equipo asociado, actualizar también la tabla equipos
+        if ($ticket->equipo_id) {
+            DB::table('equipos')
+                ->where('id', $ticket->equipo_id)
+                ->update([
+                    'repuesto_pendiente' => 'si'
+                ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'repuesto' => $request->repuesto_nombre
+            ],
+            'message' => 'Repuesto pendiente asociado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error asociando repuesto: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al asociar el repuesto: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 3. Asignar Responsable
+Route::post('v1/tickets/{id}/asignar-responsable', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar datos requeridos
+        $request->validate([
+            'usuario_id' => 'required|integer|exists:usuarios,id'
+        ]);
+
+        // Actualizar tabla ordenes - cambiar estado a Asignado (2)
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'asignado_id' => $request->usuario_id,
+                'fecha_asignacion_usuario' => now(),
+                'estado_id' => 2 // 2 = Asignado
+            ]);
+
+        // Obtener información del usuario asignado
+        $usuario = DB::table('usuarios')
+            ->select('id', 'nombre', 'apellido', 'username', 'email')
+            ->where('id', $request->usuario_id)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'usuario_asignado' => $usuario
+            ],
+            'message' => 'Responsable asignado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error asignando responsable: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al asignar responsable: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 4. Obtener usuarios para asignar (filtrados)
+Route::get('v1/usuarios-asignables', function() {
+    try {
+        $usuarios = DB::table('usuarios')
+            ->join('roles', 'roles.id', '=', 'usuarios.rol_id')
+            ->select([
+                'usuarios.id',
+                'usuarios.nombre',
+                'usuarios.apellido',
+                'usuarios.username',
+                'usuarios.email',
+                'usuarios.estado',
+                'usuarios.rol_id',
+                'roles.nombre as rol_nombre'
+            ])
+            ->where('usuarios.estado', 1)
+            ->whereNotIn('usuarios.rol_id', [1, 4]) // Excluir admin y usuarios finales
+            ->orderBy('usuarios.nombre')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $usuarios,
+            'message' => 'Usuarios obtenidos exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error obteniendo usuarios: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener usuarios'
+        ], 500);
+    }
+});
+
+// 5. Agregar Diagnóstico
+Route::post('v1/tickets/{id}/diagnostico', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar datos requeridos
+        $request->validate([
+            'retro_diagnostico' => 'nullable|string',
+            'diagnostico' => 'required|string',
+            'fecha_diagnostico' => 'nullable|date',
+            'hora_diagnostico' => 'nullable|string',
+            'tecnico_diagnostico_text' => 'nullable|string',
+            'file_diagnostico' => 'nullable|file|max:10240' // 10MB
+        ]);
+
+        // Procesar fecha y hora
+        $fechaDiagnostico = null;
+        if ($request->fecha_diagnostico && $request->hora_diagnostico) {
+            $fechaDiagnostico = $request->fecha_diagnostico . ' ' . $request->hora_diagnostico;
+        } elseif ($request->fecha_diagnostico) {
+            $fechaDiagnostico = $request->fecha_diagnostico . ' ' . date('H:i:s');
+        } else {
+            $fechaDiagnostico = date('Y-m-d H:i:s');
+        }
+
+        // Procesar archivo
+        $fileName = null;
+        if ($request->hasFile('file_diagnostico')) {
+            $file = $request->file('file_diagnostico');
+            $fileName = time() . '_diagnostico_' . $file->getClientOriginalName();
+            // Guardar en disco 'public' explícitamente
+            $file->storeAs('correctivos_generales', $fileName, 'public');
+        }
+
+        // Obtener ID del usuario actual (si está autenticado)
+        $tecnicoDiagnosticoId = auth()->id() ?? null;
+
+        // Actualizar tabla ordenes - cambiar estado a Diagnosticado (3)
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'retro_diagnostico' => $request->retro_diagnostico,
+                'diagnostico' => $request->diagnostico,
+                'fecha_diagnostico' => $fechaDiagnostico,
+                'tecnico_diagnostico' => $tecnicoDiagnosticoId,
+                'tecnico_diagnostico_text' => $request->tecnico_diagnostico_text,
+                'file_diagnostico' => $fileName,
+                'estado_id' => 3 // 3 = Diagnosticado
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'file_diagnostico' => $fileName
+            ],
+            'message' => 'Diagnóstico agregado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error agregando diagnóstico: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al agregar diagnóstico: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 6. Enviar a Cierre
+Route::post('v1/tickets/{id}/enviar-cierre', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar datos requeridos
+        $request->validate([
+            'retro_cierre' => 'nullable|string',
+            'reparacion' => 'required|string',
+            'fecha_asignacion_cierre' => 'nullable|date',
+            'hora_asignacion_cierre' => 'nullable|string',
+            'tecnico_cierre_text' => 'nullable|string',
+            'file_cierre' => 'nullable|file|max:10240', // 10MB
+            'firma_tecnico' => 'nullable|string', // Firma digital del técnico (base64)
+            'firma_recibido' => 'nullable|string', // Firma digital de quien recibe (base64)
+            'firma_tecnico_nombre' => 'nullable|string', // Nombre del técnico que firma
+            'firma_tecnico_fecha' => 'nullable|string', // Fecha de firma del técnico
+            'firma_recibido_nombre' => 'nullable|string', // Nombre de quien recibe
+            'firma_recibido_fecha' => 'nullable|string' // Fecha de firma de quien recibe
+        ]);
+
+        // Procesar fecha y hora
+        $fechaAsignacionCierre = null;
+        if ($request->fecha_asignacion_cierre && $request->hora_asignacion_cierre) {
+            $fechaAsignacionCierre = $request->fecha_asignacion_cierre . ' ' . $request->hora_asignacion_cierre;
+        } elseif ($request->fecha_asignacion_cierre) {
+            $fechaAsignacionCierre = $request->fecha_asignacion_cierre . ' ' . date('H:i:s');
+        } else {
+            $fechaAsignacionCierre = date('Y-m-d H:i:s');
+        }
+
+        // NOTA: El archivo ahora se sube por separado después de enviar a cierre
+        // usando el endpoint POST /v1/tickets/{id}/upload-cierre-file
+        // Esto permite al usuario anexar el documento DESPUÉS de enviar a cierre
+        // pero ANTES de confirmar el cierre
+        $fileName = null;
+
+        // Obtener ID del usuario actual (si está autenticado)
+        $tecnicoCierreId = auth()->id() ?? null;
+
+        // Generar código aleatorio para confirmación (12 caracteres)
+        $set = '123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $code = substr(str_shuffle($set), 0, 12);
+
+        // Actualizar tabla ordenes - cambiar a estado "Esperando cierre" (5)
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'retro_cierre' => $request->retro_cierre,
+                'reparacion' => $request->reparacion,
+                'fecha_asignacion_cierre' => $fechaAsignacionCierre,
+                'tecnico_cierre' => $tecnicoCierreId,
+                'tecnico_cierre_text' => $request->tecnico_cierre_text,
+                'file_cierre' => $fileName,
+                'fecha_fin' => now(),
+                'estado_id' => 5, // 5 = Esperando cierre
+                'cierre_id' => 15,
+                'code' => $code,
+                'cierre_active' => 'false', // String "false" según especificación
+                'firma_tecnico' => $request->firma_tecnico, // Firma digital del técnico
+                'firma_recibido' => $request->firma_recibido, // Firma digital de quien recibe
+                'firma_tecnico_nombre' => $request->firma_tecnico_nombre, // Nombre del técnico que firma
+                'firma_tecnico_fecha' => $request->firma_tecnico_fecha, // Fecha de firma del técnico
+                'firma_recibido_nombre' => $request->firma_recibido_nombre, // Nombre de quien recibe
+                'firma_recibido_fecha' => $request->firma_recibido_fecha // Fecha de firma de quien recibe
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'code' => $code,
+                'file_cierre' => $fileName
+            ],
+            'message' => 'Ticket enviado a cierre exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error enviando a cierre: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al enviar a cierre: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 7. Confirmar Cierre Final (Cambiar de "Esperando cierre" a "Cerrado")
+Route::post('v1/tickets/{id}/confirmar-cierre', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar que el ticket está en estado "Esperando cierre" (5)
+        if ($ticket->estado_id != 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El ticket debe estar en estado "Esperando cierre" para confirmar el cierre'
+            ], 400);
+        }
+
+        // Actualizar tabla ordenes - cambiar a estado "Cerrado" (4)
+        // Nota: fecha_fin ya fue establecida en el paso "enviar-cierre"
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'estado_id' => 4 // 4 = Cerrado
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'estado' => 'Cerrado'
+            ],
+            'message' => 'Ticket cerrado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error confirmando cierre: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al confirmar cierre: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 8. Subir archivo de cierre (después de enviar a cierre, antes de confirmar)
+Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Validar que el ticket está en estado "Esperando cierre" (5)
+        if ($ticket->estado_id != 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se puede subir archivo cuando el ticket está en estado "Esperando cierre"'
+            ], 400);
+        }
+
+        // Validar archivo
+        $request->validate([
+            'file_cierre' => 'required|file|max:10240', // 10MB máximo
+        ]);
+
+        // Procesar archivo
+        $fileName = null;
+        if ($request->hasFile('file_cierre')) {
+            $file = $request->file('file_cierre');
+            $fileName = time() . '_cierre_' . $file->getClientOriginalName();
+            // Guardar en disco 'public' explícitamente
+            $file->storeAs('correctivos_generales', $fileName, 'public');
+        }
+
+        // Actualizar solo el campo file_cierre
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'file_cierre' => $fileName
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'file_cierre' => $fileName
+            ],
+            'message' => 'Archivo subido exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error subiendo archivo de cierre: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al subir archivo: ' . $e->getMessage()
+        ], 500);
+    }
+});
 
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');

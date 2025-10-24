@@ -29,7 +29,10 @@ const initializeTokenFromStorage = () => {
     httpService.defaults.headers.common[
       "Authorization"
     ] = `Bearer ${storedToken}`;
-    console.log("🔄 [HTTP] Token restaurado desde localStorage");
+    console.log("🔄 [HTTP] Token restaurado desde localStorage:", storedToken);
+    console.log("🔄 [HTTP] Header Authorization configurado:", `Bearer ${storedToken}`);
+  } else {
+    console.log("⚠️ [HTTP] No hay token en localStorage");
   }
 };
 
@@ -42,6 +45,9 @@ httpService.interceptors.request.use(
     // Agregar token de autorización si existe
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
+      console.log("🔐 [HTTP] Enviando token en request:", config.method?.toUpperCase(), config.url);
+    } else {
+      console.log("⚠️ [HTTP] Sin token para request:", config.method?.toUpperCase(), config.url);
     }
 
     // Agregar timestamp para evitar cache
@@ -71,15 +77,24 @@ httpService.interceptors.request.use(
 // Interceptor de respuestas (response)
 httpService.interceptors.response.use(
   (response) => {
-    console.log(
-      `✅ [HTTP] ${response.status} ${response.config.method?.toUpperCase()} ${
-        response.config.url
-      }`,
-      {
-        data: response.data,
-        headers: response.headers,
-      }
-    );
+    // Si es una respuesta blob, no loguear el contenido completo
+    if (response.config.responseType === 'blob') {
+      console.log(
+        `✅ [HTTP] ${response.status} ${response.config.method?.toUpperCase()} ${
+          response.config.url
+        } (blob: ${response.data.size} bytes)`
+      );
+    } else {
+      console.log(
+        `✅ [HTTP] ${response.status} ${response.config.method?.toUpperCase()} ${
+          response.config.url
+        }`,
+        {
+          data: response.data,
+          headers: response.headers,
+        }
+      );
+    }
 
     return response;
   },
@@ -118,9 +133,16 @@ httpService.interceptors.response.use(
 
     // Manejar errores de servidor (5xx)
     if (error.response?.status >= 500) {
-      showErrorNotification(
-        "Error del servidor. Por favor, intente más tarde."
-      );
+      // No mostrar toast automático para endpoints de tickets (manejan sus propias notificaciones)
+      const isTicketEndpoint = error.config?.url?.includes('/crear-ticket') || 
+                              error.config?.url?.includes('/tickets/') ||
+                              error.config?.url?.includes('/notifications/');
+      
+      if (!isTicketEndpoint) {
+        showErrorNotification(
+          "Error del servidor. Por favor, intente más tarde."
+        );
+      }
     }
 
     // Manejar errores de validación (422)
@@ -181,11 +203,19 @@ const handleAuthenticationError = () => {
   }
 };
 
-// Función para mostrar notificaciones de error (implementar según UI library)
+// Función para mostrar notificaciones de error usando nuestro sistema de toasts
 const showErrorNotification = (message) => {
-  // Implementar según la librería de notificaciones que uses
   console.error("🔔 [NOTIFICATION]", message);
-  // Ejemplo: toast.error(message);
+  
+  // Usar nuestro sistema de toasts si está disponible
+  try {
+    if (typeof window !== 'undefined' && window.showErrorToast) {
+      window.showErrorToast(message);
+    }
+  } catch (error) {
+    // Fallback si no está disponible
+    console.error("Toast no disponible:", error);
+  }
 };
 
 // Función para obtener el CSRF token de Sanctum

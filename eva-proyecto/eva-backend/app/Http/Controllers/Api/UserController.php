@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Exception;
 
 /**
@@ -126,20 +128,124 @@ class UserController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         try {
-            $request->validate([
-                'name' => 'sometimes|required|string|max:255',
-                'descripcion' => 'nullable|string|max:1000',
-                'activo' => 'nullable|boolean'
+            // Validación robusta de datos
+            $validator = Validator::make($request->all(), [
+                'nombre' => 'nullable|string|max:255',
+                'apellido' => 'nullable|string|max:255',
+                'telefono' => 'nullable|string|max:20',
+                'email' => 'nullable|email|max:255',
+                'username' => 'nullable|string|max:100|unique:usuarios,username,' . $id,
+                'password' => 'nullable|string|min:6',
+                'rol_id' => 'nullable|integer|exists:roles,id',
+                'estado' => 'nullable|in:0,1',
+                'servicio_id' => 'nullable|integer',
+                'centro_id' => 'nullable|integer',
+                'sede_id' => 'nullable|string|max:10',
+                'zona_id' => 'nullable|integer',
+                'anio_plan' => 'nullable|integer',
+                'id_empresa' => 'nullable|integer',
+                'active' => 'nullable|string|in:true,false',
+                'permisos' => 'nullable|array',
+                'permisos.*' => 'integer'
             ]);
 
-            $item = User::findOrFail($id);
-            $item->update($request->all());
+            if ($validator->fails()) {
+                return ResponseFormatter::error($validator->errors(), 'Datos de validación incorrectos', 422);
+            }
 
-            return ResponseFormatter::success($item, 'Actualizado exitosamente');
+            // Verificar que el usuario existe
+            $usuario = DB::table('usuarios')->where('id', $id)->first();
+            if (!$usuario) {
+                return ResponseFormatter::error(null, 'Usuario no encontrado', 404);
+            }
+
+            // Preparar datos para actualización
+            $updateData = [];
+            $validFields = ['nombre', 'apellido', 'telefono', 'email', 'username', 'rol_id', 'estado', 'servicio_id', 'centro_id', 'sede_id', 'zona_id', 'anio_plan', 'id_empresa', 'active'];
+
+            foreach ($validFields as $field) {
+                if ($request->has($field) && $request->get($field) !== null) {
+                    $updateData[$field] = $request->get($field);
+                }
+            }
+
+            // Manejo especial de contraseña
+            if ($request->has('password') && !empty($request->password)) {
+                $updateData['password'] = Hash::make($request->password);
+                Log::info("Actualizando contraseña para usuario ID: $id");
+            }
+
+            $updateData['updated_at'] = now();
+
+            // Actualizar usuario con consulta directa
+            $updated = DB::table('usuarios')
+                ->where('id', $id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return ResponseFormatter::error(null, 'No se pudo actualizar el usuario', 500);
+            }
+
+            // Actualizar permisos individuales del usuario si se proporcionan
+            if ($request->has('permisos') && is_array($request->permisos)) {
+                // Eliminar permisos existentes del usuario
+                DB::table('acciones')->where('usuario_id', $id)->delete();
+                
+                // Insertar nuevos permisos individuales para el usuario
+                $permisos = [];
+                foreach ($request->permisos as $moduloId) {
+                    $permisos[] = [
+                        'usuario_id' => $id,
+                        'modulo_id' => $moduloId,
+                        'leer' => 1,
+                        'insertar' => 1,
+                        'editar' => 1,
+                        'eliminar' => 0
+                    ];
+                }
+                
+                if (!empty($permisos)) {
+                    DB::table('acciones')->insert($permisos);
+                }
+                
+                Log::info("Permisos individuales actualizados para usuario ID: $id", ['permisos' => $request->permisos]);
+            }
+
+            // Obtener usuario actualizado con relaciones
+            $usuarioActualizado = DB::table('usuarios')
+                ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
+                ->leftJoin('servicios', 'usuarios.servicio_id', '=', 'servicios.id')
+                ->leftJoin('zonas', 'usuarios.zona_id', '=', 'zonas.id')
+                ->select(
+                    'usuarios.*',
+                    'roles.nombre as rol_nombre',
+                    'servicios.nombre as servicio_nombre',
+                    'zonas.nombre as zona_nombre'
+                )
+                ->where('usuarios.id', $id)
+                ->first();
+
+            // Obtener permisos individuales del usuario
+            $permisos = DB::table('acciones')
+                ->join('modulos', 'acciones.modulo_id', '=', 'modulos.id')
+                ->where('acciones.usuario_id', $id)
+                ->select('modulos.id', 'modulos.name as nombre', 'acciones.leer', 'acciones.insertar', 'acciones.editar', 'acciones.eliminar')
+                ->get();
+
+            $usuarioActualizado->permisos = $permisos;
+
+            Log::info("Usuario actualizado exitosamente", ['user_id' => $id, 'updated_fields' => array_keys($updateData)]);
+
+            return ResponseFormatter::success($usuarioActualizado, 'Usuario actualizado exitosamente');
 
         } catch (Exception $e) {
-            Log::error('Error en UserController::update', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al actualizar', 500);
+            Log::error('Error en UserController::update', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $id,
+                'request_data' => $request->all()
+            ]);
+            return ResponseFormatter::error(null, 'Error al actualizar usuario: ' . $e->getMessage(), 500);
         }
     }
 

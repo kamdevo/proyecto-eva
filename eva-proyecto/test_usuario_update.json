@@ -1,0 +1,8 @@
+{
+    "nombre": "Julio César",
+    "apellido": "Castillo Biancha",
+    "telefono": "3176694747",
+    "email": "analistahuv1@gmail.com",
+    "password": "nuevapass123",
+    "permisos": [1, 2, 3]
+}

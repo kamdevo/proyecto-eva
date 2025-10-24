@@ -1,0 +1,139 @@
+# Sistema EVA - Docker Ignore Root
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Documentation
+README.md
+README-DOCKER.md
+*.md
+docs/
+MANUAL*.md
+INTRODUCTION*.md
+
+# Development files
+.env
+.env.*
+!.env.docker
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Test files and scripts (not needed in containers)
+test-*.php
+probar-*.php
+verificar-*.php
+debug-*.php
+check-*.php
+analyze-*.php
+audit-*.php
+buscar-*.php
+crear-*.php
+find-*.php
+fix-*.php
+insertar-*.php
+script-*.php
+simple-*.php
+final-*.php
+
+# Output files
+*.xlsx
+*.sql
+*.dump
+*.backup
+*.html
+preview_*.html
+test_*.html
+test_output_*.html
+
+# Development artifacts
+package-lock.json
+composer.lock
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Build artifacts (will be created inside containers)
+eva-frontend/dist/
+eva-frontend/build/
+eva-frontend/node_modules/
+eva-backend/vendor/
+eva-backend/storage/logs/
+eva-backend/storage/framework/cache/
+eva-backend/storage/framework/sessions/
+eva-backend/storage/framework/views/
+
+# Docker files (not needed inside containers)
+docker-compose*.yml
+deploy-*.bat
+stop-*.bat
+restart-*.bat
+logs-*.bat
+
+# Email development files
+emails/node_modules/
+emails/.next/
+emails/out/
+
+# Project planning files
+plantillas/
+CHECKLIST*.md
+CAMBIOS*.md
+COMANDOS*.md
+CONFIGURACION*.md
+CORRECCIONES*.md
+DEPLOYMENT*.md
+DOCUMENTACION*.md
+FLUJO*.md
+FRONTEND*.md
+GUIA*.md
+IMPLEMENTACION*.md
+INSTRUCCIONES*.md
+INTEGRACION*.md
+LOGO*.md
+MEJORAS*.md
+NOTIFICACIONES*.md
+PASOS*.md
+PERMISSION*.md
+PLAN*.md
+PROJECT*.md
+QUICK*.md
+REACT*.md
+REFACTORIZACION*.md
+REPORTE*.md
+RESUMEN*.md
+ROLE*.md
+SECOP*.md
+SISTEMA*.md
+SOLUCION*.md
+VENTANA*.md
+VERIFICACION*.md
+
+# Analysis and reporting files
+informe*.md
+report*.md
+rol*.md
+secop.md
+usuarios.md

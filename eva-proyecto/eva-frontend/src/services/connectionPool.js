@@ -35,14 +35,14 @@ class ConnectionPool {
       // Endpoints múltiples con prioridades
       endpoints: [
         {
-          url: "http://localhost:8001",
+          url: import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001",
           priority: 1,
           weight: 100,
           maxConnections: 10,
           timeout: 5000,
         },
         {
-          url: "http://localhost:8001",
+          url: import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001",
           priority: 2,
           weight: 80,
           maxConnections: 8,

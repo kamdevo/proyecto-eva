@@ -14,7 +14,7 @@ const useCentrosCosto = () => {
         setError(null);
 
         // Usar endpoint real de centros
-        const response = await fetch("http://127.0.0.1:8001/api/v1/centros", {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/centros`, {
           method: "GET",
           headers: {
             Accept: "application/json",

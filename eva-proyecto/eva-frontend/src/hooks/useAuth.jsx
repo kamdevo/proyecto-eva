@@ -12,60 +12,90 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initPermissions = async () => {
       try {
-        console.log('🔍 Original auth user:', originalUser);
-        console.log('🔍 Is authenticated:', isAuthenticated);
-        console.log('🔍 Is loading:', isLoading);
         
-        if (originalUser && originalUser.id) {
-          console.log('👤 User data from AuthContext:', originalUser);
-          console.log('🎭 User role ID:', originalUser.rol_id, 'Type:', typeof originalUser.rol_id);
+        if (originalUser && originalUser.id && isAuthenticated) {
           
           // Fetch user permissions
           try {
-            // Use admin route if user is super admin, otherwise use user route
-            const permissionsUrl = originalUser.rol_id === 1 
-              ? `/v1/admin/users/${originalUser.id}/permissions`
-              : `/v1/usuarios/${originalUser.id}/permissions`;
+            // CORRECCIÓN: Usar SIEMPRE el endpoint self-permissions para todos los usuarios
+            // El backend ya maneja correctamente los permisos según el rol
+            const permissionsUrl = `/v1/user/permissions`;
               
-            console.log('🔗 Using permissions URL:', permissionsUrl);
             const response = await apiClient.get(permissionsUrl);
-            console.log('📋 Permissions response:', response.data);
-            if (response.data.success) {
-              setPermissions(response.data.data || []);
-              console.log('✅ Permissions loaded:', response.data.data);
+            
+            if (response.data && response.data.success) {
+              const rawPermissions = response.data.data || response.data.permissions || {};
+              
+              // CORREGIR: Convertir objeto de permisos a array que espera el frontend
+              let permissionsData = [];
+              
+              if (typeof rawPermissions === 'object' && !Array.isArray(rawPermissions)) {
+                // Convertir objeto {equipos: {leer: true, ...}, usuarios: {...}} a array
+                permissionsData = Object.entries(rawPermissions).map(([moduleName, perms]) => ({
+                  modulo_name: moduleName,
+                  ...perms
+                }));
+              } else if (Array.isArray(rawPermissions)) {
+                permissionsData = rawPermissions;
+              }
+              
+              setPermissions(permissionsData);
+            } else {
+              setPermissions([]);
             }
           } catch (permError) {
-            console.log('⚠️ Could not load permissions:', permError.message);
-            // Don't fail if permissions can't be loaded - role-based logic should work
+            // Set empty permissions array to avoid undefined
+            setPermissions([]);
           }
+        } else {
+          console.log('⚠️ No se puede cargar permisos:');
+          console.log('   - Usuario existe:', !!originalUser);
+          console.log('   - Usuario tiene ID:', !!originalUser?.id);
+          console.log('   - Está autenticado:', isAuthenticated);
+          console.log('   - Está cargando:', isLoading);
+          setPermissions([]);
         }
       } catch (error) {
-        console.error('Error initializing permissions:', error);
+        console.error('❌ Error initializing permissions:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (!isLoading) {
+    console.log('🔄 Decidiendo si ejecutar initPermissions...');
+    console.log('   - isLoading:', isLoading);
+    console.log('   - originalUser:', !!originalUser);
+    console.log('   - isAuthenticated:', isAuthenticated);
+    
+    if (!isLoading && originalUser) {
+      console.log('✅ Ejecutando initPermissions...');
       initPermissions();
+    } else {
+      console.log('❌ NO ejecutando initPermissions - condiciones no cumplidas');
     }
   }, [originalUser, isAuthenticated, isLoading]);
 
   const hasPermission = useCallback((moduleName, action = 'leer') => {
     if (!originalUser) {
+      console.log('❌ No user found for permission check');
       return false;
     }
     
     // Convert rol_id to number to ensure proper comparison
     const userRoleId = parseInt(originalUser.rol_id);
     
+    console.log(`🔍 Permission check: ${moduleName} -> ${action}`);
+    console.log(`👤 User:`, originalUser.nombre, `Role ID:`, originalUser.rol_id, `Parsed:`, userRoleId);
+    
     // Super admin (role 1) has ALL permissions - no restrictions
     if (userRoleId === 1) {
+      console.log('✅ SUPER ADMIN - All permissions granted');
       return true;
     }
     
     // Admin (role 2) has most permissions
     if (userRoleId === 2) {
+      console.log('✅ ADMIN - All permissions granted');
       return true;
     }
     
@@ -80,10 +110,17 @@ export const AuthProvider = ({ children }) => {
     console.log('📊 Permisos disponibles:', permissions.length);
     console.log('👤 Usuario rol:', userRoleId);
     
-    // Si no hay permisos cargados, solo permitir para admins
+    // Si no hay permisos cargados, permitir para admins y algunos módulos básicos para usuarios
     if (!permissions.length) {
       console.log('⚠️ Sin permisos cargados, usando fallback por rol');
-      return userRoleId <= 2; // Solo super admin y admin
+      if (userRoleId <= 2) return true; // Admins siempre
+      
+      // Para usuarios normales, permitir módulos básicos
+      const basicModules = ['dashboard', 'equipos', 'tickets-propios', 'correctivos'];
+      if (basicModules.includes(moduleName.toLowerCase()) && action === 'leer') {
+        return true;
+      }
+      return false;
     }
     
     // Buscar el permiso específico del módulo
@@ -122,11 +159,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    return originalUser?.rol_id === 1 || originalUser?.rol_id === 2;
+    if (!originalUser) return false;
+    const userRoleId = parseInt(originalUser.rol_id);
+    const result = userRoleId === 1 || userRoleId === 2;
+    console.log('🔍 isAdmin check:', originalUser.nombre, 'Role:', originalUser.rol_id, 'Parsed:', userRoleId, 'Result:', result);
+    return result;
   };
 
   const isSuperAdmin = () => {
-    return originalUser?.rol_id === 1;
+    if (!originalUser) return false;
+    const userRoleId = parseInt(originalUser.rol_id);
+    const result = userRoleId === 1;
+    console.log('🔍 isSuperAdmin check:', originalUser.nombre, 'Role:', originalUser.rol_id, 'Parsed:', userRoleId, 'Result:', result);
+    return result;
   };
 
   const value = {

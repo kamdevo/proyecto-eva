@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import httpService from "../services/httpService";
+import { toast } from "sonner";
 import {
   Plus,
   Pencil,
@@ -52,112 +54,66 @@ export default function ContactsView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [formData, setFormData] = useState({
-    nombre: "",
+    name: "",
     email: "",
     telefono: "",
-    tipoContacto: "PROVEEDOR",
+    tcontacto_id: null,
   });
   const [contactToDelete, setContactToDelete] = useState(null);
+  const [contactsData, setContactsData] = useState([]);
+  const [tiposContacto, setTiposContacto] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const contactsData = [
-    {
-      id: 1,
-      nombre: "EQUIPOS TECTUM",
-      email: "sin@email.com",
-      telefono: "sin teléfono",
-      correoElectronico: "PROVEEDOR",
-      tipo: "PROVEEDOR",
-    },
-    {
-      id: 2,
-      nombre: "J.M MEDICOS EQUIPOS S.A.S",
-      email: "info@jmequipos.com",
-      telefono: "301 234 567 890",
-      correoElectronico: "PROVEEDOR",
-      tipo: "PROVEEDOR",
-    },
-    {
-      id: 3,
-      nombre: "MEDICAS MEDICAL COLOMBIA SAS",
-      email: "contacto@medicasmedical.com",
-      telefono: "57 1 2345678",
-      correoElectronico: "PROVEEDOR",
-      tipo: "PROVEEDOR",
-    },
-    {
-      id: 4,
-      nombre: "GERMAN MEDICAL SYSTEMS BRAND CO. LTD",
-      email: "china.spain.colombia@company.com",
-      telefono: "",
-      correoElectronico: "FABRICANTE",
-      tipo: "FABRICANTE",
-    },
-    {
-      id: 5,
-      nombre: "ABS EQUIPOS MEDICOS S.A.S",
-      email: "ventas@absequipos.com",
-      telefono: "6044567890",
-      correoElectronico: "REPRESENTANTE",
-      tipo: "REPRESENTANTE",
-    },
-    {
-      id: 6,
-      nombre: "ADVANCED RADIOTHERAPY CORPORATION",
-      email: "",
-      telefono: "",
-      correoElectronico: "PROVEEDOR",
-      tipo: "PROVEEDOR",
-    },
-    {
-      id: 7,
-      nombre: "AESCULAP AG",
-      email: "info@aesculap@aesculap.com",
-      telefono: "57 1 2345678",
-      correoElectronico: "FABRICANTE",
-      tipo: "FABRICANTE",
-    },
-    {
-      id: 8,
-      nombre: "AGFA",
-      email: "",
-      telefono: "",
-      correoElectronico: "PROVEEDOR",
-      tipo: "PROVEEDOR",
-    },
-    {
-      id: 9,
-      nombre: "AGFA GEVAERT COLOMBIA S.A.S",
-      email: "servicios_co@agfa.com",
-      telefono: "",
-      correoElectronico: "PROVEEDOR",
-      tipo: "PROVEEDOR",
-    },
-    {
-      id: 10,
-      nombre: "AGFA HEALTHCARE NV",
-      email: "",
-      telefono: "",
-      correoElectronico: "FABRICANTE",
-      tipo: "FABRICANTE",
-    },
-  ];
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    fetchContactos();
+    fetchTiposContacto();
+  }, []);
+
+  const fetchContactos = async (search = "") => {
+    try {
+      setLoading(true);
+      const params = search ? { search } : {};
+      const response = await httpService.get("/v1/contactos/list", { params });
+      if (response.data.success) {
+        setContactsData(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error cargando contactos:", error);
+      toast.error("Error al cargar contactos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTiposContacto = async () => {
+    try {
+      const response = await httpService.get("/v1/tcontacto");
+      if (response.data.success) {
+        setTiposContacto(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error cargando tipos de contacto:", error);
+    }
+  };
 
   const handleOpenModal = (contact = null) => {
     if (contact) {
       setEditingContact(contact);
       setFormData({
-        nombre: contact.nombre,
-        email: contact.email,
-        telefono: contact.telefono,
-        tipoContacto: contact.tipo,
+        name: contact.name,
+        email: contact.email || "",
+        telefono: contact.telefono || "",
+        tcontacto_id: contact.tcontacto_id || null,
       });
     } else {
       setEditingContact(null);
       setFormData({
-        nombre: "",
+        name: "",
         email: "",
         telefono: "",
-        tipoContacto: "PROVEEDOR",
+        tcontacto_id: null,
       });
     }
     setIsModalOpen(true);
@@ -167,10 +123,10 @@ export default function ContactsView() {
     setIsModalOpen(false);
     setEditingContact(null);
     setFormData({
-      nombre: "",
+      name: "",
       email: "",
       telefono: "",
-      tipoContacto: "PROVEEDOR",
+      tcontacto_id: null,
     });
   };
 
@@ -181,27 +137,57 @@ export default function ContactsView() {
     }));
   };
 
-  const handleSubmit = () => {
-    // Aquí iría la lógica para agregar o actualizar el contacto
-    console.log(
-      editingContact ? "Actualizando contacto:" : "Agregando contacto:",
-      formData
-    );
-    handleCloseModal();
+  const handleSubmit = async () => {
+    try {
+      if (!formData.name) {
+        toast.error("El nombre es requerido");
+        return;
+      }
+
+      const loadingToast = toast.loading(editingContact ? "Actualizando contacto..." : "Creando contacto...");
+
+      if (editingContact) {
+        await httpService.put(`/v1/contactos/${editingContact.id}`, formData);
+        toast.success("Contacto actualizado exitosamente", { id: loadingToast });
+      } else {
+        await httpService.post("/v1/contactos/create", formData);
+        toast.success("Contacto creado exitosamente", { id: loadingToast });
+      }
+
+      handleCloseModal();
+      fetchContactos();
+    } catch (error) {
+      console.error("Error guardando contacto:", error);
+      toast.error("Error al guardar contacto");
+    }
   };
 
   const handleDeleteContact = (contact) => {
     setContactToDelete(contact);
   };
 
-  const confirmDelete = () => {
-    // Aquí iría la lógica para eliminar el contacto
-    console.log("Eliminando contacto:", contactToDelete);
-    setContactToDelete(null);
+  const confirmDelete = async () => {
+    try {
+      const loadingToast = toast.loading("Eliminando contacto...");
+      await httpService.delete(`/v1/contactos/${contactToDelete.id}`);
+      toast.success("Contacto eliminado exitosamente", { id: loadingToast });
+      setContactToDelete(null);
+      fetchContactos();
+    } catch (error) {
+      console.error("Error eliminando contacto:", error);
+      toast.error("Error al eliminar contacto");
+    }
   };
 
   const cancelDelete = () => {
     setContactToDelete(null);
+  };
+
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    if (value.length >= 3 || value.length === 0) {
+      fetchContactos(value);
+    }
   };
 
   const getTypeColor = (tipo) => {
@@ -269,17 +255,18 @@ export default function ContactsView() {
                   {/* Contact Form */}
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="nombre" className="text-sm font-medium">
-                        Nombre
+                      <Label htmlFor="name" className="text-sm font-medium">
+                        Nombre *
                       </Label>
                       <Input
-                        id="nombre"
+                        id="name"
                         placeholder="Nombre del contacto"
-                        value={formData.nombre}
+                        value={formData.name}
                         onChange={(e) =>
-                          handleInputChange("nombre", e.target.value)
+                          handleInputChange("name", e.target.value)
                         }
                         className="w-full"
+                        required
                       />
                     </div>
 
@@ -316,26 +303,26 @@ export default function ContactsView() {
 
                     <div className="space-y-2">
                       <Label
-                        htmlFor="tipoContacto"
+                        htmlFor="tcontacto_id"
                         className="text-sm font-medium"
                       >
                         Tipo de contacto
                       </Label>
                       <Select
-                        value={formData.tipoContacto}
+                        value={formData.tcontacto_id?.toString() || ""}
                         onValueChange={(value) =>
-                          handleInputChange("tipoContacto", value)
+                          handleInputChange("tcontacto_id", value ? parseInt(value) : null)
                         }
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue placeholder="Seleccionar tipo" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="PROVEEDOR">PROVEEDOR</SelectItem>
-                          <SelectItem value="FABRICANTE">FABRICANTE</SelectItem>
-                          <SelectItem value="REPRESENTANTE">
-                            REPRESENTANTE
-                          </SelectItem>
+                          {tiposContacto.map((tipo) => (
+                            <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                              {tipo.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -365,18 +352,13 @@ export default function ContactsView() {
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input placeholder="Buscar contactos..." className="pl-10" />
+                <Input
+                  placeholder="Buscar por nombre, email o teléfono..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                />
               </div>
-              <Select defaultValue="10">
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 registros por página</SelectItem>
-                  <SelectItem value="25">25 registros por página</SelectItem>
-                  <SelectItem value="50">50 registros por página</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardHeader>
 
@@ -407,52 +389,69 @@ export default function ContactsView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contactsData.map((contact) => (
-                    <TableRow key={contact.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900 text-sm">
-                        <div className="break-words">{contact.nombre}</div>
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {contact.id}
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        <div className="break-all">
-                          {contact.email || "sin@email.com"}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {contact.telefono || "sin teléfono"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getTypeColor(contact.tipo)} text-xs`}>
-                          {contact.tipo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          {/* Edit Button - Blue */}
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenModal(contact)}
-                            className="w-7 h-7 p-0 bg-blue-500 hover:bg-blue-600 rounded-md"
-                            title="Editar contacto"
-                          >
-                            <Pencil className="h-3 w-3 text-white" />
-                          </Button>
-
-                          {/* Delete Button - Red */}
-                          <Button
-                            size="sm"
-                            onClick={() => handleDeleteContact(contact)}
-                            className="w-7 h-7 p-0 bg-red-500 hover:bg-red-600 rounded-md"
-                            title="Eliminar contacto"
-                          >
-                            <Trash2 className="h-3 w-3 text-white" />
-                          </Button>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                          <span className="ml-3 text-gray-600">Cargando contactos...</span>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : contactsData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        No se encontraron contactos
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    contactsData.map((contact) => (
+                      <TableRow key={contact.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-gray-900 text-sm">
+                          <div className="break-words">{contact.name}</div>
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-sm">
+                          {contact.id}
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-sm">
+                          <div className="break-all">
+                            {contact.email || "—"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-sm">
+                          {contact.telefono || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-blue-100 text-blue-800 text-xs">
+                            {contact.tipo_nombre || "Sin tipo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            {/* Edit Button - Blue */}
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenModal(contact)}
+                              className="w-7 h-7 p-0 bg-blue-500 hover:bg-blue-600 rounded-md"
+                              title="Editar contacto"
+                            >
+                              <Pencil className="h-3 w-3 text-white" />
+                            </Button>
+
+                            {/* Delete Button - Red */}
+                            <Button
+                              size="sm"
+                              onClick={() => handleDeleteContact(contact)}
+                              className="w-7 h-7 p-0 bg-red-500 hover:bg-red-600 rounded-md"
+                              title="Eliminar contacto"
+                            >
+                              <Trash2 className="h-3 w-3 text-white" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -460,44 +459,11 @@ export default function ContactsView() {
             {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
               <div className="text-sm text-gray-500 order-2 sm:order-1">
-                Mostrando registros del 1 al 10 de un total de 10 registros
-              </div>
-              <div className="flex items-center gap-2 order-1 sm:order-2">
-                <Button variant="outline" size="sm" disabled className="hidden sm:flex">
-                  <ChevronLeft className="h-4 w-4" />
-                  Anterior
-                </Button>
-                <Button variant="outline" size="sm" disabled className="sm:hidden">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-blue-600 text-white"
-                  >
-                    1
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    2
-                  </Button>
-                  <Button variant="outline" size="sm" className="hidden sm:block">
-                    3
-                  </Button>
-                  <Button variant="outline" size="sm" className="hidden sm:block">
-                    4
-                  </Button>
-                  <Button variant="outline" size="sm" className="hidden sm:block">
-                    5
-                  </Button>
-                </div>
-                <Button variant="outline" size="sm" className="hidden sm:flex">
-                  Siguiente
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" className="sm:hidden">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                {loading ? (
+                  "Cargando..."
+                ) : (
+                  `Mostrando ${contactsData.length} contacto${contactsData.length !== 1 ? 's' : ''}`
+                )}
               </div>
             </div>
           </CardContent>
@@ -514,7 +480,7 @@ export default function ContactsView() {
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente el
               contacto{" "}
-              <span className="font-semibold">{contactToDelete?.nombre}</span>{" "}
+              <span className="font-semibold">{contactToDelete?.name}</span>{" "}
               del sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>

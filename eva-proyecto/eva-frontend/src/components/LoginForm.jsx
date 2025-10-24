@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import useFormValidation from "../hooks/useFormValidation";
 import { useCentrosCosto } from "../hooks/useCentrosCosto";
+import { useFormSubmit } from "../hooks/useFormSubmit";
 import AlertMessage from "./ui/AlertMessage";
 import SearchableSelect from "./ui/searchable-select";
 import "../assets/css/Login.css";
 import logo from "../assets/Img/lgoLogin-removebg-preview.png";
-import ParticlesBackground from "./ParticlesBg";
 import {
   AtSignIcon,
   User,
@@ -92,21 +92,19 @@ const LoginForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalRegisterOpen]);
 
-  // Manejar cambios en formulario de login
-  const handleLoginChange = (field, value) => {
+  // ✅ Optimización: useCallback para evitar re-creación de función
+  const handleLoginChange = useCallback((field, value) => {
     setLoginForm((prev) => {
       const newForm = { ...prev, [field]: value };
 
       // Validar en tiempo real si el campo ya fue tocado
-      loginValidation.validateOnChange(field, value, newForm);
+      if (loginValidation.touchedFields[field]) {
+        loginValidation.validateField(field, value);
+      }
 
       return newForm;
     });
-
-    if (loginAlert) {
-      setLoginAlert(null);
-    }
-  };
+  }, [loginValidation]);
 
   // Manejar cambios en formulario de registro
   const handleRegisterChange = (field, value) => {
@@ -229,12 +227,12 @@ const LoginForm = () => {
     }
   };
 
+  // Hooks para accesibilidad de formularios (Enter para submit)
+  const loginFormProps = useFormSubmit(handleLoginSubmit);
+  const registerFormProps = useFormSubmit(handleRegisterSubmit);
+
   return (
     <>
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <ParticlesBackground />
-      </div>
-
       <div
         style={{ zIndex: 10, position: "relative", background: "transparent" }}
         className="background-pattern"
@@ -276,7 +274,7 @@ const LoginForm = () => {
                 />
               )}
 
-              <form onSubmit={handleLoginSubmit}>
+              <form {...loginFormProps.formProps}>
                 <div className="form-group min-w-8">
                   <div className="*:not-first:mt-2">
                     <Label>Nombre de usuario</Label>
@@ -405,7 +403,7 @@ const LoginForm = () => {
                 />
               )}
 
-              <form onSubmit={handleRegisterSubmit}>
+              <form {...registerFormProps.formProps}>
                 <fieldset>
                   <legend>Información de usuario</legend>
 

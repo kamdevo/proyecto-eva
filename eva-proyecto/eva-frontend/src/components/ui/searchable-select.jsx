@@ -6,6 +6,7 @@ const SearchableSelect = ({
   options = [],
   value,
   onValueChange,
+  onChange, // ← AGREGAR SOPORTE PARA onChange TAMBIÉN
   disabled = false,
   loading = false,
   className,
@@ -53,7 +54,11 @@ const SearchableSelect = ({
   };
 
   const handleSelectValue = (selectedValue) => {
-    onValueChange(selectedValue);
+    // Usar onChange u onValueChange dependiendo de cual esté disponible
+    const callback = onChange || onValueChange;
+    if (callback) {
+      callback(selectedValue);
+    }
     setOpen(false);
     setSearchTerm("");
     setIsSearching(false);

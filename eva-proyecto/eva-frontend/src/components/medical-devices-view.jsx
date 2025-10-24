@@ -122,10 +122,12 @@ export function MedicalDevicesView() {
     changePageSize(parseInt(newSize));
   };
 
-  // Handle export equipment counts
+  // Handle export equipment list (listado completo de equipos)
   const handleExportEquipmentCounts = async () => {
     try {
-      const response = await httpService.get('/v1/export/equipment-counts', {
+      console.log('📊 Exportando listado completo de equipos biomédicos...');
+      
+      const response = await httpService.get('/v1/export/equipment-list', {
         responseType: 'blob',
         params: { type: 'biomedical' }
       });
@@ -133,13 +135,15 @@ export function MedicalDevicesView() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'CantidadesEquiposBiomedicos.xlsx');
+      link.setAttribute('download', 'EquiposBiomedicosHUV.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      
+      console.log('✅ Listado de equipos biomédicos exportado exitosamente');
     } catch (err) {
-      console.error('Error exporting equipment counts:', err);
+      console.error('❌ Error exportando listado de equipos:', err);
       // You could add a toast notification here
     }
   };
@@ -158,129 +162,74 @@ export function MedicalDevicesView() {
       if (equiposConocidos[equipmentId]) {
         console.log('🎯 Equipo conocido con archivo preventivo, abriendo directamente...');
         const knownFile = equiposConocidos[equipmentId];
-        const fileUrl = `http://127.0.0.1:8001/storage/mantenimientos/${knownFile}`;
+        const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${knownFile}`;
         console.log('🌐 Opening URL:', fileUrl);
         window.open(fileUrl, "_blank");
         return;
       }
       
-      // Obtener token de autenticación si está disponible
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      
-      const headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      // Fetch maintenance data for the equipment using correct endpoint
+      // Usar endpoint de mantenimientos ejecutados (no planes)
       const response = await fetch(
-        `http://localhost:8001/api/v1/planes-mantenimientos?equipo_id=${equipmentId}&sort_by=created_at&sort_order=desc&per_page=100`,
-        { headers }
+        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/mantenimientos-ejecutados?equipo_id=${equipmentId}&per_page=100`,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
       console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-
-      if (response.status === 401) {
-        console.warn('🔒 No autorizado - intentando sin autenticación...');
-        // Intentar con endpoint público
-        const publicResponse = await fetch(
-          `http://localhost:8001/api/v1/planes-mantenimientos?equipo_id=${equipmentId}&sort_by=created_at&sort_order=desc&per_page=100`
-        );
-        
-        if (!publicResponse.ok) {
-          throw new Error('No se pudo acceder a los datos de mantenimiento. Verifique su sesión.');
-        }
-        
-        const publicData = await publicResponse.json();
-        console.log('📊 Public data received:', publicData);
-        
-        // Procesar respuesta pública - la API ya ordena por created_at DESC
-        if (publicData.success && publicData.data && publicData.data.data && publicData.data.data.length > 0) {
-          const maintenanceList = publicData.data.data;
-          
-          // Ordenar por created_at para garantizar el más reciente
-          const sortedPublicData = maintenanceList.sort((a, b) => {
-            const dateA = new Date(a.created_at || a.fecha_mantenimiento || 0);
-            const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
-            return dateB.getTime() - dateA.getTime();
-          });
-          
-          const latestMaintenance = sortedPublicData[0];
-          console.log('📄 Latest public maintenance by created_at:', latestMaintenance);
-          
-          if (latestMaintenance.file) {
-            const fileUrl = `http://localhost:8001/storage/mantenimientos/${latestMaintenance.file}`;
-            console.log('📅 Public document created_at:', latestMaintenance.created_at);
-            window.open(fileUrl, "_blank");
-            return;
-          }
-        }
-        
-        throw new Error('No se encontraron registros de mantenimiento');
-      }
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error response:', errorText);
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('📊 Data received:', data);
+      console.log('📊 Mantenimientos data received:', data);
 
-      // La respuesta de planes-mantenimientos tiene estructura: { success, data: { data: [], total, ... } }
-      let maintenanceData = null;
+      // Buscar mantenimientos ejecutados con archivos
+      let maintenanceRecords = [];
       
       if (data.success && data.data) {
         if (Array.isArray(data.data.data)) {
-          // Estructura paginada correcta: data.data.data
-          maintenanceData = data.data.data;
+          maintenanceRecords = data.data.data;
         } else if (Array.isArray(data.data)) {
-          // Estructura simple: data.data
-          maintenanceData = data.data;
+          maintenanceRecords = data.data;
         }
       } else if (Array.isArray(data)) {
-        // Respuesta directa como array
-        maintenanceData = data;
+        maintenanceRecords = data;
       }
 
-      console.log('🔧 Maintenance data:', maintenanceData);
+      console.log('🔧 Maintenance records:', maintenanceRecords);
 
-      if (maintenanceData && maintenanceData.length > 0) {
-        // La API ya ordena por created_at DESC, pero lo hacemos nuevamente por seguridad
-        const sortedMaintenance = maintenanceData.sort((a, b) => {
-          const dateA = new Date(a.created_at || a.fecha_mantenimiento || 0);
-          const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
-          return dateB.getTime() - dateA.getTime(); // Más reciente primero
-        });
+      if (maintenanceRecords && maintenanceRecords.length > 0) {
+        // Filtrar solo los que tienen archivo y ordenar por fecha más reciente
+        const recordsWithFiles = maintenanceRecords
+          .filter(record => record.file && record.file.trim() !== '')
+          .sort((a, b) => {
+            const dateA = new Date(a.created_at || a.fecha_mantenimiento || 0);
+            const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
+            return dateB.getTime() - dateA.getTime();
+          });
         
-        const latestMaintenance = sortedMaintenance[0];
-        console.log('📄 Latest maintenance by created_at:', latestMaintenance);
+        if (recordsWithFiles.length > 0) {
+          const latestMaintenance = recordsWithFiles[0];
+          console.log('📄 Latest maintenance with file:', latestMaintenance);
 
-        if (latestMaintenance.file) {
-          // Construct the file URL using Laravel's storage symlink
-          const fileUrl = `http://localhost:8001/storage/mantenimientos/${latestMaintenance.file}`;
-          console.log('🌐 Opening latest maintenance document:', fileUrl);
-          console.log('📅 Document created_at:', latestMaintenance.created_at);
+          // Abrir el documento directamente
+          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${latestMaintenance.file}`;
+          console.log('🌐 Opening maintenance document:', fileUrl);
           
-          // Abrir el documento de mantenimiento más reciente
           window.open(fileUrl, "_blank");
-          
-        } else {
-          console.warn('⚠️ No file found in latest preventive maintenance record');
-          alert(
-            "No hay documento de mantenimiento preventivo disponible para este equipo"
-          );
+          return;
         }
-      } else {
-        console.warn('⚠️ No preventive maintenance records found');
-        alert("No se encontraron registros de mantenimiento preventivo para este equipo");
       }
+      
+      // Si no se encontró ningún archivo
+      console.warn('⚠️ No preventive maintenance documents found');
+      alert("No se encontraron documentos de mantenimiento preventivo para este equipo");
+      
     } catch (error) {
       console.error("❌ Error al abrir documento de mantenimiento preventivo:", error);
       alert(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
@@ -300,7 +249,7 @@ export function MedicalDevicesView() {
         response = await httpService.get(`/v1/equipos/${equipmentId}/calibraciones`);
       } else {
         // Fallback to public endpoint
-        response = await fetch(`http://localhost:8001/api/v1/equipos/${equipmentId}/calibraciones`, {
+        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/calibraciones`, {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -315,7 +264,7 @@ export function MedicalDevicesView() {
         if (publicData && publicData.length > 0) {
           const calibration = publicData[0];
           if (calibration.file) {
-            const fileUrl = `http://localhost:8001/storage/calibraciones/${calibration.file}`;
+            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/calibraciones/${calibration.file}`;
             window.open(fileUrl, "_blank");
             return;
           }
@@ -327,7 +276,7 @@ export function MedicalDevicesView() {
       if (data && data.length > 0) {
         const calibration = data[0];
         if (calibration.file) {
-          const fileUrl = `http://localhost:8001/storage/calibraciones/${calibration.file}`;
+          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/calibraciones/${calibration.file}`;
           console.log('🌐 Opening calibration document:', fileUrl);
           window.open(fileUrl, "_blank");
         } else {
@@ -355,7 +304,7 @@ export function MedicalDevicesView() {
         response = await httpService.get(`/v1/equipos/${equipmentId}/correctivos`);
       } else {
         // Fallback to public endpoint
-        response = await fetch(`http://localhost:8001/api/v1/equipos/${equipmentId}/correctivos`, {
+        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/correctivos`, {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -370,7 +319,7 @@ export function MedicalDevicesView() {
         if (publicData && publicData.length > 0) {
           const corrective = publicData[0];
           if (corrective.file) {
-            const fileUrl = `http://localhost:8001/storage/correctivos_asociados/${corrective.file}`;
+            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_asociados/${corrective.file}`;
             window.open(fileUrl, "_blank");
             return;
           }
@@ -382,7 +331,7 @@ export function MedicalDevicesView() {
       if (data && data.length > 0) {
         const corrective = data[0];
         if (corrective.file) {
-          const fileUrl = `http://localhost:8001/storage/correctivos_asociados/${corrective.file}`;
+          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_asociados/${corrective.file}`;
           console.log('🌐 Opening corrective document:', fileUrl);
           window.open(fileUrl, "_blank");
         } else {
@@ -864,6 +813,81 @@ export function MedicalDevicesView() {
                           fallbackImage={notFoundImg}
                           showLoader={true}
                         />
+
+                        {/* Documentos Asociados */}
+                        <div className="mt-3 space-y-2">
+                          {/* Registro Sanitario */}
+                          {device.equipo?.invima_id && device.registros_invima?.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-blue-700 uppercase tracking-wide">
+                                Registro INVIMA
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                <button
+                                  onClick={() => {
+                                    const registro = device.registros_invima[0];
+                                    if (registro.archivo_registro_sanitario) {
+                                      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/registros_sanitarios/${registro.archivo_registro_sanitario}`;
+                                      window.open(fileUrl, "_blank");
+                                    }
+                                  }}
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-blue-600 hover:text-blue-800 hover:underline truncate"
+                                  title={`Ver registro sanitario: ${device.registros_invima[0]?.numero_registro || 'N/A'}`}
+                                >
+                                  {device.registros_invima[0]?.numero_registro || "Ver Registro"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Manual Asociado */}
+                          {device.equipo?.manual_id && device.manual && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-green-700 uppercase tracking-wide">
+                                Manual
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                <button
+                                  onClick={() => {
+                                    if (device.manual.url) {
+                                      window.open(device.manual.url, "_blank");
+                                    }
+                                  }}
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-green-600 hover:text-green-800 hover:underline truncate"
+                                  title={`Ver manual: ${device.manual.descripcion || 'N/A'}`}
+                                >
+                                  {device.manual.descripcion || "Ver Manual"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Guía Rápida Asociada */}
+                          {device.equipo?.guia_id && device.guia_rapida && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-purple-700 uppercase tracking-wide">
+                                Guía Rápida
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                <button
+                                  onClick={() => {
+                                    if (device.guia_rapida.file) {
+                                      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/guias/${device.guia_rapida.file}`;
+                                      window.open(fileUrl, "_blank");
+                                    }
+                                  }}
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-purple-600 hover:text-purple-800 hover:underline truncate"
+                                  title={`Ver guía rápida: ${device.guia_rapida.name || 'N/A'}`}
+                                >
+                                  {device.guia_rapida.name || "Ver Guía"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
 
@@ -932,22 +956,48 @@ export function MedicalDevicesView() {
                             </div>
                             <div className="flex items-center gap-1 xs:gap-2">
                               <span className="font-medium text-slate-700">
-                                Archivos:
+                                Calibraciones:
                               </span>
                               <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                                {safeRenderText(device.data?.archivos, "0")}
+                                {safeRenderText(device.cuenta_calibraciones, "0")}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-1 xs:gap-2">
                               <span className="font-medium text-slate-700">
-                                Planes Mant.:
+                                Preventivos:
                               </span>
                               <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
-                                {safeRenderText(
-                                  device.data?.planesMantenimiento,
-                                  "0"
-                                )}
+                                {safeRenderText(device.cuenta_preventivos, "0")}
                               </Badge>
+                            </div>
+
+                            {/* Purchase Order Section */}
+                            <div className="flex items-center gap-1 xs:gap-2">
+                              <span className="font-medium text-slate-700">
+                                Orden Compra:
+                              </span>
+                              {device.orden_compra ? (
+                                <a
+                                  href={`${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/ordenes_compra/${device.orden_compra_file}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline text-[8px] xs:text-[9px] sm:text-xs"
+                                >
+                                  {device.orden_compra}
+                                </a>
+                              ) : (
+                                <span className="text-[8px] xs:text-[9px] sm:text-xs text-slate-500">
+                                  Sin orden
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 xs:gap-2">
+                              <span className="font-medium text-slate-700">
+                                Tipo Compra:
+                              </span>
+                              <span className="text-[8px] xs:text-[9px] sm:text-xs text-slate-600">
+                                {safeRenderText(device.tipo_compra, "Sin tipo")}
+                              </span>
                             </div>
 
                             {/* Observation Section */}
@@ -971,7 +1021,11 @@ export function MedicalDevicesView() {
                                     setSelectedEquipment(device);
                                     setAddObservacionModalOpen(true);
                                   }}
-                                  title="Agregar observación"
+                                  title={`Agregar observación${
+                                    device.observaciones?.ultima 
+                                      ? `\n\nÚltima observación: ${device.observaciones.ultima}`
+                                      : '\n\nSin observaciones previas'
+                                  }`}
                                 >
                                   <Plus className="w-3 h-3 xs:w-4 xs:h-4" />
                                 </Button>
@@ -1010,6 +1064,30 @@ export function MedicalDevicesView() {
                           </span>
                           <span className="ml-1 text-slate-900">
                             {safeRenderText(device.ubicacion?.sede, "Sin sede")}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Zona:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.zona_hospitalaria, "Sin zona")}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Piso:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.piso_servicio, "Sin piso")}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-700">
+                            Localización:
+                          </span>
+                          <span className="ml-1 text-slate-900">
+                            {safeRenderText(device.localizacion_actual, "Sin localización")}
                           </span>
                         </div>
                         <div>
@@ -1128,80 +1206,65 @@ export function MedicalDevicesView() {
                             title="Abrir documento de calibración"
                           />
                         </div>
-                        <div>
-                          <span className="font-medium text-slate-700">
-                            Último Correctivo:
-                          </span>
-                        </div>
-                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200 flex justify-between items-center">
-                          {device.mantenimiento?.ultimoCorrectivo
-                            ? new Date(
-                                device.mantenimiento.ultimoCorrectivo
-                              ).toLocaleDateString()
-                            : "Sin registros"}
-                          <Link
-                            size={15}
-                            className="cursor-pointer hover:text-amber-600 transition-colors"
-                            onClick={() =>
-                              handleOpenCorrectiveDocument(device.id)
-                            }
-                            title="Abrir documento de correctivo"
-                          />
-                        </div>
                         <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
                           <div>
                             <span className="font-medium text-teal-700">
-                              Información de tickets
+                              Información de plan de ejecución
                             </span>
                           </div>
                           <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
                             <div>
                               <div className="font-medium text-slate-700">
-                                Último inicio de ticket:
+                                Último correctivo general generado:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {device.tickets?.fechaUltimoTicket
-                                  ? new Date(
-                                      device.tickets.fechaUltimoTicket
-                                    ).toLocaleDateString()
+                                {device.mantenimiento?.ultimoCorrectivoGeneral || "Sin registros"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Último procedimiento correctivo realizado:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {device.mantenimiento?.ultimoProcedimientoCorrectivo || "Sin registros"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700">
+                                Fecha de creación del último ticket:
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {device.tickets?.fechaCreacionUltimoTicket
+                                  ? new Date(device.tickets.fechaCreacionUltimoTicket).toLocaleString()
                                   : "Sin registros"}
                               </div>
                             </div>
                             <div>
                               <div className="font-medium text-slate-700">
-                                Orden de Compra:
+                                Fecha de último cierre de tickets:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {safeRenderText(
-                                  device.compra?.orden,
-                                  "Sin orden"
-                                )}
+                                {device.tickets?.fechaUltimoCierre
+                                  ? new Date(device.tickets.fechaUltimoCierre).toLocaleString()
+                                  : "Sin registros"}
                               </div>
                             </div>
                             <div>
-                              <div className="font-medium text-slate-700">
-                                Tipo de Compra:
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
+                                Última calibración:
+                                <Link
+                                  size={12}
+                                  className="cursor-pointer hover:text-blue-600 transition-colors"
+                                  onClick={() => handleOpenCalibrationDocument(device.id)}
+                                  title="Abrir documento de calibración"
+                                />
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {safeRenderText(
-                                  device.compra?.tipo,
-                                  "Sin especificar"
-                                )}
+                                {device.mantenimiento?.ultimaCalibración
+                                  ? new Date(device.mantenimiento.ultimaCalibración).toLocaleDateString()
+                                  : "Sin registros"}
                               </div>
                             </div>
-                            {device.observaciones?.ultima && (
-                              <div>
-                                <div className="font-medium text-slate-700">
-                                  Última Observación:
-                                </div>
-                                <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                  {safeRenderText(
-                                    device.observaciones.ultima,
-                                    "Sin observaciones"
-                                  )}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>

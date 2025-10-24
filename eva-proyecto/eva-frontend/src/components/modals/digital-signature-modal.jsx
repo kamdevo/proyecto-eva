@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { PenTool, Save, Trash2, Type, Tablet } from "lucide-react";
+import { toast } from "sonner";
 
 export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerName = "" }) {
   const canvasRef = useRef(null);
@@ -18,12 +19,22 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
   const [typedSignature, setTypedSignature] = useState("");
   const [fontStyle, setFontStyle] = useState("cursive");
 
+  // ✅ Función para corregir coordenadas del canvas escalado
+  const getCanvasCoordinates = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
   const startDrawing = (e) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getCanvasCoordinates(e, canvas);
     
     const ctx = canvas.getContext('2d');
     ctx.beginPath();
@@ -34,9 +45,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
     if (!isDrawing) return;
     
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getCanvasCoordinates(e, canvas);
     
     const ctx = canvas.getContext('2d');
     ctx.lineWidth = 2;
@@ -61,10 +70,36 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
   };
 
   const saveSignature = () => {
+    // Validar campos obligatorios
+    if (!signatureName.trim()) {
+      toast.error("El nombre del firmante es obligatorio");
+      return;
+    }
+    
+    if (!signatureDate) {
+      toast.error("La fecha de firma es obligatoria");
+      return;
+    }
+    
+    // Validar que haya firma dibujada o escrita
+    if (signatureType === "type" && !typedSignature.trim()) {
+      toast.error("Debe escribir su firma");
+      return;
+    }
+    
     let signatureData;
     
     if (signatureType === "draw") {
       const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const hasDrawing = imageData.data.some((channel, i) => i % 4 !== 3 && channel < 255);
+      
+      if (!hasDrawing) {
+        toast.error("Debe dibujar su firma en el canvas");
+        return;
+      }
+      
       signatureData = canvas.toDataURL();
     } else {
       const canvas = document.createElement('canvas');
@@ -91,6 +126,8 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
       type: signatureType,
       timestamp: new Date().toISOString()
     });
+    
+    toast.success(`Firma de ${signatureName} guardada correctamente`);
     onClose();
   };
 
@@ -277,19 +314,23 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Nombre del Firmante</Label>
+              <Label className="text-sm font-semibold">Nombre del Firmante <span className="text-red-600">*</span></Label>
               <Input 
                 value={signatureName} 
                 onChange={(e) => setSignatureName(e.target.value)}
                 placeholder="Nombre completo"
+                required
+                className="border-gray-300"
               />
             </div>
             <div>
-              <Label>Fecha</Label>
+              <Label className="text-sm font-semibold">Fecha de Firma <span className="text-red-600">*</span></Label>
               <Input 
                 type="date" 
                 value={signatureDate} 
                 onChange={(e) => setSignatureDate(e.target.value)}
+                required
+                className="border-gray-300"
               />
             </div>
           </div>
@@ -368,8 +409,8 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="max-h-96">
-                        {fontOptions.map((font) => (
-                          <SelectItem key={font.value} value={font.value}>
+                        {fontOptions.map((font, index) => (
+                          <SelectItem key={`${font.value}-${index}`} value={font.value}>
                             <span style={{ fontFamily: font.value, fontSize: '16px' }}>{font.label}</span>
                           </SelectItem>
                         ))}
@@ -410,7 +451,8 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
               </Button>
               <Button 
                 onClick={saveSignature}
-                disabled={(signatureType === "type" && !typedSignature) || (signatureType === "draw" && !signatureName)}
+                disabled={!signatureName.trim() || !signatureDate}
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Guardar Firma

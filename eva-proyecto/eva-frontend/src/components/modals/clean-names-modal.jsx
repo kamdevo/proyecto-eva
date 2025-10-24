@@ -100,7 +100,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
 
       // Construir URL con parámetros
       const url = new URL(
-        "http://localhost:8001/api/v1/equipos/debugging/name-analysis"
+        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/debugging/name-analysis`
       );
       Object.keys(params).forEach((key) => {
         if (params[key] !== undefined && params[key] !== null) {
@@ -240,7 +240,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:8001/api/v1/equipos/debugging/preview-changes",
+        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/debugging/preview-changes`,
         {
           method: "POST",
           headers: {
@@ -307,7 +307,7 @@ export function CleanNamesModal({ open, onOpenChange }) {
       setApplying(true);
 
       const response = await fetch(
-        "http://localhost:8001/api/v1/equipos/debugging/apply-cleaning",
+        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/debugging/apply-cleaning`,
         {
           method: "POST",
           headers: {
@@ -604,13 +604,19 @@ export function CleanNamesModal({ open, onOpenChange }) {
           <div className="flex-1 overflow-visible">
             <ScrollArea className="h-[500px]">
               {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-blue-600" />
-                    <p className="text-sm text-gray-600">
-                      Cargando análisis de nombres...
-                    </p>
-                  </div>
+                <div className="space-y-3 p-4">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                        <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse"></div>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="w-8 h-8 bg-gray-100 rounded animate-pulse"></div>
+                        <div className="w-8 h-8 bg-gray-100 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : data.length === 0 ? (
                 <div className="flex items-center justify-center h-64">

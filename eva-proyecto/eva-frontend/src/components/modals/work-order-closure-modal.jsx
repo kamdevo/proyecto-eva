@@ -438,7 +438,7 @@ export default function WorkOrderClosureModal({
     
     try {
       // Enviar datos al backend para procesamiento (opcional)
-      const response = await fetch('http://localhost:8001/api/v1/work-orders/generate', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/work-orders/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

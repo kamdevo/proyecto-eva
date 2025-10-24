@@ -74,26 +74,29 @@ class AuthService {
    */
   async logout() {
     try {
-      // Debug logging disabled for production
-      // console.log("🔐 [AUTH] Cerrando sesión...");
+      console.log("🔐 [AUTH] Cerrando sesión...");
 
-      // Llamar al endpoint de logout
-      await httpService.post(AUTH_ENDPOINTS.LOGOUT);
+      // Intentar llamar al endpoint de logout, pero no fallar si hay error
+      try {
+        await httpService.post(AUTH_ENDPOINTS.LOGOUT);
+        console.log("✅ [AUTH] Logout del servidor exitoso");
+      } catch (logoutError) {
+        console.warn("⚠️ [AUTH] Error en logout del servidor (continuando con logout local):", logoutError.response?.status);
+        // Continuar con logout local aunque falle el servidor
+      }
 
-      // Limpiar datos locales
+      // Limpiar datos locales SIEMPRE
       this.clearAuthData();
-
-      // Debug logging disabled for production
-      // console.log("✅ [AUTH] Sesión cerrada correctamente");
+      console.log("✅ [AUTH] Datos locales limpiados");
 
       return {
         success: true,
         message: "Sesión cerrada correctamente",
       };
     } catch (error) {
-      console.error("❌ [AUTH] Error al cerrar sesión:", error);
+      console.error("❌ [AUTH] Error crítico en logout:", error);
 
-      // Limpiar datos locales aunque falle la petición
+      // Limpiar datos locales como última medida
       this.clearAuthData();
 
       return {
@@ -164,10 +167,13 @@ class AuthService {
     try {
       const response = await httpService.get(AUTH_ENDPOINTS.USER);
 
-      this.user = response.data;
+      // CORREGIDO: Extraer solo los datos del usuario de response.data.data
+      this.user = response.data.data || response.data;
       this._isAuthenticated = true;
 
       localStorage.setItem("eva_user", JSON.stringify(this.user));
+
+      console.log("✅ [AUTH] Usuario obtenido y guardado:", this.user);
 
       return {
         success: true,
@@ -196,12 +202,15 @@ class AuthService {
       try {
         // Verificar que el token sigue siendo válido con el backend
         const response = await httpService.get(AUTH_ENDPOINTS.USER);
-        this.user = response.data;
+        
+        // CORREGIDO: Extraer solo los datos del usuario de response.data.data
+        this.user = response.data.data || response.data;
         this._isAuthenticated = true;
 
         // Actualizar usuario almacenado si es necesario
         localStorage.setItem("eva_user", JSON.stringify(this.user));
 
+        console.log("✅ [AUTH] Token válido, usuario actualizado:", this.user);
         return true;
       } catch (error) {
         const status = error.response?.status;

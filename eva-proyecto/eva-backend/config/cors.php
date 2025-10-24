@@ -75,6 +75,10 @@ return [
             'http://10.0.0.100:5173',
             'http://10.0.0.100:5175',     // Puerto alternativo
             'http://10.0.0.100:8001',     // Backend Laravel
+            
+            // Tu red específica
+            'http://192.168.2.146:5173',  // Frontend
+            'http://192.168.2.146:8001',  // Backend
 
             // Herramientas de desarrollo
             'http://localhost:9090',      // Webpack Bundle Analyzer

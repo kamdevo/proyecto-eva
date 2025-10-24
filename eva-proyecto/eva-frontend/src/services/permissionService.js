@@ -15,23 +15,19 @@ class PermissionService {
    * @param {Object} user - Objeto usuario con permisos
    */
   initialize(user) {
+    
     if (user && user.permissions) {
       this.permissions = user.permissions;
       this.userRole = user.rol_id;
       this.userId = user.id;
       
-      // Debug logging disabled for production
-      // console.log('🔐 [PERMISSIONS] Permisos inicializados:', {
-      //   userId: this.userId,
-      //   role: this.userRole,
-      //   modulesCount: Object.keys(this.permissions).length
-      // });
     } else {
-      // Debug logging disabled for production
-      // console.warn('⚠️ [PERMISSIONS] Usuario sin permisos definidos');
-      this.permissions = {};
-      this.userRole = null;
-      this.userId = null;
+      // CORRECCIÓN: Inicializar con los datos básicos del usuario aunque no tenga permissions
+      if (user) {
+        this.userRole = user.rol_id;
+        this.userId = user.id;
+        this.permissions = {}; // Objeto vacío pero no null
+      }
     }
   }
 
@@ -202,8 +198,9 @@ class PermissionService {
    * @returns {Array}
    */
   filterMenuItems(menuItems) {
-    if (this.isAdmin()) return menuItems;
-    
+    if (this.isAdmin()) {
+      return menuItems;
+    }
     return menuItems.filter(item => {
       // Si tiene href directo, verificar acceso
       if (item.href) {

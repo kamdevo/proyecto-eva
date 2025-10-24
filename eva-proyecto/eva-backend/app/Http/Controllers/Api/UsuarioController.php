@@ -85,12 +85,12 @@ class UsuarioController extends Controller
 
             $data = $request->all();
             $data['password'] = Hash::make($request->password);
-            $data['estado'] = $request->get('estado', 1);
+            // CAMBIO: Usuarios nuevos DESACTIVADOS por defecto
+            $data['estado'] = $request->get('estado', 0); // 0 = desactivado por defecto
 
             $usuario = Usuario::create($data);
 
-            // Auto-assign default permissions for new users based on their role
-            $this->assignDefaultPermissions($usuario->id, $usuario->rol_id);
+            // NO asignar permisos al crear - solo cuando se active
 
             return ResponseFormatter::success($usuario, 'Usuario creado exitosamente', 201);
 
@@ -196,10 +196,25 @@ class UsuarioController extends Controller
                 return ResponseFormatter::error(null, 'Usuario no encontrado', 404);
             }
 
+            $estadoAnterior = $usuario->estado;
             $usuario->estado = !$usuario->estado;
             $usuario->save();
 
-            $mensaje = $usuario->estado ? 'Usuario activado' : 'Usuario desactivado';
+            // NUEVA LÓGICA: Si el usuario se está ACTIVANDO, asignar permisos automáticamente
+            if (!$estadoAnterior && $usuario->estado) {
+                // Usuario se acaba de activar (de 0 a 1)
+                \Log::info("Usuario {$usuario->username} activado - Asignando permisos por defecto");
+                $this->assignDefaultPermissions($usuario->id, $usuario->rol_id);
+            }
+            
+            // Si se desactiva, opcionalmente puedes eliminar permisos
+            if ($estadoAnterior && !$usuario->estado) {
+                // Usuario se desactivó (de 1 a 0) - eliminar permisos
+                \Log::info("Usuario {$usuario->username} desactivado - Eliminando permisos");
+                DB::table('acciones')->where('usuario_id', $usuario->id)->delete();
+            }
+
+            $mensaje = $usuario->estado ? 'Usuario activado y permisos asignados' : 'Usuario desactivado y permisos eliminados';
 
             return ResponseFormatter::success($usuario, $mensaje);
 

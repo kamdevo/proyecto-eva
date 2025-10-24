@@ -32,20 +32,26 @@ import { toast } from "sonner";
 import httpService from "@/services/httpService";
 import { API_CONFIG } from "@/config/api";
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
+import { ManualSearchModal } from "./manual-search-modal";
+import { QuickGuideSearchModal } from "./quick-guide-search-modal";
+import { OrderSearchModal } from "./order-search-modal";
 
 export function EditEquipmentModal({
-  open,
+  open = false,
   onOpenChange,
   equipment,
   onEquipmentUpdated,
   equipmentType = "biomedical", // "biomedical" | "industrial"
 }) {
+
+  // Estados principales
   const [formData, setFormData] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [validationErrors, setValidationErrors] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [completeEquipmentData, setCompleteEquipmentData] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formReady, setFormReady] = useState(false);
+  const [completeEquipmentData, setCompleteEquipmentData] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
     otrosCorrectivos: false,
     preventivos: false,
@@ -78,6 +84,16 @@ export function EditEquipmentModal({
   const [searchInvima, setSearchInvima] = useState("");
   const [filteredRegistrosInvima, setFilteredRegistrosInvima] = useState([]);
   const [showInvimaModal, setShowInvimaModal] = useState(false);
+  
+  // Estados para modales de búsqueda
+  const [showManualSearchModal, setShowManualSearchModal] = useState(false);
+  const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
+  const [showOrderSearchModal, setShowOrderSearchModal] = useState(false);
+  
+  // Estados para guardar la información de los manuales, guías y órdenes seleccionados
+  const [selectedManualInfo, setSelectedManualInfo] = useState(null);
+  const [selectedGuideInfo, setSelectedGuideInfo] = useState(null);
+  const [selectedOrderInfo, setSelectedOrderInfo] = useState(null);
 
   // Función para cargar el historial del equipo
   const loadEquipmentHistory = async (equipmentId) => {
@@ -348,31 +364,23 @@ export function EditEquipmentModal({
       setFormReady(false);
       loadModalData();
       loadRegistrosInvima(); // Cargar registros INVIMA cuando se abre el modal
-    } else {
-      // Reset states when modal closes
-      setFormReady(false);
-      setCompleteEquipmentData(null);
+    }
+  }, [open, equipment?.id]);
+
+  // Reset form when equipment changes or modal closes
+  React.useEffect(() => {
+    if (!open) {
       setFormData({});
       setErrors({});
-      setSearchInvima("");
-      setFilteredRegistrosInvima([]);
+      setIsSubmitting(false);
+      setValidationErrors([]);
+      setFormReady(false);
+      // Limpiar información de manuales, guías y órdenes
+      setSelectedManualInfo(null);
+      setSelectedGuideInfo(null);
+      setSelectedOrderInfo(null);
     }
-  }, [equipment?.id, open]); // Note: initializeFormData is stable and doesn't need to be in deps
-
-  // Monitor form data changes for debugging
-  useEffect(() => {
-    if (formReady && formData.name) {
-      console.log("🔄 Form data updated after ready state:", {
-        sede_id: formData.sede_id,
-        servicio_id: formData.servicio_id,
-        area_id: formData.area_id,
-        propietario_id: formData.propietario_id,
-        name: formData.name,
-        serial: formData.serial,
-        formReady: formReady,
-      });
-    }
-  }, [formData, formReady]);
+  }, [open]);
 
   // Initialize form data from complete equipment data
   const initializeFormData = (equipmentData) => {
@@ -438,7 +446,15 @@ export function EditEquipmentModal({
       codigo_antiguo: equipmentData.codigo_antiguo || "",
       marca: equipmentData.marca || "",
       modelo: equipmentData.modelo || "",
-      invima: equipmentData.invima || "",
+      invima: (() => {
+        // Si tiene invima_id, buscar el numero_registro correspondiente
+        if (equipmentData.invima_id && equipmentData.invima_id !== 0) {
+          const registroInvima = registrosInvima.find(r => r.id === equipmentData.invima_id);
+          return registroInvima ? registroInvima.numero_registro : "";
+        }
+        // Si no, usar el campo numero_invima o invima directo
+        return equipmentData.numero_invima || equipmentData.invima || "";
+      })(),
 
       // Fechas y especificaciones temporales
       fecha_fabricacion: equipmentData.fecha_fabricacion || "",
@@ -668,6 +684,15 @@ export function EditEquipmentModal({
     console.log("  - propietario_id:", finalFormData.propietario_id);
     console.log("  - calibracion:", finalFormData.calibracion);
     console.log("  - observacion:", finalFormData.observacion);
+    
+    // Debug específico para manuales, guías y órdenes
+    console.log("📖 DEBUG MANUALES, GUÍAS Y ÓRDENES:");
+    console.log("  - manual_id desde equipmentData:", equipmentData.manual_id);
+    console.log("  - guia_id desde equipmentData:", equipmentData.guia_id);
+    console.log("  - orden_compra_id desde equipmentData:", equipmentData.orden_compra_id);
+    console.log("  - manual_id en formData:", equipmentData.manual_id && equipmentData.manual_id !== 0 ? equipmentData.manual_id.toString() : "");
+    console.log("  - guia_id en formData:", equipmentData.guia_id && equipmentData.guia_id !== 0 ? equipmentData.guia_id.toString() : "");
+    console.log("  - orden_compra_id en formData:", equipmentData.orden_compra_id && equipmentData.orden_compra_id !== 0 ? equipmentData.orden_compra_id.toString() : "");
 
     // Debug específico para campos select problemáticos
     console.log("🔍 DEBUG SELECT VALUES:");
@@ -959,7 +984,7 @@ export function EditEquipmentModal({
     if (registro.archivo_pdf) {
       // Backend mapea file → archivo_pdf
       // Construir URL del archivo
-      const fileUrl = `${API_CONFIG.BASE_URL}/api/storage/invimas/${registro.archivo_pdf}`;
+      const fileUrl = `${API_CONFIG.BASE_URL}/api/storage/registros_sanitarios/${registro.archivo_pdf}`;
 
       // Abrir en nueva ventana optimizada para visualización e impresión empresarial
       const newWindow = window.open(
@@ -1445,9 +1470,73 @@ export function EditEquipmentModal({
 
   const handleNewInvimaCreated = (newInvima) => {
     setRegistrosInvima((prev) => [...prev, newInvima]);
-    setFilteredRegistrosInvima((prev) => [...prev, newInvima]);
-    handleInputChange("invima", newInvima.numero_registro); // Backend mapea invima → numero_registro
-    toast.success("Nuevo registro INVIMA creado y seleccionado");
+    toast.success("Registro INVIMA agregado exitosamente");
+  };
+
+  // Handlers para manuales y guías
+  const handleManualSelection = (manual) => {
+    console.log("🔥 MANUAL SELECCIONADO:", manual);
+    console.log("🔥 ID del manual:", manual.id);
+    handleInputChange("manual_id", manual.id.toString());
+    setSelectedManualInfo(manual); // Guardar toda la información del manual
+    console.log("🔥 formData.manual_id después de selección:", formData.manual_id);
+    toast.success(`Manual asociado: ${manual.descripcion}`);
+  };
+
+  const handleGuideSelection = (guide) => {
+    console.log("🔥 GUÍA SELECCIONADA:", guide);
+    console.log("🔥 ID de la guía:", guide.id);
+    handleInputChange("guia_id", guide.id.toString());
+    setSelectedGuideInfo(guide); // Guardar toda la información de la guía
+    console.log("🔥 formData.guia_id después de selección:", formData.guia_id);
+    toast.success(`Guía rápida asociada: ${guide.name}`);
+  };
+
+  const handleViewManual = () => {
+    // Usar la información guardada del manual seleccionado
+    if (selectedManualInfo && selectedManualInfo.url) {
+      window.open(selectedManualInfo.url, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error("URL del manual no disponible");
+    }
+  };
+
+  const handleViewGuide = () => {
+    // Usar la información guardada de la guía seleccionada
+    if (selectedGuideInfo && selectedGuideInfo.file) {
+      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/guias/${selectedGuideInfo.file}`;
+      window.open(fileUrl, "_blank", "noopener,noreferrer");
+    } else {
+      toast.error("Archivo de la guía no disponible");
+    }
+  };
+
+  const handleRemoveManual = () => {
+    handleInputChange("manual_id", "");
+    setSelectedManualInfo(null);
+    toast.info("Manual desasociado");
+  };
+
+  const handleRemoveGuide = () => {
+    handleInputChange("guia_id", "");
+    setSelectedGuideInfo(null);
+    toast.info("Guía rápida desasociada");
+  };
+
+  // Handler para órdenes de compra
+  const handleOrderSelection = (order) => {
+    console.log("🔥 ORDEN SELECCIONADA:", order);
+    console.log("🔥 ID de la orden:", order.id);
+    handleInputChange("orden_compra_id", order.id.toString());
+    setSelectedOrderInfo(order); // Guardar toda la información de la orden
+    console.log("🔥 formData.orden_compra_id después de selección:", formData.orden_compra_id);
+    toast.success(`Orden de compra asociada: ${order.orden || order.numero || `ID: ${order.id}`}`);
+  };
+
+  const handleRemoveOrder = () => {
+    handleInputChange("orden_compra_id", "");
+    setSelectedOrderInfo(null);
+    toast.info("Orden de compra desasociada");
   };
 
   // Función para ver documentos PDF de repuestos
@@ -1613,6 +1702,180 @@ export function EditEquipmentModal({
     newWindow.document.close();
   };
 
+  // Efecto para actualizar INVIMA cuando se cargan los registros
+  React.useEffect(() => {
+    if (registrosInvima.length > 0 && completeEquipmentData && !formData.invima) {
+      const equipmentData = completeEquipmentData;
+      
+      // Si tiene invima_id, buscar el numero_registro correspondiente
+      if (equipmentData.invima_id && equipmentData.invima_id !== 0) {
+        const registroInvima = registrosInvima.find(r => r.id === parseInt(equipmentData.invima_id));
+        if (registroInvima) {
+          setFormData(prev => ({
+            ...prev,
+            invima: registroInvima.numero_registro,
+            invima_id: equipmentData.invima_id.toString()
+          }));
+        }
+      }
+    }
+  }, [registrosInvima, completeEquipmentData]);
+
+  // Efecto para cargar información de manuales y guías asociados
+  React.useEffect(() => {
+    const loadManualAndGuideInfo = async () => {
+      if (!completeEquipmentData) {
+        console.log("🔍 No completeEquipmentData disponible para cargar info asociada");
+        return;
+      }
+
+      console.log("🔍 Cargando información asociada para equipo:", {
+        manual_id: completeEquipmentData.manual_id,
+        guia_id: completeEquipmentData.guia_id,
+        orden_compra_id: completeEquipmentData.orden_compra_id
+      });
+
+      // Limpiar estados previos antes de cargar nuevos datos
+      setSelectedManualInfo(null);
+      setSelectedGuideInfo(null);
+      setSelectedOrderInfo(null);
+
+      // Cargar información del manual si existe manual_id
+      if (completeEquipmentData.manual_id && completeEquipmentData.manual_id !== 0 && completeEquipmentData.manual_id !== "0") {
+        console.log("📖 Buscando manual ID:", completeEquipmentData.manual_id);
+        try {
+          const response = await httpService.get(`/v1/manuales`);
+          console.log("📖 Respuesta completa de manuales:", response.data);
+          
+          let manualesArray = [];
+          
+          // Manejar diferentes estructuras de respuesta
+          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
+            // Estructura con paginación: { data: { data: [...] } }
+            manualesArray = response.data.data.data;
+          } else if (response.data?.data && Array.isArray(response.data.data)) {
+            // Estructura simple: { data: [...] }
+            manualesArray = response.data.data;
+          } else if (Array.isArray(response.data)) {
+            // Array directo: [...]
+            manualesArray = response.data;
+          }
+          
+          console.log("📖 Array de manuales procesado:", manualesArray);
+          
+          if (manualesArray.length > 0) {
+            const manual = manualesArray.find(m => 
+              m.id.toString() === completeEquipmentData.manual_id.toString()
+            );
+            console.log("📖 Manual encontrado:", manual);
+            if (manual) {
+              setSelectedManualInfo(manual);
+              console.log("📖 Manual info establecida:", manual.descripcion);
+            } else {
+              console.warn("📖 Manual no encontrado con ID:", completeEquipmentData.manual_id);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error loading manual info:", error);
+        }
+      }
+
+      // Cargar información de la guía si existe guia_id
+      if (completeEquipmentData.guia_id && completeEquipmentData.guia_id !== 0 && completeEquipmentData.guia_id !== "0") {
+        console.log("🚀 Buscando guía ID:", completeEquipmentData.guia_id);
+        try {
+          const response = await httpService.get(`/v1/guias-rapidas`);
+          console.log("🚀 Respuesta completa de guías:", response.data);
+          
+          let guiasArray = [];
+          
+          // Manejar diferentes estructuras de respuesta
+          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
+            // Estructura con paginación: { data: { data: [...] } }
+            guiasArray = response.data.data.data;
+          } else if (response.data?.data && Array.isArray(response.data.data)) {
+            // Estructura simple: { data: [...] }
+            guiasArray = response.data.data;
+          } else if (Array.isArray(response.data)) {
+            // Array directo: [...]
+            guiasArray = response.data;
+          }
+          
+          console.log("🚀 Array de guías procesado:", guiasArray);
+          
+          if (guiasArray.length > 0) {
+            const guide = guiasArray.find(g => 
+              g.id.toString() === completeEquipmentData.guia_id.toString()
+            );
+            console.log("🚀 Guía encontrada:", guide);
+            if (guide) {
+              setSelectedGuideInfo(guide);
+              console.log("🚀 Guía info establecida:", guide.name);
+            } else {
+              console.warn("🚀 Guía no encontrada con ID:", completeEquipmentData.guia_id);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error loading guide info:", error);
+        }
+      }
+
+      // Cargar información de la orden de compra si existe orden_compra_id
+      if (completeEquipmentData.orden_compra_id && completeEquipmentData.orden_compra_id !== 0 && completeEquipmentData.orden_compra_id !== "0") {
+        console.log("📋 Buscando orden ID:", completeEquipmentData.orden_compra_id);
+        try {
+          const response = await httpService.get(`/v1/ordenes-compra`);
+          console.log("📋 Respuesta completa de órdenes:", response.data);
+          
+          let ordenesArray = [];
+          
+          // Manejar diferentes estructuras de respuesta
+          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
+            // Estructura con paginación: { data: { data: [...] } }
+            ordenesArray = response.data.data.data;
+          } else if (response.data?.data && Array.isArray(response.data.data)) {
+            // Estructura simple: { data: [...] }
+            ordenesArray = response.data.data;
+          } else if (Array.isArray(response.data)) {
+            // Array directo: [...]
+            ordenesArray = response.data;
+          }
+          
+          console.log("📋 Array de órdenes procesado:", ordenesArray);
+          
+          if (ordenesArray.length > 0) {
+            const order = ordenesArray.find(o => 
+              o.id.toString() === completeEquipmentData.orden_compra_id.toString()
+            );
+            console.log("📋 Orden encontrada:", order);
+            if (order) {
+              setSelectedOrderInfo(order);
+              console.log("📋 Orden info establecida:", order.orden || order.numero);
+            } else {
+              console.warn("📋 Orden no encontrada con ID:", completeEquipmentData.orden_compra_id);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error loading order info:", error);
+        }
+      }
+    };
+
+    loadManualAndGuideInfo();
+  }, [completeEquipmentData]);
+
+  // Debug useEffect para ver cuándo cambia completeEquipmentData
+  useEffect(() => {
+    console.log("🔄 completeEquipmentData cambió:", completeEquipmentData);
+    if (completeEquipmentData) {
+      console.log("🔄 IDs disponibles:", {
+        manual_id: completeEquipmentData.manual_id,
+        guia_id: completeEquipmentData.guia_id,
+        orden_compra_id: completeEquipmentData.orden_compra_id
+      });
+    }
+  }, [completeEquipmentData]);
+
   // Efecto para filtrar registros INVIMA
   React.useEffect(() => {
     if (searchInvima.trim()) {
@@ -1732,6 +1995,9 @@ export function EditEquipmentModal({
       console.log("🚀 [EDIT MODAL] Equipment ID:", equipment.id);
       console.log("🚀 [EDIT MODAL] Form data antes de procesar:", formData);
 
+      // Solo validación básica - los campos son opcionales en edición
+      console.log("🚀 [EDIT MODAL] Validación básica pasada, procediendo con edición...");
+
       // ✅ DETERMINAR SI HAY IMAGEN NUEVA PARA USAR FormData O JSON
       const hasNewImage =
         formData.newImage && formData.newImage instanceof File;
@@ -1757,21 +2023,15 @@ export function EditEquipmentModal({
                   submitFormData.append(key, formData[key] ? "1" : "0");
                 } else if (key.endsWith("_id")) {
                   const value = formData[key];
-                  if (value === "" || value === null || value === undefined) {
-                    submitFormData.append(key, "");
-                  } else {
+                  if (value && value !== "" && value !== null && value !== undefined) {
                     const parsedValue = parseInt(value);
-                    if (!isNaN(parsedValue)) {
+                    if (!isNaN(parsedValue) && parsedValue > 0) {
                       submitFormData.append(key, parsedValue.toString());
-                    } else {
-                      submitFormData.append(key, value.toString());
                     }
                   }
                 } else {
                   submitFormData.append(key, formData[key]);
                 }
-              } else if (key.endsWith("_id")) {
-                submitFormData.append(key, "");
               }
             }
           }
@@ -1818,40 +2078,39 @@ export function EditEquipmentModal({
                 submitData[key] = formData[key] ? "1" : "0";
               } else if (key.endsWith("_id")) {
                 const value = formData[key];
-                if (value === "" || value === null || value === undefined) {
-                  submitData[key] = "";
-                } else {
+                if (value && value !== "" && value !== null && value !== undefined) {
                   const parsedValue = parseInt(value);
-                  if (!isNaN(parsedValue)) {
+                  if (!isNaN(parsedValue) && parsedValue > 0) {
                     submitData[key] = parsedValue.toString();
-                  } else {
-                    submitData[key] = value.toString();
                   }
                 }
               } else {
                 submitData[key] = formData[key];
               }
-            } else if (key.endsWith("_id")) {
-              submitData[key] = "";
             }
           }
         });
 
-        console.log("🚀 [EDIT MODAL] Datos preparados para envío:");
-        console.log(
-          "📊 Número total de campos:",
-          Object.keys(submitData).length
-        );
-        console.log(
-          "📋 Lista completa de campos enviados:",
-          Object.keys(submitData).sort()
-        );
+        console.log("🚀 [EDIT MODAL] Datos preparados para envío (solo campos con valores):");
+        console.log("📊 Número total de campos:", Object.keys(submitData).length);
+        console.log("📋 Lista completa de campos enviados:", Object.keys(submitData).sort());
         console.log("🔍 Datos detallados:", submitData);
+        
+        // Debug específico para manuales y guías
+        console.log("📖 Manual ID a enviar:", submitData.manual_id);
+        console.log("🚀 Guía ID a enviar:", submitData.guia_id);
+        if (selectedManualInfo) {
+          console.log("📖 Info del manual seleccionado:", selectedManualInfo);
+        }
+        if (selectedGuideInfo) {
+          console.log("🚀 Info de la guía seleccionada:", selectedGuideInfo);
+        }
 
-        // ✅ VERIFICACIÓN ESPECÍFICA DE CAMPOS CRÍTICOS
         const camposCriticos = [
           "name",
           "serial",
+          "marca",
+          "modelo",
           "invima",
           "observacion",
           "servicio_id",
@@ -2845,6 +3104,67 @@ export function EditEquipmentModal({
                   </div>
                 </div>
 
+                {/* Orden de Compra Asociada */}
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="font-medium text-xs sm:text-sm">
+                      📋 Orden de Compra Asociada:
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowOrderSearchModal(true)}
+                      className="text-orange-600 border-orange-300 hover:bg-orange-100 text-xs px-3 py-1 h-7"
+                    >
+                      <Search className="w-3 h-3 mr-1" />
+                      Buscar
+                    </Button>
+                  </div>
+
+                  {selectedOrderInfo ? (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-orange-800 truncate">
+                            {selectedOrderInfo.orden || `Orden N° ${selectedOrderInfo.numero || selectedOrderInfo.id}`}
+                          </p>
+                          <p className="text-xs text-orange-600 mt-1">
+                            Proveedor: {selectedOrderInfo.proveedor || "N/A"}
+                          </p>
+                          {selectedOrderInfo.valor_total && (
+                            <p className="text-xs text-orange-600">
+                              Valor: {new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP'
+                              }).format(selectedOrderInfo.valor_total)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveOrder}
+                            className="text-red-600 hover:bg-red-100 h-7 w-7 p-0"
+                            title="Quitar orden de compra"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                      <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                      <p className="text-xs text-gray-500">
+                        Sin orden de compra asociada
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <Separator className="my-6" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3306,6 +3626,136 @@ export function EditEquipmentModal({
                     </div>
                   </div>
 
+                  {/* Manuales y Guías Asociados */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    
+                    {/* Manual Asociado */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="font-medium text-xs sm:text-sm">
+                          📖 Manual Asociado:
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowManualSearchModal(true)}
+                          className="text-blue-600 border-blue-300 hover:bg-blue-100 text-xs px-3 py-1 h-7"
+                        >
+                          <Search className="w-3 h-3 mr-1" />
+                          Buscar
+                        </Button>
+                      </div>
+                      
+                      {selectedManualInfo ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-green-800 truncate">
+                                {selectedManualInfo.descripcion}
+                              </p>
+                              <p className="text-xs text-green-600 mt-1">
+                                ID: {selectedManualInfo.id}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 ml-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleViewManual}
+                                className="text-green-600 hover:bg-green-100 h-7 w-7 p-0"
+                                title="Ver manual"
+                              >
+                                <FileText className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemoveManual}
+                                className="text-red-600 hover:bg-red-100 h-7 w-7 p-0"
+                                title="Quitar manual"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                          <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                          <p className="text-xs text-gray-500">
+                            Sin manual asociado
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Guía Rápida Asociada */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="font-medium text-xs sm:text-sm">
+                          🚀 Guía Rápida Asociada:
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowGuideSearchModal(true)}
+                          className="text-purple-600 border-purple-300 hover:bg-purple-100 text-xs px-3 py-1 h-7"
+                        >
+                          <Search className="w-3 h-3 mr-1" />
+                          Buscar
+                        </Button>
+                      </div>
+                      
+                      {selectedGuideInfo ? (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-purple-800 truncate">
+                                {selectedGuideInfo.name}
+                              </p>
+                              <p className="text-xs text-purple-600 mt-1">
+                                ID: {selectedGuideInfo.id}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 ml-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleViewGuide}
+                                className="text-purple-600 hover:bg-purple-100 h-7 w-7 p-0"
+                                title="Ver guía rápida"
+                              >
+                                <FileText className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleRemoveGuide}
+                                className="text-red-600 hover:bg-red-100 h-7 w-7 p-0"
+                                title="Quitar guía rápida"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                          <FileText className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                          <p className="text-xs text-gray-500">
+                            Sin guía rápida asociada
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                     <div>
                       <Label className="text-xs sm:text-sm">
@@ -3392,6 +3842,7 @@ export function EditEquipmentModal({
                 </div>
               </CardContent>
             </Card>
+
 
             {/* SEGUIMIENTO */}
             <Card>
@@ -4025,6 +4476,30 @@ export function EditEquipmentModal({
         open={showInvimaModal}
         onOpenChange={setShowInvimaModal}
         onInvimaCreated={handleNewInvimaCreated}
+      />
+
+      {/* Modal de búsqueda de manuales */}
+      <ManualSearchModal
+        open={showManualSearchModal}
+        onOpenChange={setShowManualSearchModal}
+        onSelectManual={handleManualSelection}
+        currentManualId={formData.manual_id}
+      />
+
+      {/* Modal de búsqueda de guías rápidas */}
+      <QuickGuideSearchModal
+        open={showGuideSearchModal}
+        onOpenChange={setShowGuideSearchModal}
+        onSelectGuide={handleGuideSelection}
+        currentGuideId={formData.guia_id}
+      />
+
+      {/* Modal de búsqueda de órdenes de compra */}
+      <OrderSearchModal
+        open={showOrderSearchModal}
+        onOpenChange={setShowOrderSearchModal}
+        onSelectOrder={handleOrderSelection}
+        currentOrderId={formData.orden_compra_id}
       />
     </Dialog>
   );

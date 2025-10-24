@@ -2720,10 +2720,17 @@ function RepuestosView() {
   // Estado de carga
   if (loading && repuestos.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando repuestos...</p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="h-8 bg-white rounded animate-pulse"></div>
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-24 bg-gray-50 rounded-lg animate-pulse"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -2802,7 +2809,7 @@ function RepuestosView() {
             </Button>
           </div>
           <div className="text-sm text-gray-600">
-            Usuario: <strong>{usuarioActual.nombre}</strong> | Rol: <strong>{usuarioActual.rol}</strong>
+            Usuario: <strong>{usuarioActual.nombre}</strong> | Rol: <strong>{typeof usuarioActual.rol === 'object' ? usuarioActual.rol.nombre : usuarioActual.rol}</strong>
           </div>
         </div>
 
@@ -3162,9 +3169,10 @@ function RepuestosView() {
                     {loading ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                            <span className="ml-3 text-gray-600">Cargando repuestos...</span>
+                          <div className="space-y-2 px-4">
+                            {[...Array(5)].map((_, i) => (
+                              <div key={i} className="h-16 bg-gray-50 rounded animate-pulse"></div>
+                            ))}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -4031,7 +4039,7 @@ function RepuestosView() {
                     {usuarios.map(usuario => (
                       <TableRow key={usuario.id}>
                         <TableCell>{usuario.nombre}</TableCell>
-                        <TableCell>{usuario.rol}</TableCell>
+                        <TableCell>{typeof usuario.rol === 'object' ? usuario.rol.nombre : usuario.rol}</TableCell>
                         <TableCell>
                           <Badge variant="default">Activo</Badge>
                         </TableCell>

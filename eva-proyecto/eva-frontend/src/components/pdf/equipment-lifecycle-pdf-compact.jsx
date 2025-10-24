@@ -271,7 +271,7 @@ const getImageUrl = (equipment) => {
   if (equipment.image_url) return equipment.image_url;
   if (equipment.image) {
     // Construir URL completa desde el campo image
-    return `http://localhost:8001/storage/equipos/images/${equipment.image}`;
+    return `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/equipos/images/${equipment.image}`;
   }
   return null;
 };
@@ -636,9 +636,9 @@ export const EquipmentLifecyclePDFCompact = ({ equipment }) => {
             {safeEquipment.documentos && safeEquipment.documentos.length > 0 ? (
               safeEquipment.documentos.slice(0, 6).map((doc, index) => (
                 <View key={index} style={styles.tableRow}>
-                  <Text style={[styles.tableCell, {flex: 3}]}>{getSafeValue(doc.nombre_archivo)}</Text>
-                  <Text style={[styles.tableCell, {flex: 2}]}>{getSafeValue(doc.tipo_documento)}</Text>
-                  <Text style={[styles.tableCell, {flex: 1}]}>{getSafeDate(doc.fecha_subida)}</Text>
+                  <Text style={[styles.tableCell, {flex: 3}]}>{getSafeValue(doc.tipo_documento)}</Text>
+                  <Text style={[styles.tableCell, {flex: 2}]}>{getSafeValue(doc.nombre_archivo)}</Text>
+                  <Text style={[styles.tableCell, {flex: 1}]}>{getSafeValue(doc.fecha_documento)}</Text>
                 </View>
               ))
             ) : (

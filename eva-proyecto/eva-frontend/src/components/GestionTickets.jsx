@@ -24,8 +24,13 @@ import {
   User,
   Users,
   CheckCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import HospitalTicketModal from "@/components/modals/hospital-ticket-modal";
+import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleton";
+import httpService from "@/services/httpService";
 // import EquiposModal from "@/components/modals/EquiposModal";
 // import PersonalModal from "@/components/modals/PersonalModal";
 // import ParticipantesModal from "@/components/modals/ParticipantesModal";
@@ -52,6 +57,11 @@ export default function GestionTickets() {
   // Filtros adicionales para gestión
   const [estadoFilter, setEstadoFilter] = useState("all");
   const [sedeFilter, setSedeFilter] = useState("all");
+  const [reportanteFilter, setReportanteFilter] = useState("all");
+  
+  // Estados para ordenamiento
+  const [sortField, setSortField] = useState("id");
+  const [sortOrder, setSortOrder] = useState("desc");
 
   const getStatusBadge = (status, color) => {
     const colorClasses = {
@@ -85,29 +95,96 @@ export default function GestionTickets() {
     );
   };
 
+  // Función para recargar detalles de un ticket específico
+  const refreshTicketDetails = async (ticketId) => {
+    try {
+      console.log('🔄 Recargando detalles del ticket:', ticketId);
+      const response = await httpService.get(`/v1/gestion-tickets/${ticketId}`);
+      
+      if (response.data.success) {
+        const updatedTicket = response.data.data;
+        console.log('📊 Datos del ticket recibidos:', {
+          id: updatedTicket.id,
+          total_avances: updatedTicket.total_avances,
+          avances_count: updatedTicket.avances?.length || 0,
+          avances: updatedTicket.avances
+        });
+        // Actualizar el ticket seleccionado
+        setSelectedTicket(updatedTicket);
+        // También actualizar en la lista de tickets
+        setTickets(prevTickets => 
+          prevTickets.map(t => t.id === ticketId ? updatedTicket : t)
+        );
+        console.log('✅ Ticket actualizado exitosamente');
+      }
+    } catch (error) {
+      console.error('❌ Error recargando ticket:', error);
+    }
+  };
+
   // Función para obtener tickets reales del API
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8001/api/v1/gestion-tickets?page=${currentPage}&per_page=${itemsPerPage}&search=${searchTerm}&origen=${selectedOrigin}&estado=${estadoFilter}&sede=${sedeFilter}`);
       
-      if (!response.ok) {
-        throw new Error('Error al obtener tickets');
+      // Preparar parámetros para el endpoint
+      const params = {
+        page: currentPage,
+        per_page: itemsPerPage
+      };
+
+      if (searchTerm) {
+        params.search = searchTerm;
       }
+
+      if (selectedOrigin && selectedOrigin !== 'all') {
+        // Mapear los valores del frontend a lo que espera el backend
+        const origenMap = {
+          'biomedico': 'Equipos biomédicos',
+          'industrial': 'Equipos industriales', 
+          'infraestructura': 'Infraestructura'
+        };
+        params.origen = origenMap[selectedOrigin] || selectedOrigin;
+      }
+
+      if (estadoFilter && estadoFilter !== 'all') {
+        params.estado = estadoFilter;
+      }
+
+      if (sedeFilter && sedeFilter !== 'all') {
+        params.sede = sedeFilter;
+      }
+
+      if (reportanteFilter && reportanteFilter !== 'all' && reportanteFilter.trim() !== '') {
+        params.reportante_nombre = reportanteFilter;
+      }
+
+      console.log('🔍 Obteniendo tickets con parámetros:', params);
+
+      // Usar httpService que maneja autenticación automáticamente
+      const response = await httpService.get('/v1/gestion-tickets', { params });
       
-      const result = await response.json();
-      
-      if (result.success) {
-        setTickets(result.data.data || []);
-        setTotalPages(result.data.total_pages || 1);
-        setTotalItems(result.data.total || 0);
+      if (response.data.success) {
+        const ticketsData = response.data.data.data || [];
+        console.log('✅ Tickets obtenidos:', ticketsData.length);
+        
+        setTickets(ticketsData);
+        setTotalPages(response.data.data.total_pages || 1);
+        setTotalItems(response.data.data.total || 0);
       } else {
-        console.error('Error en respuesta:', result.message);
+        console.error('❌ Error en respuesta:', response.data.message);
         setTickets([]);
+        setTotalPages(1);
+        setTotalItems(0);
       }
     } catch (error) {
-      console.error('Error fetching tickets:', error);
+      console.error('❌ Error obteniendo tickets:', error);
+      const errorMsg = error.response?.data?.message || error.message;
+      console.error('Detalles del error:', errorMsg);
+      
       setTickets([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -116,9 +193,45 @@ export default function GestionTickets() {
   // Cargar tickets al montar el componente y cuando cambien los filtros
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, estadoFilter, sedeFilter]);
+  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, estadoFilter, sedeFilter, reportanteFilter]);
 
-  const currentTickets = tickets; // Ya viene paginado del API
+  // Función para limpiar todos los filtros
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSelectedOrigin("all");
+    setEstadoFilter("all");
+    setSedeFilter("all");
+    setReportanteFilter("all");
+    setFilterField("all");
+    setCurrentPage(1);
+  };
+
+  // Función para ordenar columnas
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  // Ordenar tickets localmente
+  const sortedTickets = [...tickets].sort((a, b) => {
+    let aValue = a[sortField];
+    let bValue = b[sortField];
+    
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+    
+    if (sortOrder === "asc") {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
+
+  const currentTickets = sortedTickets; // Ya viene paginado del API
 
   const openDocumentModal = (ticket) => {
     setSelectedTicket(ticket);
@@ -153,7 +266,7 @@ export default function GestionTickets() {
             </div>
             <p className="text-xs sm:text-sm text-blue-600 font-medium">{ticket.origen}</p>
           </div>
-          <div className="grid grid-cols-3 gap-1 mt-2">
+          <div className="flex items-center justify-center gap-1 mt-2">
             <div className="flex flex-col items-center min-h-[4rem] justify-start">
               <Button
                 onClick={() => openDocumentModal(ticket)}
@@ -165,7 +278,7 @@ export default function GestionTickets() {
               </Button>
               <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>VER</span>
             </div>
-            <div className="flex flex-col items-center min-h-[4rem] justify-start">
+            {/* <div className="flex flex-col items-center min-h-[4rem] justify-start">
               <Button
                 onClick={() => handleEditTicket(ticket)}
                 className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded w-full h-7"
@@ -175,63 +288,11 @@ export default function GestionTickets() {
                 <Edit className="h-3 w-3" />
               </Button>
               <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>EDIT</span>
-            </div>
-            <div className="flex flex-col items-center min-h-[4rem] justify-start">
-              <Button
-                onClick={() => { setSelectedTicket(ticket); /* setIsEquiposModalOpen(true); */ }}
-                className="bg-green-500 hover:bg-green-600 text-white p-1 rounded w-full h-7"
-                size="sm"
-                title="Asociar equipos (próximamente)"
-              >
-                <Wrench className="h-3 w-3" />
-              </Button>
-              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>EQU</span>
-              {ticket.equiposAsociados?.length > 0 && (
-                <span className="text-xs text-green-600 font-bold mt-1">{ticket.equiposAsociados.length}</span>
-              )}
-            </div>
-            <div className="flex flex-col items-center min-h-[4rem] justify-start">
-              <Button
-                onClick={() => { setSelectedTicket(ticket); /* setIsPersonalModalOpen(true); */ }}
-                className="bg-purple-500 hover:bg-purple-600 text-white p-1 rounded w-full h-7"
-                size="sm"
-                title="Asociar personal (próximamente)"
-              >
-                <User className="h-3 w-3" />
-              </Button>
-              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>PER</span>
-              {ticket.personalAsociado?.length > 0 && (
-                <span className="text-xs text-purple-600 font-bold mt-1">{ticket.personalAsociado.length}</span>
-              )}
-            </div>
-            <div className="flex flex-col items-center min-h-[4rem] justify-start">
-              <Button
-                onClick={() => { setSelectedTicket(ticket); /* setIsParticipantesModalOpen(true); */ }}
-                className="bg-indigo-500 hover:bg-indigo-600 text-white p-1 rounded w-full h-7"
-                size="sm"
-                title="Agregar participantes (próximamente)"
-              >
-                <Users className="h-3 w-3" />
-              </Button>
-              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>PAR</span>
-              {ticket.participantes?.length > 0 && (
-                <span className="text-xs text-indigo-600 font-bold mt-1">{ticket.participantes.length}</span>
-              )}
-            </div>
-            <div className="flex flex-col items-center min-h-[4rem] justify-start">
-              <Button
-                onClick={() => { setSelectedTicket(ticket); /* setIsCierreModalOpen(true); */ }}
-                className="bg-red-500 hover:bg-red-600 text-white p-1 rounded w-full h-7"
-                size="sm"
-                title="Estados y cierre (próximamente)"
-              >
-                <CheckCircle className="h-3 w-3" />
-              </Button>
-              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>CER</span>
-              {ticket.cierreData?.firma && (
-                <span className="text-xs text-red-600 font-bold mt-1">✓</span>
-              )}
-            </div>
+            </div> */}
+            
+            
+            
+            
           </div>
         </div>
 
@@ -329,7 +390,7 @@ export default function GestionTickets() {
         </div>
 
         {/* Search and Filter */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2">
           <div>
             <Label className="text-sm font-medium text-gray-700">Estado</Label>
             <select 
@@ -356,6 +417,28 @@ export default function GestionTickets() {
               <option value="principal">Principal</option>
               <option value="norte">Norte</option>
             </select>
+          </div>
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Reportante</Label>
+            <Input
+              placeholder="Nombre del reportante"
+              value={reportanteFilter === 'all' ? '' : reportanteFilter}
+              onChange={(e) => setReportanteFilter(e.target.value)}
+              className="mt-1 text-sm"
+              type="text"
+            />
+            <Button variant="outline" size="icon">
+              <Search className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleClearFilters}
+              className="bg-red-50 border-red-200 hover:bg-red-100 text-red-700 px-4"
+              title="Limpiar todos los filtros"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Limpiar Filtros
+            </Button>
           </div>
           <div>
             <Label className="text-sm font-medium text-gray-700">Filtrar por</Label>
@@ -399,6 +482,7 @@ export default function GestionTickets() {
                   setFilterField("all");
                   setEstadoFilter("all");
                   setSedeFilter("all");
+                  setReportanteFilter("all");
                 }}
                 title="Borrar filtros"
                 className="px-3"
@@ -415,8 +499,8 @@ export default function GestionTickets() {
               className="mt-1 appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
             >
               <option value="all">Todos los orígenes</option>
-              <option value="biomedico">HUV Biomédico</option>
-              <option value="industrial">HUV Industrial</option>
+              <option value="biomedico">Equipos biomédicos</option>
+              <option value="industrial">Equipos industriales</option>
               <option value="infraestructura">Infraestructura</option>
             </select>
           </div>
@@ -427,15 +511,13 @@ export default function GestionTickets() {
           {loading ? (
             "Cargando tickets..."
           ) : (
-            `Mostrando ${totalItems} tickets del sistema`
+            `Mostrando ${totalItems} tickets del sistema (todos los usuarios)`
           )}
         </div>
 
-        {/* Loading State */}
+        {/* Loading State con Skeleton */}
         {loading && (
-          <div className="flex justify-center items-center py-8">
-            <div className="text-gray-500">Cargando tickets...</div>
-          </div>
+          <TicketsTableSkeleton rows={itemsPerPage} />
         )}
 
         {/* Empty State */}
@@ -467,20 +549,60 @@ export default function GestionTickets() {
             <table className="w-full min-w-[1000px] border-collapse border border-gray-300">
               <thead className="bg-gray-100 border-b-2 border-gray-400">
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-blue-50">
-                    TICKET
+                  <th 
+                    className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-blue-50 cursor-pointer hover:bg-blue-100"
+                    onClick={() => handleSort('id')}
+                  >
+                    <div className="flex items-center gap-1">
+                      TICKET
+                      {sortField === 'id' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      )}
+                    </div>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-green-50">
-                    DESCRIPCIÓN & DETALLES
+                  <th 
+                    className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-green-50 cursor-pointer hover:bg-green-100"
+                    onClick={() => handleSort('descripcion')}
+                  >
+                    <div className="flex items-center gap-1">
+                      DESCRIPCIÓN & DETALLES
+                      {sortField === 'descripcion' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      )}
+                    </div>
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-purple-50">
                     ASIGNACIÓN
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-yellow-50">
-                    ESTADO
+                  <th 
+                    className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-yellow-50 cursor-pointer hover:bg-yellow-100"
+                    onClick={() => handleSort('estado_id')}
+                  >
+                    <div className="flex items-center gap-1">
+                      ESTADO
+                      {sortField === 'estado_id' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      )}
+                    </div>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-red-50">
-                    PRIORIDAD
+                  <th 
+                    className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-red-50 cursor-pointer hover:bg-red-100"
+                    onClick={() => handleSort('prioridad')}
+                  >
+                    <div className="flex items-center gap-1">
+                      PRIORIDAD
+                      {sortField === 'prioridad' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-30" />
+                      )}
+                    </div>
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider bg-orange-50">
                     ACCIONES
@@ -546,14 +668,27 @@ export default function GestionTickets() {
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-4 border-r border-gray-300 bg-yellow-25 text-center">
-                      {getStatusBadge(ticket.estado, ticket.estado_color)}
+                    <td className="px-3 py-4 border-r border-gray-300 bg-yellow-25">
+                      <div className="space-y-1">
+                        <div className="flex justify-center">
+                          {getStatusBadge(ticket.estado, ticket.estado_color)}
+                        </div>
+                        {ticket.asignado_nombre && (
+                          <div className="text-xs text-gray-600 space-y-0.5 text-center">
+                            <div className="font-medium text-gray-700">Asignado a:</div>
+                            <div className="text-blue-600">{ticket.asignado_nombre}</div>
+                            {ticket.reportante_nombre && (
+                              <div className="text-gray-500 text-[10px]">Por: {ticket.reportante_nombre}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-4 border-r border-gray-300 bg-red-25 text-center">
                       {getPriorityBadge(ticket.prioridad_texto, ticket.prioridad_color)}
                     </td>
                     <td className="px-2 py-4 bg-orange-25">
-                      <div className="grid grid-cols-3 gap-1 w-full max-w-[180px]">
+                      <div className="flex items-center justify-center gap-1 w-full max-w-[180px]">
                         <div className="flex flex-col items-center min-h-[4rem] justify-start">
                           <Button
                             onClick={() => openDocumentModal(ticket)}
@@ -565,73 +700,11 @@ export default function GestionTickets() {
                           </Button>
                           <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">VER</span>
                         </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                          <Button
-                            onClick={() => handleEditTicket(ticket)}
-                            className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded w-full h-7"
-                            size="sm"
-                            title="Editar ticket"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">EDIT</span>
-                        </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                          <Button
-                            onClick={() => { setSelectedTicket(ticket); /* setIsEquiposModalOpen(true); */ }}
-                            className="bg-green-500 hover:bg-green-600 text-white p-1 rounded w-full h-7"
-                            size="sm"
-                            title="Asociar equipos (próximamente)"
-                          >
-                            <Wrench className="h-3 w-3" />
-                          </Button>
-                          <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">EQU</span>
-                          {ticket.equiposAsociados?.length > 0 && (
-                            <span className="text-xs text-green-600 font-bold mt-1">{ticket.equiposAsociados.length}</span>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                          <Button
-                            onClick={() => { setSelectedTicket(ticket); /* setIsPersonalModalOpen(true); */ }}
-                            className="bg-purple-500 hover:bg-purple-600 text-white p-1 rounded w-full h-7"
-                            size="sm"
-                            title="Asociar personal (próximamente)"
-                          >
-                            <User className="h-3 w-3" />
-                          </Button>
-                          <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">PER</span>
-                          {ticket.personalAsociado?.length > 0 && (
-                            <span className="text-xs text-purple-600 font-bold mt-1">{ticket.personalAsociado.length}</span>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                          <Button
-                            onClick={() => { setSelectedTicket(ticket); /* setIsParticipantesModalOpen(true); */ }}
-                            className="bg-indigo-500 hover:bg-indigo-600 text-white p-1 rounded w-full h-7"
-                            size="sm"
-                            title="Agregar participantes (próximamente)"
-                          >
-                            <Users className="h-3 w-3" />
-                          </Button>
-                          <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">PAR</span>
-                          {ticket.participantes?.length > 0 && (
-                            <span className="text-xs text-indigo-600 font-bold mt-1">{ticket.participantes.length}</span>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                          <Button
-                            onClick={() => { setSelectedTicket(ticket); /* setIsCierreModalOpen(true); */ }}
-                            className="bg-red-500 hover:bg-red-600 text-white p-1 rounded w-full h-7"
-                            size="sm"
-                            title="Estados y cierre (próximamente)"
-                          >
-                            <CheckCircle className="h-3 w-3" />
-                          </Button>
-                          <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">CER</span>
-                          {ticket.cierreData?.firma && (
-                            <span className="text-xs text-red-600 font-bold mt-1">✓</span>
-                          )}
-                        </div>
+                       
+                        
+                        
+                        
+                        
                       </div>
                     </td>
                   </tr>
@@ -658,6 +731,7 @@ export default function GestionTickets() {
         isOpen={isDocumentModalOpen}
         onClose={closeDocumentModal}
         ticket={selectedTicket}
+        onRefresh={() => selectedTicket && refreshTicketDetails(selectedTicket.id)}
       />
 
       {/* Hospital Ticket Modal */}

@@ -1,0 +1,10 @@
+{
+    "nombre": "Julio César Actualizado",
+    "apellido": "Castillo Biancha",
+    "telefono": "3176694747",
+    "email": "analistahuv1@gmail.com",
+    "password": "nuevapass123",
+    "rol_id": 4,
+    "estado": 1,
+    "permisos": [1, 2, 3]
+}

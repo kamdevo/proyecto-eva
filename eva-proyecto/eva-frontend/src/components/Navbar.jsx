@@ -110,6 +110,7 @@ const AppSidebar = () => {
   const [openSubmenus, setOpenSubmenus] = useState([]);
   const { permissionService, isAdmin, user } = useAuth();
   const { hasModuleAccess, isAdmin: isPermissionAdmin } = usePermissions();
+  
 
   // Debug: mostrar información del usuario y permisos
   useEffect(() => {
@@ -129,7 +130,15 @@ const AppSidebar = () => {
   }, [user]);
 
   const navigationItems = [
-    { icon: Home, label: "Inicio", active: true, submenu: [], href: "/home" },
+    // ✅ PÁGINA DE INICIO - SIEMPRE VISIBLE PARA TODOS LOS USUARIOS
+    { 
+      icon: Home, 
+      label: "INICIO", 
+      active: true, 
+      submenu: [], 
+      href: "/home",
+      alwaysVisible: true // Marcador especial para asegurar visibilidad
+    },
     {
       icon: Monitor,
       label: "EQUIPOS",

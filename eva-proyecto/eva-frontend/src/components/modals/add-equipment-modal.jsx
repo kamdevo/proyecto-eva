@@ -514,7 +514,7 @@ export function AddEquipmentModal({
       });
 
       // Construir URL del archivo usando la ruta de storage directa
-      const fileUrl = `http://localhost:8001/storage/invimas/${registroSeleccionado.archivo_pdf}`;
+      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/registros_sanitarios/${registroSeleccionado.archivo_pdf}`;
 
       console.log("🔗 URL construida:", fileUrl);
 

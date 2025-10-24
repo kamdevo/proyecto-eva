@@ -975,6 +975,10 @@ class EquipmentController extends ApiController
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
+                    // Campos de ubicación hospitalaria específicos
+                    'zonas.name as zona_hospitalaria',
+                    'pisos.name as piso_servicio',
+                    'equipos.localizacion_actual',
                     'estadoequipos.name as estadoequipo',
                     'cbiomedica.name as clasificacion',
                     'criesgo.name as riesgo',
@@ -991,10 +995,11 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT fecha_inicio FROM ordenes
                              WHERE equipo_id = equipos.id
                              ORDER BY fecha_inicio DESC LIMIT 1) AS fecha_inicio_ultimo_ticket'),
-                    DB::raw('(SELECT COUNT(*) FROM equipo_archivo
-                             WHERE equipo_id = equipos.id AND archivo_id != 9) AS cuenta_archivos'),
-                    DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos
-                             WHERE equipo_id = equipos.id AND anio = 2025) AS cuenta_planes_mantenimientos'),
+                    // Conteos específicos para reemplazar archivos y planes mantenimiento
+                    DB::raw('(SELECT COUNT(*) FROM calibracion 
+                             WHERE equipo_id = equipos.id) AS cuenta_calibraciones'),
+                    DB::raw('(SELECT COUNT(*) FROM mantenimiento 
+                             WHERE equipo_id = equipos.id) AS cuenta_preventivos'),
                     DB::raw('(SELECT description FROM observaciones
                              WHERE equipo_id = equipos.id
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
@@ -1003,11 +1008,14 @@ class EquipmentController extends ApiController
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
+                    'ordenes_compra.file as orden_compra_file',
                     'tipos_compra.tipo_compra as tipo_compra'
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
                 ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
+                ->leftJoin('zonas', 'zonas.id', '=', 'servicios.zona_id')
+                ->leftJoin('pisos', 'pisos.id', '=', 'servicios.piso_id')
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
                 ->leftJoin('cbiomedica', 'cbiomedica.id', '=', 'equipos.cbiomedica_id')
                 ->leftJoin('criesgo', 'criesgo.id', '=', 'equipos.criesgo_id')
@@ -1100,6 +1108,15 @@ class EquipmentController extends ApiController
                         'archivos' => (int) $equipo->cuenta_archivos,
                         'planesMantenimiento' => (int) $equipo->cuenta_planes_mantenimientos,
                     ],
+                    // Nuevos campos agregados directamente al nivel raíz
+                    'zona_hospitalaria' => $equipo->zona_hospitalaria,
+                    'piso_servicio' => $equipo->piso_servicio,
+                    'localizacion_actual' => $equipo->localizacion_actual,
+                    'cuenta_calibraciones' => (int) ($equipo->cuenta_calibraciones ?? 0),
+                    'cuenta_preventivos' => (int) ($equipo->cuenta_preventivos ?? 0),
+                    'orden_compra' => $equipo->orden_compra,
+                    'orden_compra_file' => $equipo->orden_compra_file,
+                    'tipo_compra' => $equipo->tipo_compra,
 
                     'ubicacion' => [
                         'servicio' => $equipo->servicios,
@@ -1208,12 +1225,25 @@ class EquipmentController extends ApiController
                     'equipos.numero_invima',
                     'equipos.fecha_vencimiento_invima',
                     'equipos.estado_invima',
+                    // IDs para documentos asociados
+                    'equipos.manual_id',
+                    'equipos.guia_id', 
+                    'equipos.invima_id',
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
+                    // Campos de ubicación hospitalaria específicos
+                    'zonas.name as zona_hospitalaria',
+                    'pisos.name as piso_servicio',
+                    'equipos.localizacion_actual',
                     'estadoequipos.name as estadoequipo',
                     'cbiomedica.name as clasificacion',
                     'criesgo.name as riesgo',
+                    // Información de documentos asociados
+                    'manuales.descripcion as manual_descripcion',
+                    'manuales.url as manual_url',
+                    'guias_rapidas.name as guia_name',
+                    'guias_rapidas.file as guia_file',
                     // Información adicional dinámica con subconsultas corregidas
                     DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento 
                              WHERE equipo_id = equipos.id 
@@ -1227,10 +1257,20 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT fecha_inicio FROM ordenes 
                              WHERE equipo_id = equipos.id 
                              ORDER BY fecha_inicio DESC LIMIT 1) AS fecha_inicio_ultimo_ticket'),
-                    DB::raw('(SELECT COUNT(*) FROM equipo_archivo 
-                             WHERE equipo_id = equipos.id AND archivo_id != 9) AS cuenta_archivos'),
-                    DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos 
-                             WHERE equipo_id = equipos.id AND anio = 2025) AS cuenta_planes_mantenimientos'),
+                    DB::raw('(SELECT fecha_inicio FROM correctivos_generales 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_inicio DESC LIMIT 1) AS ultimo_correctivo_general'),
+                    DB::raw('(SELECT fecha_mantenimiento FROM correctivos_generales 
+                             WHERE equipo_id = equipos.id AND fecha_mantenimiento IS NOT NULL
+                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_procedimiento_correctivo'),
+                    DB::raw('(SELECT fecha_fin FROM ordenes 
+                             WHERE equipo_id = equipos.id AND fecha_fin IS NOT NULL
+                             ORDER BY fecha_fin DESC LIMIT 1) AS fecha_ultimo_cierre_ticket'),
+                    // Conteos específicos para reemplazar archivos y planes mantenimiento
+                    DB::raw('(SELECT COUNT(*) FROM calibracion 
+                             WHERE equipo_id = equipos.id) AS cuenta_calibraciones'),
+                    DB::raw('(SELECT COUNT(*) FROM mantenimiento 
+                             WHERE equipo_id = equipos.id) AS cuenta_preventivos'),
                     DB::raw('(SELECT description FROM observaciones 
                              WHERE equipo_id = equipos.id 
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
@@ -1239,11 +1279,14 @@ class EquipmentController extends ApiController
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
+                    'ordenes_compra.file as orden_compra_file',
                     'tipos_compra.tipo_compra as tipo_compra'
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
                 ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
+                ->leftJoin('zonas', 'zonas.id', '=', 'servicios.zona_id')
+                ->leftJoin('pisos', 'pisos.id', '=', 'servicios.piso_id')
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
                 ->leftJoin('cbiomedica', 'cbiomedica.id', '=', 'equipos.cbiomedica_id')
                 ->leftJoin('criesgo', 'criesgo.id', '=', 'equipos.criesgo_id')
@@ -1251,6 +1294,9 @@ class EquipmentController extends ApiController
                 ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
                 ->leftJoin('ordenes_compra', 'ordenes_compra.id', '=', 'equipos.orden_compra_id')
                 ->leftJoin('tipos_compra', 'tipos_compra.id', '=', 'ordenes_compra.tipo_compra_id')
+                // JOINs para documentos asociados
+                ->leftJoin('manuales', 'manuales.id', '=', 'equipos.manual_id')
+                ->leftJoin('guias_rapidas', 'guias_rapidas.id', '=', 'equipos.guia_id')
                 ->where('equipos.status', '!=', 0)
                 ->where('equipos.tipo_id', 1); // Solo equipos médicos
 
@@ -1423,6 +1469,10 @@ class EquipmentController extends ApiController
                         'series' => $equipo->serial,
                         'image' => $equipo->image ? url('storage/equipos/images/' . $equipo->image) : null,
                         'hasImage' => !empty($equipo->image),
+                        // IDs de documentos asociados para condiciones en frontend
+                        'manual_id' => $equipo->manual_id,
+                        'guia_id' => $equipo->guia_id,
+                        'invima_id' => $equipo->invima_id,
                     ],
                     'data' => [
                         'status' => $equipo->estadoequipo,
@@ -1436,6 +1486,15 @@ class EquipmentController extends ApiController
                         'archivos' => (int) ($equipo->cuenta_archivos ?? 0),
                         'planesMantenimiento' => (int) ($equipo->cuenta_planes_mantenimientos ?? 0),
                     ],
+                    // Nuevos campos agregados directamente al nivel raíz
+                    'zona_hospitalaria' => $equipo->zona_hospitalaria,
+                    'piso_servicio' => $equipo->piso_servicio,
+                    'localizacion_actual' => $equipo->localizacion_actual,
+                    'cuenta_calibraciones' => (int) ($equipo->cuenta_calibraciones ?? 0),
+                    'cuenta_preventivos' => (int) ($equipo->cuenta_preventivos ?? 0),
+                    'orden_compra' => $equipo->orden_compra,
+                    'orden_compra_file' => $equipo->orden_compra_file,
+                    'tipo_compra' => $equipo->tipo_compra,
                     'ubicacion' => [
                         'servicio' => $equipo->servicios,
                         'area' => $equipo->area,
@@ -1445,6 +1504,8 @@ class EquipmentController extends ApiController
                         'ultimoMantenimiento' => $equipo->ultimo_mantenimiento,
                         'ultimaCalibración' => $equipo->ultima_calibracion ?? null,
                         'ultimoCorrectivo' => $equipo->ultimo_correctivo ?? null,
+                        'ultimoCorrectivoGeneral' => $equipo->ultimo_correctivo_general ?? null,
+                        'ultimoProcedimientoCorrectivo' => $equipo->ultimo_procedimiento_correctivo ?? null,
                     ],
                     'propietario' => [
                         'nombre' => $equipo->propietario,
@@ -1459,7 +1520,25 @@ class EquipmentController extends ApiController
                     ],
                     'tickets' => [
                         'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
+                        'fechaCreacionUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
+                        'fechaUltimoCierre' => $equipo->fecha_ultimo_cierre_ticket ?? null,
                     ],
+                    // Documentos asociados  
+                    'manual' => $equipo->manual_descripcion ? [
+                        'id' => $equipo->manual_id,
+                        'descripcion' => $equipo->manual_descripcion,
+                        'url' => $equipo->manual_url,
+                    ] : null,
+                    'guia_rapida' => $equipo->guia_name ? [
+                        'id' => $equipo->guia_id,
+                        'name' => $equipo->guia_name,
+                        'file' => $equipo->guia_file,
+                    ] : null,
+                    'registros_invima' => $equipo->invima_id ? [[
+                        'id' => $equipo->invima_id,
+                        'numero_registro' => $equipo->numero_invima,
+                        'archivo_registro_sanitario' => $equipo->archivo_invima,
+                    ]] : null,
                 ];
             });
 
@@ -2150,183 +2229,333 @@ class EquipmentController extends ApiController
     }
 
     /**
-     * Exportar equipos filtrados a Excel
+     * Exportar equipos filtrados a Excel con 54 columnas completas
      */
     public function exportFilteredEquipment(Request $request)
     {
         try {
-            // Usar la misma lógica de filtros que getMedicalDevicesComplete pero sin paginación
+            // Query con TODOS los JOINs necesarios para las 54 columnas
             $query = DB::table('equipos')
                 ->select([
+                    // Información básica (8 columnas)
                     'equipos.id',
-                    'equipos.name as nombre_equipo',
-                    'equipos.code as codigo_inventario',
-                    'equipos.serial as numero_serie',
+                    'equipos.name',
+                    'equipos.descripcion',
                     'equipos.marca',
                     'equipos.modelo',
+                    'equipos.serial',
+                    'equipos.code',
+                    'equipos.codigo_antiguo',
+                    
+                    // Información regulatoria (2 columnas)
+                    'equipos.registro_sanitario',
+                    'estadoequipos.name as estado_equipo',
+                    
+                    // Fechas importantes (3 columnas)
+                    'equipos.fecha_ad',
+                    'equipos.fecha_instalacion',
+                    DB::raw("(SELECT b.fecha_baja FROM equipos_bajas eb LEFT JOIN bajas b ON eb.baja_id = b.id WHERE eb.equipo_id = equipos.id ORDER BY b.fecha_baja DESC LIMIT 1) as fecha_baja"),
+                    
+                    // Ubicación (4 columnas)
                     'servicios.name as servicio',
                     'areas.name as area',
                     'sedes.name as sede',
-                    'estadoequipos.name as estado_equipo',
-                    'cbiomedicas.name as clasificacion_biomedica',
-                    'criesgos.name as clasificacion_riesgo',
+                    'equipos.localizacion_actual',
+                    
+                    // Mantenimiento (7 columnas)
+                    DB::raw("(SELECT MAX(fecha_mantenimiento) FROM mantenimiento WHERE equipo_id = equipos.id) as ultimo_mantenimiento"),
+                    'frecuenciam.name as frecuencia',
+                    DB::raw("(SELECT frecuencia_id FROM planes_mantenimientos WHERE equipo_id = equipos.id ORDER BY anio DESC LIMIT 1) as frecuencia_utilizada"),
+                    DB::raw("(SELECT MAX(anio) FROM planes_mantenimientos WHERE equipo_id = equipos.id) as ultimo_anio_programado"),
+                    DB::raw("(SELECT pm.name FROM mantenimiento m LEFT JOIN proveedores_mantenimiento pm ON m.proveedor_mantenimiento_id = pm.id WHERE m.equipo_id = equipos.id ORDER BY m.fecha_mantenimiento DESC LIMIT 1) as proveedor_mantenimiento"),
+                    DB::raw("(SELECT COUNT(*) FROM mantenimiento WHERE equipo_id = equipos.id) as cuenta_preventivos"),
+                    'equipos.estado_mantenimiento as estadom',
+                    
+                    // Calibración (2 columnas)
+                    DB::raw("(SELECT MAX(fecha_calibracion) FROM calibracion WHERE equipo_id = equipos.id) as ultima_calibracion"),
+                    DB::raw("(SELECT COUNT(*) FROM calibracion WHERE equipo_id = equipos.id) as cuenta_calibraciones"),
+                    
+                    // Información financiera (4 columnas)
+                    'equipos.costo',
+                    'ordenes_compra.orden as orden_compra',
+                    'tipos_compra.tipo_compra as tipo_compra',
+                    'contacto.name as proveedor',
+                    
+                    // Garantía (2 columnas)
+                    'equipos.garantia',
+                    'equipos.fecha_vencimiento_garantia',
+                    
+                    // Clasificaciones técnicas (5 columnas)
+                    'fuenteal.name as fuente_alimentacion',
+                    'tecnologiap.name as tecnologia_principal',
+                    'cbiomedica.name as clasificacion_biomedica',
+                    'criesgo.name as clasificacion_riesgo',
+                    'tadquisicion.name as tipo_adquisicion',
+                    
+                    // Propiedad (2 columnas)
                     'propietarios.nombre as propietario',
-                    'tipos.name as tipo_equipo',
-                    'equipos.created_at as fecha_registro',
-                    'equipos.updated_at as fecha_actualizacion'
+                    'equipos.otros',
+                    
+                    // Correctivos (4 columnas)
+                    DB::raw("(SELECT MAX(fecha_inicio) FROM ordenes WHERE equipo_id = equipos.id AND subproceso_id = 6) as ultimo_correctivo"),
+                    DB::raw("(SELECT descripcion FROM ordenes WHERE equipo_id = equipos.id AND subproceso_id = 6 ORDER BY fecha_inicio DESC LIMIT 1) as descripcion_correctivo"),
+                    DB::raw("(SELECT COUNT(*) FROM ordenes WHERE equipo_id = equipos.id AND subproceso_id = 6) as cuenta_correctivos"),
+                    DB::raw("(SELECT COUNT(*) FROM ordenes WHERE equipo_id = equipos.id) as cuenta_tickets"),
+                    
+                    // Información adicional (7 columnas)
+                    DB::raw("COALESCE(sedes.name, 'N/A') as zona"),
+                    DB::raw("(SELECT GROUP_CONCAT(CONCAT(name, ' - ', telefono) SEPARATOR '; ') FROM contacto WHERE id IN (SELECT contacto_id FROM equipo_contacto WHERE equipo_id = equipos.id)) as informacion_contacto"),
+                    'equipos.file',
+                    'equipos.repuesto_pendiente',
+                    'equipos.vida_util',
+                    DB::raw("CASE WHEN equipos.guia_id IS NOT NULL THEN 'SI' ELSE 'NO' END as tiene_guia"),
+                    DB::raw("(SELECT url FROM manuales WHERE id = equipos.manual_id LIMIT 1) as manual_url")
                 ])
                 ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
                 ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
                 ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
                 ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
-                ->leftJoin('cbiomedicas', 'equipos.cbiomedica_id', '=', 'cbiomedicas.id')
-                ->leftJoin('criesgos', 'equipos.criesgo_id', '=', 'criesgos.id')
+                ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
+                ->leftJoin('ordenes_compra', 'equipos.orden_compra_id', '=', 'ordenes_compra.id')
+                ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->leftJoin('fuenteal', 'equipos.fuente_id', '=', 'fuenteal.id')
+                ->leftJoin('tecnologiap', 'equipos.tecnologia_id', '=', 'tecnologiap.id')
+                ->leftJoin('cbiomedica', 'equipos.cbiomedica_id', '=', 'cbiomedica.id')
+                ->leftJoin('criesgo', 'equipos.criesgo_id', '=', 'criesgo.id')
+                ->leftJoin('tadquisicion', 'equipos.tadquisicion_id', '=', 'tadquisicion.id')
                 ->leftJoin('propietarios', 'equipos.propietario_id', '=', 'propietarios.id')
-                ->leftJoin('tipos', 'equipos.tipo_id', '=', 'tipos.id')
                 ->where('equipos.status', '!=', 0);
 
-            // Aplicar los mismos filtros que en getMedicalDevicesComplete
+            // Aplicar filtros solo si tienen valores válidos (ignorar "all", "", null)
             // Sección 1: Identificación del Equipo
-            if ($request->has('filtro_code') && !empty($request->filtro_code)) {
+            if ($request->has('filtro_code') && !empty($request->filtro_code) && $request->filtro_code !== 'all') {
                 $query->where('equipos.code', 'like', "%{$request->filtro_code}%");
             }
 
-            if ($request->has('filtro_name') && !empty($request->filtro_name)) {
+            if ($request->has('filtro_name') && !empty($request->filtro_name) && $request->filtro_name !== 'all') {
                 $query->where('equipos.name', 'like', "%{$request->filtro_name}%");
             }
 
-            if ($request->has('filtro_serial') && !empty($request->filtro_serial)) {
+            if ($request->has('filtro_serial') && !empty($request->filtro_serial) && $request->filtro_serial !== 'all') {
                 $query->where('equipos.serial', 'like', "%{$request->filtro_serial}%");
             }
 
-            if ($request->has('filtro_marca') && !empty($request->filtro_marca)) {
+            if ($request->has('filtro_marca') && !empty($request->filtro_marca) && $request->filtro_marca !== 'all') {
                 $query->where('equipos.marca', 'like', "%{$request->filtro_marca}%");
             }
 
-            if ($request->has('filtro_modelo') && !empty($request->filtro_modelo)) {
+            if ($request->has('filtro_modelo') && !empty($request->filtro_modelo) && $request->filtro_modelo !== 'all') {
                 $query->where('equipos.modelo', 'like', "%{$request->filtro_modelo}%");
             }
 
             // Sección 2: Ubicación Geográfica
-            if ($request->has('filtro_zona') && !empty($request->filtro_zona)) {
+            if ($request->has('filtro_zona') && !empty($request->filtro_zona) && $request->filtro_zona !== 'all') {
                 $query->where('sedes.id', $request->filtro_zona);
             }
 
-            if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar)) {
+            if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar) && $request->servicio_id_auxiliar !== 'all') {
                 $query->where('equipos.servicio_id', $request->servicio_id_auxiliar);
             }
 
-            if ($request->has('area_id_auxiliar') && !empty($request->area_id_auxiliar)) {
+            if ($request->has('area_id_auxiliar') && !empty($request->area_id_auxiliar) && $request->area_id_auxiliar !== 'all') {
                 $query->where('equipos.area_id', $request->area_id_auxiliar);
             }
 
             // Sección 3: Estado y Operación
-            if ($request->has('filtro_estadoequipo_id') && !empty($request->filtro_estadoequipo_id)) {
+            if ($request->has('filtro_estadoequipo_id') && !empty($request->filtro_estadoequipo_id) && $request->filtro_estadoequipo_id !== 'all') {
                 $query->where('equipos.estadoequipo_id', $request->filtro_estadoequipo_id);
             }
 
-            if ($request->has('filtro_estadom') && !empty($request->filtro_estadom)) {
+            if ($request->has('filtro_estadom') && !empty($request->filtro_estadom) && $request->filtro_estadom !== 'all') {
                 $query->where('equipos.estado_mantenimiento', $request->filtro_estadom);
             }
 
+            if ($request->has('proveedor_mantenimiento') && !empty($request->proveedor_mantenimiento) && $request->proveedor_mantenimiento !== 'all') {
+                // Filtro por proveedor de mantenimiento (subquery con JOIN)
+                $query->whereExists(function($subquery) use ($request) {
+                    $subquery->select(DB::raw(1))
+                        ->from('mantenimiento as m')
+                        ->leftJoin('proveedores_mantenimiento as pm', 'm.proveedor_mantenimiento_id', '=', 'pm.id')
+                        ->whereRaw('m.equipo_id = equipos.id')
+                        ->where('pm.name', 'like', "%{$request->proveedor_mantenimiento}%");
+                });
+            }
+
             // Sección 4: Clasificación Técnica
-            if ($request->has('tipo_id') && !empty($request->tipo_id)) {
+            if ($request->has('tipo_id') && !empty($request->tipo_id) && $request->tipo_id !== 'all') {
                 $query->where('equipos.tipo_id', $request->tipo_id);
             }
 
-            if ($request->has('estado_id') && !empty($request->estado_id)) {
+            if ($request->has('estado_id') && !empty($request->estado_id) && $request->estado_id !== 'all') {
                 $query->where('equipos.criesgo_id', $request->estado_id);
             }
 
-            if ($request->has('estado_id_cg') && !empty($request->estado_id_cg)) {
+            if ($request->has('estado_id_cg') && !empty($request->estado_id_cg) && $request->estado_id_cg !== 'all') {
                 $query->where('equipos.propietario_id', $request->estado_id_cg);
             }
 
             // Sección 5: Parámetros Temporales
-            if ($request->has('anio_plan') && !empty($request->anio_plan)) {
+            if ($request->has('anio_plan') && !empty($request->anio_plan) && $request->anio_plan !== 'all' && $request->anio_plan != date('Y')) {
                 $query->whereYear('equipos.created_at', $request->anio_plan);
             }
 
             // Obtener todos los resultados
             $equipos = $query->orderBy('equipos.name')->get();
 
+            // Log para debugging
+            \Log::info('Exportación de equipos', [
+                'total_equipos' => $equipos->count(),
+                'filtros_aplicados' => $request->except(['_token']),
+                'tiene_filtros' => $request->has('filtro_code') || $request->has('filtro_name') || $request->has('filtro_zona')
+            ]);
+
+            // Verificar si hay equipos para exportar
+            if ($equipos->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron equipos con los filtros aplicados'
+                ], 404);
+            }
+
             // Crear archivo Excel usando PhpSpreadsheet
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
 
-            // Configurar encabezados
+            // Configurar encabezados (54 columnas)
             $headers = [
-                'A1' => 'ID',
-                'B1' => 'Nombre del Equipo',
-                'C1' => 'Código de Inventario',
-                'D1' => 'Número de Serie',
-                'E1' => 'Marca',
-                'F1' => 'Modelo',
-                'G1' => 'Servicio',
-                'H1' => 'Área',
-                'I1' => 'Sede',
-                'J1' => 'Estado del Equipo',
-                'K1' => 'Clasificación Biomédica',
-                'L1' => 'Clasificación de Riesgo',
-                'M1' => 'Propietario',
-                'N1' => 'Tipo de Equipo',
-                'O1' => 'Fecha de Registro',
-                'P1' => 'Fecha de Actualización'
+                // Información básica (8)
+                'A1' => 'ID', 'B1' => 'Nombre', 'C1' => 'Descripción', 'D1' => 'Marca', 'E1' => 'Modelo', 
+                'F1' => 'Serie', 'G1' => 'Código', 'H1' => 'Código Antiguo',
+                
+                // Información regulatoria (2)
+                'I1' => 'Registro Sanitario', 'J1' => 'Estado Equipo',
+                
+                // Fechas (3)
+                'K1' => 'Fecha Adquisición', 'L1' => 'Fecha Instalación', 'M1' => 'Fecha Baja',
+                
+                // Ubicación (4)
+                'N1' => 'Servicio', 'O1' => 'Área', 'P1' => 'Sede', 'Q1' => 'Localización Actual',
+                
+                // Mantenimiento (7)
+                'R1' => 'Último Mantenimiento', 'S1' => 'Frecuencia', 'T1' => 'Frecuencia Utilizada',
+                'U1' => 'Último Año Programado', 'V1' => 'Proveedor Mantenimiento', 
+                'W1' => 'Cuenta Preventivos', 'X1' => 'Estado Mantenimiento',
+                
+                // Calibración (2)
+                'Y1' => 'Última Calibración', 'Z1' => 'Cuenta Calibraciones',
+                
+                // Financiera (4)
+                'AA1' => 'Costo', 'AB1' => 'Soporte de Compra', 'AC1' => 'Tipo Compra', 'AD1' => 'Proveedor según soporte',
+                
+                // Garantía (2)
+                'AE1' => 'Garantía', 'AF1' => 'Vencimiento Garantía',
+                
+                // Clasificaciones (5)
+                'AG1' => 'Fuente Alimentación', 'AH1' => 'Tecnología Principal', 
+                'AI1' => 'Clasificación Biomédica', 'AJ1' => 'Clasificación Riesgo', 'AK1' => 'Tipo Adquisición',
+                
+                // Propiedad (2)
+                'AL1' => 'Propietario', 'AM1' => 'Otros',
+                
+                // Correctivos (4)
+                'AN1' => 'Último Correctivo', 'AO1' => 'Descripción Correctivo', 
+                'AP1' => 'Cuenta Correctivos', 'AQ1' => 'Cuenta Tickets',
+                
+                // Adicionales (7)
+                'AR1' => 'Zona', 'AS1' => 'Info Contacto', 'AT1' => 'Archivo Excel cargado de Hoja de vida', 
+                'AU1' => 'Repuesto Pendiente', 'AV1' => 'Vida Útil', 'AW1' => 'Tiene Guía', 'AX1' => 'Manual URL'
             ];
 
             foreach ($headers as $cell => $header) {
                 $sheet->setCellValue($cell, $header);
                 $sheet->getStyle($cell)->getFont()->setBold(true);
+                $sheet->getStyle($cell)->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('4472C4');
+                $sheet->getStyle($cell)->getFont()->getColor()->setRGB('FFFFFF');
             }
 
-            // Llenar datos
+            // Llenar datos (54 columnas)
             $row = 2;
             foreach ($equipos as $equipo) {
                 $sheet->setCellValue('A' . $row, $equipo->id);
-                $sheet->setCellValue('B' . $row, $equipo->nombre_equipo);
-                $sheet->setCellValue('C' . $row, $equipo->codigo_inventario);
-                $sheet->setCellValue('D' . $row, $equipo->numero_serie);
-                $sheet->setCellValue('E' . $row, $equipo->marca);
-                $sheet->setCellValue('F' . $row, $equipo->modelo);
-                $sheet->setCellValue('G' . $row, $equipo->servicio);
-                $sheet->setCellValue('H' . $row, $equipo->area);
-                $sheet->setCellValue('I' . $row, $equipo->sede);
+                $sheet->setCellValue('B' . $row, $equipo->name);
+                $sheet->setCellValue('C' . $row, $equipo->descripcion);
+                $sheet->setCellValue('D' . $row, $equipo->marca);
+                $sheet->setCellValue('E' . $row, $equipo->modelo);
+                $sheet->setCellValue('F' . $row, $equipo->serial);
+                $sheet->setCellValue('G' . $row, $equipo->code);
+                $sheet->setCellValue('H' . $row, $equipo->codigo_antiguo);
+                $sheet->setCellValue('I' . $row, $equipo->registro_sanitario);
                 $sheet->setCellValue('J' . $row, $equipo->estado_equipo);
-                $sheet->setCellValue('K' . $row, $equipo->clasificacion_biomedica);
-                $sheet->setCellValue('L' . $row, $equipo->clasificacion_riesgo);
-                $sheet->setCellValue('M' . $row, $equipo->propietario);
-                $sheet->setCellValue('N' . $row, $equipo->tipo_equipo);
-                $sheet->setCellValue('O' . $row, $equipo->fecha_registro);
-                $sheet->setCellValue('P' . $row, $equipo->fecha_actualizacion);
+                $sheet->setCellValue('K' . $row, $equipo->fecha_ad);
+                $sheet->setCellValue('L' . $row, $equipo->fecha_instalacion);
+                $sheet->setCellValue('M' . $row, $equipo->fecha_baja);
+                $sheet->setCellValue('N' . $row, $equipo->servicio);
+                $sheet->setCellValue('O' . $row, $equipo->area);
+                $sheet->setCellValue('P' . $row, $equipo->sede);
+                $sheet->setCellValue('Q' . $row, $equipo->localizacion_actual);
+                $sheet->setCellValue('R' . $row, $equipo->ultimo_mantenimiento);
+                $sheet->setCellValue('S' . $row, $equipo->frecuencia);
+                $sheet->setCellValue('T' . $row, $equipo->frecuencia_utilizada);
+                $sheet->setCellValue('U' . $row, $equipo->ultimo_anio_programado);
+                $sheet->setCellValue('V' . $row, $equipo->proveedor_mantenimiento);
+                $sheet->setCellValue('W' . $row, $equipo->cuenta_preventivos);
+                $sheet->setCellValue('X' . $row, $equipo->estadom);
+                $sheet->setCellValue('Y' . $row, $equipo->ultima_calibracion);
+                $sheet->setCellValue('Z' . $row, $equipo->cuenta_calibraciones);
+                $sheet->setCellValue('AA' . $row, $equipo->costo);
+                $sheet->setCellValue('AB' . $row, $equipo->orden_compra);
+                $sheet->setCellValue('AC' . $row, $equipo->tipo_compra);
+                $sheet->setCellValue('AD' . $row, $equipo->proveedor);
+                $sheet->setCellValue('AE' . $row, $equipo->garantia);
+                $sheet->setCellValue('AF' . $row, $equipo->fecha_vencimiento_garantia);
+                $sheet->setCellValue('AG' . $row, $equipo->fuente_alimentacion);
+                $sheet->setCellValue('AH' . $row, $equipo->tecnologia_principal);
+                $sheet->setCellValue('AI' . $row, $equipo->clasificacion_biomedica);
+                $sheet->setCellValue('AJ' . $row, $equipo->clasificacion_riesgo);
+                $sheet->setCellValue('AK' . $row, $equipo->tipo_adquisicion);
+                $sheet->setCellValue('AL' . $row, $equipo->propietario);
+                $sheet->setCellValue('AM' . $row, $equipo->otros);
+                $sheet->setCellValue('AN' . $row, $equipo->ultimo_correctivo);
+                $sheet->setCellValue('AO' . $row, $equipo->descripcion_correctivo);
+                $sheet->setCellValue('AP' . $row, $equipo->cuenta_correctivos);
+                $sheet->setCellValue('AQ' . $row, $equipo->cuenta_tickets);
+                $sheet->setCellValue('AR' . $row, $equipo->zona);
+                $sheet->setCellValue('AS' . $row, $equipo->informacion_contacto);
+                $sheet->setCellValue('AT' . $row, $equipo->file);
+                $sheet->setCellValue('AU' . $row, $equipo->repuesto_pendiente);
+                $sheet->setCellValue('AV' . $row, $equipo->vida_util);
+                $sheet->setCellValue('AW' . $row, $equipo->tiene_guia);
+                $sheet->setCellValue('AX' . $row, $equipo->manual_url);
                 $row++;
             }
 
             // Ajustar ancho de columnas
-            foreach (range('A', 'P') as $column) {
+            foreach (range('A', 'Z') as $column) {
                 $sheet->getColumnDimension($column)->setAutoSize(true);
+            }
+            foreach (range('A', 'X') as $letter) {
+                $sheet->getColumnDimension('A' . $letter)->setAutoSize(true);
             }
 
             // Crear el archivo
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $filename = 'equipos_filtrados_' . date('Y-m-d_H-i-s') . '.xlsx';
+            $filename = 'EquiposHUV.xlsx';
             $tempFile = tempnam(sys_get_temp_dir(), $filename);
             $writer->save($tempFile);
 
             // Retornar el archivo
             return response()->download($tempFile, $filename, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Access-Control-Allow-Origin' => '*',
-                'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             ])->deleteFileAfterSend(true);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al exportar equipos: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     }
 
@@ -2438,5 +2667,47 @@ class EquipmentController extends ApiController
 
         // Limpiar campos que no deben ir a la base de datos
         unset($equipoData['manuales'], $equipoData['planos']);
+    }
+
+    /**
+     * Obtener calibraciones de un equipo específico
+     */
+    public function calibraciones($equipoId)
+    {
+        try {
+            // Verificar que el equipo existe
+            $equipo = DB::table('equipos')->where('id', $equipoId)->first();
+            if (!$equipo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Equipo no encontrado'
+                ], 404);
+            }
+
+            // Obtener calibraciones del equipo con información de archivos
+            $calibraciones = DB::table('calibracion')
+                ->leftJoin('usuarios', 'calibracion.usuario_id', '=', 'usuarios.id')
+                ->where('calibracion.equipo_id', $equipoId)
+                ->select([
+                    'calibracion.id',
+                    'calibracion.fecha_calibracion',
+                    'calibracion.descripcion',
+                    'calibracion.observaciones',
+                    'calibracion.file',
+                    'calibracion.created_at',
+                    'usuarios.nombre as usuario_nombre'
+                ])
+                ->orderBy('calibracion.fecha_calibracion', 'desc')
+                ->get();
+
+            return response()->json($calibraciones);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener calibraciones del equipo: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener calibraciones: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

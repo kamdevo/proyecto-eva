@@ -71,6 +71,13 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
       if (status !== 'all') params.append('estado', status);
       if (equipoId) params.append('equipo_id', equipoId);
       
+      // Detectar tipo de equipo basado en la URL actual
+      const currentPath = window.location.pathname;
+      const tipoEquipo = currentPath.includes('/equipos/industriales') ? 'industrial' : 'biomedico';
+      params.append('tipo_equipo', tipoEquipo);
+      
+      console.log('🔍 Detectado tipo_equipo:', tipoEquipo, 'desde path:', currentPath);
+      
       // Add date filters
       if (filters.fecha_desde) params.append('fecha_desde', filters.fecha_desde);
       if (filters.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta);
@@ -547,7 +554,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const fileUrl = `http://localhost:8001/storage/mantenimientos/${record.file}`;
+                          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/mantenimientos/${record.file}`;
                           window.open(fileUrl, '_blank', 'noopener,noreferrer');
                         }}
                         className="hover:bg-blue-50 hover:border-blue-300 px-3 py-2"

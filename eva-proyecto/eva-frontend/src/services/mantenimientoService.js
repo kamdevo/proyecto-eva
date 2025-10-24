@@ -1,11 +1,11 @@
 // Servicio para manejar las llamadas a APIs de mantenimiento preventivo
 
-// Configuración base
-const API_BASE_URL = 'http://127.0.0.1:8001/api';
-const API_V1_URL = 'http://127.0.0.1:8001/api/v1';
+// Configuración base - Usar variables de entorno
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/api`;
+const API_V1_URL = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/api/v1`;
 
 const mantenimientoService = {
-  // Obtener planes de mantenimiento
+  // Obtener cronograma de mantenimientos (datos mixtos para página principal)
   async getPlanes(filters = {}) {
     const params = new URLSearchParams();
     
@@ -17,7 +17,8 @@ const mantenimientoService = {
     if (filters.page) params.append('page', filters.page);
     if (filters.per_page) params.append('per_page', filters.per_page);
     
-    const response = await fetch(`${API_V1_URL}/planes-mantenimientos?${params}`);
+    // Usar endpoint de cronograma para datos mixtos (planificación + ejecución)
+    const response = await fetch(`${API_V1_URL}/cronograma-mantenimientos?${params}`);
     
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -83,10 +84,12 @@ const mantenimientoService = {
   async getProveedores(filters = {}) {
     const params = new URLSearchParams();
     
-    if (filters.status !== undefined) params.append('status', filters.status);
     if (filters.search) params.append('search', filters.search);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.page) params.append('page', filters.page);
+    if (filters.per_page) params.append('per_page', filters.per_page);
     
-    const response = await fetch(`${API_BASE_URL}/proveedores-mantenimiento?${params}`);
+    const response = await fetch(`${API_V1_URL}/proveedores-mantenimiento?${params}`);
     
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);

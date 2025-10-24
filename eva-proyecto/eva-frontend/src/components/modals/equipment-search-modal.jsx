@@ -52,21 +52,21 @@ export default function EquipmentSearchModal({
   const fetchFilterData = async () => {
     try {
       // Cargar sedes
-      const sedesRes = await fetch('http://localhost:8001/api/v1/sedes');
+      const sedesRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/sedes`);
       if (sedesRes.ok) {
         const sedesData = await sedesRes.json();
         setSedes(sedesData.data || []);
       }
 
       // Cargar servicios
-      const serviciosRes = await fetch('http://localhost:8001/api/v1/servicios');
+      const serviciosRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/servicios`);
       if (serviciosRes.ok) {
         const serviciosData = await serviciosRes.json();
         setServicios(serviciosData.data || []);
       }
 
       // Cargar áreas
-      const areasRes = await fetch('http://localhost:8001/api/v1/areas');
+      const areasRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/areas`);
       if (areasRes.ok) {
         const areasData = await areasRes.json();
         setAreas(areasData.data || []);
@@ -83,12 +83,12 @@ export default function EquipmentSearchModal({
       // Usar el endpoint correcto según el tipo de ticket
       let url = '';
       if (ticketType === 'biomedico') {
-        url = `http://localhost:8001/api/v1/equipos/medical-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
+        url = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/medical-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
       } else if (ticketType === 'industrial') {
-        url = `http://localhost:8001/api/v1/equipos/industrial-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
+        url = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/industrial-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
       } else {
         // Para infraestructura, usar endpoint general
-        url = `http://localhost:8001/api/v1/equipos?per_page=${itemsPerPage}&page=${currentPage}`;
+        url = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos?per_page=${itemsPerPage}&page=${currentPage}`;
       }
       
       // Agregar filtros de búsqueda

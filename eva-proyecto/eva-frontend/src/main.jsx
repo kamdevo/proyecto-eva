@@ -12,6 +12,9 @@ import "./debug-config.js";
 // Inicializar autenticación inmediatamente
 import { initializeAuth } from "./services/httpService";
 
+// Inicializar sistema de toasts
+import "./components/ui/toast";
+
 // Inicializar autenticación al cargar la aplicación
 initializeAuth().then((result) => {
   if (result.success) {

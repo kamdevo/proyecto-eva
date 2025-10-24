@@ -48,10 +48,16 @@ import {
   Cog,
   Truck,
   X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import TicketDetailsModal from "@/components/modals/ticket-details-complete";
 import TicketEditModal from "@/components/modals/ticket-edit-full";
 import HospitalTicketModal from "@/components/modals/hospital-ticket-modal";
+import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleton";
+import authService from "@/services/authService";
+import httpService from "@/services/httpService";
 
 
 export default function MyTickets() {
@@ -71,33 +77,138 @@ export default function MyTickets() {
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  
+  // Estados para ordenamiento
+  const [sortField, setSortField] = useState("id");
+  const [sortOrder, setSortOrder] = useState("desc");
 
-  // Usuario actual simulado - en producción vendría de autenticación
-  const currentUserId = 1; // Cambiar según el usuario logueado
+  // Función para obtener usuario actual del localStorage usando authService
+  const getCurrentUser = () => {
+    try {
+      // Usar authService primero
+      const user = authService.getStoredUser();
+      if (user) {
+        console.log('👤 Usuario encontrado via authService:', user);
+        // Intentar diferentes propiedades donde puede estar el ID
+        const userId = user.id || user.user_id || user.usuario_id;
+        if (userId) {
+          console.log('✅ ID de usuario obtenido:', userId);
+          return userId;
+        }
+      }
+
+      // Fallback al método anterior como respaldo
+      const userData = localStorage.getItem('eva_user');
+      if (userData) {
+        const userParsed = JSON.parse(userData);
+        console.log('👤 Usuario encontrado via localStorage:', userParsed);
+        const userId = userParsed.id || userParsed.user_id || userParsed.usuario_id;
+        if (userId) {
+          console.log('✅ ID de usuario obtenido (fallback):', userId);
+          return userId;
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error obteniendo usuario actual:', error);
+    }
+    console.log('❌ No se encontró usuario válido en localStorage');
+    return null;
+  };
+
+  // Función para recargar detalles de un ticket específico
+  const refreshTicketDetails = async (ticketId) => {
+    try {
+      console.log('🔄 Recargando detalles del ticket:', ticketId);
+      const response = await httpService.get(`/v1/gestion-tickets/${ticketId}`);
+      
+      if (response.data.success) {
+        const updatedTicket = response.data.data;
+        console.log('📊 Datos del ticket recibidos:', {
+          id: updatedTicket.id,
+          total_avances: updatedTicket.total_avances,
+          avances_count: updatedTicket.avances?.length || 0,
+          avances: updatedTicket.avances
+        });
+        // Actualizar el ticket seleccionado
+        setSelectedTicket(updatedTicket);
+        // También actualizar en la lista de tickets
+        setTickets(prevTickets => 
+          prevTickets.map(t => t.id === ticketId ? updatedTicket : t)
+        );
+        console.log('✅ Ticket actualizado exitosamente');
+      }
+    } catch (error) {
+      console.error('❌ Error recargando ticket:', error);
+    }
+  };
 
   // Función para obtener tickets reales del API
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8001/api/v1/mis-tickets?page=${currentPage}&per_page=${itemsPerPage}&search=${searchTerm}&origen=${selectedOrigin}&usuario_id=${currentUserId}`);
       
-      if (!response.ok) {
-        throw new Error('Error al obtener tickets');
+      // Obtener usuario actual dinámicamente
+      const currentUserId = getCurrentUser();
+      
+      // Si no hay usuario actual, mostrar estado vacío
+      if (!currentUserId) {
+        console.log('❌ No hay usuario actual - mostrando estado sin sesión');
+        setTickets([]);
+        setTotalPages(1);
+        setTotalItems(0);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Usuario actual encontrado:', currentUserId);
+
+      // Preparar parámetros para el endpoint
+      const params = {
+        page: currentPage,
+        per_page: itemsPerPage,
+        reportante_id: currentUserId // Filtrar por usuario que reportó el ticket
+      };
+
+      if (searchTerm) {
+        params.search = searchTerm;
       }
       
-      const result = await response.json();
+      if (selectedOrigin && selectedOrigin !== 'all') {
+        // Mapear los valores del frontend a lo que espera el backend
+        const origenMap = {
+          'biomedico': 'Equipos biomédicos',
+          'industrial': 'Equipos industriales', 
+          'infraestructura': 'Infraestructura'
+        };
+        params.origen = origenMap[selectedOrigin] || selectedOrigin;
+      }
+
+      console.log('🔍 Obteniendo tickets con parámetros:', params);
+
+      // Usar httpService que maneja autenticación automáticamente
+      const response = await httpService.get('/v1/gestion-tickets', { params });
       
-      if (result.success) {
-        setTickets(result.data.data || []);
-        setTotalPages(result.data.total_pages || 1);
-        setTotalItems(result.data.total || 0);
+      if (response.data.success) {
+        const ticketsData = response.data.data.data || [];
+        console.log('✅ Tickets obtenidos:', ticketsData.length);
+        
+        setTickets(ticketsData);
+        setTotalPages(response.data.data.total_pages || 1);
+        setTotalItems(response.data.data.total || 0);
       } else {
-        console.error('Error en respuesta:', result.message);
+        console.error('❌ Error en respuesta:', response.data.message);
         setTickets([]);
+        setTotalPages(1);
+        setTotalItems(0);
       }
     } catch (error) {
-      console.error('Error fetching tickets:', error);
+      console.error('❌ Error obteniendo tickets:', error);
+      const errorMsg = error.response?.data?.message || error.message;
+      console.error('Detalles del error:', errorMsg);
+      
       setTickets([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -109,6 +220,43 @@ export default function MyTickets() {
   }, [currentPage, itemsPerPage, searchTerm, selectedOrigin]);
 
   const filteredTickets = tickets; // Ya vienen filtrados del backend
+
+  // Función para limpiar todos los filtros
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSelectedOrigin("all");
+    setFilterField("all");
+    setCurrentPage(1);
+  };
+
+  // Función para ordenar columnas
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Si ya está ordenado por este campo, cambiar dirección
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      // Si es un campo nuevo, ordenar ascendente
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  // Ordenar tickets localmente
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    let aValue = a[sortField];
+    let bValue = b[sortField];
+    
+    // Manejar valores nulos
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+    
+    // Comparar
+    if (sortOrder === "asc") {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
 
   const getStatusBadge = (status, color) => {
     const colorClasses = {
@@ -127,7 +275,7 @@ export default function MyTickets() {
   };
 
   // Los datos ya vienen paginados del backend
-  const currentTickets = filteredTickets;
+  const currentTickets = sortedTickets;
 
   const handleTicketClick = (ticket) => {
     setSelectedTicket(ticket);
@@ -268,15 +416,13 @@ export default function MyTickets() {
                     </Button>
                     <Button 
                       variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setSearchTerm("");
-                        setSelectedOrigin("all");
-                        setFilterField("all");
-                      }}
-                      title="Borrar filtros"
+                      size="default"
+                      onClick={handleClearFilters}
+                      className="bg-red-50 border-red-200 hover:bg-red-100 text-red-700"
+                      title="Limpiar todos los filtros"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 mr-2" />
+                      Limpiar Filtros
                     </Button>
                   </div>
                 </div>
@@ -327,19 +473,48 @@ export default function MyTickets() {
               <span className="text-sm">registros por página</span>
             </div>
 
-            {/* Loading State */}
+            {/* Loading State con Skeleton */}
             {loading && (
-              <div className="flex justify-center items-center py-8">
-                <div className="text-gray-500">Cargando mis tickets...</div>
+              <TicketsTableSkeleton rows={itemsPerPage} />
+            )}
+
+            {/* Empty State - Sin usuario autenticado */}
+            {!loading && !getCurrentUser() && (
+              <div className="flex flex-col items-center justify-center py-12 text-red-500">
+                <Users className="w-12 h-12 mb-4 text-red-300" />
+                <h3 className="text-lg font-medium mb-2">Sesión no válida</h3>
+                <p className="text-sm">Por favor, inicia sesión para ver tus tickets.</p>
               </div>
             )}
 
-            {/* Empty State */}
-            {!loading && tickets.length === 0 && (
+            {/* Empty State - Usuario sin tickets */}
+            {!loading && getCurrentUser() && tickets.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                 <FileText className="w-12 h-12 mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium mb-2">No tienes tickets</h3>
-                <p className="text-sm">Aún no has creado ningún ticket. Usa los botones de arriba para crear uno nuevo.</p>
+                <h3 className="text-lg font-medium mb-2">No tienes tickets creados</h3>
+                <p className="text-sm mb-4">Aún no has creado ningún ticket. Puedes crear uno nuevo usando los botones de arriba.</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setTicketType("biomedico");
+                      setIsHospitalTicketModalOpen(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ticket Biomédico
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setTicketType("industrial");
+                      setIsHospitalTicketModalOpen(true);
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ticket Industrial
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -400,7 +575,7 @@ export default function MyTickets() {
                       }`}>
                         {ticket.prioridad_texto || 'Sin definir'}
                       </Badge>
-                      <div className="grid grid-cols-3 gap-1 mt-2">
+                      <div className="flex items-center justify-center gap-1 mt-2">
                         <div className="flex flex-col items-center min-h-[4rem] justify-start">
                           <Button
                             onClick={() => handleTicketClick(ticket)}
@@ -412,18 +587,8 @@ export default function MyTickets() {
                           </Button>
                           <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>VER</span>
                         </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                          <Button
-                            onClick={() => handleEditTicket(ticket)}
-                            className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded w-full h-7"
-                            size="sm"
-                            title="Editar ticket"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>EDIT</span>
-                        </div>
-                        <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                        
+                        {/* <div className="flex flex-col items-center min-h-[4rem] justify-start">
                           <Button
                             onClick={() => handleDeleteTicket(ticket.id, ticket.description)}
                             className="bg-red-500 hover:bg-red-600 text-white p-1 rounded w-full h-7"
@@ -433,7 +598,7 @@ export default function MyTickets() {
                             <Trash2 className="h-3 w-3" />
                           </Button>
                           <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>DEL</span>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                   </CardContent>
@@ -449,11 +614,59 @@ export default function MyTickets() {
                 <table className="w-full min-w-[1000px] table-fixed">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
-                      <th className="w-64 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                      <th 
+                        className="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('id')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Ticket
+                          {sortField === 'id' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="w-64 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('descripcion')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Descripción
+                          {sortField === 'descripcion' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
                       <th className="w-40 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignación</th>
-                      <th className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                      <th className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioridad</th>
+                      <th 
+                        className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('estado_id')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Estado
+                          {sortField === 'estado_id' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('prioridad')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Prioridad
+                          {sortField === 'prioridad' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
                       <th className="w-24 px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
@@ -503,8 +716,19 @@ export default function MyTickets() {
                           </div>
                         </td>
                         <td className="px-3 py-4 align-top">
-                          <div className="flex justify-start">
-                            {getStatusBadge(ticket.estado, ticket.estado_color)}
+                          <div className="space-y-1">
+                            <div className="flex justify-start">
+                              {getStatusBadge(ticket.estado, ticket.estado_color)}
+                            </div>
+                            {ticket.asignado_nombre && (
+                              <div className="text-xs text-gray-600 space-y-0.5">
+                                <div className="font-medium text-gray-700">Asignado a:</div>
+                                <div className="text-blue-600 truncate">{ticket.asignado_nombre}</div>
+                                {ticket.reportante_nombre && (
+                                  <div className="text-gray-500 text-[10px] truncate">Por: {ticket.reportante_nombre}</div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-4 align-top">
@@ -521,7 +745,7 @@ export default function MyTickets() {
                           </div>
                         </td>
                         <td className="px-2 py-4 bg-orange-25">
-                          <div className="grid grid-cols-3 gap-1 w-full max-w-[180px]">
+                          <div className="flex items-center justify-center gap-1 w-full max-w-[180px]">
                             <div className="flex flex-col items-center min-h-[4rem] justify-start">
                               <Button
                                 onClick={() => handleTicketClick(ticket)}
@@ -533,7 +757,7 @@ export default function MyTickets() {
                               </Button>
                               <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">VER</span>
                             </div>
-                            <div className="flex flex-col items-center min-h-[4rem] justify-start">
+                            {/* <div className="flex flex-col items-center min-h-[4rem] justify-start">
                               <Button
                                 onClick={() => handleEditTicket(ticket)}
                                 className="bg-orange-500 hover:bg-orange-600 text-white p-1 rounded w-full h-7"
@@ -543,18 +767,8 @@ export default function MyTickets() {
                                 <Edit className="h-3 w-3" />
                               </Button>
                               <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">EDIT</span>
-                            </div>
-                            <div className="flex flex-col items-center min-h-[4rem] justify-start">
-                              <Button
-                                onClick={() => handleDeleteTicket(ticket.id, ticket.description)}
-                                className="bg-red-500 hover:bg-red-600 text-white p-1 rounded w-full h-7"
-                                size="sm"
-                                title="Eliminar ticket"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                              <span className="text-[10px] text-gray-700 font-medium text-center leading-tight mt-2">DEL</span>
-                            </div>
+                            </div> */}
+                            
                           </div>
                         </td>
                       </tr>
@@ -583,6 +797,7 @@ export default function MyTickets() {
         isOpen={isTicketDetailsModalOpen}
         onClose={() => setIsTicketDetailsModalOpen(false)}
         ticket={selectedTicket}
+        onRefresh={() => selectedTicket && refreshTicketDetails(selectedTicket.id)}
       />
 
 

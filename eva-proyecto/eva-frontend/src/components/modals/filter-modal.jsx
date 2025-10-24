@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { X, Download, Filter, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import axios from "axios";
+import httpService from "@/services/httpService";
 
 export function FilterModal({
   open,
@@ -96,7 +96,7 @@ export function FilterModal({
   const loadFilterOptions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/api/v1/equipos/filter-options");
+      const response = await httpService.get("/v1/equipos/filter-options");
 
       if (response.data.success) {
         setFilterOptions((prev) => ({
@@ -209,11 +209,12 @@ export function FilterModal({
         {}
       );
 
-      const response = await axios.post(
-        "/api/v1/equipos/export",
+      const response = await httpService.post(
+        "/v1/equipos/export",
         activeFilters,
         {
           responseType: "blob",
+          timeout: 60000, // 60 segundos para archivos grandes
         }
       );
 
@@ -224,9 +225,7 @@ export function FilterModal({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `equipos_filtrados_${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
+      link.download = "EquiposHUV.xlsx";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -304,7 +303,7 @@ export function FilterModal({
                 disabled={loadingExport}
               >
                 <Download className="h-4 w-4 mr-2" />
-                {loadingExport ? "Exportando..." : "Exportar Excel"}
+                {loadingExport ? "Exportando..." : "Exportar EquiposHUV"}
               </Button>
             </div>
             <div className="text-sm text-gray-600">

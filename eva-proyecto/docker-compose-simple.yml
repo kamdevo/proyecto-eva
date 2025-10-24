@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # Base de datos MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: eva_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "eva_root_2024"
+      MYSQL_DATABASE: gestionthuv
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    networks:
+      - eva_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Backend PHP/Laravel
+  backend:
+    build:
+      context: ./eva-backend
+      dockerfile: Dockerfile
+    container_name: eva_backend
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=gestionthuv
+      - DB_USERNAME=eva_user
+      - DB_PASSWORD=eva_password_2024
+    volumes:
+      - ./eva-backend:/var/www/html
+      - ./eva-backend/storage:/var/www/html/storage
+      - ./eva-backend/bootstrap/cache:/var/www/html/bootstrap/cache
+    depends_on:
+      - mysql
+    networks:
+      - eva_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React/Vite (Modo Desarrollo)
+  frontend:
+    build:
+      context: ./eva-frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://HOST_IP:8001/api
+        - VITE_APP_NAME=EVA - Sistema de Gestión
+    container_name: eva_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://HOST_IP:8001/api
+      - VITE_API_BASE_URL=http://HOST_IP:8001
+      - VITE_APP_NAME=EVA - Sistema de Gestión
+    volumes:
+      - ./eva-frontend/src:/app/src
+      - ./eva-frontend/public:/app/public
+      - ./eva-frontend/package.json:/app/package.json:ro
+      - ./eva-frontend/vite.config.js:/app/vite.config.js:ro
+    depends_on:
+      - backend
+    networks:
+      - eva_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  eva_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  mysql_data:
+    driver: local

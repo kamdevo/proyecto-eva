@@ -1,11 +1,23 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
-import { X, Building, Calendar, User, FileText, Clock, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { X, Building, Calendar, User, FileText, Clock, AlertCircle, Plus, Wrench, UserPlus, Printer } from "lucide-react";
+import AddProgressModal from "./add-progress-modal";
+import AssociateSparePart from "./associate-spare-part-modal";
+import AssignResponsibleModal from "./assign-responsible-modal";
 
 export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
+  const [showAddProgressModal, setShowAddProgressModal] = useState(false);
+  const [showSparePartModal, setShowSparePartModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
   if (!isOpen || !ticket) return null;
+
+  const isTicketOpen = ticket.status === "Abierto";
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -36,8 +48,9 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl w-full max-h-[95vh] overflow-y-auto p-0" showCloseButton={false}>
         {/* Header */}
         <div className="bg-blue-600 text-white p-6 rounded-t-lg">
           <div className="flex items-center justify-between">
@@ -54,12 +67,44 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
           </div>
         </div>
 
-        {/* Document Header */}
+        {/* Document Header con Botones de Acción */}
         <div className="bg-gray-50 border-b p-4">
-          <div className="text-center">
-            <h2 className="text-lg font-bold text-gray-900">DETALLE DEL TICKET</h2>
-            <p className="text-sm text-gray-600">Información Completa del Ticket #{ticket.id}</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1 text-center">
+              <h2 className="text-lg font-bold text-gray-900">DETALLE DEL TICKET</h2>
+              <p className="text-sm text-gray-600">Información Completa del Ticket #{ticket.id}</p>
+            </div>
           </div>
+          
+          {/* Botones de Acción - Solo visibles cuando el ticket está Abierto */}
+          {isTicketOpen && (
+            <div className="flex justify-center gap-3 pt-3 border-t">
+              <Button 
+                onClick={() => setShowAddProgressModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Avance
+              </Button>
+              <Button 
+                onClick={() => setShowSparePartModal(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+                size="sm"
+              >
+                <Wrench className="w-4 h-4 mr-2" />
+                Asociar Repuesto
+              </Button>
+              <Button 
+                onClick={() => setShowAssignModal(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                size="sm"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Asignar Responsable
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="p-6">
@@ -195,13 +240,36 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
             <Button variant="outline" onClick={onClose}>
               Cerrar
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              <FileText className="w-4 h-4 mr-2" />
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => window.print()}
+            >
+              <Printer className="w-4 h-4 mr-2" />
               Imprimir
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+      </Dialog>
+
+      {/* Modales de Acciones */}
+      <AddProgressModal 
+        isOpen={showAddProgressModal}
+        onClose={() => setShowAddProgressModal(false)}
+        ticketId={ticket.id}
+      />
+      
+      <AssociateSparePart 
+        isOpen={showSparePartModal}
+        onClose={() => setShowSparePartModal(false)}
+        ticketId={ticket.id}
+      />
+      
+      <AssignResponsibleModal 
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        ticketId={ticket.id}
+      />
+    </>
   );
 }

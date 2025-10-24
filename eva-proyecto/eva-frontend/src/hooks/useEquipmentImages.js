@@ -39,7 +39,7 @@ export const useEquipmentImages = () => {
         if (response.data.success && response.data.data.imagen) {
           const imageData = response.data.data.imagen;
           const imageUrl = `${
-            import.meta.env.VITE_API_URL || "http://localhost:8001"
+            import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"
           }/storage/${imageData.path}`;
 
           // Guardar en cache

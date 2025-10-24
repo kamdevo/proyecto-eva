@@ -44,21 +44,29 @@ const Sidebar = ({ isOpen }) => {
   useEffect(() => {
     const loadModules = async () => {
       try {
-        console.log('🔍 Cargando módulos desde BD...');
+        console.log('🔍 SIDEBAR: Cargando módulos desde BD...');
+        console.log('🔍 SIDEBAR: User state:', !!user);
+        console.log('🔍 SIDEBAR: Loading state:', loading);
+        
         const response = await apiClient.get('/v1/modulos');
-        console.log('📂 Módulos recibidos:', response.data);
+        console.log('📂 SIDEBAR: Módulos recibidos:', response.data);
         
         if (response.data.success && response.data.data) {
           setModules(response.data.data);
-          console.log('✅ Módulos cargados:', response.data.data.length);
+          console.log('✅ SIDEBAR: Módulos cargados:', response.data.data.length);
+          console.log('📋 SIDEBAR: Módulos array:', response.data.data);
+        } else {
+          console.warn('⚠️ SIDEBAR: Respuesta de módulos no exitosa:', response.data);
         }
       } catch (error) {
-        console.error('❌ Error cargando módulos:', error);
+        console.error('❌ SIDEBAR: Error cargando módulos:', error);
       } finally {
+        console.log('🏁 SIDEBAR: Cambiando loading a false');
         setLoading(false);
       }
     };
 
+    console.log('🚀 SIDEBAR: useEffect ejecutado');
     loadModules();
   }, []);
 
@@ -132,10 +140,12 @@ const Sidebar = ({ isOpen }) => {
       return false;
     }
     
-    console.log(`🔍 Verificando acceso a módulo "${moduleName}" para usuario rol ${user.rol_id}`);
+    // CORREGIR: Parsear rol_id a número para comparación
+    const userRoleId = parseInt(user.rol_id);
+    console.log(`🔍 Verificando acceso a módulo "${moduleName}" para usuario rol ${user.rol_id} (parsed: ${userRoleId})`);
     
     // Super admin y admin tienen acceso a todo
-    if (user.rol_id === 1 || user.rol_id === 2) {
+    if (userRoleId === 1 || userRoleId === 2) {
       console.log(`✅ Admin/SuperAdmin - acceso completo a "${moduleName}"`);
       return true;
     }
@@ -161,6 +171,11 @@ const Sidebar = ({ isOpen }) => {
   }
 
   // Siempre mostrar Dashboard
+  console.log('🎯 SIDEBAR: Generando menuItems...');
+  console.log('🎯 SIDEBAR: modules.length:', modules.length);
+  console.log('🎯 SIDEBAR: loading:', loading);
+  console.log('🎯 SIDEBAR: user:', !!user);
+  
   const menuItems = [
     {
       key: "dashboard",
@@ -172,7 +187,10 @@ const Sidebar = ({ isOpen }) => {
     },
     // Agregar módulos dinámicos de la BD
     ...modules.map(module => {
+      console.log(`🔍 SIDEBAR: Procesando módulo "${module.name}"`);
       const hasAccess = checkModuleAccess(module.name);
+      console.log(`🎯 SIDEBAR: Módulo "${module.name}" - acceso: ${hasAccess}`);
+      
       return {
         key: module.name.toLowerCase().replace(/\s+/g, '_'),
         title: module.name.charAt(0).toUpperCase() + module.name.slice(1),
@@ -184,6 +202,9 @@ const Sidebar = ({ isOpen }) => {
       };
     })
   ];
+  
+  console.log('📊 SIDEBAR: Total menuItems generados:', menuItems.length);
+  console.log('📊 SIDEBAR: MenuItems con acceso:', menuItems.filter(m => m.hasAccess).length);
 
   return (
     <aside className={`sidebar ${isOpen ? "open" : "closed"}`}>

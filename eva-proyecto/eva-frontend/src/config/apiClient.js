@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Configuración base de la API
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+  import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api";
 
 console.log("🔧 API Base URL:", API_BASE_URL);
 
@@ -25,18 +25,29 @@ api.interceptors.request.use(
       config.url
     );
 
-    // Obtener token del localStorage
-    const user = localStorage.getItem("usuario");
-    if (user) {
-      try {
-        const userData = JSON.parse(user);
-        if (userData.token) {
-          config.headers.Authorization = `Bearer ${userData.token}`;
-          console.log("🔑 Token added to request");
+    // CORRECCIÓN: Obtener token del localStorage en la ubicación correcta
+    // Primero intentar con el token directo (eva_auth_token)
+    let token = localStorage.getItem("eva_auth_token");
+    
+    // Si no existe, intentar con el formato de usuario
+    if (!token) {
+      const user = localStorage.getItem("usuario");
+      if (user) {
+        try {
+          const userData = JSON.parse(user);
+          token = userData.token;
+        } catch (error) {
+          console.warn("⚠️ Error parsing user data from localStorage:", error);
         }
-      } catch (error) {
-        console.warn("⚠️ Error parsing user data from localStorage:", error);
       }
+    }
+    
+    // Agregar token si existe
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log("🔑 Token added to request");
+    } else {
+      console.warn("⚠️ No token found in localStorage");
     }
 
     return config;

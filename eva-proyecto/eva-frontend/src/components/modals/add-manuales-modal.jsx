@@ -9,18 +9,52 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X, FileText, Plus } from "lucide-react";
+import { toast } from "sonner";
 
-export function AddManualesModal({ open, onOpenChange }) {
+export function AddManualesModal({ open, onOpenChange, onSuccess }) {
   const [descripcion, setDescripcion] = useState("");
   const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Aquí iría la lógica para agregar el manual
-    console.log({ descripcion, url });
-    onOpenChange(false);
-    setDescripcion("");
-    setUrl("");
+    
+    if (!descripcion.trim() || !url.trim()) {
+      toast.error('Todos los campos son obligatorios');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await fetch('http://192.168.2.146:8001/api/v1/manuales', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          descripcion: descripcion.trim(),
+          url: url.trim()
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('Manual creado exitosamente');
+        setDescripcion("");
+        setUrl("");
+        onOpenChange(false);
+        if (onSuccess) onSuccess();
+      } else {
+        toast.error(data.message || 'Error al crear manual');
+      }
+    } catch (error) {
+      console.error('Error creating manual:', error);
+      toast.error('Error al crear manual');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -93,15 +127,17 @@ export function AddManualesModal({ open, onOpenChange }) {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={loading}
                 className="w-full sm:w-auto px-8 py-3 text-sm font-medium border-slate-300 hover:bg-slate-50"
               >
-                Close
+                Cancelar
               </Button>
               <Button
                 type="submit"
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-sm font-medium"
+                disabled={loading}
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-sm font-medium disabled:opacity-50"
               >
-                Insertar
+                {loading ? 'Guardando...' : 'Crear Manual'}
               </Button>
             </div>
           </form>

@@ -55,6 +55,7 @@ export function PurchaseOrdersView() {
     changePage,
     changePageSize,
     refresh,
+    clearFilters,
     isEmpty,
     hasError,
     totalPages,
@@ -84,6 +85,12 @@ export function PurchaseOrdersView() {
     } catch (error) {
       console.error("Error exporting to Excel:", error);
     }
+  };
+
+  // Handle clear filters
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    clearFilters();
   };
 
   return (
@@ -200,7 +207,13 @@ export function PurchaseOrdersView() {
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3">
-                <MobilePurchaseFilters />
+                <MobilePurchaseFilters 
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  handleSearch={handleSearch}
+                  handleClearFilters={handleClearFilters}
+                  loading={loading}
+                />
               </CollapsibleContent>
             </Collapsible>
 
@@ -210,6 +223,7 @@ export function PurchaseOrdersView() {
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 handleSearch={handleSearch}
+                handleClearFilters={handleClearFilters}
                 loading={loading}
               />
             </div>
@@ -366,11 +380,17 @@ export function PurchaseOrdersView() {
           {/* Mobile Card View */}
           <div className="space-y-3 p-3">
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
-                <span className="ml-2 text-sm text-slate-600">
-                  Cargando órdenes...
-                </span>
+              <div className="space-y-3 py-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-lg border border-slate-200 p-4 space-y-2">
+                    <div className="h-4 bg-slate-100 rounded w-1/4 animate-pulse"></div>
+                    <div className="h-3 bg-slate-50 rounded w-3/4 animate-pulse"></div>
+                    <div className="flex gap-2 mt-2">
+                      <div className="h-6 bg-slate-50 rounded w-20 animate-pulse"></div>
+                      <div className="h-6 bg-slate-50 rounded w-24 animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : hasError ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -425,11 +445,10 @@ export function PurchaseOrdersView() {
                 {loading ? (
                   <tr>
                     <td colSpan="5" className="p-8 text-center">
-                      <div className="flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
-                        <span className="ml-2 text-sm text-slate-600">
-                          Cargando órdenes...
-                        </span>
+                      <div className="space-y-2">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="h-16 bg-slate-50 rounded animate-pulse"></div>
+                        ))}
                       </div>
                     </td>
                   </tr>
@@ -605,12 +624,24 @@ export function PurchaseOrdersView() {
 }
 
 // Mobile Filters Component
-function MobilePurchaseFilters() {
+function MobilePurchaseFilters({
+  searchTerm,
+  setSearchTerm,
+  handleSearch,
+  handleClearFilters,
+  loading,
+}) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" className="h-7 w-7 p-0 bg-white/80">
-          <Filter className="w-3 h-3 text-teal-600" />
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 w-7 p-0 bg-white/80"
+          onClick={handleClearFilters}
+          title="Limpiar todos los filtros"
+        >
+          <RefreshCw className="w-3 h-3 text-teal-600" />
         </Button>
         <span className="text-xs font-medium text-slate-700">Limpiar</span>
       </div>
@@ -633,9 +664,23 @@ function MobilePurchaseFilters() {
           <Input
             placeholder="Código de orden..."
             className="flex-1 h-8 text-xs bg-white/80"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            disabled={loading}
           />
-          <Button size="sm" variant="outline" className="h-8 px-2 bg-white/80">
-            <Search className="w-3 h-3 text-teal-600" />
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="h-8 px-2 bg-white/80"
+            onClick={handleSearch}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Search className="w-3 h-3 text-teal-600" />
+            )}
           </Button>
         </div>
       </div>
@@ -666,6 +711,7 @@ function DesktopPurchaseFilters({
   searchTerm,
   setSearchTerm,
   handleSearch,
+  handleClearFilters,
   loading,
 }) {
   return (
@@ -679,8 +725,10 @@ function DesktopPurchaseFilters({
             size="sm"
             variant="outline"
             className="h-8 w-8 p-0 bg-white/80 hover:bg-white"
+            onClick={handleClearFilters}
+            title="Limpiar todos los filtros"
           >
-            <Filter className="w-4 h-4 text-teal-600" />
+            <RefreshCw className="w-4 h-4 text-teal-600" />
           </Button>
         </div>
 

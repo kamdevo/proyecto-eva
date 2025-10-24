@@ -12,7 +12,7 @@ import AdminRoute from "./components/AdminRoute";
 // Importa tus vistas
 import ContingenciesView from "./components/contingencies-view";
 import HomePage from "./components/HomePage";
-import LoginForm from "./components/LoginForm";
+import LoginPage from "./components/LoginPage";
 import ManualesView from "./components/manuales-view";
 import MedicalDevicesView from "./components/medical-devices-view";
 import PlanesMantenimientoView from "./components/planes-mantenimiento-view";
@@ -60,7 +60,7 @@ function AppContent() {
               path="/"
               element={
                 <ProtectedRoute requireAuth={false}>
-                  <LoginForm />
+                  <LoginPage />
                 </ProtectedRoute>
               }
             />
@@ -69,7 +69,7 @@ function AppContent() {
               path="/login"
               element={
                 <ProtectedRoute requireAuth={true}>
-                  <LoginForm />
+                  <LoginPage />
                 </ProtectedRoute>
               }
             />

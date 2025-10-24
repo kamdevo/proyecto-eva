@@ -25,7 +25,7 @@ export function MainActionButtons({
           filter: "Filtrar",
           add: "Registrar",
           clean: "Depurar",
-          export: "Exportar cant. equipos",
+          export: "Exportar listado",
         };
       case "biomedical":
       default:
@@ -33,7 +33,7 @@ export function MainActionButtons({
           filter: "Filtrar",
           add: "Registrar",
           clean: "Depurar",
-          export: "Exportar cant. equipos",
+          export: "Exportar listado",
         };
     }
   };

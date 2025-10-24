@@ -218,7 +218,7 @@ export const useMantenimientoData = () => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Cronograma_Mantenimiento_${filters.anio || new Date().getFullYear()}.xlsx`;
+        link.download = 'PreventivosEB.xls'; // Nombre EXACTO según especificación
         document.body.appendChild(link);
         link.click();
         link.remove();
