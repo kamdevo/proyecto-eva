@@ -73,15 +73,21 @@ export const useOrdenesCompra = () => {
         setLoading(true);
         setError(null);
 
-        // Crear FormData para soporte de archivos
-        const formData = new FormData();
+        console.log('📤 [CREATE ORDER] Enviando datos:', ordenData);
 
-        // Agregar campos del formulario
-        Object.keys(ordenData).forEach((key) => {
-          if (ordenData[key] !== null && ordenData[key] !== undefined) {
-            formData.append(key, ordenData[key]);
-          }
-        });
+        // Si ya es FormData, usarlo directamente; si no, crear uno nuevo
+        let formData;
+        if (ordenData instanceof FormData) {
+          formData = ordenData;
+          console.log('📦 [CREATE ORDER] FormData recibido directamente');
+        } else {
+          formData = new FormData();
+          Object.keys(ordenData).forEach((key) => {
+            if (ordenData[key] !== null && ordenData[key] !== undefined && ordenData[key] !== '') {
+              formData.append(key, ordenData[key]);
+            }
+          });
+        }
 
         const response = await fetch(`${API_BASE_URL}/ordenes-compra`, {
           method: "POST",
@@ -91,6 +97,8 @@ export const useOrdenesCompra = () => {
           },
           body: formData,
         });
+
+        console.log('📥 [CREATE ORDER] Respuesta status:', response.status);
 
         if (!response.ok) {
           const errorData = await response.json();

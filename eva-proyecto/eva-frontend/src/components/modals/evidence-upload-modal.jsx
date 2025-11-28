@@ -136,6 +136,7 @@ export default function EvidenceUploadModal({ isOpen, onClose, onSave, ticketTyp
                   type="date" 
                   value={currentEvidence.uploadDate}
                   onChange={(e) => setCurrentEvidence(prev => ({...prev, uploadDate: e.target.value}))}
+                  max={new Date().toISOString().split('T')[0]}
                 />
               </div>
             </div>

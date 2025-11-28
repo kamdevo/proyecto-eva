@@ -318,16 +318,13 @@ class UsuarioController extends Controller
             return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1];
         }
         
-        // Role 4 (Basic User) - Limited permissions as per roles.md
+        // Role 4 (Basic User) - Permisos MÍNIMOS para usuarios recién activados
+        // Solo lectura de equipos biomédicos, industriales y mis tickets
         if ($rolId == 4) {
             $basicUserModules = [
                 'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
                 'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-                'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
-                'guias rapidas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-                'contactos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-                'servicios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-                'areas' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0]
+                'tickets propios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
             ];
             
             return $basicUserModules[$moduleName] ?? ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];

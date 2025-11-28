@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { X, Download, Filter, RotateCcw } from "lucide-react";
@@ -428,30 +429,25 @@ export function FilterModal({
                 >
                   Servicio Médico:
                 </Label>
-                <Select
-                  value={filters.servicio_id_auxiliar}
-                  onValueChange={(value) =>
-                    handleFilterChange("servicio_id_auxiliar", value)
-                  }
-                  disabled={
-                    !filters.filtro_zona || filters.filtro_zona === "all"
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar servicio..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los servicios</SelectItem>
-                    {filteredServicios.map((servicio) => (
-                      <SelectItem
-                        key={servicio.id}
-                        value={servicio.id.toString()}
-                      >
-                        {servicio.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todos los servicios" },
+                      ...filteredServicios.map((servicio) => ({
+                        id: servicio.id.toString(),
+                        label: servicio.name,
+                      }))
+                    ]}
+                    value={filters.servicio_id_auxiliar || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("servicio_id_auxiliar", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar servicio..."
+                    disabled={
+                      !filters.filtro_zona || filters.filtro_zona === "all"
+                    }
+                  />
+                </div>
               </div>
               <div>
                 <Label

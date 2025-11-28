@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useFormSubmit } from "../hooks/useFormSubmit";
-import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, User, Lock, CheckCircle, XCircle, Power } from "lucide-react";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
 import { useCentrosCosto } from "../hooks/useCentrosCosto";
@@ -47,6 +47,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/ui/searchable-select";
+import { toast } from "sonner";
 
 export default function Usuarios() {
   // Hooks para datos reales
@@ -55,6 +56,7 @@ export default function Usuarios() {
     loading: usuariosLoading,
     error: usuariosError,
     pagination,
+    fetchUsuarios,
     createUsuario,
     updateUsuario,
     deleteUsuario,
@@ -97,6 +99,8 @@ export default function Usuarios() {
   const [goToPage, setGoToPage] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [isBulkOperationModalOpen, setIsBulkOperationModalOpen] = useState(false);
+  const [usersSortField, setUsersSortField] = useState('id');
+  const [usersSortDirection, setUsersSortDirection] = useState('desc');
   const [addUserForm, setAddUserForm] = useState({
     nombre: "",
     apellidos: "",
@@ -198,13 +202,6 @@ export default function Usuarios() {
     };
   }, [searchTimeout]);
   
-  // Cargar datos de relaciones zonas-usuarios
-  useEffect(() => {
-    fetchZoneRelations();
-    fetchAvailableUsers();
-    fetchAvailableZones();
-  }, []);
-
   // Funciones para manejar usuarios
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -217,9 +214,9 @@ export default function Usuarios() {
 
     const timeout = setTimeout(() => {
       if (value.trim()) {
-        searchUsuarios(value.trim());
+        fetchUsuarios(1, pagination.per_page, value.trim(), usersSortField, usersSortDirection);
       } else {
-        refreshUsuarios();
+        fetchUsuarios(1, pagination.per_page, '', usersSortField, usersSortDirection);
       }
     }, 300); // Wait 300ms after user stops typing
 
@@ -229,15 +226,15 @@ export default function Usuarios() {
   // Clear search
   const handleClearSearch = () => {
     setSearchTerm("");
-    refreshUsuarios();
+    fetchUsuarios(1, pagination.per_page, '', usersSortField, usersSortDirection);
   };
 
   const handlePageChange = (page) => {
-    changePage(page);
+    fetchUsuarios(page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
   };
 
   const handlePageSizeChange = (size) => {
-    changePageSize(parseInt(size));
+    fetchUsuarios(1, parseInt(size), searchTerm, usersSortField, usersSortDirection);
   };
 
   const handleGoToPage = (e) => {
@@ -254,6 +251,8 @@ export default function Usuarios() {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableZones, setAvailableZones] = useState([]);
   const [loadingRelations, setLoadingRelations] = useState(false);
+  const [relationsSortField, setRelationsSortField] = useState('id');
+  const [relationsSortDirection, setRelationsSortDirection] = useState('desc');
   
   // Datos del modal de agregar relación
   const [newRelation, setNewRelation] = useState({
@@ -261,13 +260,34 @@ export default function Usuarios() {
     zona_id: ''
   });
   
+  // Estados para editar relación
+  const [isEditRelationModalOpen, setIsEditRelationModalOpen] = useState(false);
+  const [selectedRelation, setSelectedRelation] = useState(null);
+  const [editRelation, setEditRelation] = useState({
+    usuario_id: '',
+    zona_id: ''
+  });
+  
+  // Estados para gestión de zonas
+  const [zonasData, setZonasData] = useState([]);
+  const [loadingZonas, setLoadingZonas] = useState(false);
+  const [isEditZonaModalOpen, setIsEditZonaModalOpen] = useState(false);
+  const [selectedZona, setSelectedZona] = useState(null);
+  const [editZonaName, setEditZonaName] = useState('');
+  const [zonasSortField, setZonasSortField] = useState('id');
+  const [zonasSortDirection, setZonasSortDirection] = useState('asc');
+  
   // Los hooks de accesibilidad se definirán después de las funciones
   
   // Funciones para cargar datos reales de usuarios-zonas
   const fetchZoneRelations = async () => {
     try {
       setLoadingRelations(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas`);
+      const params = new URLSearchParams({
+        sort_by: relationsSortField,
+        sort_direction: relationsSortDirection
+      });
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas?${params}`);
       const data = await response.json();
       if (data.success) {
         setZoneRelationsData(data.data);
@@ -277,6 +297,24 @@ export default function Usuarios() {
     } finally {
       setLoadingRelations(false);
     }
+  };
+
+  const handleRelationsSort = (field) => {
+    if (relationsSortField === field) {
+      setRelationsSortDirection(relationsSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setRelationsSortField(field);
+      setRelationsSortDirection('asc');
+    }
+  };
+
+  const getRelationsSortIcon = (field) => {
+    if (relationsSortField !== field) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    return relationsSortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4" /> : 
+      <ArrowDown className="h-4 w-4" />;
   };
   
   const fetchAvailableUsers = async () => {
@@ -305,7 +343,7 @@ export default function Usuarios() {
   
   const handleAddRelation = async () => {
     if (!newRelation.usuario_id || !newRelation.zona_id) {
-      alert('Selecciona usuario y zona');
+      toast.error('Selecciona usuario y zona');
       return;
     }
     
@@ -322,21 +360,21 @@ export default function Usuarios() {
       const result = await response.json();
       
       if (result.success) {
-        alert('Relación creada exitosamente');
+        toast.success('Relación creada exitosamente');
         setNewRelation({ usuario_id: '', zona_id: '' });
         setIsAddRelationModalOpen(false);
         fetchZoneRelations(); // Actualizar lista
       } else {
-        alert(`Error: ${result.message}`);
+        toast.error(`Error: ${result.message}`);
       }
     } catch (error) {
       console.error('Error creating relation:', error);
-      alert('Error creando relación');
+      toast.error('Error creando relación');
     }
   };
   
   const deleteRelationDirect = async (relationId) => {
-    if (!confirm('¿Estás seguro de eliminar esta relación?')) return;
+    if (!window.confirm('¿Estás seguro de eliminar esta relación?')) return;
     
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/${relationId}`, {
@@ -349,16 +387,179 @@ export default function Usuarios() {
       const result = await response.json();
       
       if (result.success) {
-        alert('Relación eliminada exitosamente');
+        toast.success('Relación eliminada exitosamente');
         fetchZoneRelations(); // Actualizar lista
       } else {
-        alert(`Error: ${result.message}`);
+        toast.error(`Error: ${result.message}`);
       }
     } catch (error) {
       console.error('Error deleting relation:', error);
-      alert('Error eliminando relación');
+      toast.error('Error eliminando relación');
     }
   };
+
+  const handleEditRelationClick = (relation) => {
+    setSelectedRelation(relation);
+    setEditRelation({
+      usuario_id: relation.usuario_id,
+      zona_id: relation.zona_id
+    });
+    setIsEditRelationModalOpen(true);
+  };
+
+  const handleUpdateRelation = async () => {
+    if (!editRelation.usuario_id || !editRelation.zona_id) {
+      toast.error('Por favor complete todos los campos');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/${selectedRelation.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(editRelation)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Relación actualizada exitosamente');
+        setEditRelation({ usuario_id: '', zona_id: '' });
+        setSelectedRelation(null);
+        setIsEditRelationModalOpen(false);
+        fetchZoneRelations(); // Actualizar lista
+      } else {
+        toast.error(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error updating relation:', error);
+      toast.error('Error actualizando relación');
+    }
+  };
+
+  // Funciones para gestión de zonas
+  const fetchZonas = async () => {
+    try {
+      setLoadingZonas(true);
+      const params = new URLSearchParams({
+        sort_by: zonasSortField,
+        sort_direction: zonasSortDirection
+      });
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/zonas/list?${params}`);
+      const data = await response.json();
+      if (data.success) {
+        setZonasData(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading zonas:', error);
+    } finally {
+      setLoadingZonas(false);
+    }
+  };
+
+  const handleZonasSort = (field) => {
+    if (zonasSortField === field) {
+      setZonasSortDirection(zonasSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setZonasSortField(field);
+      setZonasSortDirection('asc');
+    }
+  };
+
+  const getZonasSortIcon = (field) => {
+    if (zonasSortField !== field) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    return zonasSortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4" /> : 
+      <ArrowDown className="h-4 w-4" />;
+  };
+
+  // Funciones de ordenamiento para tabla de usuarios
+  const handleUsersSort = (field) => {
+    if (usersSortField === field) {
+      setUsersSortDirection(usersSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setUsersSortField(field);
+      setUsersSortDirection('asc');
+    }
+  };
+
+  const getUsersSortIcon = (field) => {
+    if (usersSortField !== field) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    return usersSortDirection === 'asc' ? 
+      <ArrowUp className="h-4 w-4" /> : 
+      <ArrowDown className="h-4 w-4" />;
+  };
+
+  const handleEditZonaClick = (zona) => {
+    setSelectedZona(zona);
+    setEditZonaName(zona.name);
+    setIsEditZonaModalOpen(true);
+  };
+
+  const handleUpdateZona = async () => {
+    if (!editZonaName || editZonaName.trim() === '') {
+      toast.error('Por favor ingrese un nombre para la zona');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/zonas/${selectedZona.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ name: editZonaName })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Zona actualizada exitosamente');
+        setEditZonaName('');
+        setSelectedZona(null);
+        setIsEditZonaModalOpen(false);
+        fetchZonas(); // Actualizar lista de zonas
+        fetchAvailableZones(); // Actualizar lista en los selects
+      } else {
+        toast.error(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error updating zona:', error);
+      toast.error('Error actualizando zona');
+    }
+  };
+
+  // useEffect hooks - Cargar datos iniciales y actualizar cuando cambie ordenamiento
+  useEffect(() => {
+    fetchZoneRelations();
+    fetchAvailableUsers();
+    fetchAvailableZones();
+    fetchZonas();
+  }, []);
+
+  useEffect(() => {
+    fetchZonas();
+  }, [zonasSortField, zonasSortDirection]);
+
+  useEffect(() => {
+    fetchZoneRelations();
+  }, [relationsSortField, relationsSortDirection]);
+
+  // Actualizar usuarios cuando cambie el ordenamiento
+  useEffect(() => {
+    if (pagination.current_page) {
+      fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usersSortField, usersSortDirection]);
 
   // Datos de empresas y usuarios pertenecientes
   const companyUsersData = [
@@ -639,7 +840,7 @@ export default function Usuarios() {
         setUserToDelete(null);
       } catch (error) {
         console.error("Error eliminando usuario:", error);
-        alert("Error al eliminar usuario: " + error.message);
+        toast.error("Error al eliminar usuario: " + error.message);
       }
     }
   };
@@ -674,7 +875,7 @@ export default function Usuarios() {
       );
     } catch (error) {
       console.error("Error updating permission:", error);
-      alert("Error al actualizar permiso: " + error.message);
+      toast.error("Error al actualizar permiso: " + error.message);
     }
   };
 
@@ -685,34 +886,40 @@ export default function Usuarios() {
       setIsViewUserModalOpen(true);
     } catch (error) {
       console.error("Error obteniendo usuario:", error);
-      alert("Error al obtener detalles del usuario");
+      toast.error("Error al obtener detalles del usuario");
     }
   };
 
   const handleEditUser = async (user) => {
     try {
       const fullUser = await getUsuario(user.id);
+      console.log("📝 Usuario obtenido del backend:", fullUser);
+      console.log("📝 Campos específicos - apellido:", fullUser.apellido, "telefono:", fullUser.telefono, "rol_id:", fullUser.rol_id);
+      
       setSelectedUser(fullUser);
 
       // Cargar permisos del usuario
       const permissions = await fetchUserPermissions(user.id);
       setUserPermissions(permissions);
 
-      setAddUserForm({
+      const formData = {
         nombre: fullUser.nombre || "",
-        apellidos: fullUser.apellido || "",
+        apellidos: fullUser.apellido || "",  // Backend usa 'apellido' (singular)
         telefono: fullUser.telefono || "",
         email: fullUser.email || "",
         username: fullUser.username || "",
         password: "",
-        rol: fullUser.rol_id || "",
+        rol: fullUser.rol_id ? fullUser.rol_id.toString() : "",  // Convertir a string para el Select
         centroCosto: fullUser.centro_id || "",
         empresa: fullUser.id_empresa || "",
-      });
+      };
+      
+      console.log("📝 FormData a establecer:", formData);
+      setAddUserForm(formData);
       setIsEditUserModalOpen(true);
     } catch (error) {
       console.error("Error obteniendo usuario:", error);
-      alert("Error al obtener detalles del usuario");
+      toast.error("Error al obtener detalles del usuario");
     }
   };
 
@@ -723,7 +930,7 @@ export default function Usuarios() {
     }
     // Validar campos requeridos
     if (!addUserForm.nombre || !addUserForm.email || !addUserForm.username || !addUserForm.password) {
-      alert('Por favor complete los campos obligatorios: Nombre, Email, Username y Password');
+      toast.error('Por favor complete los campos obligatorios: Nombre, Email, Username y Password');
       return;
     }
     
@@ -756,7 +963,7 @@ export default function Usuarios() {
       const result = await response.json();
       
       if (result.success || response.ok) {
-        alert('Usuario creado exitosamente');
+        toast.success('Usuario creado exitosamente');
         setIsAddUserModalOpen(false);
         setAddUserForm({
           nombre: "",
@@ -771,13 +978,13 @@ export default function Usuarios() {
         });
         
         // Recargar lista de usuarios
-        refreshUsuarios();
+        fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
       } else {
-        alert(`Error: ${result.message || 'Error creando usuario'}`);
+        toast.error(`Error: ${result.message || 'Error creando usuario'}`);
       }
     } catch (error) {
       console.error("Error creando usuario:", error);
-      alert("Error al crear usuario: " + error.message);
+      toast.error("Error al crear usuario: " + error.message);
     }
   };
 
@@ -806,7 +1013,7 @@ export default function Usuarios() {
       setIsEditUserModalOpen(false);
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      alert("Error al actualizar usuario: " + error.message);
+      toast.error("Error al actualizar usuario: " + error.message);
     }
   };
 
@@ -821,7 +1028,7 @@ export default function Usuarios() {
     try {
       const action = user.active === 'true' || user.active === true ? 'desactivar' : 'activar';
 
-      if (!confirm(`¿Estás seguro de que quieres ${action} al usuario ${user.nombre} ${user.apellido}?`)) {
+      if (!window.confirm(`¿Estás seguro de que quieres ${action} al usuario ${user.nombre} ${user.apellido}?`)) {
         return;
       }
 
@@ -841,15 +1048,15 @@ export default function Usuarios() {
       const result = await response.json();
 
       if (result.success) {
-        alert(`Usuario ${action}do exitosamente`);
+        toast.success(`Usuario ${action}do exitosamente`);
         // Refrescar la lista de usuarios
-        refreshUsuarios();
+        fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
       } else {
-        alert(`Error: ${result.message}`);
+        toast.error(`Error: ${result.message}`);
       }
     } catch (error) {
       console.error("Error toggling user activation:", error);
-      alert("Error al cambiar el estado de activación del usuario");
+      toast.error("Error al cambiar el estado de activación del usuario");
     }
   };
 
@@ -873,7 +1080,7 @@ export default function Usuarios() {
   const handleBulkActivate = async () => {
     try {
       if (selectedUsers.length === 0) {
-        alert("Selecciona al menos un usuario");
+        toast.warning("Selecciona al menos un usuario");
         return;
       }
 
@@ -892,22 +1099,22 @@ export default function Usuarios() {
       const result = await response.json();
 
       if (result.success) {
-        alert(result.message);
+        toast.success(result.message);
         setSelectedUsers([]);
-        refreshUsuarios();
+        fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
       } else {
-        alert(`Error: ${result.message}`);
+        toast.error(`Error: ${result.message}`);
       }
     } catch (error) {
       console.error("Error in bulk activate:", error);
-      alert("Error en operación masiva de activación");
+      toast.error("Error en operación masiva de activación");
     }
   };
 
   const handleBulkDeactivate = async () => {
     try {
       if (selectedUsers.length === 0) {
-        alert("Selecciona al menos un usuario");
+        toast.warning("Selecciona al menos un usuario");
         return;
       }
 
@@ -926,15 +1133,15 @@ export default function Usuarios() {
       const result = await response.json();
 
       if (result.success) {
-        alert(result.message);
+        toast.success(result.message);
         setSelectedUsers([]);
-        refreshUsuarios();
+        fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
       } else {
-        alert(`Error: ${result.message}`);
+        toast.error(`Error: ${result.message}`);
       }
     } catch (error) {
       console.error("Error in bulk deactivate:", error);
-      alert("Error en operación masiva de desactivación");
+      toast.error("Error en operación masiva de desactivación");
     }
   };
 
@@ -983,7 +1190,7 @@ export default function Usuarios() {
 
       await updateUserPermissions(selectedUser.id, permissionsToSave);
       
-      alert("Permisos actualizados exitosamente");
+      toast.success("Permisos actualizados exitosamente");
       
       // Refrescar permisos
       const updatedPermissions = await fetchUserPermissions(selectedUser.id);
@@ -991,7 +1198,7 @@ export default function Usuarios() {
       
     } catch (error) {
       console.error("Error saving user permissions:", error);
-      alert("Error al guardar los permisos del usuario");
+      toast.error("Error al guardar los permisos del usuario");
     }
   };
 
@@ -1127,7 +1334,7 @@ export default function Usuarios() {
                         </Label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 text-sm">👤</span>
+                            <User className="h-4 w-4 text-gray-500" />
                           </div>
                           <Input
                             placeholder="nombre_usuario"
@@ -1150,7 +1357,7 @@ export default function Usuarios() {
                         </Label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 text-sm">🔒</span>
+                            <Lock className="h-4 w-4 text-gray-500" />
                           </div>
                           <Input
                             placeholder="Contraseña segura"
@@ -1303,7 +1510,7 @@ export default function Usuarios() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={refreshUsuarios}
+                  onClick={() => fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection)}
                   className="flex-shrink-0"
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
@@ -1407,22 +1614,58 @@ export default function Usuarios() {
                         />
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
-                        ID
+                        <button
+                          onClick={() => handleUsersSort('id')}
+                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        >
+                          ID
+                          {getUsersSortIcon('id')}
+                        </button>
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
-                        Nombre y Apellidos
+                        <button
+                          onClick={() => handleUsersSort('nombre')}
+                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        >
+                          Nombre y Apellidos
+                          {getUsersSortIcon('nombre')}
+                        </button>
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
-                        Centro de Costo
+                        <button
+                          onClick={() => handleUsersSort('centro_id')}
+                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        >
+                          Centro de Costo
+                          {getUsersSortIcon('centro_id')}
+                        </button>
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
-                        Login
+                        <button
+                          onClick={() => handleUsersSort('username')}
+                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        >
+                          Login
+                          {getUsersSortIcon('username')}
+                        </button>
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900">
-                        Rol
+                        <button
+                          onClick={() => handleUsersSort('rol_id')}
+                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        >
+                          Rol
+                          {getUsersSortIcon('rol_id')}
+                        </button>
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900 text-center">
-                        Estado
+                        <button
+                          onClick={() => handleUsersSort('active')}
+                          className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
+                        >
+                          Estado
+                          {getUsersSortIcon('active')}
+                        </button>
                       </TableHead>
                       <TableHead className="font-semibold text-gray-900 text-center">
                         Acciones
@@ -1493,7 +1736,11 @@ export default function Usuarios() {
                                       : "Activar usuario"
                                   }
                                 >
-                                  {user.active === 'true' || user.active === true ? "❌" : "✅"}
+                                  {user.active === 'true' || user.active === true ? (
+                                    <Power className="h-4 w-4" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4" />
+                                  )}
                                 </Button>
                               )}
                             </div>
@@ -1856,6 +2103,92 @@ export default function Usuarios() {
                   </form>
                 </DialogContent>
               </Dialog>
+              
+              {/* Modal de Editar Relación */}
+              <Dialog
+                open={isEditRelationModalOpen}
+                onOpenChange={setIsEditRelationModalOpen}
+              >
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
+                      Editar Relación
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Zona <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={editRelation.zona_id?.toString()}
+                        onValueChange={(value) =>
+                          setEditRelation(prev => ({ ...prev, zona_id: value }))
+                        }
+                      >
+                        <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
+                          <SelectValue placeholder="----Seleccione----" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableZones.map(zone => (
+                            <SelectItem key={zone.id} value={zone.id.toString()}>
+                              {zone.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Usuario <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={editRelation.usuario_id?.toString()}
+                        onValueChange={(value) =>
+                          setEditRelation(prev => ({ ...prev, usuario_id: value }))
+                        }
+                      >
+                        <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200 w-full">
+                          <SelectValue placeholder="----Seleccione----" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableUsers.map(user => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.nombre} ({user.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500">
+                        Seleccione la zona donde trabajará el usuario
+                      </p>
+                    </div>
+                  
+                    <div className="flex gap-3 pt-6">
+                      <Button
+                        type="button"
+                        onClick={handleUpdateRelation}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+                      >
+                        Actualizar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditRelationModalOpen(false);
+                          setSelectedRelation(null);
+                          setEditRelation({ usuario_id: '', zona_id: '' });
+                        }}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+                      >
+                        Cerrar
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardHeader>
 
@@ -1865,13 +2198,31 @@ export default function Usuarios() {
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead className="font-semibold text-gray-900">
-                      nombre de la zona
+                      <button
+                        onClick={() => handleRelationsSort('zona')}
+                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                      >
+                        nombre de la zona
+                        {getRelationsSortIcon('zona')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900">
-                      nombre del usuario
+                      <button
+                        onClick={() => handleRelationsSort('usuario')}
+                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                      >
+                        nombre del usuario
+                        {getRelationsSortIcon('usuario')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900">
-                      correo electrónico
+                      <button
+                        onClick={() => handleRelationsSort('email')}
+                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                      >
+                        correo electrónico
+                        {getRelationsSortIcon('email')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 text-center">
                       Acciones
@@ -1911,7 +2262,15 @@ export default function Usuarios() {
                           {relation.correo_electronico || 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleEditRelationClick(relation)}
+                              className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg"
+                              title="Editar relación"
+                            >
+                              <Pencil className="h-4 w-4 text-white" />
+                            </Button>
                             <Button
                               size="sm"
                               onClick={() => deleteRelationDirect(relation.id)}
@@ -1930,6 +2289,147 @@ export default function Usuarios() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Zonas Management Section */}
+        <Card className="shadow-sm border-0">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-semibold text-gray-900">
+                Gestión de Zonas
+              </CardTitle>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <Table>
+                <TableHeader className="bg-gray-50">
+                  <TableRow>
+                    <TableHead className="font-semibold text-gray-900">
+                      <button
+                        onClick={() => handleZonasSort('id')}
+                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                      >
+                        ID
+                        {getZonasSortIcon('id')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="font-semibold text-gray-900">
+                      <button
+                        onClick={() => handleZonasSort('name')}
+                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                      >
+                        Nombre de la Zona
+                        {getZonasSortIcon('name')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="font-semibold text-gray-900 text-center">
+                      Acciones
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingZonas ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8">
+                        <div className="space-y-2">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="h-8 bg-gray-100 rounded animate-pulse"></div>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : zonasData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8">
+                        <div className="text-gray-500">
+                          <p className="text-lg font-medium">No hay zonas configuradas</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    zonasData.map((zona) => (
+                      <TableRow key={zona.id} className="hover:bg-gray-50">
+                        <TableCell className="font-medium text-gray-900">
+                          {zona.id}
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {zona.name}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleEditZonaClick(zona)}
+                              className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg"
+                              title="Editar zona"
+                            >
+                              <Pencil className="h-4 w-4 text-white" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Modal de Editar Zona */}
+        <Dialog
+          open={isEditZonaModalOpen}
+          onOpenChange={setIsEditZonaModalOpen}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
+                Editar Zona
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Nombre de la Zona <span className="text-red-500">*</span>
+                </Label>
+                <input
+                  type="text"
+                  value={editZonaName}
+                  onChange={(e) => setEditZonaName(e.target.value)}
+                  className="w-full h-11 px-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  placeholder="Ejemplo: ZONA1(NATALIA)"
+                />
+                <p className="text-xs text-gray-500">
+                  Puede incluir el nombre del usuario entre paréntesis
+                </p>
+              </div>
+            
+              <div className="flex gap-3 pt-6">
+                <Button
+                  type="button"
+                  onClick={handleUpdateZona}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+                >
+                  Actualizar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditZonaModalOpen(false);
+                    setSelectedZona(null);
+                    setEditZonaName('');
+                  }}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Company Users Section */}
         <Card className="shadow-sm border-0">
@@ -2319,30 +2819,38 @@ export default function Usuarios() {
               <div>
                 <span className="font-semibold text-gray-700">Nombre: </span>
                 <span className="text-gray-600">
-                  {selectedUser.nombre.toUpperCase()}
+                  {selectedUser.nombre?.toUpperCase() || 'N/A'}
                 </span>
               </div>
               <div>
-                <span className="font-semibold text-gray-700">apellido: </span>
-                <span className="text-gray-600">APELLIDO EJEMPLO</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">teléfono: </span>
-                <span className="text-gray-600">3234567834</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">email: </span>
+                <span className="font-semibold text-gray-700">Apellido: </span>
                 <span className="text-gray-600">
-                  sarahcristina290317@gmail.com
+                  {selectedUser.apellido?.toUpperCase() || 'N/A'}
                 </span>
               </div>
               <div>
-                <span className="font-semibold text-gray-700">username: </span>
-                <span className="text-gray-600">{selectedUser.login}</span>
+                <span className="font-semibold text-gray-700">Teléfono: </span>
+                <span className="text-gray-600">
+                  {selectedUser.telefono || 'N/A'}
+                </span>
               </div>
               <div>
-                <span className="font-semibold text-gray-700">rol: </span>
-                <span className="text-gray-600">{typeof selectedUser.rol === 'object' ? selectedUser.rol.nombre : selectedUser.rol}</span>
+                <span className="font-semibold text-gray-700">Email: </span>
+                <span className="text-gray-600">
+                  {selectedUser.email || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700">Username: </span>
+                <span className="text-gray-600">
+                  {selectedUser.username || selectedUser.login || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700">Rol: </span>
+                <span className="text-gray-600">
+                  {typeof selectedUser.rol === 'object' ? selectedUser.rol.nombre : selectedUser.rol || 'N/A'}
+                </span>
               </div>
             </div>
           )}

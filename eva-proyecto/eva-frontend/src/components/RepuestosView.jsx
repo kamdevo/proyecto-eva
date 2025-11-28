@@ -1381,7 +1381,7 @@ function RepuestosView() {
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-[#1d293d]">
                   ${comprasPendientes.reduce((sum, c) => sum + c.total, 0).toFixed(0)}
                 </div>
                 <p className="text-sm text-gray-600">Valor Pendiente</p>
@@ -1714,7 +1714,7 @@ function RepuestosView() {
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-blue-600">{metricas.rotacionPromedio.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-[#1d293d]">{metricas.rotacionPromedio.toFixed(2)}</div>
                 <p className="text-sm text-gray-600">Rotación Promedio</p>
               </CardContent>
             </Card>
@@ -1895,7 +1895,7 @@ function RepuestosView() {
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-blue-600">{metricas.equiposConRepuestos}</div>
+                <div className="text-2xl font-bold text-[#1d293d]">{metricas.equiposConRepuestos}</div>
                 <p className="text-sm text-gray-600">Equipos con Repuestos</p>
               </CardContent>
             </Card>
@@ -2740,18 +2740,18 @@ function RepuestosView() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Encabezado */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 mb-8">
+        <div className="bg-gradient-to-r from-[#1d293d] to-[#2a3b52] rounded-lg shadow-lg p-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                 <Package className="w-8 h-8" />
                 Gestión de Repuestos
               </h1>
-              <p className="text-blue-100 mt-2">Sistema de inventario y control de repuestos</p>
+              <p className="text-white/80 mt-2">Sistema de inventario y control de repuestos</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-white">{totalItems}</div>
-              <p className="text-blue-100 text-sm">Total Repuestos</p>
+              <p className="text-white/80 text-sm">Total Repuestos</p>
             </div>
           </div>
         </div>
@@ -2764,7 +2764,7 @@ function RepuestosView() {
                 notif.tipo === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
                 notif.tipo === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
                 notif.tipo === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-                'bg-blue-50 border-blue-200 text-blue-800'
+                'bg-[#1d293d]/5 border-[#1d293d]/30 text-[#1d293d]'
               }`}>
                 <div className="flex items-center gap-2">
                   {notif.tipo === 'success' && <CheckCircle className="w-4 h-4" />}
@@ -2875,18 +2875,18 @@ function RepuestosView() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <div>
-                <Label className="text-blue-700 font-medium">Búsqueda</Label>
+                <Label className="text-[#1d293d] font-medium">Búsqueda</Label>
                 <Input 
                   placeholder="Nombre, código o proveedor..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-blue-200 focus:border-blue-500"
+                  className="border-[#1d293d]/30 focus:border-[#1d293d]"
                 />
               </div>
               <div>
-                <Label className="text-blue-700 font-medium">Grupo</Label>
+                <Label className="text-[#1d293d] font-medium">Grupo</Label>
                 <Select value={grupoFilter} onValueChange={(value) => setGrupoFilter(value)}>
-                  <SelectTrigger className="border-blue-200">
+                  <SelectTrigger className="border-[#1d293d]/30">
                     <SelectValue placeholder="Seleccionar grupo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -3089,7 +3089,7 @@ function RepuestosView() {
               <CardContent>
                 {/* Área de Gestión de Stock */}
                 {showStockForm && (
-                  <Card className="mb-4 bg-blue-50">
+                  <Card className="mb-4 bg-[#1d293d]/5">
                     <CardContent className="pt-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -3154,7 +3154,7 @@ function RepuestosView() {
 
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-blue-50">
+                    <TableRow className="bg-[#1d293d]/5">
                       <TableHead className="font-semibold">Fecha</TableHead>
                       <TableHead className="font-semibold">Repuesto</TableHead>
                       <TableHead className="font-semibold">Equipo</TableHead>
@@ -3184,11 +3184,11 @@ function RepuestosView() {
                       </TableRow>
                     ) : (
                       repuestos.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-blue-50">
+                      <TableRow key={item.id} className="hover:bg-[#1d293d]/5">
                         <TableCell className="font-mono text-sm">{item.fecha || 'N/A'}</TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium text-blue-700">{item.repuesto_nombre}</div>
+                            <div className="font-medium text-[#1d293d]">{item.repuesto_nombre}</div>
                             <div className="text-xs text-gray-500">Código: {item.repuesto_codigo}</div>
                           </div>
                         </TableCell>
@@ -3201,7 +3201,7 @@ function RepuestosView() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-semibold">
+                          <span className="px-2 py-1 bg-[#1d293d]/10 text-[#1d293d] rounded text-sm font-semibold">
                             {item.cantidad}
                           </span>
                         </TableCell>
@@ -3962,7 +3962,7 @@ function RepuestosView() {
             </div>
             
             {formAsignacion.repuestoId && (
-              <div className="p-3 bg-blue-50 rounded">
+              <div className="p-3 bg-[#1d293d]/5 rounded">
                 <div className="text-sm">
                   <strong>Repuesto seleccionado:</strong>
                   {(() => {
@@ -4083,14 +4083,14 @@ function RepuestosView() {
                   notif.tipo === 'success' ? 'bg-green-50 border-green-200' :
                   notif.tipo === 'warning' ? 'bg-yellow-50 border-yellow-200' :
                   notif.tipo === 'error' ? 'bg-red-50 border-red-200' :
-                  'bg-blue-50 border-blue-200'
+                  'bg-[#1d293d]/5 border-[#1d293d]/30'
                 }`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-2">
                       {notif.tipo === 'success' && <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />}
                       {notif.tipo === 'warning' && <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5" />}
                       {notif.tipo === 'error' && <XCircle className="w-4 h-4 text-red-600 mt-0.5" />}
-                      {notif.tipo === 'info' && <Bell className="w-4 h-4 text-blue-600 mt-0.5" />}
+                      {notif.tipo === 'info' && <Bell className="w-4 h-4 text-[#1d293d] mt-0.5" />}
                       <div>
                         <div className="text-sm font-medium">{notif.mensaje}</div>
                         <div className="text-xs text-gray-500 mt-1">{notif.timestamp}</div>
@@ -4140,7 +4140,7 @@ function RepuestosView() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-blue-600">{repuestos.length}</div>
+                <div className="text-2xl font-bold text-[#1d293d]">{repuestos.length}</div>
                 <div className="text-sm text-gray-600">Total Repuestos</div>
                 <div className="text-xs text-blue-600 mt-1">Activos en sistema</div>
               </CardContent>

@@ -288,7 +288,7 @@ export function DocumentListModal({
           }}
         >
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2 flex items-center gap-2">
+            <DialogTitle className="text-xl font-semibold text-[#1d293d] border-b border-[#1d293d]/30 pb-2 flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Gestión de Documentos - {equipment?.name || "Equipo"}
               <Badge variant="secondary" className="ml-2">
@@ -359,7 +359,7 @@ export function DocumentListModal({
             {/* Botones de acción */}
             <div className="flex flex-wrap gap-2 p-4 border-b">
               <Button
-                className="bg-blue-500 hover:bg-blue-600 text-white"
+                className="bg-[#1d293d] hover:bg-[#2a3b52] text-white"
                 onClick={onUploadClick}
               >
                 <Upload className="h-4 w-4 mr-2" />
@@ -379,7 +379,7 @@ export function DocumentListModal({
             {/* Lista/Tabla de documentos */}
             {loading ? (
               <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d293d]"></div>
                 <span className="ml-2">Cargando documentos...</span>
               </div>
             ) : filteredDocuments.length === 0 ? (
@@ -512,7 +512,7 @@ export function DocumentListModal({
                         onClick={() => setCurrentPage(pageNum)}
                         className={
                           currentPage === pageNum
-                            ? "bg-blue-600 text-white"
+                            ? "bg-[#1d293d] text-white"
                             : ""
                         }
                       >
@@ -649,7 +649,7 @@ function DocumentActions({ doc, onView, onDownload, onDelete, onShare }) {
     <div className="flex gap-1">
       <Button
         size="sm"
-        className="bg-blue-500 hover:bg-blue-600 h-8 w-8 p-0"
+        className="bg-[#1d293d] hover:bg-[#2a3b52] h-8 w-8 p-0"
         title="Ver documento"
         onClick={() => onView(doc)}
       >

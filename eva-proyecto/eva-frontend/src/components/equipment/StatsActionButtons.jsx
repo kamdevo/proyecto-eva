@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "../../hooks/useAuth.jsx";
 
 /**
  * Componente reutilizable para botones de estadísticas y mantenimiento
@@ -9,9 +10,11 @@ export function StatsActionButtons({
   onPreventiveClick,
   onCalibrationClick,
   onCorrectiveClick,
-  onMonthClick,
+  onParadaEquipoClick,
   equipmentType = "biomedical", // "biomedical" | "industrial"
 }) {
+  const { canEdit } = useAuth();
+  const moduleName = equipmentType === "industrial" ? "equipos industriales" : "equipos";
   const getLabels = () => {
     switch (equipmentType) {
       case "industrial":
@@ -19,12 +22,12 @@ export function StatsActionButtons({
           preventive: "Preventivos",
           calibration: "Calibraciones",
           corrective: "Correctivos",
-          month: "Mes",
+          paradaEquipo: "Parada Equipo",
           icons: {
             preventive: "🔧",
             calibration: "⚖️",
             corrective: "🚨",
-            month: "📅",
+            paradaEquipo: "🏭",
           },
         };
       case "biomedical":
@@ -33,12 +36,12 @@ export function StatsActionButtons({
           preventive: "Preventivos",
           calibration: "Calibraciones",
           corrective: "Correctivos",
-          month: "Reportes",
+          paradaEquipo: "Parada Equipo",
           icons: {
             preventive: "🔧",
             calibration: "⚖️",
             corrective: "🔧",
-            month: "📊",
+            paradaEquipo: "🏥",
           },
         };
     }
@@ -92,19 +95,25 @@ export function StatsActionButtons({
             </span>
           </Button>
 
-          <Button
-            onClick={onMonthClick}
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
-          >
-            <span className="mr-0.5 xs:mr-1 text-xs xs:text-sm sm:text-base">
-              {labels.icons.month}
-            </span>
-            <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
-              {labels.month}
-            </span>
-          </Button>
+          {onParadaEquipoClick && (
+            <Button
+              onClick={onParadaEquipoClick}
+              variant="ghost"
+              size="sm"
+              disabled={!canEdit(moduleName)}
+              className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
+                !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={`Exportar Parada de Equipo ${equipmentType === 'industrial' ? 'Industrial' : 'Biomédico'}`}
+            >
+              <span className="mr-0.5 xs:mr-1 text-xs xs:text-sm sm:text-base">
+                {labels.icons.paradaEquipo}
+              </span>
+              <span className="truncate text-[9px] xs:text-[10px] sm:text-xs md:text-sm">
+                {labels.paradaEquipo}
+              </span>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

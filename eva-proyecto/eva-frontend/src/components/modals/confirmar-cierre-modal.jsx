@@ -12,28 +12,27 @@ export default function ConfirmarCierreModal({ isOpen, onClose, ticketId }) {
 
   if (!isOpen) return null;
 
-  const handleConfirm = async () => {
-    setIsSubmitting(true);
-
-    try {
-      // ✅ Agregar objeto vacío como body para asegurar que sea POST
+  const handleConfirm = () => {
+    const confirmPromise = async () => {
       const response = await httpService.post(`/v1/tickets/${ticketId}/confirmar-cierre`, {});
 
       if (!response.data.success) {
         throw new Error(response.data.message || 'Error al confirmar el cierre');
       }
 
-      toast.success("✅ Ticket cerrado exitosamente");
-      
-      // Cerrar modal y dejar que el padre recargue los datos
-      onClose();
-    } catch (error) {
-      console.error('❌ Error al confirmar cierre:', error);
-      const errorMessage = error.response?.data?.message || error.message || "Error al confirmar el cierre del ticket";
-      toast.error(`❌ ${errorMessage}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+      return response.data;
+    };
+
+    toast.promise(confirmPromise(), {
+      loading: 'Confirmando cierre del ticket...',
+      success: () => {
+        onClose();
+        return '✅ Ticket cerrado exitosamente';
+      },
+      error: (err) => {
+        return `❌ ${err.response?.data?.message || err.message || 'Error al confirmar el cierre'}`;
+      },
+    });
   };
 
   return (

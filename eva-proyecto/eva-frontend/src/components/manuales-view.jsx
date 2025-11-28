@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Search, Plus, Edit, Trash2, Eye, ExternalLink, BookOpen, AlertCircle } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, Eye, ExternalLink, BookOpen, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,6 +22,10 @@ export function ManualesView() {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [selectedManual, setSelectedManual] = useState(null)
     const [searchTerm, setSearchTerm] = useState("")
+    
+    // Estados de ordenamiento
+    const [sortField, setSortField] = useState('id')
+    const [sortDirection, setSortDirection] = useState('asc')
     
     // Estados de paginación
     const [currentPage, setCurrentPage] = useState(1)
@@ -64,10 +68,45 @@ export function ManualesView() {
         }
     }
 
+    // Ordenar manuales localmente
+    const sortedManuales = [...manuales].sort((a, b) => {
+        let aValue = a[sortField]
+        let bValue = b[sortField]
+        
+        // Convertir a string para comparación
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase()
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase()
+        
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+        return 0
+    })
+
     // Efectos
     useEffect(() => {
         fetchManuales()
     }, [currentPage, searchTerm])
+
+    // Función para manejar ordenamiento
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortField(field)
+            setSortDirection('asc')
+        }
+        setCurrentPage(1)
+    }
+
+    // Función para obtener icono de ordenamiento
+    const getSortIcon = (field) => {
+        if (sortField !== field) {
+            return <ArrowUpDown className="w-4 h-4 text-slate-400" />
+        }
+        return sortDirection === 'asc' 
+            ? <ArrowUp className="w-4 h-4 text-[#1d293d]" />
+            : <ArrowDown className="w-4 h-4 text-[#1d293d]" />
+    }
 
     // Función para manejar búsqueda
     const handleSearch = (value) => {
@@ -100,20 +139,20 @@ export function ManualesView() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen bg-gradient-to-br from-[#1d293d]/5 via-indigo-50 to-purple-50">
             {/* Header Refinado */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 mx-6 mt-6 p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <BookOpen className="w-6 h-6 text-blue-600" />
+                        <div className="p-2 bg-[#1d293d]/10 rounded-lg">
+                            <BookOpen className="w-6 h-6 text-[#1d293d]" />
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">Gestión de Manuales</h1>
                             <p className="text-slate-600">Administra los manuales de equipos del sistema</p>
                         </div>
                     </div>
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                    <Badge variant="secondary" className="bg-[#1d293d]/5 text-[#1d293d] border-[#1d293d]/30">
                         {totalItems} manuales registrados
                     </Badge>
                 </div>
@@ -130,12 +169,12 @@ export function ManualesView() {
                                     placeholder="Buscar por descripción o URL..."
                                     value={searchTerm}
                                     onChange={(e) => handleSearch(e.target.value)}
-                                    className="pl-10 bg-slate-50 border-slate-200 focus:border-blue-300 focus:ring-blue-200"
+                                    className="pl-10 bg-slate-50 border-slate-200 focus:border-[#1d293d] focus:ring-[#1d293d]/20"
                                 />
                             </div>
                             <Button
                                 onClick={() => setAddModalOpen(true)}
-                                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
+                                className="bg-gradient-to-r from-[#1d293d] to-[#2a3b52] hover:from-[#2a3b52] hover:to-[#141d2b] text-white shadow-lg"
                             >
                                 <Plus className="w-4 h-4 mr-2" />
                                 Nuevo Manual
@@ -152,7 +191,7 @@ export function ManualesView() {
                         {loading ? (
                             <div className="flex items-center justify-center py-12">
                                 <div className="text-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1d293d] mx-auto mb-4"></div>
                                     <p className="text-slate-600">Cargando manuales...</p>
                                 </div>
                             </div>
@@ -175,14 +214,38 @@ export function ManualesView() {
                                 <table className="w-full">
                                     <thead>
                                         <tr className="bg-slate-50 border-slate-200">
-                                            <th className="text-left p-4 font-semibold text-slate-700">ID</th>
-                                            <th className="text-left p-4 font-semibold text-slate-700">Descripción</th>
-                                            <th className="text-left p-4 font-semibold text-slate-700">URL</th>
+                                            <th className="text-left p-4 font-semibold text-slate-700">
+                                                <button 
+                                                    onClick={() => handleSort('id')}
+                                                    className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
+                                                >
+                                                    ID
+                                                    {getSortIcon('id')}
+                                                </button>
+                                            </th>
+                                            <th className="text-left p-4 font-semibold text-slate-700">
+                                                <button 
+                                                    onClick={() => handleSort('descripcion')}
+                                                    className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
+                                                >
+                                                    Descripción
+                                                    {getSortIcon('descripcion')}
+                                                </button>
+                                            </th>
+                                            <th className="text-left p-4 font-semibold text-slate-700">
+                                                <button 
+                                                    onClick={() => handleSort('url')}
+                                                    className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
+                                                >
+                                                    URL
+                                                    {getSortIcon('url')}
+                                                </button>
+                                            </th>
                                             <th className="text-center p-4 font-semibold text-slate-700">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {manuales.map((manual) => (
+                                        {sortedManuales.map((manual) => (
                                             <tr key={manual.id} className="hover:bg-slate-50 transition-colors border-slate-100 border-b">
                                                 <td className="p-4">
                                                     <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-300">
@@ -199,7 +262,7 @@ export function ManualesView() {
                                                             variant="ghost"
                                                             size="sm"
                                                             onClick={() => handleViewUrl(manual.url)}
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1"
+                                                            className="text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5 p-1"
                                                         >
                                                             <ExternalLink className="w-4 h-4" />
                                                         </Button>

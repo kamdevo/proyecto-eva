@@ -135,14 +135,14 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
     }
 
     setLoading(true);
+    const toastId = 'create-corrective';
+    
     try {
-      console.log("🔄 [CREATE] Creando correctivo:", formData);
+      toast.loading('Registrando correctivo general...', { id: toastId });
       
       const response = await httpService.post("/v1/correctivos-generales", formData);
       
-      console.log("✅ [CREATE] Correctivo creado exitosamente:", response.data);
-      
-      toast.success("Correctivo creado exitosamente");
+      toast.success("Correctivo creado exitosamente", { id: toastId });
       
       // Notificar al componente padre
       if (onCorrectiveCreated) {
@@ -160,7 +160,7 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
         errorMessage = error.response.data.message;
       }
       
-      toast.error(errorMessage);
+      toast.error(errorMessage, { id: toastId });
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use App\Mail\ConfirmacionCuentaEmail;
 
 class AuthController extends ApiController
 {
@@ -101,14 +104,25 @@ class AuthController extends ApiController
                 return ResponseFormatter::unauthorized('Credenciales incorrectas');
             }
 
-            if (!$usuario->estado || $usuario->active !== 'true') {
-                Log::channel('security')->warning('Inactive user login attempt', [
+            if (!$usuario->estado) {
+                Log::channel('security')->warning('Disabled user login attempt', [
                     'user_id' => $usuario->id,
                     'username' => $usuario->username,
                     'ip' => $request->ip(),
                 ]);
 
-                return ResponseFormatter::unauthorized('Usuario inactivo');
+                return ResponseFormatter::unauthorized('Usuario deshabilitado. Contacta al administrador.');
+            }
+            
+            if ($usuario->active !== 'true') {
+                Log::channel('security')->info('Unverified user login attempt', [
+                    'user_id' => $usuario->id,
+                    'username' => $usuario->username,
+                    'email' => $usuario->email,
+                    'ip' => $request->ip(),
+                ]);
+
+                return ResponseFormatter::error('Cuenta pendiente de verificación. Por favor, revisa tu correo electrónico y confirma tu cuenta.', 403);
             }
 
             // Clear rate limit on successful login
@@ -196,6 +210,9 @@ class AuthController extends ApiController
         // Las validaciones ya están manejadas por el FormRequest
 
         try {
+            DB::beginTransaction();
+            
+            // Crear usuario con cuenta PENDIENTE de verificación
             $usuario = Usuario::create([
                 'nombre' => $request->nombre,
                 'apellido' => $request->apellido,
@@ -209,17 +226,44 @@ class AuthController extends ApiController
                 'estado' => 1, // Activo
                 'sede_id' => '1', // Sede por defecto
                 'anio_plan' => date('Y'),
-                'active' => 'true' // Activar cuenta por defecto
+                'active' => 'false' // ⚠️ CUENTA PENDIENTE DE VERIFICACIÓN
             ]);
 
             // Crear permisos por defecto para usuario normal
             $this->createDefaultPermissions($usuario->id);
 
-            $token = $usuario->createToken('eva-token')->plainTextToken;
+            // Generar token de verificación único
+            $verificationToken = Str::random(64);
+            
+            // Guardar token en tabla email_verifications
+            DB::table('email_verifications')->insert([
+                'usuario_id' => $usuario->id,
+                'token' => $verificationToken,
+                'email' => $usuario->email,
+                'expires_at' => now()->addHours(24), // Expira en 24 horas
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
 
-            // Cargar permisos del usuario recién creado
-            $permisos = $this->getUserPermissionsForLogin($usuario->id);
+            // ✅ COMMIT ANTES de enviar email (asegurar que registro sea exitoso)
+            DB::commit();
+            
+            // Enviar email de confirmación
+            $emailSent = false;
+            try {
+                Mail::to($usuario->email)->send(new ConfirmacionCuentaEmail($usuario, $verificationToken));
+                Log::info('Email de confirmación enviado a: ' . $usuario->email);
+                $emailSent = true;
+            } catch (\Exception $mailError) {
+                Log::error('Error enviando email de confirmación: ' . $mailError->getMessage(), [
+                    'usuario_id' => $usuario->id,
+                    'email' => $usuario->email,
+                    'error' => $mailError->getMessage()
+                ]);
+                // No fallar el registro si falla el email, solo loguearlo
+            }
 
+            // Respuesta sin token de sesión (debe verificar email primero)
             $response = [
                 'user' => [
                     'id' => $usuario->id,
@@ -227,18 +271,21 @@ class AuthController extends ApiController
                     'apellido' => $usuario->apellido,
                     'email' => $usuario->email,
                     'username' => $usuario->username,
-                    'rol' => 'Usuario normal',
-                    'rol_id' => 4,
-                    'permissions' => $permisos,
                 ],
-                'token' => $token,
-                'token_type' => 'Bearer'
+                'message' => $emailSent 
+                    ? 'Cuenta creada exitosamente. Por favor, revisa tu correo electrónico para confirmar tu cuenta.'
+                    : 'Cuenta creada exitosamente. El email de confirmación no pudo ser enviado. Contacta al administrador para activar tu cuenta.',
+                'email_sent' => $emailSent,
+                'verification_required' => true
             ];
 
-            return ResponseFormatter::success($response, 'Usuario registrado exitosamente', 201);
+            return ResponseFormatter::success($response, 'Usuario registrado. Verifica tu email para activar la cuenta.', 201);
+            
         } catch (\Exception $e) {
+            DB::rollBack();
+            
             // Log del error sin exponer información sensible
-            \Log::error('Error en registro de usuario', [
+            Log::error('Error en registro de usuario', [
                 'email' => $request->email,
                 'username' => $request->username,
                 'ip' => $request->ip(),
@@ -246,6 +293,121 @@ class AuthController extends ApiController
             ]);
 
             return ResponseFormatter::error('Error en el proceso de registro', 500);
+        }
+    }
+
+    /**
+     * Verificar email con token
+     */
+    public function verifyEmail($token)
+    {
+        try {
+            // Buscar token de verificación
+            $verification = DB::table('email_verifications')
+                ->where('token', $token)
+                ->whereNull('verified_at')
+                ->first();
+
+            if (!$verification) {
+                return ResponseFormatter::error('Token de verificación inválido o ya utilizado', 400);
+            }
+
+            // Verificar si el token ha expirado
+            if (now()->gt($verification->expires_at)) {
+                return ResponseFormatter::error('El token de verificación ha expirado. Solicita uno nuevo.', 400);
+            }
+
+            // Activar cuenta del usuario
+            DB::table('usuarios')
+                ->where('id', $verification->usuario_id)
+                ->update(['active' => 'true']);
+
+            // Marcar token como verificado
+            DB::table('email_verifications')
+                ->where('id', $verification->id)
+                ->update(['verified_at' => now()]);
+
+            // Obtener usuario verificado
+            $usuario = Usuario::find($verification->usuario_id);
+
+            Log::info('Email verificado exitosamente', [
+                'usuario_id' => $usuario->id,
+                'email' => $usuario->email
+            ]);
+
+            return ResponseFormatter::success([
+                'user' => [
+                    'id' => $usuario->id,
+                    'nombre' => $usuario->nombre,
+                    'apellido' => $usuario->apellido,
+                    'email' => $usuario->email,
+                    'username' => $usuario->username,
+                ],
+                'verified' => true
+            ], 'Cuenta verificada exitosamente. Ya puedes iniciar sesión.');
+
+        } catch (\Exception $e) {
+            Log::error('Error en verificación de email: ' . $e->getMessage());
+            return ResponseFormatter::error('Error al verificar el email', 500);
+        }
+    }
+
+    /**
+     * Reenviar email de verificación
+     */
+    public function resendVerification(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email'
+            ]);
+
+            // Buscar usuario
+            $usuario = Usuario::where('email', $request->email)->first();
+
+            if (!$usuario) {
+                return ResponseFormatter::error('No existe una cuenta con ese email', 404);
+            }
+
+            // Verificar si ya está activo
+            if ($usuario->active === 'true') {
+                return ResponseFormatter::error('Esta cuenta ya ha sido verificada', 400);
+            }
+
+            // Eliminar tokens antiguos de este usuario
+            DB::table('email_verifications')
+                ->where('usuario_id', $usuario->id)
+                ->delete();
+
+            // Generar nuevo token
+            $verificationToken = Str::random(64);
+
+            // Guardar nuevo token
+            DB::table('email_verifications')->insert([
+                'usuario_id' => $usuario->id,
+                'token' => $verificationToken,
+                'email' => $usuario->email,
+                'expires_at' => now()->addHours(24),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // Enviar email
+            try {
+                Mail::to($usuario->email)->send(new ConfirmacionCuentaEmail($usuario, $verificationToken));
+                Log::info('Email de verificación reenviado a: ' . $usuario->email);
+            } catch (\Exception $mailError) {
+                Log::error('Error reenviando email: ' . $mailError->getMessage());
+                return ResponseFormatter::error('Error al enviar el email', 500);
+            }
+
+            return ResponseFormatter::success([
+                'email_sent' => true
+            ], 'Email de verificación enviado. Revisa tu correo.');
+
+        } catch (\Exception $e) {
+            Log::error('Error reenviando verificación: ' . $e->getMessage());
+            return ResponseFormatter::error('Error al reenviar la verificación', 500);
         }
     }
 
@@ -569,6 +731,12 @@ class AuthController extends ApiController
                 ];
             }
 
+            Log::info('Permissions array being returned', [
+                'user_id' => $userId,
+                'permissions' => $permissionsArray,
+                'modules_with_read' => array_filter($permissionsArray, function($p) { return $p['leer']; })
+            ]);
+
             return $permissionsArray;
         } catch (\Exception $e) {
             Log::error('Error loading user permissions', [
@@ -589,11 +757,12 @@ class AuthController extends ApiController
     private function createDefaultPermissions(int $userId): void
     {
         try {
-            // Permisos por defecto para usuario normal según la documentación
+            // Permisos por defecto MÍNIMOS para usuarios recién activados
+            // Solo acceso de lectura a equipos biomédicos, industriales y mis tickets
             $defaultPermissions = [
                 'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
                 'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-                'tickets propios' => ['leer' => 1, 'insertar' => 1, 'editar' => 0, 'eliminar' => 0],
+                'tickets propios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
                 'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
                 'servicios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
                 'bajas equipos biomedicos' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],

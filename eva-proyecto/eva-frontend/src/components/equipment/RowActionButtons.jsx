@@ -1,4 +1,4 @@
-import { Eye, Edit, Paperclip, FileText, Trash2, Files, UserX } from "lucide-react";
+import { Eye, Edit, Paperclip, FileText, Trash2, Files, UserX, AlertTriangle, FileStack } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth.jsx";
 
@@ -15,6 +15,9 @@ export function RowActionButtons({
   onDeleteClick,
   onCopyClick,
   onDecommissionClick,
+  onContingenciasClick,
+  onMovimientosClick,
+  onCapacitacionesClick,
   equipmentType = "biomedical", // "biomedical" | "industrial"
   showCopyButton = true,
   showDecommissionButton = true,
@@ -30,6 +33,9 @@ export function RowActionButtons({
           delete: "Eliminar Equipo",
           copy: "Copiar Equipo",
           decommission: "Dar de Baja",
+          contingencias: "Contingencias",
+          movimientos: "Movimientos",
+          capacitaciones: "Capacitaciones",
         };
       case "biomedical":
       default:
@@ -41,6 +47,9 @@ export function RowActionButtons({
           delete: "Eliminar Equipo",
           copy: "Copiar Equipo",
           decommission: "Dar de Baja",
+          contingencias: "Contingencias",
+          movimientos: "Movimientos",
+          capacitaciones: "Capacitaciones",
         };
     }
   };
@@ -97,6 +106,42 @@ export function RowActionButtons({
       >
         <Paperclip className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
       </Button>
+
+      {/* Contingencias Button */}
+      {onContingenciasClick && (
+        <Button
+          size="sm"
+          className="bg-red-600 hover:bg-red-700 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+          title={tooltips.contingencias}
+          onClick={() => onContingenciasClick(equipment)}
+        >
+          <AlertTriangle className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+        </Button>
+      )}
+
+      {/* Movimientos Button */}
+      {onMovimientosClick && (
+        <Button
+          size="sm"
+          className="bg-indigo-500 hover:bg-indigo-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+          title={tooltips.movimientos}
+          onClick={() => onMovimientosClick(equipment)}
+        >
+          <FileStack className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+        </Button>
+      )}
+
+      {/* Capacitaciones Button */}
+      {onCapacitacionesClick && (
+        <Button
+          size="sm"
+          className="bg-teal-500 hover:bg-teal-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+          title={tooltips.capacitaciones}
+          onClick={() => onCapacitacionesClick(equipment)}
+        >
+          <FileText className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+        </Button>
+      )}
 
       {/* Copy Button (conditional) */}
       {showCopyButton && onCopyClick && (

@@ -146,7 +146,7 @@ const ConsultaIndustrialView = () => {
       "En Proceso": "bg-yellow-100 text-yellow-800",
       Pendiente: "bg-orange-100 text-orange-800",
       Completada: "bg-green-100 text-green-800",
-      "En Progreso": "bg-blue-100 text-blue-800",
+      "En Progreso": "bg-[#1d293d]/10 text-[#1d293d]",
       Programada: "bg-purple-100 text-purple-800",
     };
 
@@ -189,7 +189,7 @@ const ConsultaIndustrialView = () => {
               onClick={() => setActiveTab("adquisiciones")}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                 activeTab === "adquisiciones"
-                  ? "bg-white text-blue-600 shadow-sm"
+                  ? "bg-white text-[#1d293d] shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
@@ -200,7 +200,7 @@ const ConsultaIndustrialView = () => {
               onClick={() => setActiveTab("instalaciones")}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                 activeTab === "instalaciones"
-                  ? "bg-white text-blue-600 shadow-sm"
+                  ? "bg-white text-[#1d293d] shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
@@ -213,9 +213,9 @@ const ConsultaIndustrialView = () => {
         {/* Formulario de Consulta de Adquisiciones */}
         {activeTab === "adquisiciones" && (
           <Card className="shadow-sm border-0">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+            <CardHeader className="bg-gradient-to-r from-[#1d293d]/5 to-[#1d293d]/10 border-b">
               <CardTitle className="flex items-center text-xl text-gray-800">
-                <Package className="h-6 w-6 mr-2 text-blue-600" />
+                <Package className="h-6 w-6 mr-2 text-[#1d293d]" />
                 Consulta de Adquisiciones de Equipos
               </CardTitle>
             </CardHeader>
@@ -239,7 +239,7 @@ const ConsultaIndustrialView = () => {
                         fechaInicio: e.target.value,
                       })
                     }
-                    className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                    className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]"
                   />
                 </div>
 
@@ -261,7 +261,7 @@ const ConsultaIndustrialView = () => {
                         fechaFin: e.target.value,
                       })
                     }
-                    className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                    className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]"
                   />
                 </div>
 
@@ -282,7 +282,7 @@ const ConsultaIndustrialView = () => {
                       })
                     }
                   >
-                    <SelectTrigger className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    <SelectTrigger className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]">
                       <SelectValue placeholder="Seleccionar proveedor" />
                     </SelectTrigger>
                     <SelectContent>
@@ -315,7 +315,7 @@ const ConsultaIndustrialView = () => {
                       })
                     }
                   >
-                    <SelectTrigger className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    <SelectTrigger className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]">
                       <SelectValue placeholder="Seleccionar estado" />
                     </SelectTrigger>
                     <SelectContent>
@@ -344,7 +344,7 @@ const ConsultaIndustrialView = () => {
                       })
                     }
                   >
-                    <SelectTrigger className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+                    <SelectTrigger className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]">
                       <SelectValue placeholder="Seleccionar tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -375,7 +375,7 @@ const ConsultaIndustrialView = () => {
                         presupuestoMin: e.target.value,
                       })
                     }
-                    className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                    className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]"
                   />
                 </div>
 
@@ -398,14 +398,14 @@ const ConsultaIndustrialView = () => {
                         presupuestoMax: e.target.value,
                       })
                     }
-                    className="rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                    className="rounded-md border-gray-300 focus:ring-[#1d293d] focus:border-[#1d293d]"
                   />
                 </div>
 
                 <div className="flex items-end">
                   <Button
                     onClick={handleAdquisicionSearch}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full bg-[#1d293d] hover:bg-[#2a3b52] text-white"
                   >
                     <Search className="h-4 w-4 mr-2" />
                     Buscar Adquisiciones

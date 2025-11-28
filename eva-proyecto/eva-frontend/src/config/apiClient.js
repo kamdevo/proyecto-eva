@@ -4,8 +4,6 @@ import axios from "axios";
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api";
 
-console.log("🔧 API Base URL:", API_BASE_URL);
-
 // Crear instancia de axios
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -20,10 +18,6 @@ const api = axios.create({
 // Interceptor para agregar token de autenticación
 api.interceptors.request.use(
   (config) => {
-    console.log(
-      `🚀 Making ${config.method?.toUpperCase()} request to:`,
-      config.url
-    );
 
     // CORRECCIÓN: Obtener token del localStorage en la ubicación correcta
     // Primero intentar con el token directo (eva_auth_token)
@@ -45,9 +39,6 @@ api.interceptors.request.use(
     // Agregar token si existe
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("🔑 Token added to request");
-    } else {
-      console.warn("⚠️ No token found in localStorage");
     }
 
     return config;
@@ -61,7 +52,6 @@ api.interceptors.request.use(
 // Interceptor para manejar respuestas
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ Successful response from:`, response.config.url);
     return response;
   },
   (error) => {
@@ -84,7 +74,6 @@ api.interceptors.response.use(
       
       // Solo redirigir si NO es una ruta protegida y NO estamos en login
       if (!isProtectedRoute && !window.location.pathname.includes("/login")) {
-        console.warn("🚪 Unauthorized - redirecting to login");
         localStorage.removeItem("usuario");
         window.location.href = "/login";
       } else {
@@ -94,7 +83,7 @@ api.interceptors.response.use(
 
     // Manejo de errores de servidor
     if (error.response?.status >= 500) {
-      console.error("🔥 Server error detected");
+      // Server error
     }
 
     return Promise.reject(error);

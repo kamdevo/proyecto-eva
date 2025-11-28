@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useEquipment } from "../hooks/useEquipment";
 import { useAuth } from "../hooks/useAuth.jsx";
 import PermissionWrapper from "./PermissionWrapper";
 import { MainActionButtons } from "./equipment/MainActionButtons";
 import { StatsActionButtons } from "./equipment/StatsActionButtons";
-import { EquipmentPagination } from "./equipment/EquipmentPagination";
+import Pagination from "@/components/common/Pagination";
 import { RowActionButtons } from "./equipment/RowActionButtons";
 import { useEquipmentSearch } from "@/contexts/EquipmentSearchContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +27,8 @@ import {
   Files,
   Link,
   X,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { FilterModal } from "@/components/modals/filter-modal";
 import { AddEquipmentModal } from "@/components/modals/add-equipment-modal";
@@ -58,7 +62,7 @@ import { EquipmentImageHover } from "./ui/equipment-image-hover";
 import { EquipmentIdBadge } from "./ui/equipment-id-badge";
 import { API_CONFIG } from "@/config/api";
 
-function IndustrialDevicesView() {
+function IndustrialDevices() {
   // Hook para gestión de equipos industriales
   const {
     devices,
@@ -106,6 +110,52 @@ function IndustrialDevicesView() {
   // Estados para filtros avanzados
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
 
+  // Function to export Parada de Equipo Industrial
+  const handleExportParadaEquipo = async () => {
+    const toastId = 'export-parada-industrial';
+    try {
+      toast.loading('Exportando Parada de Equipo Industrial...', { id: toastId });
+
+      const response = await httpService.get(
+        `/v1/correctivos-generales/export-excel?formato=parada&tipo=industrial`,
+        {
+          responseType: "blob",
+          timeout: 120000, // 2 minutos para exportaciones grandes
+          headers: {
+            Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }
+      );
+
+      // Crear blob y descargar
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `Parada_Equipo_Industrial_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Parada de Equipo Industrial exportada exitosamente', { id: toastId });
+    } catch (error) {
+      console.error("❌ [EXPORT] Error exportando parada de equipo industrial:", error);
+      
+      if (error.code === 'ECONNABORTED') {
+        toast.error('La exportación está tardando demasiado. Intenta más tarde.', { id: toastId });
+      } else {
+        toast.error('Error al exportar Parada de Equipo Industrial', { id: toastId });
+      }
+    }
+  };
+
   // Register search callback for global search
   useEffect(() => {
     registerSearchCallback((searchTerm) => {
@@ -130,8 +180,7 @@ function IndustrialDevicesView() {
 
   // Debug filters changes
   useEffect(() => {
-    console.log("🔄 Industrial filters changed:", filters);
-    console.log("📊 Current industrial devices count:", devices.length);
+    // Filters changed
   }, [filters, devices]);
 
   // Función para limpiar todos los filtros
@@ -142,10 +191,6 @@ function IndustrialDevicesView() {
 
   // Función para manejar la eliminación exitosa de un equipo
   const handleEquipmentDeleted = (equipmentId) => {
-    console.log(
-      "🔄 Equipo industrial eliminado, refrescando lista:",
-      equipmentId
-    );
     // Refrescar la lista de equipos después de eliminar
     refresh();
     // Limpiar el equipo seleccionado
@@ -159,8 +204,9 @@ function IndustrialDevicesView() {
 
   // Handle export equipment list (listado completo de equipos)
   const handleExportEquipmentCounts = async () => {
+    const toastId = 'export-equipment-industrial';
     try {
-      console.log('📊 Exportando listado completo de equipos industriales...');
+      toast.loading('Exportando listado de equipos industriales...', { id: toastId });
       
       const response = await httpService.get('/v1/export/equipment-list', {
         responseType: 'blob',
@@ -176,17 +222,16 @@ function IndustrialDevicesView() {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ Listado de equipos industriales exportado exitosamente');
+      toast.success('Listado de equipos industriales exportado exitosamente', { id: toastId });
     } catch (err) {
       console.error('❌ Error exportando listado de equipos:', err);
-      // You could add a toast notification here
+      toast.error('Error al exportar listado de equipos industriales', { id: toastId });
     }
   };
 
   // Handle opening maintenance documents - PREVENTIVO
   const handleOpenMaintenanceDocument = async (equipmentId) => {
-    try {
-      console.log('🔍 Buscando último mantenimiento PREVENTIVO para equipo ID:', equipmentId);
+    try{
       
       // Casos específicos conocidos con archivos preventivos
       const equiposConocidos = {
@@ -195,10 +240,8 @@ function IndustrialDevicesView() {
       };
       
       if (equiposConocidos[equipmentId]) {
-        console.log('🎯 Equipo conocido con archivo preventivo, abriendo directamente...');
         const knownFile = equiposConocidos[equipmentId];
         const fileUrl = `http://127.0.0.1:8001/storage/mantenimientos/${knownFile}`;
-        console.log('🌐 Opening URL:', fileUrl);
         window.open(fileUrl, "_blank");
         return;
       }
@@ -221,11 +264,7 @@ function IndustrialDevicesView() {
         { headers }
       );
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-
       if (response.status === 401) {
-        console.warn('🔒 No autorizado - intentando sin autenticación...');
         // Intentar con endpoint público si existe - solo PREVENTIVOS
         const publicResponse = await fetch(
           `http://127.0.0.1:8001/api/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1`
@@ -236,7 +275,6 @@ function IndustrialDevicesView() {
         }
         
         const publicData = await publicResponse.json();
-        console.log('📊 Public data received:', publicData);
         
         // Procesar respuesta pública...
         if (publicData && publicData.length > 0) {
@@ -258,7 +296,6 @@ function IndustrialDevicesView() {
       }
 
       const data = await response.json();
-      console.log('📊 Data received:', data);
 
       // Verificar diferentes estructuras de respuesta
       let maintenanceData = null;
@@ -276,11 +313,8 @@ function IndustrialDevicesView() {
         maintenanceData = data;
       }
 
-      console.log('🔧 Maintenance data:', maintenanceData);
-
       if (maintenanceData && maintenanceData.length > 0) {
         const maintenance = maintenanceData[0];
-        console.log('📄 Latest maintenance:', maintenance);
 
         if (maintenance.file) {
           // Construct the file URL - archivos preventivos están en mantenimientos
@@ -289,30 +323,26 @@ function IndustrialDevicesView() {
             `http://127.0.0.1:8001/storage/correctivos_asociados/${maintenance.file}`,
             `http://127.0.0.1:8001/storage/correctivos_generales/${maintenance.file}`
           ];
-
-          console.log('🌐 Trying URLs:', possibleUrls);
           
           // Intentar abrir la primera URL (mantenimientos preventivos)
           window.open(possibleUrls[0], "_blank");
           
         } else {
-          console.warn('⚠️ No file found in preventive maintenance record');
-          alert(
+          toast.warning(
             "No hay documento de mantenimiento preventivo disponible para este equipo"
           );
         }
       } else {
-        console.warn('⚠️ No preventive maintenance records found');
-        alert("No se encontraron registros de mantenimiento preventivo para este equipo");
+        toast.warning("No se encontraron registros de mantenimiento preventivo para este equipo");
       }
     } catch (error) {
       console.error("❌ Error al abrir documento de mantenimiento preventivo:", error);
-      alert(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
+      toast.error(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
       {/* Medical Equipment Management Header */}
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">
@@ -344,7 +374,7 @@ function IndustrialDevicesView() {
             onPreventiveClick={() => setPreventiveModalOpen(true)}
             onCalibrationClick={() => setCalibrationModalOpen(true)}
             onCorrectiveClick={() => setCorrectiveModalOpen(true)}
-            onMonthClick={() => setMonthModalOpen(true)}
+            onParadaEquipoClick={handleExportParadaEquipo}
             equipmentType="industrial"
           />
         </PermissionWrapper>
@@ -370,63 +400,29 @@ function IndustrialDevicesView() {
           onClearAllFilters={handleClearAllFilters}
         />
 
-        {/* Enhanced Pagination Top */}
-        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 border-b bg-slate-50">
-          <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
-            <Select
-              value={pagination.per_page?.toString() || "15"}
-              onValueChange={(value) => changePageSize(parseInt(value))}
-            >
-              <SelectTrigger className="w-12 sm:w-14 md:w-16 h-6 sm:h-7 md:h-8 text-xs sm:text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="15">15</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs sm:text-sm text-slate-700">
-              equipos por página
-            </span>
-          </div>
-
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => changePage(pagination.current_page - 1)}
-              disabled={pagination.current_page <= 1 || loading}
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-teal-600 hover:bg-teal-700 h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              {pagination.current_page || 1}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => changePage(pagination.current_page + 1)}
-              disabled={
-                pagination.current_page >= pagination.last_page || loading
-              }
-            >
-              Siguiente
-            </Button>
-          </div>
+        {/* Items per page selector */}
+        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex items-center gap-2 border-b bg-slate-50">
+          <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
+          <Select 
+            value={pagination.per_page?.toString() || "15"}
+            onValueChange={(value) => changePageSize(parseInt(value))}
+          >
+            <SelectTrigger className="w-16 h-7 text-xs sm:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="15">15</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs sm:text-sm text-slate-700">equipos por página</span>
         </div>
 
-        {/* Enhanced Medical Equipment Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[900px]">
+        {/* Enhanced Medical Equipment Table - Desktop Only */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b bg-gradient-to-r from-slate-50 to-slate-100">
                 <th className="text-left p-4 text-sm font-semibold text-slate-800 border-r border-slate-200">
@@ -585,7 +581,7 @@ function IndustrialDevicesView() {
                             <span className="font-medium text-slate-700">
                               Servicio:
                             </span>
-                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
+                            <Badge className="bg-[#1d293d]/10 text-[#1d293d] hover:bg-[#1d293d]/15 text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30">
                               {equipment.ubicacion?.servicios || "SIN SERVICIO"}
                             </Badge>
                           </div>
@@ -653,13 +649,27 @@ function IndustrialDevicesView() {
                             {equipment.estado?.estadoequipo || "SIN ESTADO"}
                           </span>
                         </div>
-                        <div className="mt-3 pt-2 border-t border-slate-100">
+                        <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100">
                           <span className="font-medium text-slate-700">
                             Propietario:
                           </span>
-                          <div className="text-xs text-slate-600 leading-tight bg-slate-50 p-2 rounded border">
-                            {equipment.compra?.propietario || "Sin propietario"}
+                          <div className="text-[8px] xs:text-[9px] sm:text-xs text-slate-600 leading-tight bg-slate-50 p-1 xs:p-2 rounded border">
+                            {typeof equipment.propietario === 'object' 
+                              ? equipment.propietario?.nombre || "Sin propietario"
+                              : equipment.propietario || equipment.compra?.propietario || "Sin propietario"}
                           </div>
+                          
+                          {/* Logo del propietario */}
+                          {equipment.propietario?.logo_url && (
+                            <div className="mt-2 flex justify-center">
+                              <img 
+                                src={equipment.propietario.logo_url}
+                                alt={equipment.propietario?.nombre || equipment.propietario}
+                                className="h-16 xs:h-20 sm:h-24 md:h-28 object-contain"
+                                onError={(e) => e.target.style.display = 'none'}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -714,20 +724,64 @@ function IndustrialDevicesView() {
                           <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
                             <div>
                               <div className="font-medium text-slate-700">
-                                Último Correctivo:
+                                Último Correctivo General Generado:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {equipment.informacion_adicional
-                                  ?.ultimo_correctivo
+                                  ?.ultimo_correctivo_general
                                   ? new Date(
-                                      equipment.informacion_adicional.ultimo_correctivo
+                                      equipment.informacion_adicional.ultimo_correctivo_general
                                     ).toLocaleDateString()
                                   : "Sin registro"}
                               </div>
                             </div>
                             <div>
-                              <div className="font-medium text-slate-700">
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
+                                Último Procedimiento Correctivo Realizado:
+                                {/* ✓ Verde: Tiene fecha de cierre (correctivo general cerrado exitosamente) */}
+                                {equipment.informacion_adicional?.ultimo_procedimiento_correctivo && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-green-600" 
+                                    title="Correctivo general cerrado exitosamente"
+                                  />
+                                )}
+                                {/* ⏰ Rojo: Tiene fecha de inicio pero NO fecha de cierre (correctivo abierto) */}
+                                {equipment.informacion_adicional?.ultimo_correctivo_general && !equipment.informacion_adicional?.ultimo_procedimiento_correctivo && (
+                                  <Clock 
+                                    size={14} 
+                                    className="text-red-600" 
+                                    title="Hay un correctivo general abierto sin resolver"
+                                  />
+                                )}
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {equipment.informacion_adicional
+                                  ?.ultimo_procedimiento_correctivo
+                                  ? new Date(
+                                      equipment.informacion_adicional.ultimo_procedimiento_correctivo
+                                    ).toLocaleDateString()
+                                  : "Sin registro"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
                                 Último Ticket:
+                                {/* TICKETS: Mostrar reloj si no está cerrado, chulo si está cerrado */}
+                                {equipment.informacion_adicional?.fecha_inicio_ultimo_ticket && !equipment.informacion_adicional?.ultimo_ticket_cerrado && (
+                                  <Clock 
+                                    size={14} 
+                                    className="text-[#c33a31]" 
+                                    title="Ticket creado pero no cerrado"
+                                  />
+                                )}
+                                {equipment.informacion_adicional?.ultimo_ticket_cerrado && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-[#72a836]" 
+                                    title="Ticket cerrado/completado"
+                                  />
+                                )}
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {equipment.informacion_adicional
@@ -736,6 +790,32 @@ function IndustrialDevicesView() {
                                       equipment.informacion_adicional.fecha_inicio_ultimo_ticket
                                     ).toLocaleDateString()
                                   : "Sin registro"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
+                                Fecha de último cierre de tickets:
+                                {/* ✓ Verde: Tiene fecha de cierre (ticket cerrado exitosamente) */}
+                                {equipment.informacion_adicional?.fecha_ultimo_cierre_ticket && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-green-600" 
+                                    title="Último ticket cerrado exitosamente"
+                                  />
+                                )}
+                                {/* ⏰ Rojo: Tiene fecha de inicio pero NO fecha de cierre (ticket abierto) */}
+                                {equipment.informacion_adicional?.fecha_inicio_ultimo_ticket && !equipment.informacion_adicional?.fecha_ultimo_cierre_ticket && (
+                                  <Clock 
+                                    size={14} 
+                                    className="text-red-600" 
+                                    title="Hay un ticket abierto sin resolver"
+                                  />
+                                )}
+                              </div>
+                              <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                {equipment.informacion_adicional?.fecha_ultimo_cierre_ticket
+                                  ? new Date(equipment.informacion_adicional.fecha_ultimo_cierre_ticket).toLocaleDateString()
+                                  : "Sin registros"}
                               </div>
                             </div>
                             <div>
@@ -804,18 +884,177 @@ function IndustrialDevicesView() {
           </table>
         </div>
 
-        {/* Pagination Component */}
-        <EquipmentPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          showingFrom={showingFrom}
-          showingTo={showingTo}
-          perPage={pagination.per_page}
-          loading={loading}
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3 p-2 sm:p-3">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} className="p-4">
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-32 w-full rounded-lg" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="flex gap-2 pt-2">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </div>
+              </Card>
+            ))
+          ) : hasError ? (
+            <Card className="p-8">
+              <div className="text-center text-red-600">
+                <p className="font-semibold">Error al cargar equipos</p>
+                <p className="text-sm mt-2">{error}</p>
+                <Button onClick={refresh} className="mt-4" size="sm">
+                  Reintentar
+                </Button>
+              </div>
+            </Card>
+          ) : isEmpty ? (
+            <Card className="p-8">
+              <div className="text-center text-slate-500">
+                <p className="font-semibold">No hay equipos disponibles</p>
+                <p className="text-sm mt-2">No se encontraron equipos industriales registrados</p>
+                <Button
+                  onClick={clearFilters}
+                  className="mt-4"
+                  size="sm"
+                  variant="outline"
+                >
+                  Limpiar filtros
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            devices.map((equipment) => (
+              <motion.div
+                key={equipment.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="overflow-hidden border-l-4 border-l-orange-500">
+                  <CardContent className="p-4 space-y-3">
+                    {/* ID y Nombre */}
+                    <div className="space-y-2">
+                      <EquipmentIdBadge 
+                        equipmentId={equipment.id}
+                        variant="secondary"
+                        size="sm"
+                        showCopyButton={true}
+                      />
+                      <h3 className="font-bold text-slate-900 text-base">
+                        {equipment.equipo?.name || "Sin nombre"}
+                      </h3>
+                    </div>
+
+                    {/* Imagen */}
+                    <EquipmentImageHover
+                      equipmentId={equipment.id}
+                      equipmentData={equipment.equipo}
+                      equipmentName={equipment.equipo?.name || "Equipo industrial"}
+                      className="w-full h-48 rounded-lg"
+                      fallbackImage={notFoundImg}
+                      showLoader={true}
+                    />
+
+                    {/* Identificación */}
+                    <div className="bg-orange-50 p-3 rounded-lg space-y-2">
+                      <h4 className="font-semibold text-slate-700 text-sm">Identificación</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="font-medium text-slate-600">Código:</span>
+                          <p className="text-slate-900">{equipment.equipo?.code || "Sin código"}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-600">Marca:</span>
+                          <p className="text-slate-900">{equipment.equipo?.brand || "Sin marca"}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-600">Modelo:</span>
+                          <p className="text-slate-900">{equipment.equipo?.model || "Sin modelo"}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-600">Serie:</span>
+                          <p className="text-slate-900">{equipment.equipo?.series || "Sin serie"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ubicación */}
+                    <div className="bg-[#1d293d]/5 p-3 rounded-lg space-y-2">
+                      <h4 className="font-semibold text-slate-700 text-sm">Ubicación</h4>
+                      <div className="space-y-1 text-xs">
+                        <p><span className="font-medium">Sede:</span> {equipment.ubicacion?.sede || "Sin sede"}</p>
+                        <p><span className="font-medium">Servicio:</span> {equipment.ubicacion?.servicios || "Sin servicio"}</p>
+                        <p><span className="font-medium">Área:</span> {equipment.ubicacion?.area || "Sin área"}</p>
+                      </div>
+                    </div>
+
+                    {/* Estado */}
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700">Estado:</span>
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          {equipment.estado?.estadoequipo || "Sin estado"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="pt-3 border-t border-slate-200">
+                      <RowActionButtons
+                        equipment={equipment}
+                        onViewClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setViewEquipmentModalOpen(true);
+                        }}
+                        onEditClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setEditEquipmentModalOpen(true);
+                        }}
+                        onDocumentsClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentListModalOpen(true);
+                        }}
+                        onUploadClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentUploadModalOpen(true);
+                        }}
+                        onDeleteClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDeleteConfirmModalOpen(true);
+                        }}
+                        onCopyClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCopyEquipmentModalOpen(true);
+                        }}
+                        onDecommissionClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDarBajaEquipoModalOpen(true);
+                        }}
+                        equipmentType="industrial"
+                        showCopyButton={true}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
+        </div>
+
+        {/* Global Pagination Component */}
+        <Pagination
+          currentPage={pagination.current_page}
+          totalPages={pagination.last_page}
+          totalItems={pagination.total}
+          itemsPerPage={pagination.per_page}
           onPageChange={changePage}
-          onPageSizeChange={handlePageSizeChange}
-          equipmentType="industrial"
+          loading={loading}
+          showInfo={true}
         />
       </Card>
       {/* Modals */}
@@ -845,6 +1084,7 @@ function IndustrialDevicesView() {
       <CorrectiveModal
         open={correctiveModalOpen}
         onOpenChange={setCorrectiveModalOpen}
+        equipmentType="industrial"
       />
       <MonthModal open={monthModalOpen} onOpenChange={setMonthModalOpen} />
       <DocumentListModal
@@ -899,4 +1139,4 @@ function IndustrialDevicesView() {
   );
 }
 
-export default IndustrialDevicesView;
+export default IndustrialDevices;

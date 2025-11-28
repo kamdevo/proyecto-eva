@@ -129,6 +129,7 @@ export default function AddProgressModal({ isOpen, onClose, ticketId }) {
               type="date"
               value={formData.fecha}
               onChange={handleInputChange}
+              max={new Date().toISOString().split('T')[0]}
               className="w-full"
               required
             />

@@ -155,18 +155,41 @@ export function ExportPlantillaModal({ open, onOpenChange }) {
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                  <h4 className="font-medium text-slate-800 mb-2">
-                    La plantilla incluye:
+                  <h4 className="font-medium text-slate-800 mb-3">
+                    Formato del archivo Excel:
                   </h4>
-                  <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
-                    <li>Columnas para ID del equipo, meses de mantenimiento</li>
-                    <li>Campo para responsable del mantenimiento</li>
-                    <li>
-                      Frecuencia de mantenimiento (anual, semestral, etc.)
-                    </li>
-                    <li>Formato y validaciones predefinidas</li>
-                    <li>Instrucciones de llenado en la primera fila</li>
-                  </ul>
+                  <div className="space-y-3 text-sm text-slate-700">
+                    <div>
+                      <strong className="text-slate-800">Columnas requeridas:</strong>
+                      <ul className="mt-1 ml-4 space-y-1 list-disc">
+                        <li><strong>ID del equipo:</strong> Acepta nombres: "ID", "equipo_id", "equipo", "id equipo"</li>
+                        <li><strong>Fechas/Meses de mantenimiento:</strong> Acepta nombres: "FECHA 1", "FECHA 2", "FECHA 3", "Mes 1", "Mes 2", etc.</li>
+                        <li><strong>Responsable:</strong> Acepta nombres: "Responsable", "Proveedor", "Empresa", "Nombre Proveedor"</li>
+                        <li><strong>Periodicidad (opcional):</strong> Acepta nombres: "Periodicidad", "Frecuencia"</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Formatos aceptados para fechas/meses:</strong>
+                      <ul className="mt-1 ml-4 space-y-1 list-disc">
+                        <li>Nombres de meses en español: ENERO, FEBRERO, MARZO, etc.</li>
+                        <li>Nombres de meses en inglés: JANUARY, FEBRUARY, etc.</li>
+                        <li>Números del 1 al 12</li>
+                        <li>Fechas en formato Excel</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong className="text-slate-800">Frecuencias calculadas automáticamente:</strong>
+                      <ul className="mt-1 ml-4 space-y-1 list-disc">
+                        <li>1 mes = ANUAL</li>
+                        <li>2 meses = SEMESTRAL</li>
+                        <li>3 meses = CUATRIMESTRAL</li>
+                        <li>4 meses = TRIMESTRAL</li>
+                        <li>6 meses = BIMESTRAL</li>
+                        <li>12+ meses = MENSUAL</li>
+                      </ul>
+                      <p className="mt-1 text-slate-600 italic">Si incluye columna "Periodicidad", se usará ese valor</p>
+                    </div>
+                  </div>
                 </div>
 
                 <Button
@@ -213,15 +236,22 @@ export function ExportPlantillaModal({ open, onOpenChange }) {
                 </div>
 
                 {uploadType === "llenar-datos" && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
                     <div className="flex items-start gap-3">
                       <FileSpreadsheet className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-green-800">
                         <strong>Llenar datos:</strong> Sube un archivo Excel o
-                        CSV con los datos de mantenimiento. Los datos se
-                        procesarán y llenarán automáticamente la tabla del
-                        cronograma.
+                        CSV con los datos de mantenimiento. El sistema detecta
+                        automáticamente las columnas y procesa los datos.
                       </div>
+                    </div>
+                    <div className="text-xs text-green-700 ml-8">
+                      <strong>El sistema detecta automáticamente:</strong>
+                      <ul className="mt-1 space-y-0.5 list-disc list-inside">
+                        <li>Columnas con diferentes nombres (ID, FECHA 1, Periodicidad, etc.)</li>
+                        <li>Meses en español, inglés o números</li>
+                        <li>Calcula frecuencia si no está especificada</li>
+                      </ul>
                     </div>
                   </div>
                 )}

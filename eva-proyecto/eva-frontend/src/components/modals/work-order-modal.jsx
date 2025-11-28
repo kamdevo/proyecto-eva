@@ -241,6 +241,7 @@ export default function WorkOrderModal({ isOpen, onClose, ticket, orderType = "g
                 type="date"
                 value={formData.fechaCreacion}
                 onChange={(e) => handleInputChange('fechaCreacion', e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div>
@@ -338,6 +339,7 @@ export default function WorkOrderModal({ isOpen, onClose, ticket, orderType = "g
                 type="date"
                 value={formData.fechaVencimiento}
                 onChange={(e) => handleInputChange('fechaVencimiento', e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div>

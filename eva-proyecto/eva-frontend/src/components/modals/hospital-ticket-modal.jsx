@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { showSuccessToast, showErrorToast } from "../ui/toast";
+import { toast } from "sonner";
 import authService from "../../services/authService";
 import httpService from "../../services/httpService";
 import {
@@ -66,6 +66,8 @@ export default function HospitalTicketModal({
   const [loadingServicios, setLoadingServicios] = useState(false);
   const [loadingAreas, setLoadingAreas] = useState(false);
   const [loadingEmpresas, setLoadingEmpresas] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState('');
 
   const [formData, setFormData] = useState({
     // Campos obligatorios exactos - ahora usando IDs para los searchables
@@ -198,6 +200,7 @@ export default function HospitalTicketModal({
           response.data.data.map((area) => ({
             id: area.id,
             nombre: area.name || area.nombre,
+            servicio_id: area.servicio_id, // ✅ Agregar servicio_id para filtrar
           }))
         );
       }
@@ -372,7 +375,9 @@ export default function HospitalTicketModal({
     if (formData.firmaCierre) filledFields.push("Firma de Cierre");
 
     if (filledFields.length === 0) {
-      showErrorToast("Creación cancelada - No se completó ningún campo");
+      toast.error("Creación cancelada", {
+        description: "No se completó ningún campo"
+      });
       return;
     }
 
@@ -399,9 +404,9 @@ export default function HospitalTicketModal({
 
     const currentUser = getCurrentUser();
     if (!currentUser) {
-      showErrorToast(
-        "No se puede identificar el usuario actual. Por favor, inicia sesión nuevamente."
-      );
+      toast.error("Error de autenticación", {
+        description: "No se puede identificar el usuario actual. Por favor, inicia sesión nuevamente."
+      });
       return;
     }
 
@@ -419,47 +424,48 @@ export default function HospitalTicketModal({
       ? getEmpresaNombre(formData.empresaAsignada)
       : "No especificado";
 
-    const confirmMessage = `¿Desea crear la Orden de Trabajo?\n\nTipo: ${ticketType.toUpperCase()}\nSede: ${sedeTexto}\nServicio: ${servicioTexto}\nÁrea: ${areaTexto}\nEquipo: ${formData.equipo || "No especificado"}\nEmpresa: ${empresaTexto}\n\nCampos completados: ${filledFields.join(", ")}`;
+    const message = `Tipo: ${ticketType.toUpperCase()}\nSede: ${sedeTexto}\nServicio: ${servicioTexto}\nÁrea: ${areaTexto}\nEquipo: ${formData.equipo || "No especificado"}\nEmpresa: ${empresaTexto}\n\nCampos completados: ${filledFields.join(", ")}`;
+    
+    setConfirmMessage(message);
+    setShowConfirmDialog(true);
+  };
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+  const handleConfirmCreate = () => {
+    setShowConfirmDialog(false);
 
-    try {
+    // Obtener usuario actual
+    const getCurrentUser = () => {
+      try {
+        const user = authService.getStoredUser();
+        if (user) return user;
+        const userData = localStorage.getItem("eva_user");
+        if (userData) return JSON.parse(userData);
+      } catch (error) {
+        console.error("❌ Error obteniendo usuario actual:", error);
+      }
+      return null;
+    };
+
+    const currentUser = getCurrentUser();
+
+    // Función que crea el ticket (retorna una promesa)
+    const createTicketPromise = async () => {
       // Preparar datos para el backend
       const ticketData = {
-        // Campos obligatorios para la tabla ordenes
-        descripcion:
-          formData.descripcionProblema || "Ticket creado desde el sistema",
-        // No enviar fecha_inicio, el backend la manejará automáticamente
-
-        // Mapear tipo de ticket a subproceso_id
-        subproceso_id:
-          ticketType === "biomedico" ? 1 : ticketType === "industrial" ? 2 : 3,
-
-        // Información del equipo
+        descripcion: formData.descripcionProblema || "Ticket creado desde el sistema",
+        subproceso_id: ticketType === "biomedico" ? 1 : ticketType === "industrial" ? 2 : 3,
         nombre_equipo: formData.equipo || "No especificado",
         codigo_equipo: formData.numeroInventario || null,
         serie_equipo: formData.serie || null,
         marca_equipo: formData.marca || null,
         modelo_equipo: formData.modelo || null,
-
-        // Información del reportante (usuario actual) - Solo ID, los demás campos no existen en tabla ordenes
         reportante_id: currentUser?.id || currentUser?.user_id || 1,
-
-        // Ubicación
         servicio_id: formData.servicio || null,
         area_id: formData.area || null,
-
-        // Estado inicial
-        estado_id: 1, // Abierto
-        prioridad: 2, // Media por defecto
-
-        // Información adicional
+        estado_id: 1,
+        prioridad: 2,
         empresa_id: formData.empresaAsignada || null,
-        observaciones: formData.avances || null, // Se mapea a 'reparacion' en backend
-
-        // ✅ CAMPOS OBLIGATORIOS ADICIONALES (Valores por defecto)
+        observaciones: formData.avances || null,
         tecnico_id: 1,
         electrico: 0,
         mecanico: 0,
@@ -472,68 +478,47 @@ export default function HospitalTicketModal({
 
       console.log("📤 Enviando ticket al backend:", ticketData);
 
-      // Llamar al endpoint para crear el ticket usando httpService
+      // Llamar al endpoint
       const response = await httpService.post("/v1/crear-ticket", ticketData);
-
-      // httpService ya devuelve response.data directamente
       const result = response;
 
-      if (result.success) {
-        const ticketId = result.data.ticket_id || result.data.id;
-
-        console.log("✅ Ticket creado exitosamente:", result);
-
-        // ✅ GUARDAR FIRMA DIGITAL SI EXISTE
-        if (formData.firmaCierre) {
-          try {
-            console.log("🖊️ Guardando firma digital para el ticket...");
-
-            const firmaData = {
-              firma_data: formData.firmaCierre,
-              tipo_firma: "cierre",
-              firmante_id: currentUser?.id || currentUser?.user_id || 1,
-              firmante_nombre:
-                currentUser?.username ||
-                currentUser?.nombre ||
-                "Usuario Sistema",
-            };
-
-            const firmaResponse = await httpService.post(
-              `/v1/tickets/${ticketId}/firma`,
-              firmaData
-            );
-
-            if (firmaResponse.success) {
-              console.log("✅ Firma digital guardada exitosamente");
-            } else {
-              console.warn("⚠️ Error guardando firma:", firmaResponse.message);
-            }
-          } catch (firmaError) {
-            console.error("❌ Error guardando firma digital:", firmaError);
-          }
-        }
-
-        // ✅ Mostrar mensaje de éxito con toast
-        console.log("✅ Ticket creado exitosamente");
-        showSuccessToast(
-          `¡Orden de Trabajo #${ticketId} creada exitosamente! Tipo: ${ticketType.toUpperCase()}`
-        );
-
-        // TODO: Implementar envío de correo en segundo plano o como opción manual
-
-        onClose();
-      } else {
-        console.error("❌ Error creando ticket:", result);
-        showErrorToast(
-          `Error creando la orden de trabajo: ${result.message || "Error desconocido"}`
-        );
+      // Verificar si fue exitoso
+      if (!result.success && !result.data) {
+        throw new Error(result.message || "Error desconocido al crear el ticket");
       }
-    } catch (error) {
-      console.error("❌ Error en handleSubmit:", error);
-      showErrorToast(
-        `Error de conexión al crear la orden de trabajo: ${error.message}`
-      );
-    }
+
+      const ticketId = result.data?.ticket_id || result.data?.id;
+
+      // Guardar firma si existe
+      if (formData.firmaCierre && ticketId) {
+        try {
+          const firmaData = {
+            firma_data: formData.firmaCierre,
+            tipo_firma: "cierre",
+            firmante_id: currentUser?.id || currentUser?.user_id || 1,
+            firmante_nombre: currentUser?.username || currentUser?.nombre || "Usuario Sistema",
+          };
+
+          await httpService.post(`/v1/tickets/${ticketId}/firma`, firmaData);
+        } catch (firmaError) {
+          console.error("❌ Error guardando firma digital:", firmaError);
+        }
+      }
+
+      return { ticketId, ticketType };
+    };
+
+    // Usar toast.promise para manejar loading, success y error
+    toast.promise(createTicketPromise(), {
+      loading: 'Creando orden de trabajo...',
+      success: (data) => {
+        onClose();
+        return `¡Orden de Trabajo #${data.ticketId} creada exitosamente! Tipo: ${data.ticketType.toUpperCase()}`;
+      },
+      error: (err) => {
+        return `Error: ${err.message || 'No se pudo crear la orden de trabajo'}`;
+      },
+    });
   };
 
   if (!isOpen) return null;
@@ -552,6 +537,7 @@ export default function HospitalTicketModal({
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="w-[95vw] max-w-7xl h-[90vh] overflow-y-auto p-6"
@@ -567,11 +553,15 @@ export default function HospitalTicketModal({
           </DialogDescription>
           <div className="text-center">
             <div className="flex items-center justify-center mb-2">
-              <div
-                className={`w-8 h-8 ${getHeaderColor()} rounded-full flex items-center justify-center mr-2`}
-              >
-                <Building className="w-4 h-4 text-white" />
-              </div>
+              <img 
+                src="/images/logo_huv.jpg" 
+                alt="Logo HUV" 
+                className="w-12 h-12 mr-3 object-contain"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://www.huv.gov.co/wp-content/uploads/2020/01/logo-huv.png';
+                }}
+              />
               <div className="text-left">
                 <h1 className="text-lg font-semibold text-gray-900">
                   Hospital Universitario del Valle
@@ -708,7 +698,11 @@ export default function HospitalTicketModal({
                   placeholder="Seleccionar servicio..."
                   options={servicios}
                   value={formData.servicio}
-                  onValueChange={(value) => handleInputChange("servicio", value)}
+                  onValueChange={(value) => {
+                    handleInputChange("servicio", value);
+                    // ✅ Limpiar área cuando cambie el servicio
+                    handleInputChange("area", "");
+                  }}
                   loading={loadingServicios}
                   className="h-9 text-sm"
                 />
@@ -719,10 +713,17 @@ export default function HospitalTicketModal({
                 </Label>
                 <SearchableSelect
                   placeholder="Seleccionar área..."
-                  options={areas}
+                  options={
+                    formData.servicio
+                      ? areas.filter(
+                          (area) => area.servicio_id?.toString() === formData.servicio
+                        )
+                      : areas
+                  }
                   value={formData.area}
                   onValueChange={(value) => handleInputChange("area", value)}
                   loading={loadingAreas}
+                  disabled={!formData.servicio}
                   className="h-9 text-sm"
                 />
               </div>
@@ -963,5 +964,40 @@ export default function HospitalTicketModal({
         />
       </DialogContent>
     </Dialog>
+
+    {/* Modal de confirmación */}
+    <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <DialogContent className="sm:max-w-md">
+        <div className="flex flex-col items-center text-center p-6">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <FileText className="w-8 h-8 text-green-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Crear Orden de Trabajo
+          </h3>
+          <p className="text-sm text-gray-600 mb-4 whitespace-pre-line">
+            ¿Desea crear la Orden de Trabajo?
+            {confirmMessage && `\n\n${confirmMessage}`}
+          </p>
+          <div className="flex gap-3 w-full">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmDialog(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConfirmCreate}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Crear Orden
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

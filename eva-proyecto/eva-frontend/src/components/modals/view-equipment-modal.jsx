@@ -25,6 +25,8 @@ import {
   History,
   Clock,
   UserCheck,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import { usePDF } from "@react-pdf/renderer";
 import { EquipmentLifecyclePDFCompact   } from "../pdf/equipment-lifecycle-pdf-compact";
@@ -34,6 +36,7 @@ import { toast } from "sonner";
 import httpService from "@/services/httpService";
 import { ManualSearchModal } from "./manual-search-modal";
 import { QuickGuideSearchModal } from "./quick-guide-search-modal";
+import TicketDetailsComplete from "./ticket-details-complete";
 
 export function ViewEquipmentModal({
   open,
@@ -46,21 +49,73 @@ export function ViewEquipmentModal({
   const [error, setError] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [userHistory, setUserHistory] = useState([]);
+  const [cambiosHdv, setCambiosHdv] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [equipmentTickets, setEquipmentTickets] = useState([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [showTicketDetailsModal, setShowTicketDetailsModal] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [loadingTicketDetails, setLoadingTicketDetails] = useState(false);
   
   // Estados para modales de apoyo técnico
   const [showManualSearchModal, setShowManualSearchModal] = useState(false);
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showCambiosHdv, setShowCambiosHdv] = useState(false);
 
   // Estados para información completa de manuales y guías
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
   const [selectedGuideInfo, setSelectedGuideInfo] = useState(null);
+  
+  // Estado para imagen del equipo en base64
+  const [equipmentImageBase64, setEquipmentImageBase64] = useState(null);
 
   // PDF generation hook - using new modal replica component
   const [instance, updateInstance] = usePDF({
     document: null, // Initialize as null to prevent initial render errors
   });
+  
+  // Función para obtener imagen en base64 usando el endpoint del backend (evita CORS)
+  const getImageBase64FromBackend = async (filename) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api";
+      const endpoint = `${apiUrl}/v1/equipos/image-base64/${filename}`;
+      
+      console.log('🌐 [BACKEND REQUEST] URL:', endpoint);
+      
+      const response = await fetch(endpoint);
+      
+      console.log('📡 [BACKEND RESPONSE] Status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [BACKEND ERROR] Response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log('📦 [BACKEND DATA]:', {
+        success: data.success,
+        hasData: !!data.data,
+        hasBase64: !!data.data?.base64,
+        size: data.data?.size,
+        mimeType: data.data?.mime_type
+      });
+      
+      if (data.success && data.data && data.data.base64) {
+        console.log(`✅ Imagen obtenida del backend: ${(data.data.size / 1024).toFixed(2)} KB`);
+        return data.data.base64;
+      } else {
+        console.warn('⚠️ [BACKEND] No hay imagen en la respuesta:', data.message);
+        throw new Error(data.message || 'No se pudo obtener la imagen');
+      }
+    } catch (error) {
+      console.error(`❌ [BACKEND ERROR] Error getting image:`, error);
+      return null;
+    }
+  };
 
   // Function to fetch user history for equipment (PUBLIC ENDPOINT)
   const fetchUserHistory = async (equipmentId) => {
@@ -94,6 +149,134 @@ export function ViewEquipmentModal({
     }
   };
 
+  // Function to fetch cambios HDV (historial completo) for equipment (PUBLIC ENDPOINT)
+  const fetchCambiosHdv = async (equipmentId) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/cambios-hdv`,
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCambiosHdv(data.data || []);
+      } else {
+        console.warn('API returned success: false for cambios HDV');
+        setCambiosHdv([]);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching cambios HDV:', error);
+      setCambiosHdv([]);
+    }
+  };
+
+  // ✅ Función para cargar tickets asociados al equipo
+  const fetchEquipmentTickets = async (equipmentId) => {
+    setLoadingTickets(true);
+    try {
+      const response = await httpService.get('/v1/gestion-tickets', {
+        params: {
+          equipo_id: equipmentId,
+          per_page: 10,
+          page: 1
+        }
+      });
+
+      if (response.data?.success && response.data?.data?.data) {
+        // ✅ Construir descripción completa para cada ticket
+        const ticketsArray = Array.isArray(response.data.data.data) 
+          ? response.data.data.data 
+          : [];
+        
+        const ticketsConDescripcionCompleta = ticketsArray.map(ticket => {
+          let descripcionCompleta = '';
+          
+          // REPORTE INICIAL
+          if (ticket.descripcion_problema || ticket.descripcion) {
+            descripcionCompleta += `REPORTE: ${ticket.descripcion_problema || ticket.descripcion}`;
+            if (ticket.fecha_inicio) {
+              const fecha = new Date(ticket.fecha_inicio).toLocaleString('es-CO', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+              });
+              descripcionCompleta += ` (Fecha: ${fecha})`;
+            }
+          }
+          
+          // DIAGNÓSTICO
+          if (ticket.diagnostico) {
+            if (descripcionCompleta) descripcionCompleta += ' | ';
+            descripcionCompleta += `DIAGNÓSTICO: ${ticket.diagnostico}`;
+            if (ticket.fecha_diagnostico) {
+              const fecha = new Date(ticket.fecha_diagnostico).toLocaleString('es-CO', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+              });
+              descripcionCompleta += ` (Fecha: ${fecha})`;
+            }
+          }
+          
+          // TRABAJO REALIZADO
+          if (ticket.reparacion) {
+            if (descripcionCompleta) descripcionCompleta += ' | ';
+            descripcionCompleta += `TRABAJO REALIZADO: ${ticket.reparacion}`;
+            if (ticket.fecha_fin) {
+              const fecha = new Date(ticket.fecha_fin).toLocaleString('es-CO', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+              });
+              descripcionCompleta += ` (Fecha: ${fecha})`;
+            }
+          }
+          
+          return {
+            ...ticket,
+            descripcion_completa: descripcionCompleta || ticket.descripcion_problema || ticket.descripcion || 'Sin descripción'
+          };
+        });
+        
+        setEquipmentTickets(ticketsConDescripcionCompleta);
+      } else {
+        setEquipmentTickets([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar tickets del equipo:', error);
+      setEquipmentTickets([]);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  // Función para cargar detalles completos de un ticket individual
+  const fetchTicketDetails = async (ticketId) => {
+    setLoadingTicketDetails(true);
+    try {
+      const response = await httpService.get(`/v1/gestion-tickets/${ticketId}`);
+      if (response.data?.success && response.data?.data) {
+        setSelectedTicket(response.data.data);
+        setShowTicketDetailsModal(true);
+      } else {
+        toast.error('No se pudieron cargar los detalles del ticket');
+      }
+    } catch (error) {
+      console.error('Error al cargar detalles del ticket:', error);
+      toast.error('Error al cargar los detalles del ticket');
+    } finally {
+      setLoadingTicketDetails(false);
+    }
+  };
+
   // Define fetchEquipmentDetailsPublic function first
   const fetchEquipmentDetailsPublic = async (equipmentId) => {
     const response = await fetch(
@@ -114,8 +297,9 @@ export function ViewEquipmentModal({
 
     if (data.success) {
       setEquipmentDetails(data.data);
-      // Load user history after equipment details
+      // Load user history and cambios HDV after equipment details
       await fetchUserHistory(equipmentId);
+      await fetchCambiosHdv(equipmentId);
     } else {
       throw new Error(data.message || "Error al obtener datos del equipo");
     }
@@ -139,8 +323,9 @@ export function ViewEquipmentModal({
           );
           if (response.data?.success) {
             setEquipmentDetails(response.data.data);
-            // Load user history after equipment details
+            // Load user history and cambios HDV after equipment details
             await fetchUserHistory(equipmentId);
+            await fetchCambiosHdv(equipmentId);
             return;
           }
         } catch (authError) {
@@ -168,6 +353,7 @@ export function ViewEquipmentModal({
     if (open && equipment?.id) {
       setImageError(false); // Reset image error state
       fetchEquipmentDetails(equipment.id);
+      fetchEquipmentTickets(equipment.id); // ✅ Usar endpoint de gestión de tickets
     }
   }, [open, equipment?.id, fetchEquipmentDetails]);
 
@@ -262,18 +448,118 @@ export function ViewEquipmentModal({
     loadAssociatedInfo();
   }, [equipmentDetails]);
 
+  // Convertir imagen del equipo a base64 cuando se cargan los detalles
+  useEffect(() => {
+    const loadEquipmentImage = async () => {
+      if (!equipmentDetails) {
+        console.log('⚠️ No hay equipmentDetails, limpiando imagen');
+        setEquipmentImageBase64(null);
+        return;
+      }
+
+      console.log('🔍 [MODAL] Buscando imagen del equipo en:', {
+        id: equipmentDetails.id,
+        code: equipmentDetails.code,
+        allFields: Object.keys(equipmentDetails)
+      });
+
+      // Buscar la URL de la imagen en diferentes campos posibles
+      const imageFields = [
+        equipmentDetails?.image_url,
+        equipmentDetails?.imagen_url,
+        equipmentDetails?.image,
+        equipmentDetails?.imagen,
+        equipmentDetails?.foto_url,
+        equipmentDetails?.archivo_imagen,
+        equipmentDetails?.foto
+      ];
+
+      console.log('🔍 [MODAL] Campos de imagen evaluados:', imageFields);
+
+      const imageFileName = imageFields.find(field => field && field.trim() !== '');
+
+      if (imageFileName) {
+        console.log('📸 [MODAL] Valor de imagen encontrado:', imageFileName);
+        
+        try {
+          // Extraer solo el nombre del archivo si es una URL completa
+          let filename = imageFileName;
+          
+          if (imageFileName.includes('http://') || imageFileName.includes('https://')) {
+            // Es una URL completa, extraer solo el nombre del archivo
+            const urlParts = imageFileName.split('/');
+            filename = urlParts[urlParts.length - 1];
+            console.log('🔧 [MODAL] Extrayendo nombre de archivo de URL:', filename);
+          } else if (imageFileName.includes('/')) {
+            // Es una ruta relativa, extraer solo el nombre del archivo
+            const pathParts = imageFileName.split('/');
+            filename = pathParts[pathParts.length - 1];
+            console.log('🔧 [MODAL] Extrayendo nombre de archivo de ruta:', filename);
+          }
+          
+          console.log('📸 [MODAL] Nombre final del archivo:', filename);
+          
+          // Usar el endpoint del backend que evita problemas de CORS
+          console.log('🔄 [MODAL] Obteniendo imagen desde el backend...');
+          const base64Image = await getImageBase64FromBackend(filename);
+          
+          if (base64Image) {
+            console.log(`✅ [MODAL] Imagen del equipo cargada exitosamente para PDF`);
+            console.log(`📦 [MODAL] Tamaño de base64: ${(base64Image.length / 1024).toFixed(2)} KB`);
+            console.log(`🔍 [MODAL] Validación de imagen:`, {
+              isString: typeof base64Image === 'string',
+              startsWithData: base64Image.startsWith('data:image/'),
+              length: base64Image.length,
+              preview: base64Image.substring(0, 50) + '...'
+            });
+            setEquipmentImageBase64(base64Image);
+          } else {
+            console.warn(`⚠️ [MODAL] No se pudo obtener la imagen: ${filename}`);
+            setEquipmentImageBase64(null);
+          }
+        } catch (error) {
+          console.error('❌ [MODAL] Error loading equipment image:', error);
+          setEquipmentImageBase64(null);
+        }
+      } else {
+        console.log('ℹ️ [MODAL] No se encontró campo de imagen en los datos del equipo');
+        setEquipmentImageBase64(null);
+      }
+    };
+
+    loadEquipmentImage();
+  }, [equipmentDetails]);
+
   // Update PDF when equipment details change - using new modal replica component
   useEffect(() => {
     if (equipmentDetails && EquipmentModalReplicaPDF) {
       try {
-        // Combinar todos los datos para el PDF incluyendo información cargada
+        // Combinar todos los datos para el PDF incluyendo información cargada e imagen en base64
         const pdfData = {
           ...equipmentDetails,
           selectedManualInfo,
           selectedGuideInfo,
-          userHistory
+          userHistory,
+          equipmentImageBase64 // Incluir la imagen convertida a base64
         };
         
+        console.log('📄 Actualizando PDF con datos:', {
+          hasEquipmentDetails: !!equipmentDetails,
+          hasManualInfo: !!selectedManualInfo,
+          hasGuideInfo: !!selectedGuideInfo,
+          hasUserHistory: !!userHistory,
+          hasEquipmentImage: !!equipmentImageBase64,
+          imageSize: equipmentImageBase64 ? `${(equipmentImageBase64.length / 1024).toFixed(2)} KB` : 'N/A',
+          imageType: typeof equipmentImageBase64,
+          imagePreview: equipmentImageBase64 ? equipmentImageBase64.substring(0, 50) + '...' : null
+        });
+        
+        console.log('🎯 pdfData.equipmentImageBase64:', {
+          exists: !!pdfData.equipmentImageBase64,
+          same: pdfData.equipmentImageBase64 === equipmentImageBase64
+        });
+        
+        // Solo actualizar si tenemos la imagen o si ya pasó tiempo suficiente
         updateInstance(
           <EquipmentModalReplicaPDF data={pdfData} />
         );
@@ -281,7 +567,7 @@ export function ViewEquipmentModal({
         console.error("Error updating PDF instance:", error);
       }
     }
-  }, [equipmentDetails, selectedManualInfo, selectedGuideInfo, userHistory, updateInstance]);
+  }, [equipmentDetails, selectedManualInfo, selectedGuideInfo, userHistory, equipmentImageBase64, updateInstance]);
 
   // Handle PDF download
   const handleDownloadPDF = () => {
@@ -395,15 +681,15 @@ export function ViewEquipmentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="border-b border-blue-200 pb-4">
+      <DialogContent className="min-w-7xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b border-gray-300 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Building className="h-6 w-6 text-blue-600" />
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <Building className="h-6 w-6" style={{color: '#1d293d'}} />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold text-blue-700">
+                <DialogTitle className="text-xl font-bold text-gray-800">
                   FORMATO DE HOJA DE VIDA PARA EQUIPOS{" "}
                   {equipmentType === "industrial"
                     ? "INDUSTRIALES"
@@ -447,7 +733,7 @@ export function ViewEquipmentModal({
         {displayData && (
           <div className="max-h-[70vh] overflow-y-auto">
             {/* HEADER IDÉNTICO AL PDF */}
-            <div className="flex items-center justify-between p-6 border-b-2 border-blue-600 bg-white">
+            <div className="flex items-center justify-between p-6 border-b-2 bg-white" style={{borderBottomColor: '#1d293d'}}>
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 flex-shrink-0">
                   <img 
@@ -457,13 +743,13 @@ export function ViewEquipmentModal({
                   />
                 </div>
                 <div className="text-center flex-1">
-                  <h1 className="text-xl font-bold text-blue-700 mb-1">
+                  <h1 className="text-xl font-bold text-gray-800 mb-1">
                     HOSPITAL UNIVERSITARIO DEL VALLE "EVARISTO GARCÍA"
                   </h1>
-                  <p className="text-lg text-blue-600 font-medium">
+                  <p className="text-lg text-gray-800 font-medium">
                     HOJA DE VIDA - {safeValue(displayData.name?.toUpperCase())}
                   </p>
-                  <p className="text-sm text-blue-500">
+                  <p className="text-sm text-gray-600">
                     Sistema de Gestión EVA - Electromedicina
                   </p>
                 </div>
@@ -473,7 +759,7 @@ export function ViewEquipmentModal({
             {/* SECCIÓN DE EQUIPO CON IMAGEN */}
             <div className="flex gap-6 p-6 bg-gray-50 border-b">
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-blue-800 mb-4">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">
                   {safeValue(displayData.name)}
                 </h2>
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -505,35 +791,35 @@ export function ViewEquipmentModal({
 
             {/* INFORMACIÓN GENERAL Y UBICACIÓN - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 INFORMACIÓN GENERAL Y UBICACIÓN
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <tbody>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">ID del Equipo</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.id)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Código</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.code)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">ID del Equipo</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.id)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Código</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.code)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Serie</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.serial)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Estado</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.estado_nombre)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Serie</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.serial)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Estado</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.estado_nombre)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Sede</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.sede_nombre)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Servicio</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.servicio_nombre)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Sede</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.sede_nombre)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Servicio</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.servicio_nombre)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Área</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.area_nombre)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Piso</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.piso)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Área</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.area_nombre)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Piso</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.piso)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -542,41 +828,136 @@ export function ViewEquipmentModal({
 
             {/* CARACTERÍSTICAS TÉCNICAS - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 CARACTERÍSTICAS TÉCNICAS Y ESPECIFICACIONES
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <tbody>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Marca</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.marca)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Modelo</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.modelo)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Marca</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.marca)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Modelo</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.modelo)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Potencia</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.potencia)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Corriente</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.corriente)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Potencia</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.potencia)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Corriente</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.corriente)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">País Origen</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.pais_origen)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Frecuencia</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.frecuencia)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">País Origen</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.pais_origen)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Frecuencia</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.frecuencia)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Año Fabricación</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion, new Date(displayData.fecha_fabricacion).getFullYear())}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Garantía</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.garantia)} años</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Año Fabricación</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion, new Date(displayData.fecha_fabricacion).getFullYear())}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Garantía</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.garantia)} años</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Vida Útil</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.vida_util)} años</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Voltaje</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.v1)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Vida Útil</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.vida_util)} años</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Voltaje</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.v1)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* PLAN DE EJECUCIÓN - NUEVA SECCIÓN */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
+                PLAN DE EJECUCIÓN
+              </h3>
+              <div className="border border-gray-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Incluido en Plan</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">
+                        {displayData.incluido_en_plan > 0 ? (
+                          <Badge className="bg-emerald-100 text-emerald-800">
+                            Incluido en Plan {displayData.anio_vigente || 'Vigente'}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-500">No incluido</span>
+                        )}
+                      </td>
+                    </tr>
+                    {displayData.incluido_en_plan > 0 && (
+                      <>
+                        <tr>
+                          <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Responsable</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.responsable_plan)}</td>
+                        </tr>
+                        <tr>
+                          <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Frecuencia</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.frecuencia_plan || displayData.frecuencia)}</td>
+                        </tr>
+                        {(displayData.mes_programado1 || displayData.mes_programado2 || displayData.mes_programado3) && (
+                          <tr>
+                            <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Meses Programados</td>
+                            <td className="border border-gray-200 px-3 py-2 text-sm">
+                              <div className="space-y-1">
+                                {displayData.mes_programado1 && (
+                                  <div>
+                                    <span className="font-medium">Fecha 1:</span>{' '}
+                                    <span className="text-emerald-700">
+                                      {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][displayData.mes_programado1 - 1]}
+                                    </span>
+                                  </div>
+                                )}
+                                {displayData.mes_programado2 && (
+                                  <div>
+                                    <span className="font-medium">Fecha 2:</span>{' '}
+                                    <span className="text-emerald-700">
+                                      {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][displayData.mes_programado2 - 1]}
+                                    </span>
+                                  </div>
+                                )}
+                                {displayData.mes_programado3 && (
+                                  <div>
+                                    <span className="font-medium">Fecha 3:</span>{' '}
+                                    <span className="text-emerald-700">
+                                      {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][displayData.mes_programado3 - 1]}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* EVALUACIÓN DE DESEMPEÑO - NUEVA SECCIÓN */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
+                EVALUACIÓN DE DESEMPEÑO
+              </h3>
+              <div className="border border-gray-300">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Evaluación de Desempeño</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.evaluacion_desempenio)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Calibración</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.calibracion)}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Periodicidad</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.periodicidad)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -585,35 +966,33 @@ export function ViewEquipmentModal({
 
             {/* INFORMACIÓN REGULATORIA Y FECHAS CRÍTICAS - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 INFORMACIÓN REGULATORIA Y FECHAS CRÍTICAS
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <tbody>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Reg. INVIMA</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.registro_sanitario)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Estado INVIMA</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.estado_invima)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Reg. INVIMA</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.registro_sanitario)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Estado INVIMA</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.estado_invima)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Fabricación</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Instalación</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_instalacion)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">F. Adquisición</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_ad)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">F. Fabricación</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Acta Recibo</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_acta_recibo)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Operación</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_inicio_operacion)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">F. Instalación</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_instalacion)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">F. Operación</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_inicio_operacion)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Venc. Garantía</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_vencimiento_garantia)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">F. Venc. INVIMA</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_vencimiento_invima)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">F. Venc. Garantía</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm" colSpan="3">{formatDate(displayData.fecha_vencimiento_garantia)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -622,23 +1001,23 @@ export function ViewEquipmentModal({
 
             {/* INFORMACIÓN FINANCIERA Y CONTRACTUAL - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 INFORMACIÓN FINANCIERA Y CONTRACTUAL
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <tbody>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Costo</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.costo)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Propietario</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.propietario_nombre)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Costo</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.costo)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Propietario</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.propietario_nombre)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Propiedad</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.propiedad)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Comodato</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.activo_comodato)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Propiedad</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.propiedad)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Comodato</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.activo_comodato)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -647,32 +1026,56 @@ export function ViewEquipmentModal({
 
             {/* MANTENIMIENTOS PREVENTIVOS RECIENTES - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 MANTENIMIENTOS PREVENTIVOS RECIENTES
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-blue-100">
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Tipo</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Técnico</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Estado</th>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Número de Preventivo</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Observación</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Estado</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center">Archivo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayData.mantenimientos_preventivos && displayData.mantenimientos_preventivos.length > 0 ? (
-                      displayData.mantenimientos_preventivos.slice(0, 5).map((mant, index) => (
-                        <tr key={index}>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(mant.fecha_programada)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(mant.tipo)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(mant.tecnico_nombre)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(mant.estado)}</td>
+                      displayData.mantenimientos_preventivos.slice(0, 10).map((mant, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">#{mant.id || '-'}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(mant.fecha_mantenimiento || mant.fecha_programada)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            {mant.observacion ? (mant.observacion.length > 80 ? mant.observacion.substring(0, 80) + '...' : mant.observacion) : 'Sin observación'}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            <Badge className={mant.status === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                              {mant.status === 1 ? 'Completado' : 'Pendiente'}
+                            </Badge>
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-center">
+                            {mant.file ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/storage/mantenimientos/${mant.file}`, '_blank')}
+                                className="text-green-600 hover:bg-green-100 h-7 px-2"
+                                title="Ver archivo de mantenimiento"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Ver
+                              </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Sin archivo</span>
+                            )}
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                        <td colSpan={5} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
                           No hay mantenimientos preventivos registrados
                         </td>
                       </tr>
@@ -684,32 +1087,32 @@ export function ViewEquipmentModal({
 
             {/* CALIBRACIONES RECIENTES - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 CALIBRACIONES RECIENTES
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-blue-100">
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha Calibración</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Tipo</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Próxima</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Resultado</th>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha Calibración</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Número de Correctivo</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Próxima</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Resultado</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayData.calibraciones && displayData.calibraciones.length > 0 ? (
                       displayData.calibraciones.slice(0, 4).map((cal, index) => (
                         <tr key={index}>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(cal.fecha_calibracion)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cal.tipo_calibracion)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(cal.proxima_calibracion)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cal.resultado)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(cal.fecha_calibracion)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">#{cal.id || safeValue(cal.tipo_calibracion)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(cal.proxima_calibracion)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(cal.resultado)}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                        <td colSpan={4} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
                           No hay calibraciones registradas
                         </td>
                       </tr>
@@ -719,33 +1122,213 @@ export function ViewEquipmentModal({
               </div>
             </div>
 
-            {/* MANTENIMIENTOS CORRECTIVOS RECIENTES - ESTILO TABULAR EXCEL */}
+            {/* TICKETS/MANTENIMIENTOS CORRECTIVOS ASOCIADOS - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
-                MANTENIMIENTOS CORRECTIVOS RECIENTES
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
+                MANTENIMIENTOS CORRECTIVOS / TICKETS
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-blue-100">
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Descripción</th>
-                      <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Usuario</th>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">ID Ticket</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Descripción</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Estado</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Archivo</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayData.contingencias && displayData.contingencias.length > 0 ? (
-                      displayData.contingencias.slice(0, 6).map((cont, index) => (
-                        <tr key={index}>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{formatDate(cont.fecha_reporte)}</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cont.descripcion_problema).substring(0, 100)}...</td>
-                          <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(cont.usuario_nombre)}</td>
+                    {loadingTickets ? (
+                      <tr>
+                        <td colSpan={5} className="border border-gray-200 px-3 py-4 text-center text-gray-500">
+                          Cargando tickets...
+                        </td>
+                      </tr>
+                    ) : equipmentTickets && equipmentTickets.length > 0 ? (
+                      equipmentTickets.slice(0, 10).map((ticket, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">
+                            #{ticket.id}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            {ticket.descripcion_completa 
+                              ? (ticket.descripcion_completa.length > 150 
+                                  ? ticket.descripcion_completa.substring(0, 150) + '...' 
+                                  : ticket.descripcion_completa)
+                              : (ticket.descripcion_problema || ticket.descripcion || 'Sin descripción')}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            <Badge 
+                              className={
+                                ticket.estado_id === 1 ? 'bg-red-100 text-red-800' :
+                                ticket.estado_id === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                ticket.estado_id === 3 ? 'bg-gray-100 text-gray-800' :
+                                ticket.estado_id === 4 ? 'bg-green-100 text-green-800' :
+                                ticket.estado_id === 5 ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }
+                            >
+                              {ticket.estado || ticket.estado_nombre || 'Sin estado'}
+                            </Badge>
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            {ticket.file_cierre ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`http://localhost:8001/storage/correctivos_generales/${ticket.file_cierre}`, '_blank')}
+                                className="text-gray-800 hover:bg-gray-100 h-7 px-2"
+                                title="Ver orden de trabajo"
+                              >
+                                <ExternalLink className="w-4 h-4 mr-1" />
+                                Ver
+                              </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Sin archivo</span>
+                            )}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-center">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fetchTicketDetails(ticket.id)}
+                              disabled={loadingTicketDetails}
+                              className="h-7 px-3"
+                              title="Ver detalles del ticket"
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              {loadingTicketDetails ? 'Cargando...' : 'Ver Detalles'}
+                            </Button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={3} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
-                          No hay mantenimientos correctivos registrados
+                        <td colSpan={5} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay tickets asociados a este equipo
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* OBSERVACIONES DEL EQUIPO - NUEVA SECCIÓN */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
+                OBSERVACIONES DEL EQUIPO
+              </h3>
+              <div className="border border-gray-300">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Usuario</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Descripción</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center">Archivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.observaciones && displayData.observaciones.length > 0 ? (
+                      displayData.observaciones.slice(0, 10).map((obs, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(obs.created_at || obs.fecha_nota)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(obs.usuario_nombre || 'Usuario')}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            {obs.description ? (obs.description.length > 100 ? obs.description.substring(0, 100) + '...' : obs.description) : 'Sin descripción'}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-center">
+                            {obs.file ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/storage/observaciones/${obs.file}`, '_blank')}
+                                className="text-purple-600 hover:bg-purple-100 h-7 px-2"
+                                title="Ver archivo de observación"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Ver
+                              </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Sin archivo</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay observaciones registradas para este equipo
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* CONTINGENCIAS DEL EQUIPO - NUEVA SECCIÓN */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white bg-orange-600 px-4 py-2 mb-0">
+                CONTINGENCIAS / EVENTOS
+              </h3>
+              <div className="border border-orange-300">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-orange-100">
+                      <th className="border border-orange-200 px-3 py-2 text-sm font-semibold text-orange-800 text-left">Fecha</th>
+                      <th className="border border-orange-200 px-3 py-2 text-sm font-semibold text-orange-800 text-left">Usuario</th>
+                      <th className="border border-orange-200 px-3 py-2 text-sm font-semibold text-orange-800 text-left">Observación</th>
+                      <th className="border border-orange-200 px-3 py-2 text-sm font-semibold text-orange-800 text-center">Archivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.contingencias && displayData.contingencias.length > 0 ? (
+                      displayData.contingencias.slice(0, 10).map((cont, index) => (
+                        <tr key={index} className="hover:bg-orange-50">
+                          <td className="border border-orange-200 px-3 py-2 text-sm">
+                            {formatDate(cont.fecha || cont.created_at)}
+                          </td>
+                          <td className="border border-orange-200 px-3 py-2 text-sm">
+                            {cont.usuario_nombre 
+                              ? `${cont.usuario_nombre} ${cont.usuario_apellido || ''}`.trim()
+                              : 'Usuario'}
+                          </td>
+                          <td className="border border-orange-200 px-3 py-2 text-sm">
+                            {cont.observacion 
+                              ? (cont.observacion.length > 150 
+                                  ? cont.observacion.substring(0, 150) + '...' 
+                                  : cont.observacion)
+                              : 'Sin observación'}
+                          </td>
+                          <td className="border border-orange-200 px-3 py-2 text-center">
+                            {cont.file ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`http://localhost:8001/storage/contingencias/${cont.file}`, '_blank')}
+                                className="text-orange-600 hover:bg-orange-100 h-7 px-2"
+                                title="Ver archivo de contingencia"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Ver
+                              </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Sin archivo</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-orange-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay contingencias registradas para este equipo
                         </td>
                       </tr>
                     )}
@@ -756,31 +1339,49 @@ export function ViewEquipmentModal({
 
             {/* DOCUMENTOS ASOCIADOS - ESTILO TABULAR EXCEL CON ENLACES FUNCIONALES */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 DOCUMENTOS ASOCIADOS
               </h3>
               <div className="grid grid-cols-2 gap-6">
-                <div className="border border-blue-300">
+                <div className="border border-gray-300">
                   <table className="w-full border-collapse">
                     <thead>
-                      <tr className="bg-blue-100">
-                        <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Nombre</th>
-                        <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Tipo de Documento</th>
-                        <th className="border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800 text-left">Fecha</th>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Nombre</th>
+                        <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Tipo de Documento</th>
+                        <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha</th>
+                        <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center">Archivo</th>
                       </tr>
                     </thead>
                     <tbody>
                       {displayData.documentos && displayData.documentos.length > 0 ? (
                         displayData.documentos.slice(0, 6).map((doc, index) => (
-                          <tr key={index}>
-                            <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(doc.nombre_archivo)}</td>
-                            <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(doc.tipo_documento)}</td>
-                            <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(doc.fecha_documento)}</td>
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.nombre_archivo)}</td>
+                            <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.tipo_documento)}</td>
+                            <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.fecha_documento)}</td>
+                            <td className="border border-gray-200 px-3 py-2 text-center">
+                              {doc.vinculo ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/storage/equipos/archivos/${doc.vinculo}`, '_blank')}
+                                  className="text-gray-800 hover:bg-gray-100 h-7 px-2"
+                                  title="Ver documento"
+                                >
+                                  <FileText className="w-4 h-4 mr-1" />
+                                  Ver
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400 text-xs">Sin archivo</span>
+                              )}
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={3} className="border border-blue-200 px-3 py-4 text-center italic text-gray-500">
+                          <td colSpan={4} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
                             No hay documentos asociados
                           </td>
                         </tr>
@@ -791,13 +1392,18 @@ export function ViewEquipmentModal({
                 <div className="space-y-4">
                   {/* Documentación Asociada con Enlaces Funcionales */}
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-800 mb-3 bg-blue-50 px-3 py-2 border border-blue-200">📚 Documentación Asociada</h4>
-                    <div className="space-y-3 border border-blue-300 p-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">📖 Manual Asociado:</span>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-0 bg-gray-50 px-4 py-3 border border-gray-200 rounded-t">
+                      📚 Documentación Asociada
+                    </h4>
+                    <div className="space-y-5 border border-gray-300 border-t-0 p-5 rounded-b bg-white">
+                      {/* Manual Asociado */}
+                      <div className="space-y-2">
+                        <div className="text-gray-700 text-sm font-semibold mb-2">
+                          📖 Manual Asociado:
+                        </div>
                         {selectedManualInfo ? (
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-green-100 text-green-800">
+                          <div className="flex items-center gap-3 bg-green-50 p-3 rounded-lg border border-green-200">
+                            <Badge className="bg-green-100 text-green-800 px-3 py-1.5 text-sm">
                               {selectedManualInfo.descripcion}
                             </Badge>
                             <Button
@@ -805,23 +1411,31 @@ export function ViewEquipmentModal({
                               variant="ghost"
                               size="sm"
                               onClick={() => window.open(selectedManualInfo.url, "_blank")}
-                              className="text-green-600 hover:bg-green-100 h-6 w-6 p-0"
+                              className="text-green-600 hover:bg-green-200 h-8 w-8 p-0 flex-shrink-0 ml-auto"
                               title="Ver manual"
                             >
-                              <FileText className="w-3 h-3" />
+                              <FileText className="w-4 h-4" />
                             </Button>
                           </div>
                         ) : displayData.manual_id ? (
-                          <Badge className="bg-yellow-100 text-yellow-800">Cargando manual...</Badge>
+                          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                            <Badge className="bg-yellow-100 text-yellow-800">Cargando manual...</Badge>
+                          </div>
                         ) : (
-                          <span className="text-gray-500">Sin manual asociado</span>
+                          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <span className="text-gray-500 text-sm">Sin manual asociado</span>
+                          </div>
                         )}
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">🚀 Guía Rápida Asociada:</span>
+                      
+                      {/* Guía Rápida Asociada */}
+                      <div className="space-y-2">
+                        <div className="text-gray-700 text-sm font-semibold mb-2">
+                          🚀 Guía Rápida Asociada:
+                        </div>
                         {selectedGuideInfo ? (
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-purple-100 text-purple-800">
+                          <div className="flex items-center gap-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
+                            <Badge className="bg-purple-100 text-purple-800 px-3 py-1.5 text-sm">
                               {selectedGuideInfo.name}
                             </Badge>
                             <Button
@@ -832,26 +1446,36 @@ export function ViewEquipmentModal({
                                 const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/guias/${selectedGuideInfo.file}`;
                                 window.open(fileUrl, "_blank");
                               }}
-                              className="text-purple-600 hover:bg-purple-100 h-6 w-6 p-0"
+                              className="text-purple-600 hover:bg-purple-200 h-8 w-8 p-0 flex-shrink-0 ml-auto"
                               title="Ver guía rápida"
                             >
-                              <FileText className="w-3 h-3" />
+                              <FileText className="w-4 h-4" />
                             </Button>
                           </div>
                         ) : displayData.guia_id ? (
-                          <Badge className="bg-yellow-100 text-yellow-800">Cargando guía...</Badge>
+                          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                            <Badge className="bg-yellow-100 text-yellow-800">Cargando guía...</Badge>
+                          </div>
                         ) : (
-                          <span className="text-gray-500 text-sm">Sin guía rápida asociada</span>
+                          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <span className="text-gray-500 text-sm">Sin guía rápida asociada</span>
+                          </div>
                         )}
                       </div>
-                      <div className="mt-4 p-3 bg-gray-50 rounded border border-blue-200">
-                        <strong className="text-gray-700">Accesorios:</strong>
-                        <div 
-                          className="mt-1 text-gray-600 text-xs"
-                          dangerouslySetInnerHTML={{
-                            __html: displayData.accesorios || "No especificados"
-                          }}
-                        />
+                      
+                      {/* Accesorios */}
+                      <div className="pt-4 border-t border-gray-300">
+                        <div className="text-gray-700 text-sm font-semibold mb-3">
+                          Accesorios:
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <div 
+                            className="text-gray-600 text-sm leading-relaxed"
+                            dangerouslySetInnerHTML={{
+                              __html: displayData.accesorios || "No especificados"
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -861,38 +1485,45 @@ export function ViewEquipmentModal({
 
             {/* INFORMACIÓN ADICIONAL - ESTILO TABULAR EXCEL */}
             <div className="p-6">
-              <h3 className="text-lg font-bold text-white bg-blue-600 px-4 py-2 mb-0">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
                 INFORMACIÓN ADICIONAL
               </h3>
-              <div className="border border-blue-300">
+              <div className="border border-gray-300">
                 <table className="w-full border-collapse">
                   <tbody>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Verificación Inventario</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.verificacion_inventario)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 w-1/4">Código Antiguo</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.codigo_antiguo)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Verificación Inventario</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.verificacion_inventario)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Código Antiguo</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.codigo_antiguo)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Repuesto Pendiente</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.repuesto_pendiente)}</td>
-                      <td className="border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">Plan Mantenimiento</td>
-                      <td className="border border-blue-200 px-3 py-2 text-sm">{safeValue(displayData.plan)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Repuesto Pendiente</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.repuesto_pendiente)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Plan Mantenimiento</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.plan)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* BOTÓN VER HISTORIAL FUERA DEL FORMATO PDF */}
+            {/* BOTONES VER HISTORIAL FUERA DEL FORMATO PDF */}
             <div className="p-6 bg-gray-50">
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-4">
                 <Button
                   onClick={() => setShowHistory(!showHistory)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
                 >
                   <History className="h-4 w-4 mr-2" />
-                  {showHistory ? 'Ocultar Historial' : 'Ver Historial de Usuarios'}
+                  {showHistory ? 'Ocultar Historial de Usuarios' : 'Ver Historial de Usuarios'}
+                </Button>
+                <Button
+                  onClick={() => setShowCambiosHdv(!showCambiosHdv)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  {showCambiosHdv ? 'Ocultar Historial de Cambios' : 'Ver Historial de Cambios'}
                 </Button>
               </div>
             </div>
@@ -912,7 +1543,7 @@ export function ViewEquipmentModal({
                       <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <div className="flex-shrink-0 mt-1">
                           {entry.tipo === 'observacion' ? (
-                            <UserCheck className="h-4 w-4 text-blue-600" />
+                            <UserCheck className="h-4 w-4 text-gray-800" />
                           ) : (
                             <FileText className="h-4 w-4 text-green-600" />
                           )}
@@ -949,11 +1580,73 @@ export function ViewEquipmentModal({
                   </div>
                 )}
                 
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <p className="text-xs text-blue-700">
+                    <Info className="h-4 w-4 text-gray-800" />
+                    <p className="text-xs text-gray-800">
                       <strong>Nota:</strong> Este historial muestra las últimas actividades de usuarios que han agregado observaciones o documentos a este equipo.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* HISTORIAL DE CAMBIOS DE HOJA DE VIDA CON ANIMACIÓN */}
+            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
+              showCambiosHdv ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <div className="p-6 bg-white border-t">
+                <h3 className="text-lg font-bold text-purple-800 mb-4 border-b border-purple-200 pb-2">
+                  📝 HISTORIAL COMPLETO DE CAMBIOS DEL EQUIPO
+                </h3>
+                
+                {cambiosHdv.length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {cambiosHdv.map((cambio) => (
+                      <div key={cambio.id} className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200">
+                        <div className="flex-shrink-0 mt-1">
+                          <FileText className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <UserCheck className="h-4 w-4 text-purple-600" />
+                              <p className="text-sm font-medium text-gray-900">
+                                {cambio.responsable_nombre || 'Sistema'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Clock className="h-3 w-3" />
+                              {cambio.fecha_formateada || new Date(cambio.fecha).toLocaleDateString('es-ES', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {cambio.descripcion}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 text-sm">
+                      No hay cambios registrados en la hoja de vida de este equipo
+                    </p>
+                  </div>
+                )}
+                
+                <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-purple-600" />
+                    <p className="text-xs text-purple-700">
+                      <strong>Nota:</strong> Este historial registra automáticamente todos los cambios realizados al equipo, incluyendo ediciones de información, agregado/edición/eliminación de preventivos, calibraciones, correctivos y tickets.
                     </p>
                   </div>
                 </div>
@@ -992,6 +1685,30 @@ export function ViewEquipmentModal({
         onOpenChange={setShowGuideSearchModal}
         onSelectGuide={handleSelectGuide}
       />
+
+      {/* Modal de detalles del ticket */}
+      {showTicketDetailsModal && selectedTicket && (
+        <TicketDetailsComplete
+          isOpen={showTicketDetailsModal}
+          onClose={() => {
+            setShowTicketDetailsModal(false);
+            setSelectedTicket(null);
+            setSelectedTicketId(null);
+            // Recargar tickets después de cerrar el modal por si hubo cambios
+            if (equipment?.id) {
+              fetchEquipmentTickets(equipment.id);
+            }
+          }}
+          ticket={selectedTicket}
+          readOnly={true}
+          onRefresh={() => {
+            // Recargar el ticket individual si se necesita
+            if (selectedTicket?.id) {
+              fetchTicketDetails(selectedTicket.id);
+            }
+          }}
+        />
+      )}
     </Dialog>
   );
 }

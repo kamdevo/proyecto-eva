@@ -9,10 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, X } from "lucide-react";
+import { Upload, X, FileText, AlertCircle } from "lucide-react";
+import httpService from "@/services/httpService";
+import { toast } from "sonner";
 
-export function AddContingencyModal({ open, onOpenChange }) {
+export function AddContingencyModal({ open, onOpenChange, onSuccess }) {
+  const [formData, setFormData] = useState({
+    fecha: new Date().toISOString().split('T')[0],
+    descripcion: '',
+    archivo: null,
+    equipo_id: 1, // Requerido por el controlador
+    severidad: 'Media',
+    tipo: 'Falla',
+    usuario_reporta: 1, // Temporal, debería venir del usuario logueado
+    observaciones: ''
+  });
   const [dragActive, setDragActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -28,6 +42,125 @@ export function AddContingencyModal({ open, onOpenChange }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileSelect = (file) => {
+    // Validar tipo de archivo
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors({...errors, archivo: 'Tipo de archivo no válido. Solo PDF, DOC, DOCX, JPG, PNG permitidos.'});
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors({...errors, archivo: 'El archivo es muy grande. Máximo 5MB permitido.'});
+      return;
+    }
+
+    setFormData({...formData, archivo: file});
+    setErrors({...errors, archivo: null});
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.fecha) {
+      newErrors.fecha = 'La fecha es requerida';
+    }
+    
+    if (!formData.descripcion.trim()) {
+      newErrors.descripcion = 'La descripción es requerida';
+    }
+
+    if (!formData.equipo_id) {
+      newErrors.equipo_id = 'El equipo es requerido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
+    const toastId = 'add-contingency';
+    try {
+      setLoading(true);
+      toast.loading('Registrando contingencia...', { id: toastId });
+
+      // Crear FormData para envío con archivo
+      const submitData = new FormData();
+      submitData.append('fecha', formData.fecha);
+      submitData.append('descripcion', formData.descripcion);
+      submitData.append('equipo_id', formData.equipo_id);
+      submitData.append('severidad', formData.severidad);
+      submitData.append('tipo', formData.tipo);
+      submitData.append('usuario_reporta', formData.usuario_reporta);
+      submitData.append('observaciones', formData.observaciones);
+      
+      if (formData.archivo) {
+        submitData.append('archivo', formData.archivo);
+      }
+
+      const response = await httpService.post('/v1/contingencias', submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data.success) {
+        // Resetear formulario
+        setFormData({
+          fecha: new Date().toISOString().split('T')[0],
+          descripcion: '',
+          archivo: null,
+          equipo_id: 1,
+          severidad: 'Media',
+          tipo: 'Falla',
+          usuario_reporta: 1,
+          observaciones: ''
+        });
+        
+        // Cerrar modal y notificar éxito
+        onOpenChange(false);
+        if (onSuccess) onSuccess();
+        toast.success('Contingencia registrada exitosamente', { id: toastId });
+      } else {
+        throw new Error(response.data.message || 'Error al crear contingencia');
+      }
+    } catch (error) {
+      console.error('Error creating contingency:', error);
+      toast.error('Error al crear la contingencia: ' + (error.response?.data?.message || error.message), { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      fecha: new Date().toISOString().split('T')[0],
+      descripcion: '',
+      archivo: null,
+      equipo_id: 1,
+      severidad: 'Media',
+      tipo: 'Falla',
+      usuario_reporta: 1,
+      observaciones: ''
+    });
+    setErrors({});
   };
 
   return (
@@ -55,7 +188,7 @@ export function AddContingencyModal({ open, onOpenChange }) {
             Contingencia
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label
                 htmlFor="fecha"
@@ -66,79 +199,146 @@ export function AddContingencyModal({ open, onOpenChange }) {
               <Input
                 id="fecha"
                 type="date"
-                defaultValue="2024-06-18"
-                className="h-8 sm:h-9 text-xs sm:text-sm"
+                value={formData.fecha}
+                onChange={(e) => setFormData({...formData, fecha: e.target.value})}
+                max={new Date().toISOString().split('T')[0]}
+                className={`h-8 sm:h-9 text-xs sm:text-sm ${errors.fecha ? 'border-red-500' : ''}`}
               />
+              {errors.fecha && (
+                <div className="flex items-center gap-1 text-xs text-red-500">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.fecha}
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2 sm:col-span-1">
+            <div className="space-y-2">
               <Label
-                htmlFor="observacion"
+                htmlFor="descripcion"
                 className="text-xs sm:text-sm font-medium text-slate-700"
               >
-                Observación<span className="text-destructive">*</span>
+                Descripción<span className="text-destructive">*</span>
               </Label>
               <Textarea
-                id="observacion"
+                id="descripcion"
                 placeholder="Ingrese información detallada de la contingencia"
-                className="text-xs sm:text-sm min-h-[60px] sm:min-h-[80px] resize-none"
+                value={formData.descripcion}
+                onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                className={`text-xs sm:text-sm min-h-[60px] sm:min-h-[80px] resize-none ${errors.descripcion ? 'border-red-500' : ''}`}
                 rows={3}
               />
+              {errors.descripcion && (
+                <div className="flex items-center gap-1 text-xs text-red-500">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.descripcion}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs sm:text-sm font-medium text-slate-700">
-              Archivo asociado<span className="text-destructive">*</span>
+              Archivo asociado (opcional)
             </Label>
-            <div
-              className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
-                dragActive
-                  ? "border-teal-400 bg-teal-50"
-                  : "border-slate-300 bg-slate-50"
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <Upload className="w-6 sm:w-8 h-6 sm:h-8 text-slate-400 mx-auto mb-2 sm:mb-3" />
-              <div className="text-slate-500 text-xs sm:text-sm mb-1 sm:mb-2">
-                Drag & drop files here
+            
+            {!formData.archivo ? (
+              <div
+                className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
+                  dragActive
+                    ? "border-teal-400 bg-teal-50"
+                    : errors.archivo 
+                    ? "border-red-400 bg-red-50"
+                    : "border-slate-300 bg-slate-50"
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <Upload className="w-6 sm:w-8 h-6 sm:h-8 text-slate-400 mx-auto mb-2 sm:mb-3" />
+                <div className="text-slate-500 text-xs sm:text-sm mb-1 sm:mb-2">
+                  Arrastra archivos aquí
+                </div>
+                <div className="text-slate-400 text-xs mb-2">
+                  o haz clic para seleccionar
+                </div>
+                <div className="text-xs text-slate-500">
+                  PDF, DOC, DOCX, JPG, PNG (máx. 5MB)
+                </div>
               </div>
-              <div className="text-slate-400 text-xs">
-                (or click to select file)
+            ) : (
+              <div className="border-2 border-green-200 bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-green-600" />
+                    <div>
+                      <div className="text-sm font-medium text-green-900">
+                        {formData.archivo.name}
+                      </div>
+                      <div className="text-xs text-green-600">
+                        {(formData.archivo.size / 1024 / 1024).toFixed(2)} MB
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormData({...formData, archivo: null})}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
+            
+            {errors.archivo && (
+              <div className="flex items-center gap-1 text-xs text-red-500">
+                <AlertCircle className="w-3 h-3" />
+                {errors.archivo}
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full sm:flex-1 h-8 sm:h-9 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200"
-            >
-              SELECT FILE
-            </Button>
-            <Button
-              size="sm"
-              className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
-            >
-              📁 Browse...
-            </Button>
-          </div>
+          {!formData.archivo && (
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('file-input').click()}
+                className="w-full sm:flex-1 h-8 sm:h-9 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200"
+              >
+                📎 Seleccionar archivo
+              </Button>
+              <input
+                id="file-input"
+                type="file"
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="hidden"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              resetForm();
+              onOpenChange(false);
+            }}
+            disabled={loading}
             className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
           >
-            Close
+            Cancelar
           </Button>
-          <Button className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm">
-            Insertar
+          <Button 
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm disabled:opacity-50"
+          >
+            {loading ? 'Guardando...' : 'Crear Contingencia'}
           </Button>
         </div>
       </DialogContent>

@@ -74,6 +74,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  
+  /* 🎨 Color Global EVA - Para consistencia en toda la aplicación */
+  --eva-blue: #1d293d;
+  --eva-blue-light: #2a3b52;
+  --eva-blue-dark: #141d2b;
 }
 
 .dark {
@@ -175,3 +180,9 @@
   max-width: 1600px !important;
   height: 90vh !important;
 }
+
+/* ========================================
+   📱 OPTIMIZACIONES PARA TABLETS
+   Sistema de diseño responsive adaptable
+   ======================================== */
+@import "./styles/tablet-optimizations.css";

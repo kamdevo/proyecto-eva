@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Edit, Trash2, Plus, Search, Settings, Menu } from "lucide-react"
+import { toast } from "sonner"
 
 // Importar modales
 import UIModalAgregarArea from "@/components/modals/ui-modal-agregar-area"
@@ -24,80 +25,35 @@ export default function VistaAreasPrincipal() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [searchTerm, setSearchTerm] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [areasData, setAreasData] = useState([])
+  const [servicios, setServicios] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
-  // Datos de ejemplo para áreas
-  const areasData = [
-    {
-      id: 1,
-      nombre: "500KVA",
-      servicio: "ACONDICIONAMIENTO FISICO",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 2,
-      nombre: "600KVA",
-      servicio: "SUBESTACION",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 3,
-      nombre: "ACELERADOR LINEAL",
-      servicio: "RADIOTERAPIA",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 4,
-      nombre: "ALMACEN",
-      servicio: "LABORATORIO",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 5,
-      nombre: "AMBULANCIA 642",
-      servicio: "AMBULANCIA CARTAGO",
-      sede: "CARTAGO",
-      piso: "N/R",
-    },
-    {
-      id: 6,
-      nombre: "AMBULANCIA 643",
-      servicio: "AMBULANCIA CARTAGO",
-      sede: "CARTAGO",
-      piso: "N/R",
-    },
-    {
-      id: 7,
-      nombre: "ANFITEATRO",
-      servicio: "MORGUE",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 8,
-      nombre: "ANGIOGRAFIA",
-      servicio: "HEMODINAMIA",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 9,
-      nombre: "AUDITORIOS",
-      servicio: "COMUNICACIONES",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 10,
-      nombre: "BIENESTAR ESTUDIANTIL",
-      servicio: "COORDINACION ACADEMICA",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-  ]
+  // Cargar áreas desde la API
+  useEffect(() => {
+    fetchAreas()
+  }, [])
+
+  const fetchAreas = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('http://192.168.2.146:8001/api/v1/areas')
+      const data = await response.json()
+      
+      if (data.success) {
+        setAreasData(data.data || [])
+        setServicios(data.servicios || []) // Guardar servicios del endpoint
+      } else {
+        toast.error('Error al cargar áreas')
+      }
+    } catch (error) {
+      console.error('Error cargando áreas:', error)
+      toast.error('Error al cargar áreas')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleEdit = (area) => {
     setSelectedArea(area)
@@ -109,12 +65,45 @@ export default function VistaAreasPrincipal() {
     setIsDeleteModalOpen(true)
   }
 
-  const filteredData = areasData.filter(
-    (area) =>
-      area.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      area.servicio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      area.sede.toLowerCase().includes(searchTerm.toLowerCase()),
+  // Filtrar datos
+  let filteredData = areasData.filter((area) =>
+    area.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    area.servicio_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    area.sede_nombre?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Ordenar datos
+  if (sortConfig.key) {
+    filteredData = [...filteredData].sort((a, b) => {
+      const aValue = a[sortConfig.key] || ''
+      const bValue = b[sortConfig.key] || ''
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+  }
+
+  const handleSort = (key) => {
+    let direction = 'asc'
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return <span className="ml-1 text-gray-400">↕</span>
+    }
+    return sortConfig.direction === 'asc' ? 
+      <span className="ml-1">↑</span> : 
+      <span className="ml-1">↓</span>
+  }
 
   const totalItems = filteredData.length
   const totalPages = Math.ceil(totalItems / itemsPerPage)
@@ -223,15 +212,29 @@ export default function VistaAreasPrincipal() {
               <Table>
                 <TableHeader className="bg-slate-500">
                   <TableRow>
-                    <TableHead className="font-semibold text-white min-w-[150px] px-2 lg:px-4">Nombre</TableHead>
-                    <TableHead className="font-semibold text-white min-w-[180px] px-2 lg:px-4 hidden sm:table-cell">
-                      Servicio
+                    <TableHead 
+                      className="font-semibold text-white min-w-[150px] px-2 lg:px-4 cursor-pointer hover:bg-slate-600"
+                      onClick={() => handleSort('name')}
+                    >
+                      Nombre {getSortIcon('name')}
                     </TableHead>
-                    <TableHead className="font-semibold text-white min-w-[120px] px-2 lg:px-4 hidden md:table-cell">
-                      Sede
+                    <TableHead 
+                      className="font-semibold text-white min-w-[180px] px-2 lg:px-4 hidden sm:table-cell cursor-pointer hover:bg-slate-600"
+                      onClick={() => handleSort('servicio_nombre')}
+                    >
+                      Servicio {getSortIcon('servicio_nombre')}
                     </TableHead>
-                    <TableHead className="font-semibold text-white min-w-[80px] px-2 lg:px-4 hidden lg:table-cell">
-                      Piso
+                    <TableHead 
+                      className="font-semibold text-white min-w-[120px] px-2 lg:px-4 hidden md:table-cell cursor-pointer hover:bg-slate-600"
+                      onClick={() => handleSort('sede_nombre')}
+                    >
+                      Sede {getSortIcon('sede_nombre')}
+                    </TableHead>
+                    <TableHead 
+                      className="font-semibold text-white min-w-[80px] px-2 lg:px-4 hidden lg:table-cell cursor-pointer hover:bg-slate-600"
+                      onClick={() => handleSort('piso_nombre')}
+                    >
+                      Piso {getSortIcon('piso_nombre')}
                     </TableHead>
                     <TableHead className="font-semibold text-white text-center min-w-[100px] px-2 lg:px-4">
                       Acciones
@@ -239,59 +242,62 @@ export default function VistaAreasPrincipal() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentData.map((area, index) => (
-                    <TableRow
-                      key={area.id}
-                      className={`hover:bg-gray-50 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                    >
-                      <TableCell className="font-medium text-sm px-2 lg:px-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{area.nombre}</span>
-                          {/* Información adicional en móvil */}
-                          <div className="sm:hidden text-xs text-gray-500 mt-1 space-y-1">
-                            <div>Servicio: {area.servicio}</div>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant="outline" className="text-xs">
-                                {area.sede}
-                              </Badge>
-                              <span>• {area.piso}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm px-2 lg:px-4 hidden sm:table-cell">
-                        <div className="max-w-[200px] truncate" title={area.servicio}>
-                          {area.servicio}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm px-2 lg:px-4 hidden md:table-cell">
-                        <Badge variant="outline" className="text-xs">
-                          {area.sede}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm px-2 lg:px-4 hidden lg:table-cell">{area.piso}</TableCell>
-                      <TableCell className="text-center px-2 lg:px-4">
-                        <div className="flex justify-center space-x-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
-                            onClick={() => handleEdit(area)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white border-red-500"
-                            onClick={() => handleDelete(area)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex justify-center items-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                          <span className="ml-2 text-gray-600">Cargando áreas...</span>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : currentData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        No se encontraron áreas
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    currentData.map((area) => (
+                      <TableRow key={area.id} className="hover:bg-gray-50">
+                        <TableCell className="p-4">
+                          <div className="font-medium text-gray-900">{area.name}</div>
+                          <div className="text-xs text-gray-500">ID: {area.id}</div>
+                        </TableCell>
+                        <TableCell className="p-4 text-gray-700">{area.servicio_nombre || 'N/A'}</TableCell>
+                        <TableCell className="p-4 text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {area.sede_nombre || 'N/A'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="p-4 text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {area.piso_nombre || 'N/A'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="p-4">
+                          <div className="flex items-center justify-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              onClick={() => handleEdit(area)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                              onClick={() => handleDelete(area)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -310,11 +316,27 @@ export default function VistaAreasPrincipal() {
       </div>
 
       {/* Modales */}
-      <UIModalAgregarArea isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <UIModalAgregarArea 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        servicios={servicios}
+        onSuccess={fetchAreas}
+      />
 
-      <UIModalEditarArea isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} area={selectedArea} />
+      <UIModalEditarArea 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        area={selectedArea}
+        servicios={servicios}
+        onSuccess={fetchAreas}
+      />
 
-      <UIModalEliminarArea isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} area={selectedArea} />
+      <UIModalEliminarArea 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        area={selectedArea}
+        onSuccess={fetchAreas}
+      />
     </div>
   )
 }

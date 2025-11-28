@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import useFormValidation from "../hooks/useFormValidation";
@@ -6,6 +7,7 @@ import { useCentrosCosto } from "../hooks/useCentrosCosto";
 import { useFormSubmit } from "../hooks/useFormSubmit";
 import AlertMessage from "./ui/AlertMessage";
 import SearchableSelect from "./ui/searchable-select";
+import { UserRoundPlus } from "lucide-react";
 import "../assets/css/Login.css";
 import logo from "../assets/Img/lgoLogin-removebg-preview.png";
 import {
@@ -23,6 +25,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
 const LoginForm = () => {
+  const navigate = useNavigate();
   const { login, register, isLoading, clearError } = useAuth();
   const { toast } = useToast();
   const { centros, loading: centrosLoading } = useCentrosCosto();
@@ -202,15 +205,38 @@ const LoginForm = () => {
     }
 
     try {
+      console.log("🔄 [LOGIN] Iniciando registro con datos:", registerForm);
       const result = await register(registerForm);
+      console.log("✅ [LOGIN] Resultado del registro:", result);
+      
       if (result.success) {
-        toast.success("Registro exitoso. ¡Bienvenido al sistema EVA!");
-        // Cerrar modal después de un breve delay
-        setTimeout(() => {
+        // ⚠️ NUEVO FLUJO: Si requiere verificación, redirigir a página de verificación
+        if (result.verification_required) {
+          // Verificar si el email se envió o no
+          if (result.email_sent) {
+            toast.success("¡Cuenta creada! Revisa tu correo para verificar tu cuenta.");
+          } else {
+            toast.warning("Cuenta creada, pero el email no pudo ser enviado. Contacta al administrador.");
+          }
           setModalRegisterOpen(false);
-        }, 1000);
+          // Redirigir a página de verificación pendiente con datos del usuario
+          navigate('/verificacion-pendiente', { 
+            state: { 
+              userData: result.user,
+              emailSent: result.email_sent 
+            } 
+          });
+        } else {
+          // FLUJO ANTIGUO: Login automático exitoso
+          toast.success("Registro exitoso. ¡Bienvenido al sistema EVA!");
+          // Cerrar modal después de un breve delay
+          setTimeout(() => {
+            setModalRegisterOpen(false);
+          }, 1000);
+        }
       } else {
-        const errorMessage = result.error || "Error al registrar usuario";
+        const errorMessage = result.message || result.error || "Error al registrar usuario";
+        console.error("❌ [LOGIN] Error en registro:", result);
         toast.error(errorMessage);
         setRegisterAlert({
           type: "error",
@@ -351,7 +377,7 @@ const LoginForm = () => {
                 </div>
               </form>
 
-              <div className="">
+              <div className="flex flex-col gap-2 ">
                 <button
                   type="submit"
                   className="btn-login"
@@ -370,10 +396,11 @@ const LoginForm = () => {
                   )}
                 </button>
                 <button
-                  className="btn-register"
+                  className="btn-register flex items-center gap-2"
                   onClick={() => setModalRegisterOpen(true)}
                   disabled={isLoading}
                 >
+                  <UserRoundPlus size={17} strokeWidth={3}  />
                   Crear una cuenta
                 </button>
               </div>

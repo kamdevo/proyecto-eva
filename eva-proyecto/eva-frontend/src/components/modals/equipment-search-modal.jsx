@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Search, X, CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Pagination from "@/components/common/Pagination";
+import { toast } from "sonner";
 
 export default function EquipmentSearchModal({ 
   isOpen, 
@@ -115,22 +116,34 @@ export default function EquipmentSearchModal({
       
       const result = await response.json();
       
+      console.log('🔍 Respuesta completa del API:', result);
+      console.log('🔍 result.success:', result.success);
+      console.log('🔍 result.data:', result.data);
+      
       if (result.success) {
         // La estructura es: result.data.data (array de equipos)
-        const equiposData = result.data?.data || [];
+        const equiposData = result.data?.data || result.data || [];
         
-        // Transformar la estructura anidada a formato plano para la tabla
+        console.log('📦 Equipos recibidos:', equiposData.length);
+        console.log('📦 Primer equipo:', JSON.stringify(equiposData[0], null, 2));
+        
+        // Transformar datos - los endpoints devuelven estructura directa
         const transformedData = equiposData.map(item => ({
           id: item.id,
-          name: item.equipo?.name || '',
-          code: item.equipo?.code || '',
-          marca: item.equipo?.brand || '',
-          modelo: item.equipo?.model || '',
-          serial: item.equipo?.series || '',
-          servicios: item.ubicacion?.servicio || '',
-          area: item.ubicacion?.area || '',
-          sede: item.ubicacion?.sede || ''
+          name: item.name || item.equipo?.name || '',
+          code: item.code || item.equipo?.code || '',
+          marca: item.marca || item.brand || item.equipo?.brand || '',
+          modelo: item.modelo || item.model || item.equipo?.model || '',
+          serial: item.serial || item.series || item.equipo?.series || '',
+          servicio_nombre: item.servicio_nombre || item.servicio?.name || item.ubicacion?.servicio || '',
+          area_nombre: item.area_nombre || item.area?.name || item.ubicacion?.area || '',
+          sede_nombre: item.sede_nombre || item.sede?.name || item.ubicacion?.sede || ''
         }));
+        
+        console.log('✅ Equipos transformados:', transformedData.length);
+        if (transformedData.length > 0) {
+          console.log('✅ Primer equipo transformado:', JSON.stringify(transformedData[0], null, 2));
+        }
         
         setEquipos(transformedData);
         
@@ -138,12 +151,20 @@ export default function EquipmentSearchModal({
         setTotalPages(result.data?.last_page || 1);
         setTotalItems(result.data?.total || 0);
         setCurrentPage(result.data?.current_page || 1);
+        
+        console.log('📊 Paginación:', {
+          totalPages: result.data?.last_page || 1,
+          totalItems: result.data?.total || 0,
+          currentPage: result.data?.current_page || 1
+        });
       } else {
-        console.error('Error en respuesta:', result.message);
+        console.error('❌ Error en respuesta:', result.message);
+        console.error('❌ Respuesta completa:', result);
         setEquipos([]);
       }
     } catch (error) {
-      console.error('Error fetching equipments:', error);
+      console.error('❌ Error fetching equipments:', error);
+      console.error('❌ Error details:', error.message);
       setEquipos([]);
     } finally {
       setLoading(false);
@@ -163,7 +184,12 @@ export default function EquipmentSearchModal({
     if (selectedEquipment) {
       onSelectEquipment(selectedEquipment);
       // Mostrar notificación de éxito
-      alert(`✅ Equipo cargado correctamente:\n\n${selectedEquipment.name}\nCódigo: ${selectedEquipment.code}\nSerie: ${selectedEquipment.serial || 'N/A'}`);
+      toast.success(
+        `Equipo cargado: ${selectedEquipment.name}`,
+        {
+          description: `Código: ${selectedEquipment.code} | Serie: ${selectedEquipment.serial || 'N/A'}`
+        }
+      );
       onClose();
       setSelectedEquipment(null);
     }
@@ -344,8 +370,8 @@ export default function EquipmentSearchModal({
                         <td className="px-4 py-3 text-sm text-gray-600">{equipo.modelo || 'N/A'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{equipo.serial || 'N/A'}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{equipo.code || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{equipo.servicios || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{equipo.area || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{equipo.servicio_nombre || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{equipo.area_nombre || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>

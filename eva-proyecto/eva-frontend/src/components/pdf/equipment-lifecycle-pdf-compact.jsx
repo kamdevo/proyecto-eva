@@ -477,10 +477,6 @@ export const EquipmentLifecyclePDFCompact = ({ equipment }) => {
                 <Text style={styles.fieldLabel}>F. Venc. Garantía:</Text>
                 <Text style={styles.fieldValue}>{getSafeDate(safeEquipment.fecha_vencimiento_garantia)}</Text>
               </View>
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>F. Venc. INVIMA:</Text>
-                <Text style={styles.fieldValue}>{getSafeDate(safeEquipment.fecha_vencimiento_invima)}</Text>
-              </View>
             </View>
           </View>
         </View>

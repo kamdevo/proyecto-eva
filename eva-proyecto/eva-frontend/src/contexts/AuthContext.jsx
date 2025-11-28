@@ -38,8 +38,7 @@ const authReducer = (state, action) => {
       };
 
     case AUTH_ACTIONS.LOGIN_SUCCESS:
-      // Inicializar servicio de permisos con los datos del usuario
-      permissionService.initialize(action.payload.user);
+      // NOTE: permissionService se inicializa en useAuth hook con los permisos cargados
       return {
         ...state,
         user: action.payload.user,
@@ -69,10 +68,7 @@ const authReducer = (state, action) => {
       };
 
     case AUTH_ACTIONS.SET_USER:
-      // Inicializar permisos si hay usuario
-      if (action.payload.user) {
-        permissionService.initialize(action.payload.user);
-      }
+      // NOTE: permissionService se inicializa en useAuth hook con los permisos cargados
       return {
         ...state,
         user: action.payload.user,
@@ -154,8 +150,6 @@ export const AuthProvider = ({ children }) => {
         payload: { isLoading: true },
       });
 
-      console.log("🔄 [AuthContext] Inicializando autenticación...");
-
       // Verificar si hay datos de sesión en localStorage
       const token = localStorage.getItem("eva_auth_token");
       const storedUser = localStorage.getItem("eva_user");
@@ -166,18 +160,11 @@ export const AuthProvider = ({ children }) => {
           const isValid = await authService.isAuthenticated();
 
           if (isValid && authService.user) {
-            console.log(
-              "✅ [AuthContext] Usuario autenticado:",
-              authService.user
-            );
             dispatch({
               type: AUTH_ACTIONS.SET_USER,
               payload: { user: authService.user },
             });
           } else {
-            console.log(
-              "ℹ️ [AuthContext] Validación fallida, pero manteniendo datos locales temporalmente"
-            );
             // Si falla por error del servidor, usar datos locales temporalmente
             try {
               const localUser = JSON.parse(storedUser);
@@ -185,15 +172,11 @@ export const AuthProvider = ({ children }) => {
                 type: AUTH_ACTIONS.SET_USER,
                 payload: { user: localUser },
               });
-              console.log(
-                "📦 [AuthContext] Usando datos locales mientras el servidor se recupera"
-              );
             } catch (parseError) {
               console.warn(
                 "⚠️ [AuthContext] Error al parsear usuario local:",
                 parseError
               );
-              console.log("ℹ️ [AuthContext] No hay sesión válida");
               dispatch({
                 type: AUTH_ACTIONS.SET_LOADING,
                 payload: { isLoading: false },
@@ -224,7 +207,6 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } else {
-        console.log("ℹ️ [AuthContext] No hay sesión válida");
         dispatch({
           type: AUTH_ACTIONS.SET_LOADING,
           payload: { isLoading: false },

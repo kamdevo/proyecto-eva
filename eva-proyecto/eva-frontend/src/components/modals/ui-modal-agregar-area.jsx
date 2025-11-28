@@ -1,65 +1,59 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Textarea } from "../ui/textarea"
-import SearchableSelect from "../ui/searchable-select"
 import { MapPin } from "lucide-react"
+import { toast } from "sonner"
 
-export default function UIModalAgregarArea({ isOpen, onClose }) {
+export default function UIModalAgregarArea({ isOpen, onClose, servicios = [], onSuccess }) {
   const [formData, setFormData] = useState({
-    nombre: "",
-    servicio: "",
-    sede: "",
-    piso: "",
-    zona: "",
-    responsable: "",
-    telefono: "",
-    email: "",
-    capacidad: "",
-    descripcion: "",
-    estado: "ACTIVA"
+    name: "",
+    servicio_id: "",
+    piso_id: "",
+    centro_id: null
   })
+  
+  const [loading, setLoading] = useState(false)
 
-  // Datos de servicios para SearchableSelect
-  const serviciosOptions = [
-    { id: "ACONDICIONAMIENTO_FISICO", nombre: "ACONDICIONAMIENTO FISICO" },
-    { id: "SUBESTACION_ELECTRICA", nombre: "SUBESTACION ELECTRICA" },
-    { id: "RADIOTERAPIA", nombre: "RADIOTERAPIA" },
-    { id: "LABORATORIO_CLINICO", nombre: "LABORATORIO CLINICO" },
-    { id: "AMBULANCIA_CARTAGO", nombre: "AMBULANCIA CARTAGO" },
-    { id: "MORGUE", nombre: "MORGUE" },
-    { id: "HEMODINAMIA", nombre: "HEMODINAMIA" },
-    { id: "COMUNICACIONES", nombre: "COMUNICACIONES" },
-    { id: "COORDINACION_ACADEMICA", nombre: "COORDINACION ACADEMICA" },
-    { id: "CONSULTA_EXTERNA", nombre: "CONSULTA EXTERNA" },
-    { id: "CIRUGIA_GENERAL", nombre: "CIRUGIA GENERAL" },
-    { id: "UNIDAD_CUIDADOS_INTENSIVOS", nombre: "UNIDAD CUIDADOS INTENSIVOS" },
-    { id: "FARMACIA", nombre: "FARMACIA" },
-    { id: "IMAGENOLOGIA", nombre: "IMAGENOLOGIA" }
-  ]
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log("Agregando área:", formData)
-    onClose()
-    setFormData({
-      nombre: "",
-      servicio: "",
-      sede: "",
-      piso: "",
-      zona: "",
-      responsable: "",
-      telefono: "",
-      email: "",
-      capacidad: "",
-      descripcion: "",
-      estado: "ACTIVA"
-    })
+    setLoading(true)
+    
+    try {
+      const response = await fetch('http://192.168.2.146:8001/api/v1/areas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success('Área creada exitosamente')
+        setFormData({
+          name: "",
+          servicio_id: "",
+          piso_id: "",
+          centro_id: null
+        })
+        if (onSuccess) onSuccess() // Recargar áreas
+        onClose()
+      } else {
+        toast.error(data.message || 'Error al crear área')
+      }
+    } catch (error) {
+      console.error('Error creando área:', error)
+      toast.error('Error al crear área')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field, value) => {
@@ -81,196 +75,78 @@ export default function UIModalAgregarArea({ isOpen, onClose }) {
 
         <div className="mt-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre" className="text-sm font-medium text-gray-700">
-                  Nombre del área *
-                </Label>
-                <Input
-                  id="nombre"
-                  type="text"
-                  placeholder="Ej: QUIROFANO 1"
-                  value={formData.nombre}
-                  onChange={(e) => handleInputChange("nombre", e.target.value)}
-                  className="w-full"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="estado" className="text-sm font-medium text-gray-700">
-                  Estado
-                </Label>
-                <Select value={formData.estado} onValueChange={(value) => handleInputChange("estado", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACTIVA">ACTIVA</SelectItem>
-                    <SelectItem value="INACTIVA">INACTIVA</SelectItem>
-                    <SelectItem value="MANTENIMIENTO">MANTENIMIENTO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium text-gray-700">
+                Nombre del área *
+              </Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Ej: QUIROFANO 1"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                className="w-full"
+                required
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="servicio" className="text-sm font-medium text-gray-700">
-                  Servicio al que pertenece *
-                </Label>
-                <SearchableSelect
-                  placeholder="Buscar o seleccionar servicio..."
-                  options={serviciosOptions}
-                  value={formData.servicio}
-                  onValueChange={(value) => handleInputChange("servicio", value)}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="sede" className="text-sm font-medium text-gray-700">
-                  Sede *
-                </Label>
-                <Select onValueChange={(value) => handleInputChange("sede", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar sede" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="HUV EVARISTO GARCÍA - SEDE PRINCIPAL">HUV EVARISTO GARCÍA - SEDE PRINCIPAL</SelectItem>
-                    <SelectItem value="HUV NORTE">HUV NORTE</SelectItem>
-                    <SelectItem value="HUV CARTAGO">HUV CARTAGO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="servicio_id" className="text-sm font-medium text-gray-700">
+                Servicio al que pertenece *
+              </Label>
+              <Select 
+                value={formData.servicio_id} 
+                onValueChange={(value) => handleInputChange("servicio_id", value)}
+                required
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccionar servicio..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {servicios.map((servicio) => (
+                    <SelectItem key={servicio.id} value={servicio.id.toString()}>
+                      {servicio.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="piso" className="text-sm font-medium text-gray-700">
-                  Piso
-                </Label>
-                <Select onValueChange={(value) => handleInputChange("piso", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar piso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PISO 1">PISO 1</SelectItem>
-                    <SelectItem value="PISO 2">PISO 2</SelectItem>
-                    <SelectItem value="PISO 3">PISO 3</SelectItem>
-                    <SelectItem value="PISO 4">PISO 4</SelectItem>
-                    <SelectItem value="PISO 5">PISO 5</SelectItem>
-                    <SelectItem value="N/A">N/A</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="zona" className="text-sm font-medium text-gray-700">
-                  Zona
-                </Label>
-                <Select onValueChange={(value) => handleInputChange("zona", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar zona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ZONA MOLANO1">ZONA MOLANO1</SelectItem>
-                    <SelectItem value="ZONA CRISTIAN">ZONA CRISTIAN</SelectItem>
-                    <SelectItem value="ZONA SALUD1">ZONA SALUD1</SelectItem>
-                    <SelectItem value="ZONA NORTE">ZONA NORTE</SelectItem>
-                    <SelectItem value="ZONA CENTRAL">ZONA CENTRAL</SelectItem>
-                    <SelectItem value="ZONA SUR">ZONA SUR</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="piso_id" className="text-sm font-medium text-gray-700">
+                Piso
+              </Label>
+              <Select onValueChange={(value) => handleInputChange("piso_id", value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccionar piso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">PISO 1</SelectItem>
+                  <SelectItem value="2">PISO 2</SelectItem>
+                  <SelectItem value="3">PISO 3</SelectItem>
+                  <SelectItem value="4">PISO 4</SelectItem>
+                  <SelectItem value="5">PISO 5</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-md font-semibold text-gray-800 border-b pb-2">Información del Responsable</h4>
-              
-              <div className="space-y-2">
-                <Label htmlFor="responsable" className="text-sm font-medium text-gray-700">
-                  Responsable
-                </Label>
-                <Input
-                  id="responsable"
-                  type="text"
-                  placeholder="Nombre del responsable"
-                  value={formData.responsable}
-                  onChange={(e) => handleInputChange("responsable", e.target.value)}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="telefono" className="text-sm font-medium text-gray-700">
-                    Teléfono
-                  </Label>
-                  <Input
-                    id="telefono"
-                    type="tel"
-                    placeholder="318 555 0000"
-                    value={formData.telefono}
-                    onChange={(e) => handleInputChange("telefono", e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="correo@huv.gov.co"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-md font-semibold text-gray-800 border-b pb-2">Información Adicional</h4>
-              
-              <div className="space-y-2">
-                <Label htmlFor="capacidad" className="text-sm font-medium text-gray-700">
-                  Capacidad
-                </Label>
-                <Input
-                  id="capacidad"
-                  type="text"
-                  placeholder="Ej: 20 camas, 100 personas, 500 m²"
-                  value={formData.capacidad}
-                  onChange={(e) => handleInputChange("capacidad", e.target.value)}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="descripcion" className="text-sm font-medium text-gray-700">
-                  Descripción
-                </Label>
-                <Textarea
-                  id="descripcion"
-                  placeholder="Descripción del área..."
-                  value={formData.descripcion}
-                  onChange={(e) => handleInputChange("descripcion", e.target.value)}
-                  className="w-full min-h-[80px]"
-                  rows={3}
-                />
-              </div>
-            </div>
 
             <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t">
-              <Button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-6 w-full sm:w-auto">
-                Crear Área
+              <Button 
+                type="submit" 
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 w-full sm:w-auto"
+                disabled={loading}
+              >
+                {loading ? 'Creando...' : 'Crear Área'}
               </Button>
 
-              <Button type="button" variant="outline" onClick={onClose} className="px-6 w-full sm:w-auto">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose} 
+                className="px-6 w-full sm:w-auto"
+                disabled={loading}
+              >
                 Cancelar
               </Button>
             </div>

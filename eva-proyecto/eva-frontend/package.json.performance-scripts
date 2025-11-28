@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "// PERFORMANCE SCRIPTS": "Scripts para medir y optimizar rendimiento",
+    
+    "analyze": "vite build && npx vite-bundle-visualizer",
+    "analyze:size": "npm run build && du -sh dist/*",
+    "lighthouse": "lighthouse http://localhost:5173 --output html --output-path ./lighthouse-report.html",
+    "build:profile": "cross-env NODE_ENV=production PROFILE=true vite build",
+    "preview:perf": "vite build && vite preview --port 4173",
+    "check:bundle": "npm run build && ls -lh dist/assets/",
+    "optimize:images": "npx @squoosh/cli --webp auto public/images/**/*.{jpg,jpeg,png}"
+  },
+  
+  "// NOTAS": [
+    "Para análisis completo ejecutar: npm run analyze",
+    "Para lighthouse: npm run lighthouse (con servidor corriendo)",
+    "Para preview optimizado: npm run preview:perf"
+  ]
+}

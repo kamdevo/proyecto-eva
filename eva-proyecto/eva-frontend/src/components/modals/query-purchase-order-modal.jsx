@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Filter, Download, FileText, Calendar, Package, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { usePurchaseOrders } from "../../hooks/usePurchaseOrders";
+import { useTiposCompra, useProveedores } from "../../hooks/useTiposCompra";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 export function QueryPurchaseOrderModal({ open, onOpenChange }) {
   const [activeTab, setActiveTab] = useState("ordenes");
@@ -38,6 +41,9 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
     search,
     refresh
   } = usePurchaseOrders();
+
+  const { tipos, loading: tiposLoading } = useTiposCompra();
+  const { proveedores, loading: proveedoresLoading } = useProveedores();
 
   const handleSearch = () => {
     const searchFilters = {
@@ -135,19 +141,14 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                       <label className="text-sm font-medium text-slate-700 mb-1 block">
                         Proveedor:
                       </label>
-                      <Select
+                      <SearchableSelect
                         value={filters.proveedor}
                         onValueChange={(value) => handleFilterChange("proveedor", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="TODOS">Todos los proveedores</SelectItem>
-                          <SelectItem value="PROVEEDOR_A">Proveedor A</SelectItem>
-                          <SelectItem value="PROVEEDOR_B">Proveedor B</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        options={[{ id: "TODOS", nombre: "Todos los proveedores" }, ...proveedores]}
+                        placeholder={proveedoresLoading ? "Cargando..." : "Seleccionar proveedor"}
+                        disabled={proveedoresLoading}
+                        loading={proveedoresLoading}
+                      />
                     </div>
 
                     <div>
@@ -174,20 +175,14 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                       <label className="text-sm font-medium text-slate-700 mb-1 block">
                         Tipo:
                       </label>
-                      <Select
+                      <SearchableSelect
                         value={filters.tipo}
                         onValueChange={(value) => handleFilterChange("tipo", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="TODOS">Todos los tipos</SelectItem>
-                          <SelectItem value="ORDEN_COMPRA">Orden de Compra</SelectItem>
-                          <SelectItem value="CONTRATO">Contrato</SelectItem>
-                          <SelectItem value="COMODATO">Comodato</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        options={[{ id: "TODOS", nombre: "Todos los tipos" }, ...tipos]}
+                        placeholder={tiposLoading ? "Cargando..." : "Seleccionar tipo"}
+                        disabled={tiposLoading}
+                        loading={tiposLoading}
+                      />
                     </div>
                   </div>
 

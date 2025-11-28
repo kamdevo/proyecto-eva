@@ -6,9 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Building, Save, Plus, Trash2, User, Wrench } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { X, Building, Save, Plus, Trash2, User, Wrench, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function TicketEditModal({ isOpen, onClose, ticket, onSave }) {
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState([]);
   const [editedTicket, setEditedTicket] = useState({
     description: ticket?.description || "",
     status: ticket?.status || "",
@@ -65,18 +69,25 @@ export default function TicketEditModal({ isOpen, onClose, ticket, onSave }) {
     if (editedTicket.fechaCierre !== (ticket.fechaCierre || '')) changes.push('Fecha de cierre');
 
     if (changes.length === 0) {
-      alert('❌ Edición cancelada - No se realizaron cambios');
+      toast.error('Edición cancelada - No se realizaron cambios');
       return;
     }
 
-    if (window.confirm(`¿Está seguro de que desea guardar los cambios realizados?\n\nCampos modificados: ${changes.join(', ')}`)) {
-      onSave({
-        ...ticket,
-        ...editedTicket
-      });
-      alert(`✅ Ticket actualizado correctamente\n\nCampos editados: ${changes.join(', ')}`);
-      onClose();
-    }
+    setPendingChanges(changes);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSave = () => {
+    setShowConfirmDialog(false);
+    onSave({
+      ...ticket,
+      ...editedTicket
+    });
+    toast.success('Ticket actualizado correctamente', {
+      description: `Campos editados: ${pendingChanges.join(', ')}`,
+      duration: 3000
+    });
+    onClose();
   };
 
   return (
@@ -86,7 +97,15 @@ export default function TicketEditModal({ isOpen, onClose, ticket, onSave }) {
         <div className="bg-blue-600 text-white p-6 rounded-t-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Building className="w-8 h-8 mr-3" />
+              <img 
+                src="/images/logo_huv.jpg" 
+                alt="Logo HUV" 
+                className="w-16 h-16 mr-4 object-contain"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://www.huv.gov.co/wp-content/uploads/2020/01/logo-huv.png';
+                }}
+              />
               <div>
                 <h1 className="text-xl font-bold">Hospital Universitario del Valle</h1>
                 <p className="text-blue-100 text-sm">Evaristo García - Editar Ticket #{ticket.id}</p>
@@ -576,6 +595,44 @@ export default function TicketEditModal({ isOpen, onClose, ticket, onSave }) {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center text-center p-6">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Guardar Cambios
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              ¿Está seguro de que desea guardar los cambios realizados?
+              {pendingChanges.length > 0 && (
+                <span className="block mt-2 font-medium">
+                  Campos modificados: {pendingChanges.join(', ')}
+                </span>
+              )}
+            </p>
+            <div className="flex gap-3 w-full">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmDialog(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleConfirmSave}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

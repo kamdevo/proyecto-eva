@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, ImageIcon, X } from "lucide-react";
+import { toast } from "sonner";
 
 export default function UIModalEditarPropietario({
   isOpen,
@@ -23,11 +24,52 @@ export default function UIModalEditarPropietario({
   });
 
   const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Actualizando propietario:", formData);
-    onClose();
+    
+    if (!propietario?.id) {
+      toast.error('Error: No se encontró el propietario');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('nombre', formData.nombre);
+      formDataToSend.append('_method', 'PUT');
+      
+      if (formData.logo) {
+        formDataToSend.append('logo', formData.logo);
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/v1/propietarios/${propietario.id}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formDataToSend
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Error al actualizar propietario');
+      }
+
+      toast.success('✅ Propietario actualizado exitosamente');
+      onClose();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(error.message || 'Error al actualizar propietario');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field, value) => {
@@ -178,9 +220,10 @@ export default function UIModalEditarPropietario({
             <div className="flex flex-col sm:flex-row justify-between gap-4 pt-6 border-t border-gray-200">
               <Button
                 type="submit"
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-8 py-3 font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-8 py-3 font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Actualizar Propietario
+                {isSubmitting ? 'Actualizando...' : 'Actualizar Propietario'}
               </Button>
               <Button
                 type="button"

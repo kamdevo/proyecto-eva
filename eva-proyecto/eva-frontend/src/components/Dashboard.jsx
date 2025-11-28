@@ -122,20 +122,20 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
         {/* Page Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-4 sm:mb-6 md:mb-8">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
             Tablero de indicadores y control
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600">
             Monitoreo y gestión de equipos médicos
           </p>
         </div>
 
         {/* Metrics Cards - Modern Design */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Card className="border-0 shadow-sm bg-gradient-to-br from-cyan-50 to-cyan-100 border-l-4 border-l-cyan-500">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -210,7 +210,7 @@ export default function Dashboard() {
         </div>
 
         {/* Second Row Metrics - Modern */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-50 to-amber-100">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
@@ -274,9 +274,9 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Grid - Modern Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8">
           {/* Left Column - Equipment Status */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-3 sm:space-y-4 md:space-y-6">
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-semibold text-gray-900">
@@ -594,7 +594,7 @@ export default function Dashboard() {
         </div>
 
         {/* Bottom Section - All Tables */}
-        <div className="space-y-8">
+        <div className="space-y-4 sm:space-y-6 md:space-y-8">
           {/* Seguimiento a preventivos */}
           <Card className="shadow-sm border-0">
             <CardHeader className="pb-4">
@@ -604,7 +604,7 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500">Selección de año</p>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-hidden rounded-lg border border-gray-200">
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
@@ -663,7 +663,7 @@ export default function Dashboard() {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-hidden rounded-lg border border-gray-200">
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
@@ -734,7 +734,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-hidden rounded-lg border border-gray-200">
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>
@@ -788,7 +788,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
+              <div className="overflow-x-auto overflow-hidden rounded-lg border border-gray-200">
                 <Table>
                   <TableHeader className="bg-gray-50">
                     <TableRow>

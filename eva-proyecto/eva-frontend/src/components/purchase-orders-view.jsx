@@ -33,18 +33,25 @@ import {
 } from "@/components/ui/collapsible";
 import { AddPurchaseOrderModal } from "@/components/modals/add-purchase-order-modal";
 import { QueryPurchaseOrderModal } from "@/components/modals/query-purchase-order-modal";
-import { DownloadPdfModal } from "@/components/modals/download-pdf-modal";
 import { SecopConsultationModal } from "@/components/modals/secop-consultation-modal";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 import { useOrdenesCompra } from "../hooks/useOrdenesCompra";
+import { useTiposCompra, useProveedores } from "../hooks/useTiposCompra";
+import { PurchaseOrdersTable } from "./purchase-orders/PurchaseOrdersTable";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 export function PurchaseOrdersView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
-  const [downloadPdfModalOpen, setDownloadPdfModalOpen] = useState(false);
   const [secopModalOpen, setSecopModalOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProveedor, setSelectedProveedor] = useState("");
+  const [selectedTipo, setSelectedTipo] = useState("");
+
+  // Hooks para datos reales
+  const { tipos, loading: tiposLoading } = useTiposCompra();
+  const { proveedores, loading: proveedoresLoading } = useProveedores();
 
   // Use the custom hook for purchase orders
   const {
@@ -52,8 +59,12 @@ export function PurchaseOrdersView() {
     loading,
     pagination,
     search,
+    updateFilters,
     changePage,
     changePageSize,
+    sort,
+    sortBy,
+    sortOrder,
     refresh,
     clearFilters,
     isEmpty,
@@ -90,11 +101,30 @@ export function PurchaseOrdersView() {
   // Handle clear filters
   const handleClearFilters = () => {
     setSearchTerm("");
+    setSelectedProveedor("");
+    setSelectedTipo("");
     clearFilters();
   };
 
+  // Handle apply filters
+  const handleApplyFilters = () => {
+    console.log('Aplicando filtros:', {
+      search: searchTerm,
+      proveedor_id: selectedProveedor,
+      tipo_compra_id: selectedTipo
+    });
+    
+    // Aplicar todos los filtros al backend
+    updateFilters({
+      search: searchTerm,
+      proveedor_id: selectedProveedor || '',
+      tipo_compra_id: selectedTipo || '',
+      page: 1 // Reset a página 1 al aplicar filtros
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
       {/* Responsive Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800 mb-1 sm:mb-2">
@@ -137,15 +167,6 @@ export function PurchaseOrdersView() {
                 <span className="truncate">SECOP</span>
               </Button>
               <Button
-                onClick={() => setDownloadPdfModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
-              >
-                <Download className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Agregar PDF</span>
-              </Button>
-              <Button
                 onClick={handleExportToExcel}
                 variant="ghost"
                 size="sm"
@@ -166,7 +187,7 @@ export function PurchaseOrdersView() {
       {/* Main Content Card */}
       <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
         {/* Responsive Filters Section */}
-        <div className="bg-gradient-to-r from-teal-50 to-blue-50 border-b border-teal-100">
+        <div className="bg-gradient-to-r from-teal-50 to-[#1d293d]/5 border-b border-teal-100">
           <div className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-base sm:text-lg font-semibold text-slate-800">
@@ -211,20 +232,38 @@ export function PurchaseOrdersView() {
                   searchTerm={searchTerm}
                   setSearchTerm={setSearchTerm}
                   handleSearch={handleSearch}
+                  handleApplyFilters={handleApplyFilters}
                   handleClearFilters={handleClearFilters}
                   loading={loading}
+                  selectedProveedor={selectedProveedor}
+                  setSelectedProveedor={setSelectedProveedor}
+                  selectedTipo={selectedTipo}
+                  setSelectedTipo={setSelectedTipo}
+                  proveedores={proveedores}
+                  proveedoresLoading={proveedoresLoading}
+                  tipos={tipos}
+                  tiposLoading={tiposLoading}
                 />
               </CollapsibleContent>
             </Collapsible>
 
             {/* Desktop Filters */}
             <div className="hidden sm:block">
-              <DesktopPurchaseFilters
+              <DesktopPurchaseFilters 
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 handleSearch={handleSearch}
+                handleApplyFilters={handleApplyFilters}
                 handleClearFilters={handleClearFilters}
                 loading={loading}
+                selectedProveedor={selectedProveedor}
+                setSelectedProveedor={setSelectedProveedor}
+                selectedTipo={selectedTipo}
+                setSelectedTipo={setSelectedTipo}
+                proveedores={proveedores}
+                proveedoresLoading={proveedoresLoading}
+                tipos={tipos}
+                tiposLoading={tiposLoading}
               />
             </div>
           </div>
@@ -420,72 +459,29 @@ export function PurchaseOrdersView() {
 
         <div className="hidden sm:block">
           {/* Desktop Table View */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[600px] lg:min-w-[800px]">
-              <thead>
-                <tr className="border-b bg-gradient-to-r from-slate-50 to-slate-100">
-                  <th className="text-left p-2 lg:p-4 text-xs lg:text-sm font-semibold text-slate-800 border-r border-slate-200">
-                    Código/Número
-                  </th>
-                  <th className="text-left p-2 lg:p-4 text-xs lg:text-sm font-semibold text-slate-800 border-r border-slate-200">
-                    Tipo de compra
-                  </th>
-                  <th className="text-left p-2 lg:p-4 text-xs lg:text-sm font-semibold text-slate-800 border-r border-slate-200">
-                    Fecha
-                  </th>
-                  <th className="text-left p-2 lg:p-4 text-xs lg:text-sm font-semibold text-slate-800 border-r border-slate-200">
-                    Archivo
-                  </th>
-                  <th className="text-left p-2 lg:p-4 text-xs lg:text-sm font-semibold text-slate-800">
-                    Proveedor
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="5" className="p-8 text-center">
-                      <div className="space-y-2">
-                        {[...Array(5)].map((_, i) => (
-                          <div key={i} className="h-16 bg-slate-50 rounded animate-pulse"></div>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                ) : hasError ? (
-                  <tr>
-                    <td colSpan="5" className="p-8 text-center">
-                      <div className="flex flex-col items-center">
-                        <AlertCircle className="w-8 h-8 text-red-500 mb-2" />
-                        <p className="text-sm text-red-600 mb-2">
-                          Error al cargar las órdenes
-                        </p>
-                        <Button size="sm" variant="outline" onClick={refresh}>
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          Reintentar
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : isEmpty ? (
-                  <tr>
-                    <td colSpan="5" className="p-8 text-center">
-                      <div className="flex flex-col items-center">
-                        <Package className="w-8 h-8 text-slate-400 mb-2" />
-                        <p className="text-sm text-slate-600">
-                          No se encontraron órdenes de compra
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  purchaseOrders.map((order) => (
-                    <DesktopPurchaseRow key={order.id} order={order} />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {hasError ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="w-12 h-12 text-red-500 mb-3" />
+              <p className="text-sm text-red-600 mb-3">Error al cargar las órdenes</p>
+              <Button size="sm" variant="outline" onClick={refresh}>
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Reintentar
+              </Button>
+            </div>
+          ) : isEmpty ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Package className="w-12 h-12 text-slate-400 mb-3" />
+              <p className="text-sm text-slate-600">No se encontraron órdenes de compra</p>
+            </div>
+          ) : (
+            <PurchaseOrdersTable
+              orders={purchaseOrders}
+              loading={loading}
+              onSort={sort}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+            />
+          )}
         </div>
 
         {/* Results Info Bottom */}
@@ -615,10 +611,6 @@ export function PurchaseOrdersView() {
         open={secopModalOpen}
         onOpenChange={setSecopModalOpen}
       />
-      <DownloadPdfModal
-        open={downloadPdfModalOpen}
-        onOpenChange={setDownloadPdfModalOpen}
-      />
     </div>
   );
 }
@@ -628,79 +620,81 @@ function MobilePurchaseFilters({
   searchTerm,
   setSearchTerm,
   handleSearch,
+  handleApplyFilters,
   handleClearFilters,
   loading,
+  selectedProveedor,
+  setSelectedProveedor,
+  selectedTipo,
+  setSelectedTipo,
+  proveedores,
+  proveedoresLoading,
+  tipos,
+  tiposLoading,
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-slate-700">Proveedor:</label>
+        <SearchableSelect
+          value={selectedProveedor}
+          onValueChange={setSelectedProveedor}
+          options={proveedores}
+          placeholder={proveedoresLoading ? "Cargando..." : "Todos los proveedores"}
+          disabled={proveedoresLoading}
+          loading={proveedoresLoading}
+          className="h-8 text-xs"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-slate-700">Tipo:</label>
+        <SearchableSelect
+          value={selectedTipo}
+          onValueChange={setSelectedTipo}
+          options={tipos}
+          placeholder={tiposLoading ? "Cargando..." : "Todos los tipos"}
+          disabled={tiposLoading}
+          loading={tiposLoading}
+          className="h-8 text-xs"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-slate-700">Buscar por código:</label>
+        <Input
+          placeholder="Código de orden..."
+          className="h-8 text-xs bg-white/80"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+          disabled={loading}
+        />
+      </div>
+      
+      {/* Botones de acción */}
+      <div className="flex gap-2 pt-2">
         <Button 
           size="sm" 
           variant="outline" 
-          className="h-7 w-7 p-0 bg-white/80"
+          className="flex-1 h-9 text-xs"
           onClick={handleClearFilters}
-          title="Limpiar todos los filtros"
+          disabled={loading}
         >
-          <RefreshCw className="w-3 h-3 text-teal-600" />
+          <RefreshCw className="w-3 h-3 mr-1" />
+          Limpiar
         </Button>
-        <span className="text-xs font-medium text-slate-700">Limpiar</span>
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-slate-700">Proveedor:</label>
-        <Select defaultValue="TODOS">
-          <SelectTrigger className="h-8 text-xs bg-white/80">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="TODOS">Todos</SelectItem>
-            <SelectItem value="VARIAN">Varian</SelectItem>
-            <SelectItem value="MEDTRONIC">Medtronic</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-slate-700">Buscar:</label>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Código de orden..."
-            className="flex-1 h-8 text-xs bg-white/80"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            disabled={loading}
-          />
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="h-8 px-2 bg-white/80"
-            onClick={handleSearch}
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Search className="w-3 h-3 text-teal-600" />
-            )}
-          </Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-700">Desde:</label>
-          <Input
-            type="date"
-            defaultValue="2024-06-01"
-            className="h-8 text-xs bg-white/80"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-700">Hasta:</label>
-          <Input
-            type="date"
-            defaultValue="2024-06-18"
-            className="h-8 text-xs bg-white/80"
-          />
-        </div>
+        <Button 
+          size="sm" 
+          className="flex-1 h-9 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+          onClick={handleApplyFilters}
+          disabled={loading}
+        >
+          {loading ? (
+            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+          ) : (
+            <Filter className="w-3 h-3 mr-1" />
+          )}
+          Aplicar Filtros
+        </Button>
       </div>
     </div>
   );
@@ -711,142 +705,82 @@ function DesktopPurchaseFilters({
   searchTerm,
   setSearchTerm,
   handleSearch,
+  handleApplyFilters,
   handleClearFilters,
   loading,
+  selectedProveedor,
+  setSelectedProveedor,
+  selectedTipo,
+  setSelectedTipo,
+  proveedores,
+  proveedoresLoading,
+  tipos,
+  tiposLoading,
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
-            Limpiar:
-          </span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+        <div className="lg:col-span-3 space-y-2">
+          <label className="text-sm font-medium text-slate-700">Proveedor:</label>
+          <SearchableSelect
+            value={selectedProveedor}
+            onValueChange={setSelectedProveedor}
+            options={proveedores}
+            placeholder={proveedoresLoading ? "Cargando..." : "Todos los proveedores"}
+            disabled={proveedoresLoading}
+            loading={proveedoresLoading}
+            className="h-9 text-sm"
+          />
+        </div>
+
+        <div className="lg:col-span-3 space-y-2">
+          <label className="text-sm font-medium text-slate-700">Tipo:</label>
+          <SearchableSelect
+            value={selectedTipo}
+            onValueChange={setSelectedTipo}
+            options={tipos}
+            placeholder={tiposLoading ? "Cargando..." : "Todos los tipos"}
+            disabled={tiposLoading}
+            loading={tiposLoading}
+            className="h-9 text-sm"
+          />
+        </div>
+
+        <div className="lg:col-span-4 space-y-2">
+          <label className="text-sm font-medium text-slate-700">Buscar por código:</label>
+          <Input
+            placeholder="Código de orden de compra"
+            className="h-9 text-sm bg-white/80"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+            disabled={loading}
+          />
+        </div>
+
+        <div className="lg:col-span-2 flex gap-2">
           <Button
             size="sm"
             variant="outline"
-            className="h-8 w-8 p-0 bg-white/80 hover:bg-white"
+            className="flex-1 h-9 text-sm"
             onClick={handleClearFilters}
+            disabled={loading}
             title="Limpiar todos los filtros"
           >
-            <RefreshCw className="w-4 h-4 text-teal-600" />
+            <RefreshCw className="w-4 h-4" />
           </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
-            Proveedor:
-          </span>
-          <Select defaultValue="TODOS">
-            <SelectTrigger className="w-32 lg:w-40 h-8 text-sm bg-white/80">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="VARIAN">Varian Medical</SelectItem>
-              <SelectItem value="MEDTRONIC">Medtronic</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
-            Buscar:
-          </span>
-          <div className="flex gap-2 flex-1 min-w-0">
-            <Input
-              placeholder="Código de orden de compra"
-              className="flex-1 min-w-0 h-8 text-sm bg-white/80"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              disabled={loading}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 bg-white/80"
-              onClick={handleSearch}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4 text-teal-600" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700">Período:</span>
-          <Input
-            type="date"
-            defaultValue="2024-06-01"
-            className="w-28 lg:w-32 h-8 text-sm bg-white/80"
-          />
-          <span className="text-slate-500">—</span>
-          <Input
-            type="date"
-            defaultValue="2024-06-18"
-            className="w-28 lg:w-32 h-8 text-sm bg-white/80"
-          />
-        </div>
-      </div>
-      <div className="border-t border-teal-100 pt-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Tipo:</label>
-            <Select>
-              <SelectTrigger className="h-8 text-sm bg-white/80">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="equipos">Equipos</SelectItem>
-                <SelectItem value="suministros">Suministros</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Estado:
-            </label>
-            <Select>
-              <SelectTrigger className="h-8 text-sm bg-white/80">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pendiente">Pendiente</SelectItem>
-                <SelectItem value="aprobada">Aprobada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Monto:</label>
-            <Select>
-              <SelectTrigger className="h-8 text-sm bg-white/80">
-                <SelectValue placeholder="Rango" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0-50000">$0 - $50,000</SelectItem>
-                <SelectItem value="50000+">$50,000+</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Depto:</label>
-            <Select>
-              <SelectTrigger className="h-8 text-sm bg-white/80">
-                <SelectValue placeholder="Departamento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="radiologia">Radiología</SelectItem>
-                <SelectItem value="cardiologia">Cardiología</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Button
+            size="sm"
+            className="flex-1 h-9 text-sm bg-teal-600 hover:bg-teal-700 text-white"
+            onClick={handleApplyFilters}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Filter className="w-4 h-4" />
+            )}
+          </Button>
         </div>
       </div>
     </div>
@@ -873,7 +807,7 @@ function MobilePurchaseCard({ order }) {
                     order.status_text === "Aprobada"
                       ? "bg-green-100 text-green-800 hover:bg-green-100 text-xs"
                       : order.status_text === "Activa"
-                      ? "bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs"
+                      ? "bg-[#1d293d]/10 text-[#1d293d] hover:bg-[#1d293d]/15 text-xs"
                       : order.status_text === "En Proceso"
                       ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs"
                       : "bg-gray-100 text-gray-800 hover:bg-gray-100 text-xs"
@@ -961,7 +895,7 @@ function DesktopPurchaseRow({ order }) {
       </td>
       <td className="p-2 lg:p-4 border-r border-slate-200 align-top">
         <div className="flex items-center gap-2">
-          <div className="w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-br from-teal-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
+          <div className="w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-br from-teal-100 to-[#1d293d]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
             <Package className="w-3 lg:w-4 h-3 lg:h-4 text-teal-600" />
           </div>
           <div>

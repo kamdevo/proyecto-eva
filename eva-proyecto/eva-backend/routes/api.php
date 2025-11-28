@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 // use App\Models\Equipo; // COMENTADO: No usar modelo, usar consultas directas
 
 // Helper function for default permissions based on roles.md
@@ -38,63 +39,23 @@ function getDefaultPermissionsByRole($rolId, $moduleName) {
         return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1];
     }
     
-    // Role 4 (Usuario Normal) - Permisos específicos según requerimientos
+    // Role 4 (Usuario Normal) - Permisos MÍNIMOS para usuarios recién activados
+    // Solo lectura de equipos biomédicos, industriales y mis tickets
     if ($rolId == 4) {
-        // Módulos con acceso de solo lectura
-        $readOnlyModules = [
-            'equipos',
-            'equipos industriales', 
-            'servicios',
-            'areas',
-            'contactos',
-            'guias rapidas',
-            'manuales',
-            'preventivos',
-            'calibraciones',
-            'estado equipos',
-            'observaciones',
-            'equipo archivos',
-            'soportes compra',
-            'repuestos',
-            'invimas',
-            'bajas biomedicos',
-            'planes mantenimiento',
-            'capacitaciones',
-            'propietarios',
-            'contingencias',
-            'equipos contactos',
-            'equipos especificaciones',
-            'repuestos instalados'
+        // Módulos con acceso MÍNIMO (solo estos 3)
+        $allowedModules = [
+            'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'tickets propios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
         ];
         
-        // Módulos con permisos de leer + insertar (mis tickets)
-        $readWriteModules = [
-            'tickets propios',
-            'tickets activos',
-            'correctivos'
-        ];
-        
-        // Módulos restringidos (sin acceso)
-        $restrictedModules = [
-            'usuarios',
-            'roles', 
-            'permisos',
-            'administracion',
-            'reportes',
-            'tickets cerrados'  // Solo pueden ver sus propios tickets, no todos los cerrados
-        ];
-        
-        // Determinar permisos según el módulo
-        if (in_array($moduleName, $readOnlyModules)) {
-            return ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
-        } elseif (in_array($moduleName, $readWriteModules)) {
-            return ['leer' => 1, 'insertar' => 1, 'editar' => 0, 'eliminar' => 0];
-        } elseif (in_array($moduleName, $restrictedModules)) {
-            return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
-        } else {
-            // Por defecto: solo lectura para módulos no especificados
-            return ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        // Si el módulo está en la lista permitida, retornar sus permisos
+        if (isset($allowedModules[$moduleName])) {
+            return $allowedModules[$moduleName];
         }
+        
+        // Todos los demás módulos: SIN ACCESO
+        return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
     }
     
     // Role 3 (Advanced User) - Extended permissions
@@ -1421,6 +1382,158 @@ Route::prefix('v1')->group(function () {
         }
     });
     
+    // Create new executed maintenance (preventivo ejecutado)
+    Route::post('mantenimientos', function (Request $request) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipo_id' => 'required|integer|exists:equipos,id',
+                'description' => 'required|string|max:100',
+                'proveedor_mantenimiento_id' => 'required|integer',
+                'fecha_mantenimiento' => 'required|date',
+                'fecha_programada' => 'required|date',
+                'observacion' => 'nullable|string',
+                'repuesto_id' => 'nullable|string|max:100',
+                'repuesto_pendiente' => 'nullable|in:si,no',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            // Procesar archivo si existe
+            $filePath = null;
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('mantenimientos', $fileName, 'public');
+            }
+            
+            $mantenimientoId = DB::table('mantenimiento')->insertGetId([
+                'equipo_id' => $request->equipo_id,
+                'description' => $request->description,
+                'proveedor_mantenimiento_id' => $request->proveedor_mantenimiento_id,
+                'observacion' => $request->observacion,
+                'fecha_mantenimiento' => $request->fecha_mantenimiento,
+                'fecha_programada' => $request->fecha_programada,
+                'repuesto_id' => $request->repuesto_id,
+                'repuesto_pendiente' => $request->repuesto_pendiente ?? 'no',
+                'file' => $filePath,
+                'status' => 1,
+                'created_at' => now(),
+            ]);
+            
+            $mantenimiento = DB::table('mantenimiento')->where('id', $mantenimientoId)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mantenimiento preventivo creado exitosamente',
+                'data' => $mantenimiento
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Error al crear mantenimiento: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear mantenimiento: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    // Get spare parts catalog (without auth)
+    Route::get('repuestos-catalogo', function (Request $request) {
+        try {
+            $query = DB::table('repuestos')
+                ->select('id', 'name', 'code', 'precio')
+                ->where('status', 1)
+                ->orderBy('name', 'asc');
+            
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('code', 'like', "%{$search}%");
+                });
+            }
+            
+            $repuestos = $query->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $repuestos
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error al obtener repuestos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener repuestos: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    });
+    
+    // Create new equipment spare part/accessory installation
+    Route::post('equipo-repuestos', function (Request $request) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipo_id' => 'required|integer|exists:equipos,id',
+                'repuesto_id' => 'required|integer|exists:repuestos,id',
+                'cantidad_entregada' => 'required|integer|min:1',
+                'fecha' => 'required|date',
+                'observacion' => 'required|string',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            // Procesar archivo si existe
+            $filePath = null;
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('repuestos', $fileName, 'public');
+            }
+            
+            // TODO: Obtener usuario_id de la sesión cuando se implemente autenticación
+            $usuarioId = 1; // Valor por defecto temporal
+            
+            $equipoRepuestoId = DB::table('equipo_repuestos')->insertGetId([
+                'equipo_id' => $request->equipo_id,
+                'repuesto_id' => $request->repuesto_id,
+                'cantidad_entregada' => $request->cantidad_entregada,
+                'fecha' => $request->fecha,
+                'observacion' => $request->observacion,
+                'file' => $filePath,
+                'usuario_id' => $usuarioId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            $equipoRepuesto = DB::table('equipo_repuestos')->where('id', $equipoRepuestoId)->first();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Repuesto/accesorio agregado exitosamente',
+                'data' => $equipoRepuesto
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Error al agregar repuesto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al agregar repuesto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+    
     // Update preventive maintenance plan
     Route::put('planes-mantenimientos/{id}', function (Request $request, $id) {
         try {
@@ -2418,7 +2531,7 @@ Route::prefix('v1')->group(function () {
                 $row = 2;
                 foreach ($preventivos as $preventivo) {
                     // Datos para el campo codificación
-                    $fecha = $preventivo->fecha_ejecucion ? \Carbon\Carbon::parse($preventivo->fecha_ejecucion) : \Carbon\Carbon::now();
+                    $fecha = $preventivo->fecha_ejecucion ? Carbon::parse($preventivo->fecha_ejecucion) : Carbon::now();
                     $mes = $fecha->month;
                     $anio = $fecha->year;
                     
@@ -3434,7 +3547,6 @@ Route::post('v1/crear-ticket', function (Request $request) {
         $ticket = DB::table('ordenes as o')
             ->leftJoin('usuarios as reportante', 'reportante.id', '=', 'o.reportante_id')
             ->leftJoin('usuarios as asignado', 'asignado.id', '=', 'o.asignado_id')
-            ->leftJoin('estados as e', 'e.id', '=', 'o.estado_id')
             ->leftJoin('equipos as eq', 'eq.id', '=', 'o.equipo_id')
             ->leftJoin('servicios as s', 's.id', '=', 'o.servicio_id')
             ->leftJoin('areas as a', 'a.id', '=', 'o.area_id')
@@ -3448,7 +3560,6 @@ Route::post('v1/crear-ticket', function (Request $request) {
                 'reportante.email as reportante_email',
                 'asignado.nombre as asignado_nombre',
                 'asignado.apellido as asignado_apellido',
-                'e.descripcion as estado_descripcion',
                 'eq.name as equipo_nombre',
                 'eq.marca as equipo_marca',
                 'eq.modelo as equipo_modelo',
@@ -3460,6 +3571,18 @@ Route::post('v1/crear-ticket', function (Request $request) {
                 'sp.nombre as subproceso_nombre'
             ])
             ->first();
+        
+        // Mapear estado manualmente
+        if ($ticket) {
+            switch($ticket->estado_id) {
+                case 1: $ticket->estado_descripcion = 'Abierto'; break;
+                case 2: $ticket->estado_descripcion = 'Asignado'; break;
+                case 3: $ticket->estado_descripcion = 'Diagnosticado'; break;
+                case 4: $ticket->estado_descripcion = 'Cerrado'; break;
+                case 5: $ticket->estado_descripcion = 'Esperando cierre'; break;
+                default: $ticket->estado_descripcion = 'Desconocido';
+            }
+        }
         
         // ========================================================================
         // 📧 ENVÍO AUTOMÁTICO DE CORREO DE NOTIFICACIÓN
@@ -3612,7 +3735,6 @@ Route::put('v1/tickets/{id}', function (Request $request, $id) {
             $ticket = DB::table('ordenes as o')
                 ->leftJoin('usuarios as reportante', 'reportante.id', '=', 'o.reportante_id')
                 ->leftJoin('usuarios as asignado', 'asignado.id', '=', 'o.asignado_id')
-                ->leftJoin('estados as e', 'e.id', '=', 'o.estado_id')
                 ->leftJoin('equipos as eq', 'eq.id', '=', 'o.equipo_id')
                 ->leftJoin('servicios as s', 's.id', '=', 'o.servicio_id')
                 ->leftJoin('areas as a', 'a.id', '=', 'o.area_id')
@@ -3624,7 +3746,6 @@ Route::put('v1/tickets/{id}', function (Request $request, $id) {
                     'reportante.nombre as reportante_nombre',
                     'reportante.email as reportante_email',
                     'asignado.nombre as asignado_nombre',
-                    'e.descripcion as estado_descripcion',
                     'eq.name as equipo_nombre',
                     's.name as servicio_nombre',
                     'a.name as area_nombre',
@@ -3632,6 +3753,18 @@ Route::put('v1/tickets/{id}', function (Request $request, $id) {
                     'sp.nombre as subproceso_nombre'
                 ])
                 ->first();
+            
+            // Mapear estado manualmente
+            if ($ticket) {
+                switch($ticket->estado_id) {
+                    case 1: $ticket->estado_descripcion = 'Abierto'; break;
+                    case 2: $ticket->estado_descripcion = 'Asignado'; break;
+                    case 3: $ticket->estado_descripcion = 'Diagnosticado'; break;
+                    case 4: $ticket->estado_descripcion = 'Cerrado'; break;
+                    case 5: $ticket->estado_descripcion = 'Esperando cierre'; break;
+                    default: $ticket->estado_descripcion = 'Desconocido';
+                }
+            }
             
             return response()->json([
                 'success' => true,
@@ -3722,7 +3855,6 @@ Route::get('v1/tickets/{id}', function ($id) {
         $ticket = DB::table('ordenes as o')
             ->leftJoin('usuarios as reportante', 'reportante.id', '=', 'o.reportante_id')
             ->leftJoin('usuarios as asignado', 'asignado.id', '=', 'o.asignado_id')
-            ->leftJoin('estados as e', 'e.id', '=', 'o.estado_id')
             ->leftJoin('equipos as eq', 'eq.id', '=', 'o.equipo_id')
             ->leftJoin('servicios as s', 's.id', '=', 'o.servicio_id')
             ->leftJoin('areas as a', 'a.id', '=', 'o.area_id')
@@ -3737,7 +3869,6 @@ Route::get('v1/tickets/{id}', function ($id) {
                 'reportante.email as reportante_email',
                 'asignado.nombre as asignado_nombre',
                 'asignado.apellido as asignado_apellido',
-                'e.descripcion as estado_descripcion',
                 'eq.name as equipo_nombre',
                 'eq.marca as equipo_marca',
                 'eq.modelo as equipo_modelo',
@@ -3750,6 +3881,18 @@ Route::get('v1/tickets/{id}', function ($id) {
                 'sede.name as sede_nombre'
             ])
             ->first();
+        
+        // Mapear estado manualmente
+        if ($ticket) {
+            switch($ticket->estado_id) {
+                case 1: $ticket->estado_descripcion = 'Abierto'; break;
+                case 2: $ticket->estado_descripcion = 'Asignado'; break;
+                case 3: $ticket->estado_descripcion = 'Diagnosticado'; break;
+                case 4: $ticket->estado_descripcion = 'Cerrado'; break;
+                case 5: $ticket->estado_descripcion = 'Esperando cierre'; break;
+                default: $ticket->estado_descripcion = 'Desconocido';
+            }
+        }
             
         if (!$ticket) {
             return response()->json([
@@ -3906,6 +4049,165 @@ Route::get('v1/tickets/{id}/firmas', function ($id) {
     }
 })->withoutMiddleware(['auth:sanctum']);
 
+// =================== EDITAR Y GESTIONAR PLANES DE MANTENIMIENTO ===================
+
+// IMPORTANTE: Las rutas específicas DEBEN ir ANTES de las genéricas
+
+// Obtener historial de cambios de un plan (ESPECÍFICA - debe ir primero)
+Route::get('v1/planes-mantenimientos/{id}/historial', function ($id) {
+    try {
+        \Log::info("📜 Consultando historial de cambios para plan ID: {$id}");
+        
+        $planExists = DB::table('planes_mantenimientos')->where('id', $id)->exists();
+        if (!$planExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plan no encontrado'
+            ], 404);
+        }
+        
+        $historial = DB::table('cambios_cronograma as cc')
+            ->leftJoin('usuarios as u', 'cc.usuario_id', '=', 'u.id')
+            ->where('cc.planes_mantenimientos_id', $id)
+            ->select([
+                'cc.id',
+                'cc.cambio',
+                'cc.created_at',
+                'u.nombre',
+                'u.apellido',
+                DB::raw('CONCAT(COALESCE(u.nombre, "Usuario"), " ", COALESCE(u.apellido, "Desconocido")) as usuario_nombre')
+            ])
+            ->orderBy('cc.created_at', 'desc')
+            ->get();
+        
+        \Log::info("✅ Historial obtenido: " . $historial->count() . " registros");
+        
+        return response()->json([
+            'success' => true,
+            'data' => $historial,
+            'total' => $historial->count()
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("Error al obtener historial: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener historial: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Actualizar plan de mantenimiento con registro de cambios
+Route::put('v1/planes-mantenimientos/{id}', function (Request $request, $id) {
+    try {
+        // Obtener plan actual
+        $planActual = DB::table('planes_mantenimientos')->where('id', $id)->first();
+        
+        if (!$planActual) {
+            return response()->json(['success' => false, 'message' => 'Plan no encontrado'], 404);
+        }
+        
+        // Obtener frecuencia del equipo para cálculo automático
+        $equipo = DB::table('equipos')
+            ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
+            ->where('equipos.id', $planActual->equipo_id)
+            ->select('equipos.id', 'frecuenciam.meses_frecuencia')
+            ->first();
+        
+        // Calcular meses automáticamente si se proporciona mes1 y existe frecuencia
+        $mes1 = $request->filled('mes1') ? (int)$request->mes1 : (int)$planActual->mes1;
+        $mes2 = null;
+        $mes3 = null;
+        
+        if ($mes1 && $equipo && $equipo->meses_frecuencia) {
+            $frecuenciaMeses = (int)$equipo->meses_frecuencia;
+            
+            // Calcular mes2 sumando la frecuencia (con manejo de ciclo de 12 meses)
+            $mes2Calculado = $mes1 + $frecuenciaMeses;
+            if ($mes2Calculado <= 12) {
+                $mes2 = $mes2Calculado;
+            }
+            
+            // Calcular mes3 sumando la frecuencia a mes2 (si mes2 existe)
+            if ($mes2) {
+                $mes3Calculado = $mes2 + $frecuenciaMeses;
+                if ($mes3Calculado <= 12) {
+                    $mes3 = $mes3Calculado;
+                }
+            }
+        }
+        
+        // Permitir sobrescritura manual de mes2 y mes3 si se proporcionan explícitamente
+        if ($request->filled('mes2')) {
+            $mes2 = (int)$request->mes2;
+        }
+        if ($request->filled('mes3')) {
+            $mes3 = (int)$request->mes3;
+        }
+        
+        // Detectar cambios
+        $cambios = [];
+        if ($mes1 != $planActual->mes1) {
+            $cambios[] = "mes1: {$planActual->mes1} → {$mes1}";
+        }
+        if ($mes2 != $planActual->mes2) {
+            $cambios[] = "mes2: {$planActual->mes2} → " . ($mes2 ?? 'NULL');
+        }
+        if ($mes3 != $planActual->mes3) {
+            $cambios[] = "mes3: {$planActual->mes3} → " . ($mes3 ?? 'NULL');
+        }
+        if ($request->filled('responsable') && $request->responsable != $planActual->responsable) {
+            $cambios[] = "responsable: {$planActual->responsable} → {$request->responsable}";
+        }
+        
+        // Si no hay cambios, retornar success igualmente
+        if (empty($cambios)) {
+            return response()->json(['success' => true, 'message' => 'Sin cambios detectados']);
+        }
+        
+        // Preparar datos para actualizar
+        $updateData = [
+            'mes1' => $mes1,
+            'mes2' => $mes2,
+            'mes3' => $mes3
+        ];
+        
+        if ($request->filled('responsable')) {
+            $updateData['responsable'] = $request->responsable;
+        }
+        if ($request->filled('proveedor_mantenimiento_id')) {
+            $updateData['proveedor_mantenimiento_id'] = $request->proveedor_mantenimiento_id;
+        }
+        
+        // Actualizar plan
+        DB::table('planes_mantenimientos')->where('id', $id)->update($updateData);
+        
+        // Registrar en auditoría
+        DB::table('cambios_cronograma')->insert([
+            'planes_mantenimientos_id' => $id,
+            'usuario_id' => 1,
+            'cambio' => implode(', ', $cambios),
+            'created_at' => now()
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Plan actualizado exitosamente (meses calculados automáticamente)',
+            'cambios' => $cambios,
+            'meses_calculados' => [
+                'mes1' => $mes1,
+                'mes2' => $mes2,
+                'mes3' => $mes3,
+                'frecuencia_meses' => $equipo->meses_frecuencia ?? 'N/A'
+            ]
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error actualizando plan: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
 Route::get('v1/equipos/filter-options', function () {
     return response()->json([
         'success' => true,
@@ -4003,7 +4305,25 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     });
     
     // CRUD USUARIOS-ZONAS - DATOS REALES BD
-    Route::get('usuarios-zonas', function() {
+    Route::get('usuarios-zonas', function(Request $request) {
+        $sortBy = $request->input('sort_by', 'id');
+        $sortDirection = $request->input('sort_direction', 'desc');
+        
+        // Mapeo de campos
+        $fieldMapping = [
+            'id' => 'uz.id',
+            'zona' => 'z.name',
+            'usuario' => 'u.nombre',
+            'email' => 'u.email'
+        ];
+        
+        $orderByField = $fieldMapping[$sortBy] ?? 'uz.id';
+        
+        // Validar dirección
+        if (!in_array(strtolower($sortDirection), ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+        
         $relaciones = DB::table('usuarios_zonas as uz')
             ->leftJoin('usuarios as u', 'uz.usuario_id', '=', 'u.id')
             ->leftJoin('zonas as z', 'uz.zona_id', '=', 'z.id')
@@ -4015,7 +4335,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'u.email as correo_electronico', 
                 'z.name as nombre_zona'
             )
-            ->orderBy('uz.id', 'desc')
+            ->orderBy($orderByField, $sortDirection)
             ->get();
         return response()->json(['success' => true, 'data' => $relaciones]);
     });
@@ -4061,9 +4381,26 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             'zona_id' => $request->zona_id
         ]);
         
+        // Actualizar automáticamente el nombre de la zona con el usuario
+        $usuario = DB::table('usuarios')->where('id', $request->usuario_id)->first();
+        $zona = DB::table('zonas')->where('id', $request->zona_id)->first();
+        
+        if ($usuario && $zona) {
+            // Extraer el nombre base de la zona (sin paréntesis previos)
+            $nombreBase = preg_replace('/\(.*?\)/', '', $zona->name);
+            $nombreBase = trim($nombreBase);
+            
+            // Crear nuevo nombre con el usuario entre paréntesis
+            $nuevoNombre = $nombreBase . '(' . strtoupper($usuario->nombre) . ')';
+            
+            DB::table('zonas')
+                ->where('id', $request->zona_id)
+                ->update(['name' => $nuevoNombre]);
+        }
+        
         $id = $newId;
         
-        return response()->json(['success' => true, 'message' => 'Relación creada exitosamente', 'data' => ['id' => $id]]);
+        return response()->json(['success' => true, 'message' => 'Relación creada exitosamente y zona actualizada', 'data' => ['id' => $id]]);
     });
     
     Route::delete('usuarios-zonas/{id}', function($id) {
@@ -4072,6 +4409,106 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             'success' => $deleted > 0,
             'message' => $deleted > 0 ? 'Relación eliminada exitosamente' : 'Relación no encontrada'
         ]);
+    });
+    
+    Route::put('usuarios-zonas/{id}', function(Request $request, $id) {
+        if (!$request->usuario_id || !$request->zona_id) {
+            return response()->json(['success' => false, 'message' => 'Usuario y zona son obligatorios'], 400);
+        }
+        
+        // Verificar que la relación existe
+        $relacionExiste = DB::table('usuarios_zonas')->where('id', $id)->exists();
+        if (!$relacionExiste) {
+            return response()->json(['success' => false, 'message' => 'Relación no encontrada'], 404);
+        }
+        
+        // Verificar que no exista otra relación igual (excepto la que estamos editando)
+        $existeRelacion = DB::table('usuarios_zonas')
+            ->where('usuario_id', $request->usuario_id)
+            ->where('zona_id', $request->zona_id)
+            ->where('id', '!=', $id)
+            ->exists();
+            
+        if ($existeRelacion) {
+            return response()->json(['success' => false, 'message' => 'Esta relación ya existe para otro registro'], 400);
+        }
+        
+        DB::table('usuarios_zonas')
+            ->where('id', $id)
+            ->update([
+                'usuario_id' => $request->usuario_id,
+                'zona_id' => $request->zona_id
+            ]);
+        
+        // Actualizar automáticamente el nombre de la zona con el usuario
+        $usuario = DB::table('usuarios')->where('id', $request->usuario_id)->first();
+        $zona = DB::table('zonas')->where('id', $request->zona_id)->first();
+        
+        if ($usuario && $zona) {
+            // Extraer el nombre base de la zona (sin paréntesis previos)
+            $nombreBase = preg_replace('/\(.*?\)/', '', $zona->name);
+            $nombreBase = trim($nombreBase);
+            
+            // Crear nuevo nombre con el usuario entre paréntesis
+            $nuevoNombre = $nombreBase . '(' . strtoupper($usuario->nombre) . ')';
+            
+            DB::table('zonas')
+                ->where('id', $request->zona_id)
+                ->update(['name' => $nuevoNombre]);
+        }
+        
+        return response()->json(['success' => true, 'message' => 'Relación actualizada exitosamente y zona actualizada']);
+    });
+    
+    // CRUD ZONAS - Gestión de nombres de zonas
+    Route::get('zonas/list', function(Request $request) {
+        $sortBy = $request->input('sort_by', 'id');
+        $sortDirection = $request->input('sort_direction', 'asc');
+        
+        // Mapeo de campos permitidos
+        $allowedFields = ['id', 'name'];
+        if (!in_array($sortBy, $allowedFields)) {
+            $sortBy = 'id';
+        }
+        
+        // Validar dirección
+        if (!in_array(strtolower($sortDirection), ['asc', 'desc'])) {
+            $sortDirection = 'asc';
+        }
+        
+        $zonas = DB::table('zonas')
+            ->select('id', 'name')
+            ->orderBy($sortBy, $sortDirection)
+            ->get();
+        return response()->json(['success' => true, 'data' => $zonas]);
+    });
+    
+    Route::put('zonas/{id}', function(Request $request, $id) {
+        if (!$request->name || trim($request->name) === '') {
+            return response()->json(['success' => false, 'message' => 'El nombre de la zona es obligatorio'], 400);
+        }
+        
+        // Verificar que la zona existe
+        $zonaExiste = DB::table('zonas')->where('id', $id)->exists();
+        if (!$zonaExiste) {
+            return response()->json(['success' => false, 'message' => 'Zona no encontrada'], 404);
+        }
+        
+        // Verificar que no exista otra zona con el mismo nombre (excepto la que estamos editando)
+        $nombreExiste = DB::table('zonas')
+            ->where('name', $request->name)
+            ->where('id', '!=', $id)
+            ->exists();
+            
+        if ($nombreExiste) {
+            return response()->json(['success' => false, 'message' => 'Ya existe otra zona con este nombre'], 400);
+        }
+        
+        DB::table('zonas')
+            ->where('id', $id)
+            ->update(['name' => trim($request->name)]);
+        
+        return response()->json(['success' => true, 'message' => 'Zona actualizada exitosamente']);
     });
     
     // POST - Crear nuevo usuario (SIN MIDDLEWARE)
@@ -4757,17 +5194,23 @@ Route::get('v1/gestion-tickets', function(Request $request) {
         $estado = $request->get('estado', 'all');
         $sede = $request->get('sede', 'all');
         $origen = $request->get('origen', 'all');
+        $tipoEquipo = $request->get('tipo_equipo', 'all');
+        $sortBy = $request->get('sort_by', 'id');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $searchField = $request->get('search_field', 'all');
+        $idExacto = $request->get('id', null);
 
         $query = DB::table('ordenes')
             ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
             ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
             ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
             ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+            ->leftJoin('usuarios as usuario_asigno', 'ordenes.asignador_id', '=', 'usuario_asigno.id')
             ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
             ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
             ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
-            ->leftJoin('estados', 'ordenes.estado_id', '=', 'estados.id')
             ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
             ->select([
                 // Campos principales de ordenes
                 'ordenes.id',
@@ -4796,10 +5239,12 @@ Route::get('v1/gestion-tickets', function(Request $request) {
                 'ordenes.marca_equipo',
                 'ordenes.modelo_equipo',
                 'ordenes.serie_equipo',
+                'ordenes.repuesto_pendiente',
+                'ordenes.repuesto_pendiente_condicion',
                 
                 // Información de las tablas relacionadas
+                'subprocesos.id as subproceso_id',
                 'subprocesos.nombre as origen',
-                'estados.descripcion as estado_descripcion',
                 
                 // Información del reportante
                 'reportante.nombre as reportante_nombre',
@@ -4813,12 +5258,18 @@ Route::get('v1/gestion-tickets', function(Request $request) {
                 'asignado.email as asignado_email',
                 'asignado.username as asignado_username',
                 
+                // Información del usuario que asignó
+                'usuario_asigno.nombre as usuario_asigno_nombre',
+                'usuario_asigno.apellido as usuario_asigno_apellido',
+                
                 // Información del equipo
                 'equipos.name as equipo_nombre',
                 'equipos.marca as equipo_marca',
                 'equipos.modelo as equipo_modelo',
                 'equipos.serial as equipo_serie',
                 'equipos.code as equipo_codigo',
+                'equipos.localizacion_actual',
+                DB::raw("(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = equipos.id ORDER BY pm.anio DESC LIMIT 1) as responsable_mantenimiento"),
                 
                 // Información de ubicación
                 'servicios.name as servicio_nombre',
@@ -4826,21 +5277,80 @@ Route::get('v1/gestion-tickets', function(Request $request) {
                 'sedes.name as sede_nombre',
                 
                 // Información de empresa
-                'empresas.name as empresa_nombre'
+                'empresas.name as empresa_nombre',
+                
+                // Estado del equipo
+                'estadoequipos.name as estado_equipo_nombre'
             ]);
 
+        // Filtro por ID exacto (prioridad sobre búsqueda general)
+        if ($idExacto) {
+            $query->where('ordenes.id', '=', $idExacto);
+        }
         // Filtro por búsqueda
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('ordenes.descripcion', 'like', "%{$search}%")
-                  ->orWhere('ordenes.id', 'like', "%{$search}%")
-                  ->orWhere('equipos.name', 'like', "%{$search}%")
-                  ->orWhere('equipos.code', 'like', "%{$search}%")
-                  ->orWhere('ordenes.nombre_equipo', 'like', "%{$search}%")
-                  ->orWhere('ordenes.codigo_equipo', 'like', "%{$search}%")
-                  ->orWhere('reportante.nombre', 'like', "%{$search}%")
-                  ->orWhere('empresas.name', 'like', "%{$search}%");
-            });
+        elseif ($search) {
+            if ($searchField !== 'all') {
+                // Búsqueda en campo específico
+                switch($searchField) {
+                    case 'id':
+                        $query->where('ordenes.id', 'like', "%{$search}%");
+                        break;
+                    case 'description':
+                        $query->where('ordenes.descripcion', 'like', "%{$search}%");
+                        break;
+                    case 'creadoPor':
+                        $query->where('reportante.nombre', 'like', "%{$search}%");
+                        break;
+                    case 'asignadoA':
+                        $query->where('asignado.nombre', 'like', "%{$search}%");
+                        break;
+                    case 'area':
+                        $query->where('areas.name', 'like', "%{$search}%");
+                        break;
+                    case 'equipo':
+                        $query->where(function($q) use ($search) {
+                            $q->where('equipos.name', 'like', "%{$search}%")
+                              ->orWhere('ordenes.nombre_equipo', 'like', "%{$search}%");
+                        });
+                        break;
+                    case 'status':
+                        // Búsqueda por estado basada en estado_id
+                        $estadoMap = [
+                            'abierto' => 1,
+                            'asignado' => 2,
+                            'diagnosticado' => 3,
+                            'cerrado' => 4,
+                            'esperando' => 5,
+                            'cierre' => 5
+                        ];
+                        $searchLower = strtolower($search);
+                        $foundEstado = false;
+                        foreach ($estadoMap as $key => $estadoId) {
+                            if (strpos($searchLower, $key) !== false) {
+                                $query->where('ordenes.estado_id', $estadoId);
+                                $foundEstado = true;
+                                break;
+                            }
+                        }
+                        // Si no se encuentra coincidencia, buscar por ID directo
+                        if (!$foundEstado && is_numeric($search)) {
+                            $query->where('ordenes.estado_id', $search);
+                        }
+                        break;
+                }
+            } else {
+                // Búsqueda en todos los campos
+                $query->where(function($q) use ($search) {
+                    $q->where('ordenes.descripcion', 'like', "%{$search}%")
+                      ->orWhere('ordenes.id', 'like', "%{$search}%")
+                      ->orWhere('equipos.name', 'like', "%{$search}%")
+                      ->orWhere('equipos.code', 'like', "%{$search}%")
+                      ->orWhere('ordenes.nombre_equipo', 'like', "%{$search}%")
+                      ->orWhere('ordenes.codigo_equipo', 'like', "%{$search}%")
+                      ->orWhere('reportante.nombre', 'like', "%{$search}%")
+                      ->orWhere('empresas.name', 'like', "%{$search}%");
+                });
+            }
         }
 
         // Filtro por estado
@@ -4855,7 +5365,19 @@ Route::get('v1/gestion-tickets', function(Request $request) {
 
         // Filtro por origen (subproceso)
         if ($origen !== 'all') {
-            $query->where('subprocesos.nombre', 'like', "%{$origen}%");
+            // Usar coincidencia exacta para mejor precisión
+            $query->where('subprocesos.nombre', '=', $origen);
+        }
+
+        // Filtro por tipo de equipo (subproceso_id)
+        if ($tipoEquipo !== 'all') {
+            $query->where('ordenes.subproceso_id', $tipoEquipo);
+        }
+
+        // Filtro por sede_id
+        $sedeId = $request->get('sede_id');
+        if (!empty($sedeId) && $sedeId !== 'all') {
+            $query->where('sedes.id', $sedeId);
         }
 
         // Filtro por reportante ID (para "Mis Tickets")
@@ -4870,8 +5392,33 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             $query->where('reportante.nombre', 'like', "%{$reportanteNombre}%");
         }
 
+        // Mapear campos de ordenamiento del frontend al backend
+        $sortColumn = 'ordenes.id';
+        switch($sortBy) {
+            case 'id':
+                $sortColumn = 'ordenes.id';
+                break;
+            case 'descripcion':
+                $sortColumn = 'ordenes.descripcion';
+                break;
+            case 'estado_id':
+                $sortColumn = 'ordenes.estado_id';
+                break;
+            case 'prioridad':
+                $sortColumn = 'ordenes.prioridad';
+                break;
+            case 'fecha_inicio':
+                $sortColumn = 'ordenes.fecha_inicio';
+                break;
+            default:
+                $sortColumn = 'ordenes.id';
+        }
+
+        // Validar orden
+        $sortOrder = strtolower($sortOrder) === 'asc' ? 'asc' : 'desc';
+
         $total = $query->count();
-        $tickets = $query->orderBy('ordenes.id', 'desc')
+        $tickets = $query->orderBy($sortColumn, $sortOrder)
                        ->offset(($page - 1) * $perPage)
                        ->limit($perPage)
                        ->get();
@@ -4992,6 +5539,204 @@ Route::get('v1/gestion-tickets', function(Request $request) {
     }
 });
 
+// Endpoint para exportar todos los tickets a Excel
+Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
+    try {
+        \Log::info('🔄 Exportando todos los tickets a Excel');
+
+        // Obtener todos los tickets sin paginación
+        $tickets = DB::table('ordenes')
+            ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
+            ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+            ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
+            ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+            ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
+            ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
+            ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+            ->select([
+                'ordenes.id',
+                'ordenes.asunto',
+                'ordenes.descripcion',
+                'ordenes.fecha_inicio',
+                'ordenes.fecha_fin',
+                'ordenes.estado_id',
+                'ordenes.prioridad',
+                'reportante.nombre as reportante_nombre',
+                'reportante.apellido as reportante_apellido',
+                'reportante.email as reportante_email',
+                'asignado.nombre as asignado_nombre',
+                'asignado.apellido as asignado_apellido',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'equipos.marca as equipo_marca',
+                'equipos.modelo as equipo_modelo',
+                'servicios.name as servicio_nombre',
+                'areas.name as area_nombre',
+                'sedes.name as sede_nombre',
+                'empresas.name as empresa_nombre',
+                'subprocesos.nombre as origen',
+                'ordenes.diagnostico',
+                'ordenes.reparacion'
+            ])
+            ->orderBy('ordenes.id', 'desc')
+            ->get();
+
+        // Mapear estados manualmente
+        $tickets = $tickets->map(function($ticket) {
+            switch($ticket->estado_id) {
+                case 1:
+                    $ticket->estado_descripcion = 'Abierto';
+                    break;
+                case 2:
+                    $ticket->estado_descripcion = 'Asignado';
+                    break;
+                case 3:
+                    $ticket->estado_descripcion = 'Diagnosticado';
+                    break;
+                case 4:
+                    $ticket->estado_descripcion = 'Cerrado';
+                    break;
+                case 5:
+                    $ticket->estado_descripcion = 'Esperando cierre';
+                    break;
+                default:
+                    $ticket->estado_descripcion = 'Desconocido';
+            }
+            return $ticket;
+        });
+
+        // Crear spreadsheet
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Tickets');
+
+        // Headers
+        $headers = [
+            'ID', 'Asunto', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 
+            'Estado', 'Prioridad', 'Reportante', 'Email Reportante', 
+            'Asignado', 'Equipo', 'Código Equipo', 'Marca', 'Modelo',
+            'Servicio', 'Área', 'Sede', 'Empresa', 'Origen', 
+            'Diagnóstico', 'Reparación'
+        ];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getStyle($col . '1')->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FF4472C4');
+            $sheet->getStyle($col . '1')->getFont()->getColor()->setARGB('FFFFFFFF');
+            $col++;
+        }
+
+        // Data
+        $row = 2;
+        foreach ($tickets as $ticket) {
+            $reportante = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
+            $asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
+            
+            $sheet->setCellValue('A' . $row, $ticket->id);
+            $sheet->setCellValue('B' . $row, $ticket->asunto ?? '');
+            $sheet->setCellValue('C' . $row, $ticket->descripcion ?? '');
+            $sheet->setCellValue('D' . $row, $ticket->fecha_inicio ?? '');
+            $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
+            $sheet->setCellValue('F' . $row, $ticket->estado_descripcion ?? '');
+            $sheet->setCellValue('G' . $row, $ticket->prioridad ?? '');
+            $sheet->setCellValue('H' . $row, $reportante);
+            $sheet->setCellValue('I' . $row, $ticket->reportante_email ?? '');
+            $sheet->setCellValue('J' . $row, $asignado);
+            $sheet->setCellValue('K' . $row, $ticket->equipo_nombre ?? '');
+            $sheet->setCellValue('L' . $row, $ticket->equipo_codigo ?? '');
+            $sheet->setCellValue('M' . $row, $ticket->equipo_marca ?? '');
+            $sheet->setCellValue('N' . $row, $ticket->equipo_modelo ?? '');
+            $sheet->setCellValue('O' . $row, $ticket->servicio_nombre ?? '');
+            $sheet->setCellValue('P' . $row, $ticket->area_nombre ?? '');
+            $sheet->setCellValue('Q' . $row, $ticket->sede_nombre ?? '');
+            $sheet->setCellValue('R' . $row, $ticket->empresa_nombre ?? '');
+            $sheet->setCellValue('S' . $row, $ticket->origen ?? '');
+            $sheet->setCellValue('T' . $row, $ticket->diagnostico ?? '');
+            $sheet->setCellValue('U' . $row, $ticket->reparacion ?? '');
+            $row++;
+        }
+
+        // Auto-size columns
+        foreach (range('A', 'U') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Crear archivo temporal
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'Tickets_Consolidado_' . date('Y-m-d') . '.xlsx';
+        $tempFile = tempnam(sys_get_temp_dir(), 'excel');
+        $writer->save($tempFile);
+
+        \Log::info('✅ Tickets exportados exitosamente: ' . $tickets->count() . ' registros');
+
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'max-age=0',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+        ])->deleteFileAfterSend(true);
+
+    } catch (\Exception $e) {
+        \Log::error('❌ Error exportando tickets: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al exportar tickets: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Endpoint para actualizar datos del ticket (especialmente equipo asociado)
+Route::put('v1/gestion-tickets/{id}', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Preparar datos para actualizar
+        $updateData = [];
+        
+        // Campos que se pueden actualizar
+        if ($request->has('equipo_id')) $updateData['equipo_id'] = $request->equipo_id;
+        if ($request->has('codigo_equipo')) $updateData['codigo_equipo'] = $request->codigo_equipo;
+        if ($request->has('nombre_equipo')) $updateData['nombre_equipo'] = $request->nombre_equipo;
+        if ($request->has('marca_equipo')) $updateData['marca_equipo'] = $request->marca_equipo;
+        if ($request->has('modelo_equipo')) $updateData['modelo_equipo'] = $request->modelo_equipo;
+        if ($request->has('serie_equipo')) $updateData['serie_equipo'] = $request->serie_equipo;
+
+        // Actualizar en la BD
+        if (!empty($updateData)) {
+            DB::table('ordenes')
+                ->where('id', $id)
+                ->update($updateData);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ticket actualizado exitosamente',
+            'data' => $updateData
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error actualizando ticket: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar el ticket: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // Endpoint público para obtener un ticket específico con todos sus detalles
 Route::get('v1/gestion-tickets/{id}', function($id) {
     try {
@@ -5009,6 +5754,9 @@ Route::get('v1/gestion-tickets/{id}', function($id) {
             ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
             ->leftJoin('tecnicos', 'ordenes.tecnico_id', '=', 'tecnicos.id')
             ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+            ->leftJoin('usuarios as tecnico_diagnostico', 'ordenes.tecnico_diagnostico', '=', 'tecnico_diagnostico.id')
+            ->leftJoin('usuarios as tecnico_cierre', 'ordenes.tecnico_cierre', '=', 'tecnico_cierre.id')
+            ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
             ->select(
                 'ordenes.*',
                 'subprocesos.nombre as origen',
@@ -5017,14 +5765,25 @@ Route::get('v1/gestion-tickets/{id}', function($id) {
                 'equipos.marca as equipo_marca',
                 'equipos.modelo as equipo_modelo',
                 'equipos.serial as equipo_serie',
+                'equipos.localizacion_actual',
                 'reportante.nombre as reportante_nombre',
+                'reportante.email as reportante_email',
                 'asignador.username as asignador_nombre',
+                'asignador.nombre as asignador_nombre_completo',
+                'asignador.nombre as usuario_asigno_nombre',
+                'asignador.apellido as usuario_asigno_apellido',
                 'servicios.name as servicio_nombre',
                 'areas.name as area_nombre',
                 'sedes.name as sede_nombre',
                 'empresas.name as empresa_nombre',
                 'tecnicos.name as tecnico_nombre',
-                'asignado.nombre as asignado_nombre'
+                'asignado.nombre as asignado_nombre',
+                'asignado.email as asignado_email',
+                'tecnico_diagnostico.nombre as nombre_tecnico_diagnostico',
+                'tecnico_diagnostico.apellido as apellido_tecnico_diagnostico',
+                'tecnico_cierre.nombre as nombre_tecnico_cierre',
+                'tecnico_cierre.apellido as apellido_tecnico_cierre',
+                'estadoequipos.name as estado_equipo_nombre'
             )
             ->where('ordenes.id', $id)
             ->first();
@@ -5297,6 +6056,74 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     Route::get('equipos/estadisticas/industrial-devices', [\App\Http\Controllers\Api\EquipmentController::class, 'getIndustrialDevicesStats']);
     Route::get('equipos/{id}/complete-info', [\App\Http\Controllers\Api\EquipmentController::class, 'getCompleteInfo']);
     Route::get('equipos/{id}/user-history', [\App\Http\Controllers\Api\EquipmentController::class, 'getUserHistory']);
+    Route::get('equipos/{id}/cambios-hdv', [\App\Http\Controllers\Api\EquipmentController::class, 'getCambiosHdv']);
+    
+    // Endpoint público para servir imagen del equipo en base64 (evita problemas de CORS)
+    Route::get('equipos/image-base64/{filename}', function($filename) {
+        try {
+            // Seguridad: validar que el nombre de archivo no contenga caracteres peligrosos
+            if (preg_match('/[^a-zA-Z0-9._-]/', $filename)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nombre de archivo inválido'
+                ], 400);
+            }
+
+            // Buscar en múltiples ubicaciones posibles
+            $possiblePaths = [
+                'equipos/images/' . $filename,
+                'equipos/' . $filename,
+                'equipos/fotos/' . $filename,
+            ];
+
+            $imagePath = null;
+            foreach ($possiblePaths as $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    $imagePath = $path;
+                    break;
+                }
+            }
+
+            if (!$imagePath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Imagen no encontrada'
+                ], 404);
+            }
+
+            // Obtener el contenido del archivo
+            $imageContent = Storage::disk('public')->get($imagePath);
+            
+            // Obtener el tipo MIME
+            $mimeType = Storage::disk('public')->mimeType($imagePath);
+            
+            // Convertir a base64
+            $base64 = base64_encode($imageContent);
+            $dataUri = "data:{$mimeType};base64,{$base64}";
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'base64' => $dataUri,
+                    'mime_type' => $mimeType,
+                    'size' => strlen($imageContent)
+                ]
+            ])->header('Access-Control-Allow-Origin', '*')
+              ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+              ->header('Access-Control-Allow-Headers', 'Content-Type, Accept');
+
+        } catch (\Exception $e) {
+            \Log::error('Error serving equipment image', [
+                'filename' => $filename,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la imagen: ' . $e->getMessage()
+            ], 500);
+        }
+    });
     // Endpoint para crear equipos usando el controlador con validaciones completas
     Route::post('equipos', [\App\Http\Controllers\Api\EquipmentController::class, 'store']);
 
@@ -5693,7 +6520,9 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
-    // Register new user with complete validation
+    // ❌ DESHABILITADO: Esta ruta estaba duplicada y no incluía envío de emails
+    // La ruta correcta ahora está en la línea ~9829 usando AuthController
+    /*
     Route::post('auth/register', function() {
         try {
             $validator = Validator::make(request()->all(), [
@@ -5775,6 +6604,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             ], 500);
         }
     });
+    */
 
     // ==========================================
     // USER AUTHENTICATION ENDPOINTS
@@ -6416,7 +7246,10 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
     Route::get('empresas', function() {
         try {
-            $empresas = DB::table('empresas')->get(['id', 'name']);
+            $empresas = DB::table('empresas')
+                ->select('id', 'name', 'estado', 'area')
+                ->orderBy('name', 'asc')
+                ->get();
             return response()->json([
                 'success' => true,
                 'data' => $empresas
@@ -7047,23 +7880,54 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             $page = request('page', 1);
             $perPage = request('per_page', 10);
             $search = request('search', '');
+            $sortBy = request('sort_by', 'id');
+            $sortOrder = request('sort_order', 'desc');
+            $proveedorId = request('proveedor_id', '');
+            $tipoCompraId = request('tipo_compra_id', '');
 
             $query = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
+                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
-                    'tipos_compra.tipo_compra as tipo_compra_nombre'
+                    'tipos_compra.tipo_compra as tipo_compra_nombre',
+                    'proveedor.name as proveedor_nombre'
                 ]);
 
+            // Filtro por búsqueda de código
             if ($search) {
                 $query->where(function($q) use ($search) {
                     $q->where('ordenes_compra.orden', 'like', "%{$search}%")
-                      ->orWhere('tipos_compra.tipo_compra', 'like', "%{$search}%");
+                      ->orWhere('tipos_compra.tipo_compra', 'like', "%{$search}%")
+                      ->orWhere('proveedor.name', 'like', "%{$search}%");
                 });
             }
 
+            // Filtro por proveedor
+            if ($proveedorId) {
+                $query->where('ordenes_compra.proveedor_id', $proveedorId);
+            }
+
+            // Filtro por tipo de compra
+            if ($tipoCompraId) {
+                $query->where('ordenes_compra.tipo_compra_id', $tipoCompraId);
+            }
+
             $total = $query->count();
-            $ordenes = $query->orderBy('ordenes_compra.id', 'desc')
+            
+            // Mapeo de columnas para ordenamiento
+            $sortColumns = [
+                'id' => 'ordenes_compra.id',
+                'orden' => 'ordenes_compra.orden',
+                'fecha' => 'ordenes_compra.fecha',
+                'tipo_compra' => 'tipos_compra.tipo_compra',
+                'proveedor' => 'proveedor.name'
+            ];
+            
+            $sortColumn = $sortColumns[$sortBy] ?? 'ordenes_compra.id';
+            $sortOrder = strtolower($sortOrder) === 'asc' ? 'asc' : 'desc';
+            
+            $ordenes = $query->orderBy($sortColumn, $sortOrder)
                            ->offset(($page - 1) * $perPage)
                            ->limit($perPage)
                            ->get();
@@ -7089,13 +7953,15 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     // Create new purchase order with file upload
     Route::post('ordenes-compra', function() {
         try {
+            Log::info('📥 [ORDEN COMPRA] Recibiendo datos:', request()->all());
+            
             $validator = Validator::make(request()->all(), [
                 'orden' => 'required|string|max:255|unique:ordenes_compra,orden',
                 'fecha' => 'required|date',
                 'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
-                'proveedor_id' => 'nullable|integer|exists:contacto,id',
-                'monto' => 'nullable|numeric|min:0',
-                'descripcion' => 'nullable|string',
+                'proveedor_id' => 'nullable|integer|exists:proveedores_mantenimiento,id',
+                'secop_id' => 'nullable|string|max:255',
+                'url_secop' => 'nullable|string|max:500',
                 'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240' // 10MB max
             ]);
 
@@ -7112,31 +7978,30 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'fecha' => request('fecha'),
                 'tipo_compra_id' => request('tipo_compra_id'),
                 'proveedor_id' => request('proveedor_id'),
-                'monto' => request('monto', 0),
-                'descripcion' => request('descripcion'),
-                'status' => request('status', 1),
-                'created_at' => now(),
-                'updated_at' => now()
+                'secop_id' => request('secop_id'),
+                'url_secop' => request('url_secop'),
+                'status' => request('status', 1)
             ];
 
-            // Handle file upload
+            // Handle file upload - save to ordenes_compra folder
             if (request()->hasFile('file')) {
                 $file = request()->file('file');
                 $fileName = time() . '_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('purchase_orders', $fileName, 'public');
-                $data['archivo_adjunto'] = $filePath;
-                $data['nombre_archivo'] = $file->getClientOriginalName();
+                $filePath = $file->storeAs('ordenes_compra', $fileName, 'public');
+                $data['file'] = $fileName; // Solo guardar el nombre del archivo
             }
 
             $ordenId = DB::table('ordenes_compra')->insertGetId($data);
+            
+            Log::info('✅ [ORDEN COMPRA] Orden creada con ID:', ['id' => $ordenId]);
 
             $orden = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
-                    'contacto.name as proveedor_nombre'
+                    'proveedor.name as proveedor_nombre'
                 ])
                 ->where('ordenes_compra.id', $ordenId)
                 ->first();
@@ -7160,11 +8025,11 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         try {
             $orden = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
-                    'contacto.name as proveedor_nombre'
+                    'proveedor.name as proveedor_nombre'
                 ])
                 ->where('ordenes_compra.id', $id)
                 ->first();
@@ -7205,7 +8070,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'orden' => 'required|string|max:255|unique:ordenes_compra,orden,' . $id,
                 'fecha' => 'required|date',
                 'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
-                'proveedor_id' => 'nullable|integer|exists:contacto,id',
+                'proveedor_id' => 'nullable|integer|exists:proveedores_mantenimiento,id',
                 'monto' => 'nullable|numeric|min:0',
                 'descripcion' => 'nullable|string',
                 'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240'
@@ -7248,11 +8113,11 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
             $updatedOrden = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('contacto', 'ordenes_compra.proveedor_id', '=', 'contacto.id')
+                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
-                    'contacto.name as proveedor_nombre'
+                    'proveedor.name as proveedor_nombre'
                 ])
                 ->where('ordenes_compra.id', $id)
                 ->first();
@@ -7530,7 +8395,23 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 });
             }
 
-            $contactos = $query->orderBy('contacto.name')->get();
+            // Ordenamiento
+            $sortBy = $request->get('sort_by', 'name');
+            $sortDirection = $request->get('sort_direction', 'asc');
+            
+            // Mapear campos de frontend a base de datos
+            $sortFieldMap = [
+                'name' => 'contacto.name',
+                'id' => 'contacto.id',
+                'email' => 'contacto.email',
+                'telefono' => 'contacto.telefono',
+                'tcontacto_id' => 'contacto.tcontacto_id'
+            ];
+            
+            $sortField = $sortFieldMap[$sortBy] ?? 'contacto.name';
+            $sortDir = in_array(strtolower($sortDirection), ['asc', 'desc']) ? strtolower($sortDirection) : 'asc';
+
+            $contactos = $query->orderBy($sortField, $sortDir)->get();
 
             return response()->json([
                 'success' => true,
@@ -9085,91 +9966,10 @@ Route::post('/auth/login', function (Request $request) {
     }
 });
 
-// TEMPORAL: Interceptar llamadas a auth/register y redirigir al endpoint correcto
-Route::post('auth/register', function (Request $request) {
-    \Log::info('⚠️ [INTERCEPTED] Llamada a auth/register interceptada', [
-        'data' => $request->all(),
-        'headers' => $request->headers->all(),
-        'ip' => $request->ip(),
-        'expected_endpoint' => '/api/v1/register-working'
-    ]);
-    
-    try {
-        // Crear validador manualmente para asegurar que los datos son correctos
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'nombre' => 'required|string|max:100',
-            'apellido' => 'nullable|string|max:100',
-            'telefono' => 'nullable|string|max:20',
-            'email' => 'required|email|unique:usuarios,email|max:255',
-            'username' => 'required|string|unique:usuarios,username|max:45',
-            'password' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            \Log::warning('⚠️ [INTERCEPTED] Validación fallida', ['errors' => $validator->errors()]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Datos de validación incorrectos',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        // Crear usuario directamente aquí para evitar problemas con FormRequest
-        $usuario = \App\Models\Usuario::create([
-            'nombre' => $request->nombre,
-            'apellido' => $request->apellido,
-            'telefono' => $request->telefono,
-            'email' => $request->email,
-            'username' => $request->username,
-            'password' => \Hash::make($request->password),
-            'rol_id' => 4, // Rol por defecto (usuario básico)
-            'centro_id' => $request->centro_id,
-            'id_empresa' => $request->id_empresa ?? 0,
-            'estado' => 1, // Usuario creado
-            'active' => 'false', // NUEVO: Inactivo por defecto - requiere activación
-            'sede_id' => '1', // Sede por defecto
-            'anio_plan' => date('Y')
-        ]);
-
-        $token = $usuario->createToken('eva-token')->plainTextToken;
-
-        $response = [
-            'user' => [
-                'id' => $usuario->id,
-                'nombre' => $usuario->nombre,
-                'apellido' => $usuario->apellido,
-                'email' => $usuario->email,
-                'username' => $usuario->username,
-            ],
-            'token' => $token,
-            'token_type' => 'Bearer'
-        ];
-
-        \Log::info('✅ [INTERCEPTED] Usuario registrado exitosamente via intercepción', [
-            'user_id' => $usuario->id,
-            'username' => $usuario->username,
-            'email' => $usuario->email
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => $response,
-            'message' => 'Usuario registrado exitosamente. Tu cuenta está pendiente de activación por un administrador.',
-            'activation_required' => true
-        ], 201);
-
-    } catch (\Exception $e) {
-        \Log::error('❌ [INTERCEPTED] Error en intercepción de registro', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Error en el proceso de registro: ' . $e->getMessage()
-        ], 500);
-    }
-});
+// ✅ ENDPOINT CORRECTO: Usar AuthController con funcionalidad completa de verificación de email
+Route::post('auth/register', [\App\Http\Controllers\Api\AuthController::class, 'register'])
+    ->withoutMiddleware(['auth:sanctum', 'auth'])
+    ->name('api.auth.register');
 
 // RUTA ADICIONAL: Asegurar que /api/v1/register-working también funcione
 Route::post('v1/register-working', [\App\Http\Controllers\Api\AuthController::class, 'register'])
@@ -9179,6 +9979,15 @@ Route::post('v1/register-working', [\App\Http\Controllers\Api\AuthController::cl
 Route::post('v1/register', [\App\Http\Controllers\Api\AuthController::class, 'register'])
     ->withoutMiddleware(['auth:sanctum', 'auth'])
     ->name('api.v1.register');
+
+// RUTAS DE VERIFICACIÓN DE EMAIL (PÚBLICAS)
+Route::get('v1/verify-email/{token}', [\App\Http\Controllers\Api\AuthController::class, 'verifyEmail'])
+    ->withoutMiddleware(['auth:sanctum', 'auth'])
+    ->name('api.v1.verify-email');
+
+Route::post('v1/resend-verification', [\App\Http\Controllers\Api\AuthController::class, 'resendVerification'])
+    ->withoutMiddleware(['auth:sanctum', 'auth'])
+    ->name('api.v1.resend-verification');
 
 // DEBUG: Endpoint para listar todas las rutas de registro disponibles
 Route::get('debug/routes', function () {
@@ -9352,6 +10161,44 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
 
         $updateData['fecha_cambio'] = now();
 
+        // ✅ GUARDAR HISTORIAL DE CAMBIOS DE UBICACIÓN (área/sede)
+        $areaChanged = $request->has('area_id') && (string)$request->area_id !== (string)($equipo->area_id ?? '');
+        $sedeChanged = $request->has('sede_id') && (string)$request->sede_id !== (string)($equipo->sede_id ?? '');
+        
+        // Si cambió área o sede, registrar en historial
+        if ($areaChanged || $sedeChanged) {
+            try {
+                $sedeOrigenId = $equipo->sede_id ? (int)$equipo->sede_id : 0;
+                $sedeDestinoId = $request->input('sede_id') ? (int)$request->input('sede_id') : $sedeOrigenId;
+                
+                DB::table('cambios_ubicaciones')->insert([
+                    'equipo_id' => (int)$id,
+                    'area_origen_id' => (int)($equipo->area_id ?? 0),
+                    'area_destino_id' => (int)($request->input('area_id', $equipo->area_id ?? 0)),
+                    'sede_origen_id' => $sedeOrigenId,
+                    'sede_destino_id' => $sedeDestinoId,
+                    'usuario_id' => null,
+                    'created_at' => now()
+                ]);
+                
+                \Log::info('📍 HISTORIAL - Cambio de ubicación registrado:', [
+                    'equipo_id' => $id,
+                    'area_changed' => $areaChanged,
+                    'sede_changed' => $sedeChanged,
+                    'area_origen' => $equipo->area_id,
+                    'area_destino' => $request->input('area_id'),
+                    'sede_origen' => $equipo->sede_id,
+                    'sede_destino' => $request->input('sede_id')
+                ]);
+            } catch (\Exception $historialError) {
+                \Log::error('❌ Error guardando historial de ubicación:', [
+                    'error' => $historialError->getMessage(),
+                    'equipo_id' => $id
+                ]);
+                // No fallar la actualización del equipo si falla el historial
+            }
+        }
+
         $result = DB::table('equipos')->where('id', $id)->update($updateData);
 
         if ($result) {
@@ -9457,6 +10304,44 @@ Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id)
         }
 
         $updateData['fecha_cambio'] = now();
+
+        // ✅ GUARDAR HISTORIAL DE CAMBIOS DE UBICACIÓN (área/sede)
+        $areaChanged = $request->has('area_id') && $request->area_id != $equipo->area_id;
+        $sedeChanged = $request->has('sede_id') && $request->sede_id != $equipo->sede_id;
+        
+        // Si cambió área o sede, registrar en historial
+        if ($areaChanged || $sedeChanged) {
+            try {
+                $sedeOrigenId = $equipo->sede_id ? (int)$equipo->sede_id : 0;
+                $sedeDestinoId = $request->input('sede_id') ? (int)$request->input('sede_id') : $sedeOrigenId;
+                
+                DB::table('cambios_ubicaciones')->insert([
+                    'equipo_id' => (int)$id,
+                    'area_origen_id' => (int)($equipo->area_id ?? 0),
+                    'area_destino_id' => (int)($request->input('area_id', $equipo->area_id ?? 0)),
+                    'sede_origen_id' => $sedeOrigenId,
+                    'sede_destino_id' => $sedeDestinoId,
+                    'usuario_id' => null,
+                    'created_at' => now()
+                ]);
+                
+                \Log::info('📍 HISTORIAL - Cambio de ubicación registrado (con imagen):', [
+                    'equipo_id' => $id,
+                    'area_changed' => $areaChanged,
+                    'sede_changed' => $sedeChanged,
+                    'area_origen' => $equipo->area_id,
+                    'area_destino' => $request->input('area_id'),
+                    'sede_origen' => $equipo->sede_id,
+                    'sede_destino' => $request->input('sede_id')
+                ]);
+            } catch (\Exception $historialError) {
+                \Log::error('❌ Error guardando historial de ubicación (con imagen):', [
+                    'error' => $historialError->getMessage(),
+                    'equipo_id' => $id
+                ]);
+                // No fallar la actualización del equipo si falla el historial
+            }
+        }
 
         $result = DB::table('equipos')->where('id', $id)->update($updateData);
 
@@ -9602,6 +10487,664 @@ Route::get('v1/guias-rapidas/{id}/archivo', function (Request $request, $id) {
         ], 500);
     }
 });
+
+// ====================================================
+// GUÍAS RÁPIDAS - ENDPOINTS COMPLETOS
+// ====================================================
+
+// 1. Obtener todas las guías con conteo de equipos y paginación
+Route::get('v1/guiarapida', function (Request $request) {
+    try {
+        $page = request('page', 1);
+        $perPage = request('per_page', 15);
+        $search = request('search', '');
+        
+        \Log::info('📚 [GUIARAPIDA] Obteniendo guías rápidas con paginación');
+        
+        // Debug: Contar equipos con guia_id directamente
+        $equiposConGuia = DB::table('equipos')
+            ->whereNotNull('guia_id')
+            ->where('guia_id', '>', 0)
+            ->count();
+        
+        \Log::info('📚 [GUIARAPIDA] Total equipos con guia_id > 0: ' . $equiposConGuia);
+        
+        // Obtener todas las guías primero
+        $guiasQuery = DB::table('guias_rapidas as gr')
+            ->select('gr.id', 'gr.name', 'gr.file', 'gr.estado');
+        
+        if ($search) {
+            $guiasQuery->where('gr.name', 'like', "%{$search}%");
+        }
+        
+        $total = $guiasQuery->count();
+        
+        $guias = $guiasQuery->orderBy('gr.name', 'asc')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+        
+        // Agregar conteo de equipos para cada guía
+        foreach ($guias as $guia) {
+            $nroEquipos = DB::table('equipos')
+                ->where('guia_id', $guia->id)
+                ->count();
+            $guia->nro_equipos = $nroEquipos;
+            
+            \Log::info("📚 [GUIARAPIDA] Guía ID {$guia->id} ({$guia->name}): {$nroEquipos} equipos");
+        }
+        
+        // 1. Cumplen criterios - Equipos biomédicos que pasan filtros de inclusión/exclusión
+        $cumplenCriterios = DB::table('equipos')
+            ->where('tipo_id', 1)
+            ->whereNotIn('estadoequipo_id', function($query) {
+                $query->select('estadoequipo_id')
+                    ->from('estados_excluidos_guias');
+            })
+            ->whereIn('criesgo_id', function($query) {
+                $query->select('criesgo_id')
+                    ->from('riesgos_incluidos_guias');
+            })
+            ->whereNotIn('name', function($query) {
+                $query->select('name')
+                    ->from('equipos_excluidos_guias');
+            })
+            ->count();
+        
+        // 2. Cumplen criterios con guía - Los mismos criterios PERO además con guía asignada
+        $cumplenCriteriosConGuia = DB::table('equipos')
+            ->where('tipo_id', 1)
+            ->where('guia_id', '!=', 0)
+            ->whereNotIn('estadoequipo_id', function($query) {
+                $query->select('estadoequipo_id')
+                    ->from('estados_excluidos_guias');
+            })
+            ->whereIn('criesgo_id', function($query) {
+                $query->select('criesgo_id')
+                    ->from('riesgos_incluidos_guias');
+            })
+            ->whereNotIn('name', function($query) {
+                $query->select('name')
+                    ->from('equipos_excluidos_guias');
+            })
+            ->count();
+        
+        // 3. Cobertura de Guías Rápidas - Porcentaje de equipos con guía respecto al total
+        $cobertura = $cumplenCriterios > 0 
+            ? round(($cumplenCriteriosConGuia / $cumplenCriterios) * 100, 2) 
+            : 0;
+        
+        \Log::info('📊 [GUIARAPIDA] Cumplen criterios: ' . $cumplenCriterios);
+        \Log::info('📊 [GUIARAPIDA] Cumplen criterios con guía: ' . $cumplenCriteriosConGuia);
+        \Log::info('📊 [GUIARAPIDA] Cobertura: ' . $cobertura . '%');
+        \Log::info('📚 [GUIARAPIDA] Guías obtenidas: ' . $guias->count());
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'data' => $guias,
+                'current_page' => (int)$page,
+                'per_page' => (int)$perPage,
+                'total' => $total,
+                'last_page' => ceil($total / $perPage)
+            ],
+            'cobertura' => [
+                'porcentaje' => $cobertura,
+                'cumplenCriterios' => $cumplenCriterios,
+                'cumplenConGuia' => $cumplenCriteriosConGuia
+            ],
+            'message' => 'Guías rápidas obtenidas exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📚 [GUIARAPIDA] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener las guías rápidas: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 2. Crear nueva guía rápida
+Route::post('v1/guiarapida', function (Request $request) {
+    try {
+        \Log::info('📚 [GUIARAPIDA] Creando nueva guía');
+        
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'file' => 'required|file|mimes:pdf|max:10240', // 10MB max
+            'estado' => 'nullable|integer|in:0,1'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        $data = [
+            'name' => $request->input('name'),
+            'estado' => $request->input('estado', 1)
+        ];
+        
+        // Manejar archivo PDF
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $file->storeAs('guias', $fileName, 'public');
+            $data['file'] = $fileName;
+        }
+        
+        $guiaId = DB::table('guias_rapidas')->insertGetId($data);
+        
+        \Log::info('📚 [GUIARAPIDA] Guía creada con ID: ' . $guiaId);
+        
+        $guia = DB::table('guias_rapidas')->where('id', $guiaId)->first();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $guia,
+            'message' => 'Guía rápida creada exitosamente'
+        ], 201);
+        
+    } catch (\Exception $e) {
+        \Log::error('📚 [GUIARAPIDA] Error creando guía: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al crear la guía rápida: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 3. Actualizar guía rápida
+Route::put('v1/guiarapida/{id}', function (Request $request, $id) {
+    try {
+        \Log::info("📚 [GUIARAPIDA] Actualizando guía ID: {$id}");
+        
+        $guia = DB::table('guias_rapidas')->where('id', $id)->first();
+        
+        if (!$guia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guía no encontrada'
+            ], 404);
+        }
+        
+        $validator = Validator::make($request->all(), [
+            'name' => 'nullable|string|max:255',
+            'file' => 'nullable|file|mimes:pdf|max:10240',
+            'estado' => 'nullable|integer|in:0,1'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        $data = [];
+        
+        if ($request->has('name')) {
+            $data['name'] = $request->input('name');
+        }
+        
+        if ($request->has('estado')) {
+            $data['estado'] = $request->input('estado');
+        }
+        
+        // Manejar nuevo archivo PDF
+        if ($request->hasFile('file')) {
+            // Eliminar archivo anterior si existe
+            if ($guia->file) {
+                $oldFile = storage_path('app/public/guias/' . $guia->file);
+                if (file_exists($oldFile)) {
+                    unlink($oldFile);
+                }
+            }
+            
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $file->storeAs('guias', $fileName, 'public');
+            $data['file'] = $fileName;
+        }
+        
+        DB::table('guias_rapidas')->where('id', $id)->update($data);
+        
+        \Log::info("📚 [GUIARAPIDA] Guía actualizada ID: {$id}");
+        
+        $guiaActualizada = DB::table('guias_rapidas')->where('id', $id)->first();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $guiaActualizada,
+            'message' => 'Guía rápida actualizada exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("📚 [GUIARAPIDA] Error actualizando guía: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar la guía rápida: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 4. Eliminar guía rápida
+Route::delete('v1/guiarapida/{id}', function (Request $request, $id) {
+    try {
+        \Log::info("📚 [GUIARAPIDA] Eliminando guía ID: {$id}");
+        
+        $guia = DB::table('guias_rapidas')->where('id', $id)->first();
+        
+        if (!$guia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guía no encontrada'
+            ], 404);
+        }
+        
+        // Verificar si hay equipos asociados
+        $equiposAsociados = DB::table('equipos')->where('guia_id', $id)->count();
+        
+        if ($equiposAsociados > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "No se puede eliminar la guía porque tiene {$equiposAsociados} equipos asociados"
+            ], 400);
+        }
+        
+        // Eliminar archivo físico
+        if ($guia->file) {
+            $filePath = storage_path('app/public/guias/' . $guia->file);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+        
+        DB::table('guias_rapidas')->where('id', $id)->delete();
+        
+        \Log::info("📚 [GUIARAPIDA] Guía eliminada ID: {$id}");
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Guía rápida eliminada exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("📚 [GUIARAPIDA] Error eliminando guía: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar la guía rápida: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 5. Toggle estado de guía
+Route::post('v1/guiarapida/{id}/toggle', function (Request $request, $id) {
+    try {
+        \Log::info("📚 [GUIARAPIDA] Toggle estado guía ID: {$id}");
+        
+        $guia = DB::table('guias_rapidas')->where('id', $id)->first();
+        
+        if (!$guia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guía no encontrada'
+            ], 404);
+        }
+        
+        $nuevoEstado = $guia->estado == 1 ? 0 : 1;
+        
+        DB::table('guias_rapidas')
+            ->where('id', $id)
+            ->update(['estado' => $nuevoEstado]);
+        
+        \Log::info("📚 [GUIARAPIDA] Estado cambiado a: {$nuevoEstado}");
+        
+        return response()->json([
+            'success' => true,
+            'data' => ['estado' => $nuevoEstado],
+            'message' => 'Estado actualizado exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("📚 [GUIARAPIDA] Error toggle estado: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cambiar el estado: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 6. Asociar equipos a una guía rápida
+Route::post('v1/guiarapida/{id}/asociar-equipos', function (Request $request, $id) {
+    try {
+        \Log::info("📚 [GUIARAPIDA] Asociando equipos a guía ID: {$id}");
+        
+        $validator = Validator::make($request->all(), [
+            'equipo_ids' => 'required|array|min:1',
+            'equipo_ids.*' => 'required|integer|exists:equipos,id'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        // Verificar que la guía existe
+        $guia = DB::table('guias_rapidas')->where('id', $id)->first();
+        
+        if (!$guia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guía no encontrada'
+            ], 404);
+        }
+        
+        $equipoIds = $request->input('equipo_ids');
+        
+        \Log::info("📚 [GUIARAPIDA] IDs de equipos a asociar: " . json_encode($equipoIds));
+        \Log::info("📚 [GUIARAPIDA] Guía ID: {$id}");
+        
+        // Ver estado actual de los equipos antes de actualizar
+        $equiposAntes = DB::table('equipos')
+            ->whereIn('id', $equipoIds)
+            ->select('id', 'name', 'guia_id')
+            ->get();
+        \Log::info("📚 [GUIARAPIDA] Equipos ANTES de actualizar: " . json_encode($equiposAntes));
+        
+        // Actualizar el campo guia_id en cada equipo seleccionado
+        $updated = DB::table('equipos')
+            ->whereIn('id', $equipoIds)
+            ->update(['guia_id' => $id]);
+        
+        \Log::info("📚 [GUIARAPIDA] Número de registros actualizados: {$updated}");
+        
+        // Ver estado después de actualizar
+        $equiposDespues = DB::table('equipos')
+            ->whereIn('id', $equipoIds)
+            ->select('id', 'name', 'guia_id')
+            ->get();
+        \Log::info("📚 [GUIARAPIDA] Equipos DESPUÉS de actualizar: " . json_encode($equiposDespues));
+        
+        // Obtener el conteo actualizado
+        $nroEquipos = DB::table('equipos')
+            ->where('guia_id', $id)
+            ->count();
+        
+        \Log::info("📚 [GUIARAPIDA] Total de equipos con guia_id={$id}: {$nroEquipos}");
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'equipos_asociados' => $updated,
+                'total_equipos' => $nroEquipos
+            ],
+            'message' => "{$updated} equipo(s) asociado(s) exitosamente"
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error("📚 [GUIARAPIDA] Error asociando equipos: " . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al asociar los equipos: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 7. Indicador por grupo (nombre de equipo)
+Route::get('v1/guiarapida/indicador', function (Request $request) {
+    try {
+        $nombreFiltro = request('nombre', '');
+        
+        \Log::info('📊 [INDICADOR] Obteniendo indicador por grupo');
+        
+        $query = DB::table('equipos as e')
+            ->leftJoin('guias_rapidas as gr', 'e.guia_id', '=', 'gr.id')
+            ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+            ->where('e.tipo_id', 1)
+            ->whereNotIn('e.estadoequipo_id', function($q) {
+                $q->select('estadoequipo_id')->from('estados_excluidos_guias');
+            })
+            ->whereIn('e.criesgo_id', function($q) {
+                $q->select('criesgo_id')->from('riesgos_incluidos_guias');
+            })
+            ->whereNotIn('e.name', function($q) {
+                $q->select('name')->from('equipos_excluidos_guias');
+            })
+            ->where(function($q) {
+                $q->where('s.sede_id', '!=', 2)
+                  ->orWhere('e.propietario_id', '!=', 25);
+            });
+        
+        if ($nombreFiltro) {
+            $query->where('e.name', 'like', "%{$nombreFiltro}%");
+        }
+        
+        $indicadores = $query->select([
+                'e.name as nombre',
+                DB::raw('COUNT(*) as cantidad_total'),
+                DB::raw('SUM(CASE WHEN e.guia_id > 0 THEN 1 ELSE 0 END) as cantidad_cubierta'),
+                DB::raw('ROUND((SUM(CASE WHEN e.guia_id > 0 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 2) as porcentaje')
+            ])
+            ->groupBy('e.name')
+            ->orderBy('e.name', 'asc')
+            ->get();
+        
+        \Log::info('📊 [INDICADOR] Indicadores obtenidos: ' . $indicadores->count());
+        
+        return response()->json([
+            'success' => true,
+            'data' => $indicadores,
+            'total' => $indicadores->count(),
+            'message' => 'Indicadores obtenidos exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📊 [INDICADOR] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener indicadores: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 7. Detalle por grupo (nombre, marca, modelo)
+Route::get('v1/guiarapida/detalle', function (Request $request) {
+    try {
+        \Log::info('📋 [DETALLE] Obteniendo detalle por grupo');
+        
+        $detalles = DB::table('equipos as e')
+            ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+            ->where('e.tipo_id', 1)
+            ->whereNotIn('e.estadoequipo_id', function($q) {
+                $q->select('estadoequipo_id')->from('estados_excluidos_guias');
+            })
+            ->whereIn('e.criesgo_id', function($q) {
+                $q->select('criesgo_id')->from('riesgos_incluidos_guias');
+            })
+            ->whereNotIn('e.name', function($q) {
+                $q->select('name')->from('equipos_excluidos_guias');
+            })
+            ->where(function($q) {
+                $q->where('s.sede_id', '!=', 2)
+                  ->orWhere('e.propietario_id', '!=', 25);
+            })
+            ->select([
+                'e.name as nombre',
+                'e.marca',
+                'e.modelo',
+                DB::raw('COUNT(*) as cantidad_total'),
+                DB::raw('SUM(CASE WHEN e.guia_id > 0 THEN 1 ELSE 0 END) as cantidad_con_guia')
+            ])
+            ->groupBy('e.name', 'e.marca', 'e.modelo')
+            ->orderBy('e.name', 'asc')
+            ->orderBy('e.marca', 'asc')
+            ->orderBy('e.modelo', 'asc')
+            ->get();
+        
+        \Log::info('📋 [DETALLE] Detalles obtenidos: ' . $detalles->count());
+        
+        return response()->json([
+            'success' => true,
+            'data' => $detalles,
+            'total' => $detalles->count(),
+            'message' => 'Detalles obtenidos exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('📋 [DETALLE] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener detalles: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 8. Obtener riesgos incluidos
+Route::get('v1/riesgoincluidoguia', function (Request $request) {
+    try {
+        \Log::info('🎯 [RIESGOS] Obteniendo riesgos incluidos');
+        
+        $riesgos = DB::table('riesgos_incluidos_guias as rig')
+            ->join('criesgo as cr', 'rig.criesgo_id', '=', 'cr.id')
+            ->select('rig.id', 'rig.criesgo_id', 'cr.name as nombre')
+            ->orderBy('cr.name', 'asc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $riesgos,
+            'total' => $riesgos->count(),
+            'message' => 'Riesgos incluidos obtenidos exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('🎯 [RIESGOS] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener riesgos incluidos: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// 9. Obtener estados excluidos
+Route::get('v1/estadoexcluidoguia', function (Request $request) {
+    try {
+        \Log::info('⛔ [ESTADOS] Obteniendo estados excluidos');
+        
+        $estados = DB::table('estados_excluidos_guias as eeg')
+            ->join('estadoequipos as ee', 'eeg.estadoequipo_id', '=', 'ee.id')
+            ->select('eeg.id', 'eeg.estadoequipo_id', 'ee.name as nombre')
+            ->orderBy('ee.name', 'asc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $estados,
+            'total' => $estados->count(),
+            'message' => 'Estados excluidos obtenidos exitosamente'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('⛔ [ESTADOS] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener estados excluidos: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// ====================================================
+// RUTAS PARA EXPORTACIÓN DE REPORTES DE GUÍAS RÁPIDAS
+// ====================================================
+
+// Exportar equipos priorizados
+Route::get('v1/guiarapida/export/priorizados', function (Request $request) {
+    try {
+        \Log::info('📊 [EXPORT] Generando reporte de equipos priorizados');
+        
+        return app(\App\Http\Controllers\Api\GuiaRapidaExportController::class)->exportPriorizados($request);
+        
+    } catch (\Exception $e) {
+        \Log::error('📊 [EXPORT] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar reporte: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Exportar equipos con guía
+Route::get('v1/guiarapida/export/con-guia', function (Request $request) {
+    try {
+        \Log::info('📊 [EXPORT] Generando reporte de equipos con guía');
+        
+        return app(\App\Http\Controllers\Api\GuiaRapidaExportController::class)->exportConGuia($request);
+        
+    } catch (\Exception $e) {
+        \Log::error('📊 [EXPORT] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar reporte: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Exportar equipos sin guía
+Route::get('v1/guiarapida/export/sin-guia', function (Request $request) {
+    try {
+        \Log::info('📊 [EXPORT] Generando reporte de equipos sin guía');
+        
+        return app(\App\Http\Controllers\Api\GuiaRapidaExportController::class)->exportSinGuia($request);
+        
+    } catch (\Exception $e) {
+        \Log::error('📊 [EXPORT] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar reporte: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Exportar indicador por grupo
+Route::get('v1/guiarapida/export/indicador', function (Request $request) {
+    try {
+        \Log::info('📊 [EXPORT] Generando reporte de indicador por grupo');
+        
+        return app(\App\Http\Controllers\Api\GuiaRapidaExportController::class)->exportIndicador($request);
+        
+    } catch (\Exception $e) {
+        \Log::error('📊 [EXPORT] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar reporte: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+// Exportar detalle por grupo
+Route::get('v1/guiarapida/export/detalle', function (Request $request) {
+    try {
+        \Log::info('📊 [EXPORT] Generando reporte de detalle por grupo');
+        
+        return app(\App\Http\Controllers\Api\GuiaRapidaExportController::class)->exportDetalle($request);
+        
+    } catch (\Exception $e) {
+        \Log::error('📊 [EXPORT] Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al generar reporte: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
 
 // ====================================================
 // RUTAS PARA GESTIÓN DE ARCHIVOS DE EQUIPOS
@@ -10162,7 +11705,37 @@ Route::get('v1/equipos/medical-devices-complete-fixed', function (Request $reque
                 'equipos.created_at',
                 'servicios.name as servicio_name',
                 'areas.name as area_name',
-                'propietarios.nombre as propietario_name'
+                'propietarios.nombre as propietario_name',
+                // Inclusión en plan de mantenimiento
+                DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos 
+                          WHERE equipo_id = equipos.id 
+                          AND anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)) as incluido_en_plan'),
+                // Frecuencia del plan
+                DB::raw('(SELECT fm.name FROM planes_mantenimientos pm
+                          LEFT JOIN frecuenciam fm ON fm.id = pm.frecuencia_id
+                          WHERE pm.equipo_id = equipos.id
+                          AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                          LIMIT 1) as frecuencia_plan'),
+                // Meses programados
+                DB::raw('(SELECT pm.mes1 FROM planes_mantenimientos pm
+                          WHERE pm.equipo_id = equipos.id
+                          AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                          LIMIT 1) as mes_programado1'),
+                DB::raw('(SELECT pm.mes2 FROM planes_mantenimientos pm
+                          WHERE pm.equipo_id = equipos.id
+                          AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                          LIMIT 1) as mes_programado2'),
+                DB::raw('(SELECT pm.mes3 FROM planes_mantenimientos pm
+                          WHERE pm.equipo_id = equipos.id
+                          AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                          LIMIT 1) as mes_programado3'),
+                // Responsable del plan
+                DB::raw('(SELECT pm.responsable FROM planes_mantenimientos pm
+                          WHERE pm.equipo_id = equipos.id
+                          AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                          LIMIT 1) as responsable_plan'),
+                // Año vigente
+                DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) as anio_vigente')
             ])
             ->where('equipos.status', '!=', 0)
             ->where('equipos.tipo_id', 1); // Solo equipos biomédicos
@@ -10658,6 +12231,12 @@ Route::delete('v1/proveedores-mantenimiento/{id}', function ($id) {
 // =================== EXCEL UPLOAD FOR PREVENTIVE MAINTENANCE ===================
 Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request) {
     try {
+        \Log::info('📤 Upload Excel Request recibida', [
+            'files' => $request->allFiles(),
+            'anio' => $request->anio,
+            'reemplazar' => $request->reemplazar
+        ]);
+        
         $request->validate([
             'archivo' => 'required|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
             'anio' => 'required|integer|min:2019|max:2030',
@@ -10677,19 +12256,56 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
             ], 400);
         }
         
-        // Process file
-        $filePath = $file->store('temp_uploads', 'local');
-        $fullPath = storage_path('app/' . $filePath);
+        // Process file directly from uploaded file (in memory)
+        $tempPath = $file->getRealPath();
         
         try {
-            // Initialize PhpSpreadsheet
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath);
+            // Initialize PhpSpreadsheet directly from uploaded file
+            $spreadsheet = IOFactory::load($tempPath);
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
             
-            // Remove header row if exists
-            if (count($rows) > 0 && is_string($rows[0][0]) && !is_numeric($rows[0][0])) {
-                array_shift($rows);
+            \Log::info('📋 Total filas en Excel: ' . count($rows));
+            
+            // Detect headers and column mapping
+            $headers = [];
+            $dataStartRow = 0;
+            $columnMap = [
+                'equipo_id' => 0,
+                'fecha_cols' => [],  // Array to store all date columns
+                'responsable' => null,
+                'periodicidad' => null
+            ];
+            
+            // Check if first row contains headers
+            if (count($rows) > 0) {
+                $firstRow = array_map('strtolower', array_map('trim', $rows[0]));
+                
+                // Detect common header patterns
+                foreach ($firstRow as $index => $header) {
+                    if (in_array($header, ['id', 'equipo_id', 'equipo', 'id equipo'])) {
+                        $columnMap['equipo_id'] = $index;
+                        $headers[] = $header;
+                    } elseif (preg_match('/fecha[\s_]?\d+|mes[\s_]?\d+/', $header)) {
+                        // Match: fecha 1, fecha1, mes 1, mes1, fecha_1, mes_1, etc.
+                        $columnMap['fecha_cols'][] = $index;
+                        $headers[] = $header;
+                    } elseif (in_array($header, ['responsable', 'proveedor', 'empresa', 'nombre proveedor', 'nombre_proveedor'])) {
+                        $columnMap['responsable'] = $index;
+                        $headers[] = $header;
+                    } elseif (in_array($header, ['periodicidad', 'frecuencia'])) {
+                        $columnMap['periodicidad'] = $index;
+                        $headers[] = $header;
+                    }
+                }
+                
+                // If headers detected, skip first row
+                if (count($headers) > 0) {
+                    array_shift($rows);
+                    $dataStartRow = 1;
+                    \Log::info('✅ Headers detectados: ' . implode(', ', $headers));
+                    \Log::info('📍 Mapeo de columnas: ' . json_encode($columnMap));
+                }
             }
             
             $processed = 0;
@@ -10705,25 +12321,37 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
             }
             
             foreach ($rows as $index => $row) {
-                $rowNumber = $index + 1;
+                $rowNumber = $dataStartRow + $index + 1;
                 
                 // Skip empty rows
                 if (empty(array_filter($row))) {
                     continue;
                 }
                 
-                // Validate required columns
-                if (count($row) < 5) {
-                    $errors[] = "Fila {$rowNumber}: Faltan columnas requeridas";
-                    continue;
+                // Extract data using column mapping
+                $equipoId = $row[$columnMap['equipo_id']] ?? null;
+                
+                // Extract dates/months from all fecha columns
+                $fechaValues = [];
+                if (!empty($columnMap['fecha_cols'])) {
+                    // Use detected fecha columns
+                    foreach ($columnMap['fecha_cols'] as $colIndex) {
+                        $value = $row[$colIndex] ?? null;
+                        if (!empty($value)) {
+                            $fechaValues[] = $value;
+                        }
+                    }
+                } else {
+                    // Fallback: try columns 1, 2, 3 (old format)
+                    for ($i = 1; $i <= 3; $i++) {
+                        if (isset($row[$i]) && !empty($row[$i])) {
+                            $fechaValues[] = $row[$i];
+                        }
+                    }
                 }
                 
-                $equipoId = $row[0] ?? null;
-                $mes1 = $row[1] ?? null;
-                $mes2 = $row[2] ?? null;
-                $mes3 = $row[3] ?? null;
-                $responsable = $row[4] ?? null;
-                $frecuencia = $row[5] ?? 'ANUAL';
+                // Extract responsable
+                $responsable = $columnMap['responsable'] !== null ? ($row[$columnMap['responsable']] ?? null) : ($row[4] ?? null);
                 
                 // Validate equipment ID
                 if (empty($equipoId) || !is_numeric($equipoId)) {
@@ -10738,41 +12366,113 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                     continue;
                 }
                 
-                // Validate months
+                // Helper function to extract month from various date formats
+                $extractMonth = function($value) {
+                    if (empty($value)) return null;
+                    
+                    // If already a month number (1-12)
+                    if (is_numeric($value) && $value >= 1 && $value <= 12) {
+                        return (int)$value;
+                    }
+                    
+                    // If it's a month name in Spanish or English
+                    if (is_string($value)) {
+                        $monthNames = [
+                            'enero' => 1, 'january' => 1,
+                            'febrero' => 2, 'february' => 2,
+                            'marzo' => 3, 'march' => 3,
+                            'abril' => 4, 'april' => 4,
+                            'mayo' => 5, 'may' => 5,
+                            'junio' => 6, 'june' => 6,
+                            'julio' => 7, 'july' => 7,
+                            'agosto' => 8, 'august' => 8,
+                            'septiembre' => 9, 'september' => 9,
+                            'octubre' => 10, 'october' => 10,
+                            'noviembre' => 11, 'november' => 11,
+                            'diciembre' => 12, 'december' => 12,
+                        ];
+                        
+                        $valueLower = strtolower(trim($value));
+                        if (isset($monthNames[$valueLower])) {
+                            return $monthNames[$valueLower];
+                        }
+                        
+                        // Try to parse as date string
+                        try {
+                            $date = new \DateTime($value);
+                            return (int)$date->format('n');
+                        } catch (\Exception $e) {
+                            // Not a valid date string
+                        }
+                    }
+                    
+                    // If it's an Excel date serial number
+                    if (is_numeric($value) && $value > 40000) {
+                        try {
+                            $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value);
+                            return (int)$date->format('n');
+                        } catch (\Exception $e) {
+                            return null;
+                        }
+                    }
+                    
+                    return null;
+                };
+                
+                // Extract months from all date values
                 $meses = [];
-                if (!empty($mes1) && is_numeric($mes1) && $mes1 >= 1 && $mes1 <= 12) {
-                    $meses[] = $mes1;
-                }
-                if (!empty($mes2) && is_numeric($mes2) && $mes2 >= 1 && $mes2 <= 12) {
-                    $meses[] = $mes2;
-                }
-                if (!empty($mes3) && is_numeric($mes3) && $mes3 >= 1 && $mes3 <= 12) {
-                    $meses[] = $mes3;
+                foreach ($fechaValues as $fechaValue) {
+                    $mes = $extractMonth($fechaValue);
+                    if ($mes !== null) {
+                        $meses[] = $mes;
+                    }
                 }
                 
                 if (empty($meses)) {
-                    $errors[] = "Fila {$rowNumber}: Debe especificar al menos un mes válido";
+                    $errors[] = "Fila {$rowNumber}: Debe especificar al menos una fecha/mes válido";
                     continue;
                 }
+                
+                // Get frequency from Excel if available, otherwise calculate it
+                $frecuenciaFromExcel = null;
+                if ($columnMap['periodicidad'] !== null && isset($row[$columnMap['periodicidad']])) {
+                    $frecuenciaFromExcel = strtoupper(trim($row[$columnMap['periodicidad']]));
+                }
+                
+                // Validate and use Excel frequency, or calculate automatically
+                $validFrecuencias = ['MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'CUATRIMESTRAL', 'SEMESTRAL', 'ANUAL', 'PERSONALIZADO'];
+                
+                if (!empty($frecuenciaFromExcel) && in_array($frecuenciaFromExcel, $validFrecuencias)) {
+                    // Use frequency from Excel
+                    $frecuencia = $frecuenciaFromExcel;
+                    \Log::info("📊 Fila {$rowNumber}: Usando periodicidad del Excel: {$frecuencia}");
+                } else {
+                    // Calculate frequency automatically based on number of months
+                    $numMeses = count($meses);
+                    if ($numMeses == 1) {
+                        $frecuencia = 'ANUAL';
+                    } elseif ($numMeses == 2) {
+                        $frecuencia = 'SEMESTRAL';
+                    } elseif ($numMeses == 3) {
+                        $frecuencia = 'CUATRIMESTRAL';
+                    } elseif ($numMeses == 4) {
+                        $frecuencia = 'TRIMESTRAL';
+                    } elseif ($numMeses == 6) {
+                        $frecuencia = 'BIMESTRAL';
+                    } elseif ($numMeses >= 12) {
+                        $frecuencia = 'MENSUAL';
+                    } else {
+                        $frecuencia = 'PERSONALIZADO';
+                    }
+                    \Log::info("📊 Fila {$rowNumber}: Frecuencia calculada automáticamente: {$frecuencia}");
+                }
+                
+                \Log::info("📊 Fila {$rowNumber}: Equipo {$equipoId}, Meses: " . implode(', ', $meses) . ", Frecuencia final: {$frecuencia}");
                 
                 // Validate responsible
                 if (empty($responsable)) {
                     $errors[] = "Fila {$rowNumber}: Responsable es obligatorio";
                     continue;
-                }
-                
-                // Get or create provider
-                $proveedor = DB::table('proveedores_mantenimiento')
-                              ->where('name', $responsable)
-                              ->first();
-                              
-                if (!$proveedor) {
-                    $proveedorId = DB::table('proveedores_mantenimiento')->insertGetId([
-                        'name' => $responsable,
-                        'status' => 1
-                    ]);
-                } else {
-                    $proveedorId = $proveedor->id;
                 }
                 
                 // Check if record already exists (for non-replace mode)
@@ -10786,37 +12486,79 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                     }
                 }
                 
-                // Calculate exact dates for each month
-                $fecha1 = null;
-                $fecha2 = null;
-                $fecha3 = null;
+                // Mapear frecuencia a frecuencia_id según la tabla frecuenciam REAL
+                // ID 1: N/R, ID 2: 3 MESES, ID 3: 4 MESES, ID 4: 6 MESES, 
+                // ID 5: ANUAL, ID 6: GARANTIA, ID 7: COMODATO, ID 8: 2 MESES
+                $frecuenciaMap = [
+                    'MENSUAL' => 1,        // N/R por defecto para mensual
+                    'BIMESTRAL' => 8,      // 2 MESES
+                    'TRIMESTRAL' => 2,     // 3 MESES
+                    'CUATRIMESTRAL' => 3,  // 4 MESES
+                    'SEMESTRAL' => 4,      // 6 MESES
+                    'ANUAL' => 5,          // ANUAL
+                    'PERSONALIZADO' => 1,  // N/R
+                    'GARANTIA' => 6,       // GARANTIA
+                    'COMODATO' => 7        // COMODATO
+                ];
                 
-                if (isset($meses[0])) {
-                    $fecha1 = Carbon\Carbon::create($year, $meses[0], 1)->format('Y-m-d');
-                }
-                if (isset($meses[1])) {
-                    $fecha2 = Carbon\Carbon::create($year, $meses[1], 1)->format('Y-m-d');
-                }
-                if (isset($meses[2])) {
-                    $fecha3 = Carbon\Carbon::create($year, $meses[2], 1)->format('Y-m-d');
+                $frecuenciaId = $frecuenciaMap[$frecuencia] ?? 4; // Default: 6 MESES
+                
+                // Obtener mes1 del Excel (siempre requerido)
+                $mes1 = $meses[0] ?? null;
+                
+                // Verificar si mes2 y mes3 vienen en el Excel
+                $mes2FromExcel = $meses[1] ?? null;
+                $mes3FromExcel = $meses[2] ?? null;
+                
+                $mes2 = null;
+                $mes3 = null;
+                
+                // Si mes2 y/o mes3 vienen en el Excel, usarlos directamente
+                if ($mes2FromExcel !== null || $mes3FromExcel !== null) {
+                    $mes2 = $mes2FromExcel;
+                    $mes3 = $mes3FromExcel;
+                    \Log::info("📋 Fila {$rowNumber}: Usando meses del Excel - mes1={$mes1}, mes2=" . ($mes2 ?? 'NULL') . ", mes3=" . ($mes3 ?? 'NULL'));
+                } else {
+                    // Si NO vienen en el Excel, calcular automáticamente según frecuencia del equipo
+                    $equipoFrecuencia = DB::table('equipos')
+                        ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
+                        ->where('equipos.id', $equipoId)
+                        ->select('frecuenciam.meses_frecuencia')
+                        ->first();
+                    
+                    if ($mes1 && $equipoFrecuencia && $equipoFrecuencia->meses_frecuencia) {
+                        $frecuenciaMeses = (int)$equipoFrecuencia->meses_frecuencia;
+                        
+                        // Calcular mes2 sumando la frecuencia
+                        $mes2Calculado = $mes1 + $frecuenciaMeses;
+                        if ($mes2Calculado <= 12) {
+                            $mes2 = $mes2Calculado;
+                            
+                            // Calcular mes3 sumando la frecuencia a mes2
+                            $mes3Calculado = $mes2 + $frecuenciaMeses;
+                            if ($mes3Calculado <= 12) {
+                                $mes3 = $mes3Calculado;
+                            }
+                        }
+                        
+                        \Log::info("🔢 Fila {$rowNumber}: Meses calculados automáticamente - mes1={$mes1}, mes2=" . ($mes2 ?? 'NULL') . ", mes3=" . ($mes3 ?? 'NULL') . " (frecuencia={$frecuenciaMeses} meses)");
+                    } else {
+                        \Log::warning("⚠️ Fila {$rowNumber}: Sin frecuencia configurada en equipo y sin meses en Excel");
+                    }
                 }
                 
-                // Insert plan with calculated dates
+                // Insert plan según estructura real de la tabla
                 DB::table('planes_mantenimientos')->insert([
                     'equipo_id' => $equipoId,
                     'anio' => $year,
-                    'mes1' => $meses[0] ?? null,
-                    'mes2' => $meses[1] ?? null,
-                    'mes3' => $meses[2] ?? null,
-                    'fecha_programada_1' => $fecha1,
-                    'fecha_programada_2' => $fecha2,
-                    'fecha_programada_3' => $fecha3,
+                    'mes1' => (string)$mes1,
+                    'mes2' => $mes2 !== null ? (string)$mes2 : null,
+                    'mes3' => $mes3 !== null ? (string)$mes3 : null,
                     'responsable' => $responsable,
-                    'frecuencia' => $frecuencia,
-                    'proveedor_mantenimiento_id' => $proveedorId,
-                    'estado_cumplimiento' => 'PENDIENTE',
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'actividad' => null,
+                    'frecuencia_id' => $frecuenciaId,
+                    'usuario_id' => null,
+                    'created_at' => now()
                 ]);
                 
                 $processed++;
@@ -10824,10 +12566,7 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
             
             DB::commit();
             
-            // Delete temporary file
-            if (file_exists($fullPath)) {
-                unlink($fullPath);
-            }
+            // No need to delete file - processed directly from upload temp
             
             $message = "Procesamiento completado: {$processed} registros procesados";
             if (!empty($errors)) {
@@ -10848,21 +12587,39 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
         } catch (\Exception $e) {
             DB::rollback();
             
-            // Delete temporary file
-            if (file_exists($fullPath)) {
-                unlink($fullPath);
-            }
+            \Log::error('❌ Error procesando Excel', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // No need to delete file - processed directly from upload temp
             
             return response()->json([
                 'success' => false,
-                'message' => 'Error al procesar archivo Excel: ' . $e->getMessage()
+                'message' => 'Error al procesar archivo Excel: ' . $e->getMessage(),
+                'debug' => [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                ]
             ], 500);
         }
         
     } catch (\Exception $e) {
+        \Log::error('❌ Error en carga de archivo', [
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        
         return response()->json([
             'success' => false,
-            'message' => 'Error en carga de archivo: ' . $e->getMessage()
+            'message' => 'Error en carga de archivo: ' . $e->getMessage(),
+            'debug' => [
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]
         ], 500);
     }
 });
@@ -11617,14 +13374,17 @@ Route::get('v1/cronograma-mantenimientos', function (Request $request) {
         $perPage = (int)$request->get('per_page', 25);
         $anio = (int)$request->get('anio', date('Y'));
         $search = $request->get('search', '');
+        $sortBy = $request->get('sort_by', 'id');
+        $sortDirection = $request->get('sort_direction', 'desc');
         
-        \Log::info("🔍 Consultando CRONOGRAMA de mantenimientos para año: {$anio}");
+        \Log::info("🔍 Consultando CRONOGRAMA de mantenimientos para año: {$anio}, ordenado por: {$sortBy} {$sortDirection}");
         
         // DATOS MIXTOS: Planes (programados) + Mantenimientos (ejecutados) con cumplimiento
         $query = DB::table('planes_mantenimientos as pm')
             ->leftJoin('equipos as e', 'pm.equipo_id', '=', 'e.id')
             ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
             ->leftJoin('areas as a', 'e.area_id', '=', 'a.id')
+            ->leftJoin('frecuenciam as f', 'pm.frecuencia_id', '=', 'f.id')
             ->select([
                 'pm.*',
                 'e.name as equipo_nombre',
@@ -11634,10 +13394,14 @@ Route::get('v1/cronograma-mantenimientos', function (Request $request) {
                 'e.serial as equipo_serie',
                 's.name as servicio_nombre',
                 'a.name as area_nombre',
+                'f.name as frecuencia',
                 // CALCULAR EJECUTADOS (de tabla mantenimiento)
                 DB::raw('(SELECT COUNT(*) FROM mantenimiento m 
                          WHERE m.equipo_id = pm.equipo_id 
                          AND YEAR(m.fecha_mantenimiento) = pm.anio) as cantidad_ejecutados'),
+                // CALCULAR CAMBIOS (de tabla cambios_cronograma)
+                DB::raw('(SELECT COUNT(*) FROM cambios_cronograma cc 
+                         WHERE cc.planes_mantenimientos_id = pm.id) as cuenta_cambios'),
                 // CALCULAR PROGRAMADOS (según meses no nulos)
                 DB::raw('(CASE 
                          WHEN pm.mes1 IS NOT NULL AND pm.mes2 IS NOT NULL AND pm.mes3 IS NOT NULL THEN 3
@@ -11678,7 +13442,21 @@ Route::get('v1/cronograma-mantenimientos', function (Request $request) {
         $total = $query->count();
         \Log::info("📊 Total planes en cronograma: {$total}");
         
-        $planes = $query->orderBy('pm.id', 'desc')
+        // Mapear campos de ordenamiento del frontend a la base de datos
+        $sortFieldMap = [
+            'equipo_id' => 'pm.equipo_id',
+            'id' => 'pm.id',
+            'equipo_nombre' => 'e.name',
+            'equipo_codigo' => 'e.code',
+            'responsable' => 'pm.responsable',
+            'anio' => 'pm.anio'
+        ];
+        
+        // Obtener el campo real de BD o usar por defecto
+        $sortField = $sortFieldMap[$sortBy] ?? 'pm.id';
+        $sortDir = in_array(strtolower($sortDirection), ['asc', 'desc']) ? strtolower($sortDirection) : 'desc';
+        
+        $planes = $query->orderBy($sortField, $sortDir)
                        ->offset(($page - 1) * $perPage)
                        ->limit($perPage)
                        ->get();
@@ -11703,6 +13481,7 @@ Route::get('v1/cronograma-mantenimientos', function (Request $request) {
                 'equipo_id' => $plan->equipo_id, // ID del equipo
                 'anio' => $plan->anio, // Año del cronograma
                 'frecuencia_id' => $plan->frecuencia_id ?? null, // Tipo de frecuencia
+                'frecuencia' => $plan->frecuencia ?? 'N/A', // Nombre de la frecuencia (desde frecuenciam)
                 'usuario_id' => $plan->usuario_id ?? null, // Quien creó el plan
                 
                 // INFORMACIÓN DEL EQUIPO (COLUMNAS 3-7)
@@ -11750,7 +13529,7 @@ Route::get('v1/cronograma-mantenimientos', function (Request $request) {
                 'last_day_m3' => $plan->mes3 ? date('Y-m-t', mktime(0,0,0,$plan->mes3,1,$plan->anio)) : null,
                 
                 // METADATOS
-                'cuenta_cambios' => 0, // TODO: Implementar conteo de cambios
+                'cuenta_cambios' => (int)($plan->cuenta_cambios ?? 0),
                 'created_at' => $plan->created_at ?? null,
                 'updated_at' => $plan->created_at ?? null // Usar created_at como fallback ya que updated_at no existe
             ];
@@ -12647,6 +14426,72 @@ Route::post('v1/tickets/{id}/repuesto-pendiente', function(Request $request, $id
     }
 });
 
+// 2.1. Marcar Repuesto como Instalado (mover de pendiente a instalados)
+Route::post('v1/tickets/{id}/quitar-repuesto', function(Request $request, $id) {
+    try {
+        // Validar que el ticket existe
+        $ticket = DB::table('ordenes')->where('id', $id)->first();
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket no encontrado'
+            ], 404);
+        }
+
+        // Obtener el nombre del repuesto pendiente antes de limpiarlo
+        $repuestoPendiente = $ticket->repuesto_pendiente;
+
+        // Si no hay repuesto pendiente, no hacer nada
+        if (empty($repuestoPendiente)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay repuesto pendiente para marcar como instalado'
+            ], 400);
+        }
+
+        // Actualizar repuestos_usados: agregar el repuesto pendiente al campo de usados
+        $repuestosActuales = $ticket->repuestos_usados ?? $ticket->repuestos ?? '';
+        $nuevosRepuestos = empty($repuestosActuales) 
+            ? $repuestoPendiente 
+            : $repuestosActuales . ', ' . $repuestoPendiente;
+
+        // Actualizar tabla ordenes - mover repuesto a usados y cambiar condición a 'NO'
+        DB::table('ordenes')
+            ->where('id', $id)
+            ->update([
+                'repuesto_pendiente' => null,
+                'repuesto_pendiente_condicion' => 'no',
+                'repuestos_usados' => $nuevosRepuestos
+            ]);
+
+        // Si el ticket tiene equipo asociado, actualizar también la tabla equipos
+        if ($ticket->equipo_id) {
+            DB::table('equipos')
+                ->where('id', $ticket->equipo_id)
+                ->update([
+                    'repuesto_pendiente' => 'no'
+                ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ticket_id' => $id,
+                'repuesto_instalado' => $repuestoPendiente,
+                'repuestos_usados' => $nuevosRepuestos
+            ],
+            'message' => 'Repuesto marcado como instalado exitosamente'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Error quitando repuesto: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al quitar el repuesto: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // 3. Asignar Responsable
 Route::post('v1/tickets/{id}/asignar-responsable', function(Request $request, $id) {
     try {
@@ -12659,31 +14504,76 @@ Route::post('v1/tickets/{id}/asignar-responsable', function(Request $request, $i
             ], 404);
         }
 
-        // Validar datos requeridos
+        // Validar datos requeridos - aceptar usuario_id, propietario_id o empresa_id
         $request->validate([
-            'usuario_id' => 'required|integer|exists:usuarios,id'
+            'usuario_id' => 'nullable|integer|exists:usuarios,id',
+            'propietario_id' => 'nullable|integer|exists:propietarios,id',
+            'empresa_id' => 'nullable|integer|exists:empresas,id'
         ]);
 
+        // Verificar que al menos uno esté presente
+        if (!$request->usuario_id && !$request->propietario_id && !$request->empresa_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debe proporcionar usuario_id, propietario_id o empresa_id'
+            ], 400);
+        }
+
+        // Obtener el usuario autenticado que está asignando (DEBE SER EL USUARIO DE LA SESIÓN ACTUAL)
+        $usuarioAsigno = auth('sanctum')->user();
+        $usuarioAsignoId = $usuarioAsigno ? $usuarioAsigno->id : null;
+        
+        \Log::info('👤 Usuario asignando responsable:', [
+            'usuario_id' => $usuarioAsignoId,
+            'nombre' => $usuarioAsigno ? $usuarioAsigno->nombre : 'No autenticado',
+            'ticket_id' => $id
+        ]);
+        
         // Actualizar tabla ordenes - cambiar estado a Asignado (2)
+        $updateData = [
+            'fecha_asignacion' => now(),
+            'estado_id' => 2, // 2 = Asignado
+            'asignador_id' => $usuarioAsignoId // Guardar quién asignó
+        ];
+
+        if ($request->usuario_id) {
+            $updateData['asignado_id'] = $request->usuario_id;
+        }
+        if ($request->propietario_id) {
+            $updateData['propietario_id'] = $request->propietario_id;
+        }
+        if ($request->empresa_id) {
+            $updateData['empresa_id'] = $request->empresa_id;
+        }
+
         DB::table('ordenes')
             ->where('id', $id)
-            ->update([
-                'asignado_id' => $request->usuario_id,
-                'fecha_asignacion_usuario' => now(),
-                'estado_id' => 2 // 2 = Asignado
-            ]);
+            ->update($updateData);
 
-        // Obtener información del usuario asignado
-        $usuario = DB::table('usuarios')
-            ->select('id', 'nombre', 'apellido', 'username', 'email')
-            ->where('id', $request->usuario_id)
-            ->first();
+        // Obtener información del responsable asignado
+        $responsable = null;
+        if ($request->usuario_id) {
+            $responsable = DB::table('usuarios')
+                ->select('id', 'nombre', 'apellido', 'username', 'email')
+                ->where('id', $request->usuario_id)
+                ->first();
+        } elseif ($request->propietario_id) {
+            $responsable = DB::table('propietarios')
+                ->select('id', 'nombre', 'email', 'telefono')
+                ->where('id', $request->propietario_id)
+                ->first();
+        } elseif ($request->empresa_id) {
+            $responsable = DB::table('empresas')
+                ->select('id', 'name as nombre', 'area', 'estado')
+                ->where('id', $request->empresa_id)
+                ->first();
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'ticket_id' => $id,
-                'usuario_asignado' => $usuario
+                'responsable_asignado' => $responsable
             ],
             'message' => 'Responsable asignado exitosamente'
         ]);
@@ -12695,7 +14585,7 @@ Route::post('v1/tickets/{id}/asignar-responsable', function(Request $request, $i
             'message' => 'Error al asignar responsable: ' . $e->getMessage()
         ], 500);
     }
-});
+})->middleware('auth:sanctum');
 
 // 4. Obtener usuarios para asignar (filtrados)
 Route::get('v1/usuarios-asignables', function() {
@@ -12730,6 +14620,238 @@ Route::get('v1/usuarios-asignables', function() {
             'message' => 'Error al obtener usuarios'
         ], 500);
     }
+});
+
+// 4.1 CRUD Propietarios - Sin autenticación (público)
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
+    Route::get('propietarios', [App\Http\Controllers\Api\PropietarioController::class, 'index']);
+    Route::post('propietarios', [App\Http\Controllers\Api\PropietarioController::class, 'store']);
+    Route::get('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'show']);
+    Route::put('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'update']);
+    Route::post('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'update']); // Para FormData con _method=PUT
+    Route::delete('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'destroy']);
+});
+
+// 4.2 CRUD Áreas - Sin autenticación (público)
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
+    // GET - Listar todas las áreas con información de servicio, sede, piso y lista de servicios disponibles
+    Route::get('areas', function(Request $request) {
+        try {
+            $query = DB::table('areas')
+                ->leftJoin('servicios', 'areas.servicio_id', '=', 'servicios.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('pisos', 'areas.piso_id', '=', 'pisos.id')
+                ->select(
+                    'areas.id',
+                    'areas.name',
+                    'areas.servicio_id',
+                    'areas.piso_id',
+                    'areas.centro_id',
+                    'servicios.name as servicio_nombre',
+                    'sedes.name as sede_nombre',
+                    'pisos.name as piso_nombre'
+                );
+
+            // Filtros opcionales
+            if ($request->has('servicio_id')) {
+                $query->where('areas.servicio_id', $request->servicio_id);
+            }
+
+            $areas = $query->get();
+
+            // Obtener lista de servicios disponibles para el formulario
+            $servicios = DB::table('servicios')
+                ->select('id', 'name')
+                ->orderBy('name', 'asc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $areas,
+                'servicios' => $servicios  // Lista de servicios para el formulario
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener áreas: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // POST - Crear nueva área
+    Route::post('areas', function(Request $request) {
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'servicio_id' => 'required|integer|exists:servicios,id',
+                'piso_id' => 'nullable|integer',
+                'centro_id' => 'nullable|integer'
+            ]);
+
+            $areaId = DB::table('areas')->insertGetId([
+                'name' => $request->name,
+                'servicio_id' => $request->servicio_id,
+                'piso_id' => $request->piso_id,
+                'centro_id' => $request->centro_id
+            ]);
+
+            $area = DB::table('areas')
+                ->leftJoin('servicios', 'areas.servicio_id', '=', 'servicios.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('pisos', 'areas.piso_id', '=', 'pisos.id')
+                ->where('areas.id', $areaId)
+                ->select(
+                    'areas.id',
+                    'areas.name',
+                    'areas.servicio_id',
+                    'areas.piso_id',
+                    'areas.centro_id',
+                    'servicios.name as servicio_nombre',
+                    'sedes.name as sede_nombre',
+                    'pisos.name as piso_nombre'
+                )
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Área creada exitosamente',
+                'data' => $area
+            ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear área: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // GET - Obtener área por ID
+    Route::get('areas/{id}', function($id) {
+        try {
+            $area = DB::table('areas')
+                ->leftJoin('servicios', 'areas.servicio_id', '=', 'servicios.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('pisos', 'areas.piso_id', '=', 'pisos.id')
+                ->where('areas.id', $id)
+                ->select(
+                    'areas.id',
+                    'areas.name',
+                    'areas.servicio_id',
+                    'areas.piso_id',
+                    'areas.centro_id',
+                    'servicios.name as servicio_nombre',
+                    'sedes.name as sede_nombre',
+                    'pisos.name as piso_nombre'
+                )
+                ->first();
+
+            if (!$area) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Área no encontrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $area
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener área: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // PUT - Actualizar área
+    Route::put('areas/{id}', function(Request $request, $id) {
+        try {
+            $area = DB::table('areas')->where('id', $id)->first();
+            if (!$area) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Área no encontrada'
+                ], 404);
+            }
+
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'servicio_id' => 'required|integer|exists:servicios,id',
+                'piso_id' => 'nullable|integer',
+                'centro_id' => 'nullable|integer'
+            ]);
+
+            DB::table('areas')->where('id', $id)->update([
+                'name' => $request->name,
+                'servicio_id' => $request->servicio_id,
+                'piso_id' => $request->piso_id,
+                'centro_id' => $request->centro_id
+            ]);
+
+            $updatedArea = DB::table('areas')
+                ->leftJoin('servicios', 'areas.servicio_id', '=', 'servicios.id')
+                ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('pisos', 'areas.piso_id', '=', 'pisos.id')
+                ->where('areas.id', $id)
+                ->select(
+                    'areas.id',
+                    'areas.name',
+                    'areas.servicio_id',
+                    'areas.piso_id',
+                    'areas.centro_id',
+                    'servicios.name as servicio_nombre',
+                    'sedes.name as sede_nombre',
+                    'pisos.name as piso_nombre'
+                )
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Área actualizada exitosamente',
+                'data' => $updatedArea
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar área: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // DELETE - Eliminar área
+    Route::delete('areas/{id}', function($id) {
+        try {
+            $area = DB::table('areas')->where('id', $id)->first();
+            if (!$area) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Área no encontrada'
+                ], 404);
+            }
+
+            // Verificar si hay equipos asociados
+            $equiposCount = DB::table('equipos')->where('area_id', $id)->count();
+            if ($equiposCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "No se puede eliminar el área porque tiene {$equiposCount} equipo(s) asociado(s)"
+                ], 400);
+            }
+
+            DB::table('areas')->where('id', $id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Área eliminada exitosamente'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar área: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 });
 
 // 5. Agregar Diagnóstico
@@ -13004,6 +15126,360 @@ Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id
         ], 500);
     }
 });
+
+// ==================== CONTINGENCIAS ENDPOINTS ====================
+
+// Test route for PUT method
+Route::put('v1/test-put', function(Request $request) {
+    return response()->json([
+        'success' => true,
+        'message' => 'PUT method working',
+        'data' => $request->all()
+    ]);
+});
+
+// Get all contingencias
+Route::get('v1/contingencias', function() {
+    try {
+        $contingencias = DB::table('contingencias')
+            ->orderBy('fecha', 'desc')
+            ->get()
+            ->map(function($contingencia) {
+                // Get user name if user_id exists
+                $usuario = null;
+                if ($contingencia->usuario_id) {
+                    $usuario = DB::table('usuarios')->where('id', $contingencia->usuario_id)->first();
+                }
+
+                // Get equipment info if equipo_id exists
+                $equipo = null;
+                if ($contingencia->equipo_id) {
+                    $equipo = DB::table('equipos')->where('id', $contingencia->equipo_id)->first();
+                }
+
+                return [
+                    'id' => $contingencia->id,
+                    'descripcion' => $contingencia->observacion ?? 'Sin descripción',
+                    'fecha' => $contingencia->fecha,
+                    'fechaCierre' => $contingencia->fecha_cierre,
+                    'archivo' => $contingencia->file ?? 'contingencia_' . $contingencia->id . '.pdf',
+                    'usuarioReporta' => $usuario ? $usuario->nombre : 'Usuario no encontrado',
+                    'informacionEquipo' => [
+                        'nombre' => $equipo ? ($equipo->equipo ?? $equipo->nombre ?? 'Equipo') : 'Equipo no encontrado',
+                        'codigo' => $equipo ? ($equipo->codigo_interno ?? $equipo->codigo ?? '') : '',
+                        'serie' => $contingencia->fecha, // Usando fecha como serie temporal
+                        'marca' => $equipo ? ($equipo->marca ?? '') : '',
+                        'modelo' => $equipo ? ($equipo->modelo ?? '') : ''
+                    ],
+                    'estado' => $contingencia->estado_id == 2 ? 'Cerrado' : 'Abierto',
+                    'origenContingencia' => 'Equipo BIOMÉDICO' // Valor por defecto
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $contingencias
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error fetching all contingencias: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener contingencias',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Get contingencias for equipment
+Route::get('v1/equipos/{id}/contingencias', function($id) {
+    try {
+        $contingencias = DB::table('contingencias')
+            ->leftJoin('usuarios', 'contingencias.usuario_id', '=', 'usuarios.id')
+            ->where('contingencias.equipo_id', $id)
+            ->select([
+                'contingencias.*',
+                'usuarios.nombre as usuario_nombre'
+            ])
+            ->orderBy('contingencias.fecha', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $contingencias
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error fetching contingencias: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener contingencias',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Create new contingencia
+Route::post('v1/contingencias', function(Request $request) {
+    try {
+        $request->validate([
+            'equipo_id' => 'required|integer',
+            'usuario_id' => 'required|integer',
+            'fecha' => 'required|date',
+            'observacion' => 'required|string',
+            'estado_id' => 'required|integer',
+            'file' => 'nullable|file|max:10240' // 10MB max
+        ]);
+
+        $fileName = null;
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = time() . '_contingencia_' . $file->getClientOriginalName();
+            $file->storeAs('contingencias', $fileName, 'public');
+        }
+
+        $contingenciaId = DB::table('contingencias')->insertGetId([
+            'equipo_id' => $request->equipo_id,
+            'usuario_id' => $request->usuario_id,
+            'fecha' => $request->fecha,
+            'observacion' => $request->observacion,
+            'estado_id' => $request->estado_id,
+            'file' => $fileName,
+            'created_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $contingenciaId,
+                'file' => $fileName
+            ],
+            'message' => 'Contingencia registrada exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error creating contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al registrar contingencia',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Update contingencia (POST with method spoofing)
+Route::post('v1/contingencias/{id}/update', function($id, Request $request) {
+    try {
+        \Log::info('Update contingencia request', [
+            'id' => $id,
+            'all_data' => $request->all(),
+            'files' => $request->allFiles(),
+            'has_fecha' => $request->has('fecha'),
+            'has_observacion' => $request->has('observacion')
+        ]);
+
+        // Basic validation
+        if (!$request->has('fecha') || !$request->has('observacion')) {
+            \Log::warning('Validation failed - missing required fields', [
+                'fecha' => $request->fecha,
+                'observacion' => $request->observacion
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Fecha y observación son requeridos'
+            ], 400);
+        }
+
+        // Simple update - only update basic fields that exist
+        $updateData = [
+            'fecha' => $request->fecha,
+            'observacion' => $request->observacion
+        ];
+
+        \Log::info('Attempting to update contingencia', [
+            'id' => $id,
+            'updateData' => $updateData
+        ]);
+
+        $updated = DB::table('contingencias')
+            ->where('id', $id)
+            ->update($updateData);
+
+        \Log::info('Update result', [
+            'updated_rows' => $updated,
+            'id' => $id
+        ]);
+
+        if ($updated) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Contingencia actualizada exitosamente'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contingencia no encontrada'
+            ], 404);
+        }
+    } catch (\Exception $e) {
+        \Log::error('Error updating contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar contingencia',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Update contingencia (PUT method)
+Route::put('v1/contingencias/{id}', function($id, Request $request) {
+    try {
+        // Basic validation
+        if (!$request->has('fecha') || !$request->has('observacion')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fecha y observación son requeridos'
+            ], 400);
+        }
+
+        $updateData = [
+            'fecha' => $request->fecha,
+            'observacion' => $request->observacion,
+            'updated_at' => now()
+        ];
+
+        // Handle file upload if provided
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = time() . '_contingencia_' . $file->getClientOriginalName();
+            $file->storeAs('contingencias', $fileName, 'public');
+            $updateData['file'] = $fileName;
+        }
+
+        $updated = DB::table('contingencias')
+            ->where('id', $id)
+            ->update($updateData);
+
+        if ($updated) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Contingencia actualizada exitosamente'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contingencia no encontrada'
+            ], 404);
+        }
+    } catch (\Exception $e) {
+        \Log::error('Error updating contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al actualizar contingencia',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+
+// Export contingencias to Excel
+Route::get('v1/export/contingencias', [App\Http\Controllers\Api\ContingenciasExportController::class, 'export'])
+    ->withoutMiddleware(['auth:sanctum']);
+
+// Delete contingencia (POST method)
+Route::post('v1/contingencias/{id}/delete', function($id) {
+    try {
+        // Get file name before deleting to remove from storage
+        $contingencia = DB::table('contingencias')->where('id', $id)->first();
+        
+        if (!$contingencia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contingencia no encontrada'
+            ], 404);
+        }
+
+        // Delete from database
+        DB::table('contingencias')->where('id', $id)->delete();
+
+        // Delete file from storage if exists
+        if ($contingencia->file) {
+            \Storage::disk('public')->delete('contingencias/' . $contingencia->file);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contingencia eliminada exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error deleting contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar contingencia',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Delete contingencia (DELETE method)
+Route::delete('v1/contingencias/{id}', function($id) {
+    try {
+        // Get file name before deleting to remove from storage
+        $contingencia = DB::table('contingencias')->where('id', $id)->first();
+        
+        if (!$contingencia) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contingencia no encontrada'
+            ], 404);
+        }
+
+        // Delete from database
+        DB::table('contingencias')->where('id', $id)->delete();
+
+        // Delete file from storage if exists
+        if ($contingencia->file) {
+            \Storage::disk('public')->delete('contingencias/' . $contingencia->file);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contingencia eliminada exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error deleting contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar contingencia',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Close contingencia
+Route::put('v1/contingencias/{id}/cerrar', function($id) {
+    try {
+        DB::table('contingencias')
+            ->where('id', $id)
+            ->update([
+                'estado_id' => 2, // Estado cerrado
+                'fecha_cierre' => now()
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Contingencia cerrada exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Error closing contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cerrar contingencia',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// NOTA: Los datos de capacitaciones y movimientos ahora se incluyen
+// en el endpoint v1/equipos/{id}/complete-info del EquipmentController
+// No se necesitan endpoints separados
 
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');

@@ -17,6 +17,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,8 @@ export default function MyTickets() {
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState(null);
   
   // Estados para ordenamiento
   const [sortField, setSortField] = useState("id");
@@ -166,21 +169,26 @@ export default function MyTickets() {
       const params = {
         page: currentPage,
         per_page: itemsPerPage,
-        reportante_id: currentUserId // Filtrar por usuario que reportó el ticket
+        reportante_id: currentUserId, // Filtrar por usuario que reportó el ticket
+        sort_by: sortField,
+        sort_order: sortOrder
       };
 
       if (searchTerm) {
-        params.search = searchTerm;
+        // Si el campo de filtro es 'id' y el término de búsqueda es un número, hacer búsqueda exacta
+        if (filterField === 'id' && /^\d+$/.test(searchTerm)) {
+          params.id = searchTerm; // Búsqueda exacta por ID
+        } else {
+          params.search = searchTerm;
+          if (filterField !== 'all') {
+            params.search_field = filterField;
+          }
+        }
       }
       
       if (selectedOrigin && selectedOrigin !== 'all') {
-        // Mapear los valores del frontend a lo que espera el backend
-        const origenMap = {
-          'biomedico': 'Equipos biomédicos',
-          'industrial': 'Equipos industriales', 
-          'infraestructura': 'Infraestructura'
-        };
-        params.origen = origenMap[selectedOrigin] || selectedOrigin;
+        // Filtrar por tipo de equipo (no por origen)
+        params.tipo_equipo = selectedOrigin;
       }
 
       console.log('🔍 Obteniendo tickets con parámetros:', params);
@@ -217,7 +225,7 @@ export default function MyTickets() {
   // useEffect para cargar datos cuando cambien los filtros
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin]);
+  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, sortField, sortOrder, filterField]);
 
   const filteredTickets = tickets; // Ya vienen filtrados del backend
 
@@ -229,7 +237,7 @@ export default function MyTickets() {
     setCurrentPage(1);
   };
 
-  // Función para ordenar columnas
+  // Función para ordenar columnas (ahora ordena en el backend)
   const handleSort = (field) => {
     if (sortField === field) {
       // Si ya está ordenado por este campo, cambiar dirección
@@ -239,24 +247,9 @@ export default function MyTickets() {
       setSortField(field);
       setSortOrder("asc");
     }
+    // Volver a la primera página al ordenar
+    setCurrentPage(1);
   };
-
-  // Ordenar tickets localmente
-  const sortedTickets = [...filteredTickets].sort((a, b) => {
-    let aValue = a[sortField];
-    let bValue = b[sortField];
-    
-    // Manejar valores nulos
-    if (aValue === null || aValue === undefined) aValue = "";
-    if (bValue === null || bValue === undefined) bValue = "";
-    
-    // Comparar
-    if (sortOrder === "asc") {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
-    }
-  });
 
   const getStatusBadge = (status, color) => {
     const colorClasses = {
@@ -274,8 +267,8 @@ export default function MyTickets() {
     );
   };
 
-  // Los datos ya vienen paginados del backend
-  const currentTickets = sortedTickets;
+  // Los tickets ya vienen ordenados y paginados del backend
+  const currentTickets = filteredTickets;
 
   const handleTicketClick = (ticket) => {
     setSelectedTicket(ticket);
@@ -294,11 +287,18 @@ export default function MyTickets() {
   };
 
   const handleDeleteTicket = (ticketId, ticketDescription) => {
-    const confirmMessage = `¿Está seguro de que desea eliminar el ticket #${ticketId}?\n\n"${ticketDescription.substring(0, 100)}..."\n\n⚠️ Esta acción no se puede deshacer.`;
-    
-    if (window.confirm(confirmMessage)) {
+    setTicketToDelete({ id: ticketId, description: ticketDescription });
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (ticketToDelete) {
       // TODO: Implementar eliminación real en el backend
-      alert(`✅ Ticket #${ticketId} eliminado correctamente`);
+      toast.success(`Ticket #${ticketToDelete.id} eliminado correctamente`, {
+        duration: 3000
+      });
+      setShowDeleteDialog(false);
+      setTicketToDelete(null);
       fetchTickets(); // Recargar datos
     }
   };
@@ -311,55 +311,9 @@ export default function MyTickets() {
           <div className="flex w-full justify-center">
             <img
               src={TicketsImg}
-              className="img-fluid rounded-top max-w-full h-auto"
               alt="Mis tickets - eva"
               style={{maxWidth: '300px', width: '100%'}}
             />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {/* Equipos Biomédicos Modal */}
-            <Button
-              onClick={() => { setTicketType('biomedico'); setIsHospitalTicketModalOpen(true); }}
-              className="bg-white border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
-            >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                <Building className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-              </div>
-              <div className="text-left min-w-0">
-                <div className="font-semibold text-sm sm:text-base truncate">Equipos Biomédicos</div>
-                <div className="text-xs sm:text-sm text-blue-600 truncate">Médicos y Licenciados</div>
-              </div>
-            </Button>
-
-            {/* Equipos Industriales Modal */}
-            <Button
-              onClick={() => { setTicketType('industrial'); setIsHospitalTicketModalOpen(true); }}
-              className="bg-white border-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
-            >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                <Cog className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-              </div>
-              <div className="text-left min-w-0">
-                <div className="font-semibold text-sm sm:text-base truncate">Equipos Industriales</div>
-                <div className="text-xs sm:text-sm text-orange-600 truncate">Producción y Manufactura</div>
-              </div>
-            </Button>
-
-            {/* Infraestructura y Movilidad Modal */}
-            <Button
-              onClick={() => { setTicketType('infraestructura'); setIsHospitalTicketModalOpen(true); }}
-              className="bg-white border-2 border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
-            >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-              </div>
-              <div className="text-left min-w-0">
-                <div className="font-semibold text-sm sm:text-base truncate">Infraestructura</div>
-                <div className="text-xs sm:text-sm text-green-600 truncate">Servicios y Movilidad</div>
-              </div>
-            </Button>
           </div>
         </div>
       </div>
@@ -377,6 +331,52 @@ export default function MyTickets() {
           </CardHeader>
 
           <CardContent className="p-2 sm:p-3">
+            {/* Action Buttons - Crear Tickets */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+              {/* Equipos Biomédicos Modal */}
+              <Button
+                onClick={() => { setTicketType('biomedico'); setIsHospitalTicketModalOpen(true); }}
+                className="bg-white border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
+              >
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="font-semibold text-sm sm:text-base truncate">Equipos Biomédicos</div>
+                  <div className="text-xs sm:text-sm text-blue-600 truncate">Médicos y Licenciados</div>
+                </div>
+              </Button>
+
+              {/* Equipos Industriales Modal */}
+              <Button
+                onClick={() => { setTicketType('industrial'); setIsHospitalTicketModalOpen(true); }}
+                className="bg-white border-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
+              >
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                  <Cog className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="font-semibold text-sm sm:text-base truncate">Equipos Industriales</div>
+                  <div className="text-xs sm:text-sm text-orange-600 truncate">Producción y Manufactura</div>
+                </div>
+              </Button>
+
+              {/* Infraestructura y Movilidad Modal */}
+              <Button
+                onClick={() => { setTicketType('infraestructura'); setIsHospitalTicketModalOpen(true); }}
+                className="bg-white border-2 border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
+              >
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                  <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="font-semibold text-sm sm:text-base truncate">Infraestructura</div>
+                  <div className="text-xs sm:text-sm text-green-600 truncate">Servicios y Movilidad</div>
+                </div>
+              </Button>
+            </div>
+
+
             {/* Filters */}
             <div className="mb-3 space-y-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -427,16 +427,16 @@ export default function MyTickets() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Origen</Label>
+                  <Label className="text-sm font-medium">Tipo de Equipo</Label>
                   <Select value={selectedOrigin} onValueChange={setSelectedOrigin}>
                     <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Seleccionar origen" />
+                      <SelectValue placeholder="Seleccionar tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos los orígenes</SelectItem>
-                      <SelectItem value="biomedico">HUV Biomédico</SelectItem>
-                      <SelectItem value="industrial">HUV Industrial</SelectItem>
-                      <SelectItem value="infraestructura">Infraestructura</SelectItem>
+                      <SelectItem value="all">Todos los tipos</SelectItem>
+                      <SelectItem value="1">Biomédico</SelectItem>
+                      <SelectItem value="2">Industrial</SelectItem>
+                      <SelectItem value="3">Infraestructura</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -492,29 +492,7 @@ export default function MyTickets() {
               <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                 <FileText className="w-12 h-12 mb-4 text-gray-300" />
                 <h3 className="text-lg font-medium mb-2">No tienes tickets creados</h3>
-                <p className="text-sm mb-4">Aún no has creado ningún ticket. Puedes crear uno nuevo usando los botones de arriba.</p>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setTicketType("biomedico");
-                      setIsHospitalTicketModalOpen(true);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Ticket Biomédico
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setTicketType("industrial");
-                      setIsHospitalTicketModalOpen(true);
-                    }}
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Ticket Industrial
-                  </Button>
-                </div>
+                <p className="text-sm">Aún no has creado ningún ticket.</p>
               </div>
             )}
 
@@ -611,7 +589,7 @@ export default function MyTickets() {
             {!loading && tickets.length > 0 && (
               <div className="hidden lg:block border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] table-fixed">
+                <table className="w-full table-fixed">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th 
@@ -690,6 +668,9 @@ export default function MyTickets() {
                               <div className="truncate"><span className="font-medium">Código:</span> {ticket.codigo_final}</div>
                               <div className="truncate"><span className="font-medium">Marca:</span> {ticket.marca_final} | <span className="font-medium">Modelo:</span> {ticket.modelo_final}</div>
                               <div className="truncate"><span className="font-medium">Serie:</span> {ticket.serie_final}</div>
+                              <div className="truncate"><span className="font-medium">Última Localización:</span> {ticket.localizacion_actual || 'N/A'}</div>
+                              <div className="truncate"><span className="font-medium">Responsable Mant.:</span> {ticket.responsable_mantenimiento || 'N/A'}</div>
+                              <div className="truncate"><span className="font-medium">Estado Equipo:</span> {ticket.estado_equipo_nombre || 'N/A'}</div>
                               <div className="flex flex-wrap gap-1 text-xs">
                                 {ticket.equipo_id && (
                                   <span className="text-blue-600 font-medium bg-blue-100 px-1 rounded">🔗ID:{ticket.equipo_id}</span>
@@ -792,12 +773,13 @@ export default function MyTickets() {
         </Card>
       </div>
 
-      {/* Ticket Details Modal */}
+      {/* Ticket Details Modal - Read Only en Mis Tickets */}
       <TicketDetailsModal
         isOpen={isTicketDetailsModalOpen}
         onClose={() => setIsTicketDetailsModalOpen(false)}
         ticket={selectedTicket}
         onRefresh={() => selectedTicket && refreshTicketDetails(selectedTicket.id)}
+        readOnly={true}
       />
 
 
@@ -809,6 +791,47 @@ export default function MyTickets() {
         ticket={selectedTicket}
         onSave={handleUpdateTicket}
       />
+
+      {/* Modal de confirmación de eliminación */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center text-center p-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <Trash2 className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Eliminar Ticket
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              ¿Está seguro de que desea eliminar el ticket #{ticketToDelete?.id}?
+            </p>
+            {ticketToDelete?.description && (
+              <p className="text-xs text-gray-500 mb-4 italic">
+                "{ticketToDelete.description.substring(0, 100)}..."
+              </p>
+            )}
+            <p className="text-xs text-red-600 font-medium mb-6">
+              ⚠️ Esta acción no se puede deshacer
+            </p>
+            <div className="flex gap-3 w-full">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeleteDialog(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleConfirmDelete}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Hospital Ticket Modal */}
       <HospitalTicketModal

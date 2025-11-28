@@ -16,7 +16,7 @@ export const useUsuarios = () => {
 
   // Obtener lista de usuarios
   const fetchUsuarios = useCallback(
-    async (page = 1, perPage = 10, search = "") => {
+    async (page = 1, perPage = 10, search = "", sortBy = "id", sortDirection = "desc") => {
       try {
         setLoading(true);
         setError(null);
@@ -25,6 +25,8 @@ export const useUsuarios = () => {
           page: page.toString(),
           per_page: perPage.toString(),
           ...(search && { search }),
+          sort_by: sortBy,
+          sort_direction: sortDirection,
         });
 
         const response = await api.get(`${API_BASE_URL}/usuarios-public?${params}`);
@@ -143,7 +145,7 @@ export const useUsuarios = () => {
   // Obtener usuario específico
   const getUsuario = useCallback(async (id) => {
     try {
-      setLoading(true);
+      // NO setLoading(true) para evitar recarga visual de la tabla
       setError(null);
 
       const response = await api.get(`${API_BASE_URL}/usuarios/${id}`);
@@ -159,9 +161,8 @@ export const useUsuarios = () => {
       console.error("Error fetching usuario:", err);
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
+    // NO setLoading(false) porque no se estableció en true
   }, []);
 
   // Cambiar página

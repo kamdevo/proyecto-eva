@@ -52,13 +52,6 @@ export const AUTH_ENDPOINTS = {
   VERIFY_EMAIL: "/auth/verify-email",
 };
 
-// DEBUG: Imprimir configuración al cargar
-console.log("🔧 [CONFIG] API Configuration loaded:");
-console.log("API_URL:", API_CONFIG.API_URL);
-console.log("AUTH_ENDPOINTS.REGISTER:", AUTH_ENDPOINTS.REGISTER);
-console.log("Environment variables:");
-console.log("VITE_AUTH_REGISTER_URL:", import.meta.env.VITE_AUTH_REGISTER_URL);
-
 // Endpoints principales del sistema EVA
 export const API_ENDPOINTS = {
   // Equipos

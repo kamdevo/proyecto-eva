@@ -32,7 +32,15 @@ class SecopServiceSimple
             
             // Agregar filtros
             if (!empty($filters['entidad'])) {
-                $params['$where'] = "upper(nombre_entidad) like upper('%" . $filters['entidad'] . "%')";
+                // Mejorar búsqueda: "univalle" también busca "universidad del valle"
+                $entidadBusqueda = $filters['entidad'];
+                
+                // Si buscan "univalle", expandir a "universidad valle" o "universidad del valle"
+                if (stripos($entidadBusqueda, 'univalle') !== false || stripos($entidadBusqueda, 'uni valle') !== false) {
+                    $params['$where'] = "(upper(nombre_entidad) like upper('%UNIVERSIDAD%VALLE%') OR upper(proveedor_adjudicado) like upper('%UNIVERSIDAD%VALLE%'))";
+                } else {
+                    $params['$where'] = "(upper(nombre_entidad) like upper('%" . $entidadBusqueda . "%') OR upper(proveedor_adjudicado) like upper('%" . $entidadBusqueda . "%'))";
+                }
             }
 
             // Agregar búsqueda general
@@ -47,12 +55,19 @@ class SecopServiceSimple
                 }
             }
 
+            // Logging de parámetros
+            Log::info('SECOP: Consultando API con parámetros', ['params' => $params]);
+            
             // Hacer petición
             $response = Http::timeout(30)->get(self::SECOP_API_BASE, $params);
 
             if (!$response->successful()) {
+                Log::error('SECOP: Error en respuesta API', ['status' => $response->status()]);
                 throw new Exception("Error API: HTTP {$response->status()}");
             }
+            
+            Log::info('SECOP: Respuesta exitosa', ['count' => count($response->json())]);
+
 
             $data = $response->json();
             

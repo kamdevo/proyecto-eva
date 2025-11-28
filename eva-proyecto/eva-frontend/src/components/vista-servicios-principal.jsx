@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Search, Settings, MapPin, Building, Users, Eye } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Settings, MapPin, Building, Users, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 // Importar modales
 import UIModalAgregarServicio from "@/components/modals/ui-modal-agregar-servicio";
@@ -44,6 +44,30 @@ export default function VistaServiciosPrincipal() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Estados de ordenamiento
+  const [sortField, setSortField] = useState('nombre');
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  // Función para manejar ordenamiento
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Función para obtener icono de ordenamiento
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 text-slate-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 text-blue-600" />
+      : <ArrowDown className="w-4 h-4 text-blue-600" />;
+  };
 
   // Datos de ejemplo para servicios
   const serviciosData = [
@@ -204,7 +228,19 @@ export default function VistaServiciosPrincipal() {
     setIsViewModalOpen(true);
   };
 
-  const totalItems = serviciosData.length;
+  // Aplicar búsqueda funcional
+  let filteredData = serviciosData.filter(servicio => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      servicio.nombre?.toLowerCase().includes(search) ||
+      servicio.zona?.toLowerCase().includes(search) ||
+      servicio.sede?.toLowerCase().includes(search) ||
+      servicio.centroCosto?.toLowerCase().includes(search)
+    );
+  });
+
+  const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return (
@@ -253,30 +289,6 @@ export default function VistaServiciosPrincipal() {
                     <Plus className="w-4 h-4" />
                     <span>Agregar Servicio</span>
                   </Button>
-                  
-                  <Button
-                    onClick={() => setIsZonaModalOpen(true)}
-                    className="bg-green-500 hover:bg-green-600 text-white flex items-center space-x-2"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    <span>Crear Zona</span>
-                  </Button>
-                  
-                  <Button
-                    onClick={() => setIsSedeModalOpen(true)}
-                    className="bg-purple-500 hover:bg-purple-600 text-white flex items-center space-x-2"
-                  >
-                    <Building className="w-4 h-4" />
-                    <span>Crear Sede</span>
-                  </Button>
-                  
-                  <Button
-                    onClick={() => setIsAreaModalOpen(true)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white flex items-center space-x-2"
-                  >
-                    <Users className="w-4 h-4" />
-                    <span>Crear Área</span>
-                  </Button>
                 </div>
 
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -304,69 +316,125 @@ export default function VistaServiciosPrincipal() {
               <Table className="w-full table-fixed">
                 <TableHeader className="bg-slate-100">
                   <TableRow>
-                    <TableHead className="font-semibold text-slate-700 w-[30%]">
-                      Servicio
+                    <TableHead className="font-semibold text-slate-700 w-[18%]">
+                      <button 
+                        onClick={() => handleSort('nombre')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Servicio
+                        {getSortIcon('nombre')}
+                      </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-700 w-[35%]">
-                      Centro de Costo
+                    <TableHead className="font-semibold text-slate-700 w-[18%]">
+                      <button 
+                        onClick={() => handleSort('centroCosto')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Centro de Costo
+                        {getSortIcon('centroCosto')}
+                      </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[20%]">
-                      Ubicación
+                    <TableHead className="font-semibold text-slate-700 text-center w-[12%]">
+                      <button 
+                        onClick={() => handleSort('zona')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
+                      >
+                        Zona
+                        {getSortIcon('zona')}
+                      </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[15%]">
+                    <TableHead className="font-semibold text-slate-700 text-center w-[14%]">
+                      <button 
+                        onClick={() => handleSort('sede')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
+                      >
+                        Sede
+                        {getSortIcon('sede')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-center w-[12%]">
+                      <button 
+                        onClick={() => handleSort('equiposAsociados')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
+                      >
+                        Equipos
+                        {getSortIcon('equiposAsociados')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-center w-[12%]">
+                      <button 
+                        onClick={() => handleSort('areasAsociadas')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
+                      >
+                        Áreas
+                        {getSortIcon('areasAsociadas')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="font-semibold text-slate-700 text-center w-[14%]">
                       Acciones
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {serviciosData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((servicio) => (
+                  {[...serviciosData]
+                    .sort((a, b) => {
+                      let aValue = a[sortField];
+                      let bValue = b[sortField];
+                      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+                      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+                      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+                      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+                      return 0;
+                    })
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((servicio) => (
                     <TableRow key={servicio.id} className="hover:bg-gray-50">
                       {/* Servicio */}
-                      <TableCell className="p-3 w-[30%]">
-                        <div className="space-y-2">
-                          <div className="font-semibold text-gray-900 text-sm leading-tight break-words whitespace-normal">
-                            {servicio.nombre}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 px-2 py-0.5">
-                              {servicio.zona}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <Settings className="w-3 h-3 text-orange-600" />
-                            <span>{servicio.equiposAsociados} equipos</span>
-                            <Users className="w-3 h-3 text-teal-600" />
-                            <span>{servicio.areasAsociadas} áreas</span>
-                          </div>
+                      <TableCell className="p-3 w-[18%]">
+                        <div className="font-semibold text-gray-900 text-sm leading-tight break-words whitespace-normal">
+                          {servicio.nombre}
                         </div>
                       </TableCell>
                       
                       {/* Centro de Costo */}
-                      <TableCell className="p-3 w-[35%]">
+                      <TableCell className="p-3 w-[18%]">
                         <div className="text-sm text-gray-700 leading-tight break-words whitespace-normal">
                           {servicio.centroCosto}
                         </div>
-                        <div className="mt-1">
-                          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 px-2 py-1 break-words whitespace-normal">
-                            {servicio.sede}
-                          </Badge>
+                      </TableCell>
+                      
+                      {/* Zona */}
+                      <TableCell className="text-center p-3 w-[12%]">
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 px-2 py-1">
+                          {servicio.zona}
+                        </Badge>
+                      </TableCell>
+                      
+                      {/* Sede */}
+                      <TableCell className="text-center p-3 w-[14%]">
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 px-2 py-1">
+                          {servicio.sede}
+                        </Badge>
+                      </TableCell>
+                      
+                      {/* Equipos Asociados */}
+                      <TableCell className="text-center p-3 w-[12%]">
+                        <div className="flex items-center justify-center gap-1">
+                          <Settings className="w-3 h-3 text-orange-600" />
+                          <span className="text-sm font-medium text-gray-700">{servicio.equiposAsociados}</span>
                         </div>
                       </TableCell>
                       
-                      {/* Ubicación */}
-                      <TableCell className="text-center p-3 w-[20%]">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="flex items-center gap-1">
-                            <Building className="w-3 h-3 text-blue-600" />
-                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5">
-                              {servicio.piso}
-                            </Badge>
-                          </div>
+                      {/* Áreas Asociadas */}
+                      <TableCell className="text-center p-3 w-[12%]">
+                        <div className="flex items-center justify-center gap-1">
+                          <Users className="w-3 h-3 text-teal-600" />
+                          <span className="text-sm font-medium text-gray-700">{servicio.areasAsociadas}</span>
                         </div>
                       </TableCell>
                       
                       {/* Acciones */}
-                      <TableCell className="text-center p-3 w-[15%]">
+                      <TableCell className="text-center p-3 w-[14%]">
                         <div className="flex flex-col gap-1 items-center">
                           <Button
                             size="sm"

@@ -510,6 +510,7 @@ export default function WorkOrderClosureModal({
                       type="date"
                       value={orderData.closureDate}
                       onChange={(e) => handleInputChange('closureDate', e.target.value)}
+                      max={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   <div>

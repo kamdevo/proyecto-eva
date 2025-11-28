@@ -109,18 +109,9 @@ class EquipmentController extends ApiController
     public function index(Request $request)
     {
         try {
-            $query = Equipo::with([
-                'servicio:id,nombre',
-                'area:id,nombre',
-                'propietario:id,nombre',
-                'fuenteAlimentacion:id,nombre',
-                'tecnologia:id,nombre',
-                'frecuenciaMantenimiento:id,nombre',
-                'clasificacionBiomedica:id,nombre',
-                'clasificacionRiesgo:id,nombre',
-                'estadoEquipo:id,nombre',
-                'tipo:id,nombre'
-            ]);
+            // Nota: Se removieron los with() porque causan problemas de pluralización
+            // El método getMedicalDevicesComplete tiene la lógica correcta con JOINs
+            $query = Equipo::query();
 
             // Aplicar filtros de búsqueda
             if ($request->has('search')) {
@@ -383,8 +374,8 @@ class EquipmentController extends ApiController
     {
         try {
             $equipo = Equipo::with([
-                'servicio:id,nombre',
-                'area:id,nombre',
+                'servicio:id,name',
+                'area:id,name',
                 'propietario:id,nombre',
                 'fuenteAlimentacion:id,nombre',
                 'tecnologia:id,nombre',
@@ -526,7 +517,7 @@ class EquipmentController extends ApiController
             $equipo->load([
                 'servicio:id,name',
                 'area:id,name',
-                'propietario:id,name',
+                'propietario:id,nombre',
                 'fuenteAlimentacion:id,name',
                 'tecnologia:id,name',
                 'frecuenciaMantenimiento:id,name',
@@ -812,7 +803,7 @@ class EquipmentController extends ApiController
             $query = Equipo::with([
                 'servicio:id,name',
                 'area:id,name',
-                'propietario:id,name',
+                'propietario:id,nombre',
                 'clasificacionRiesgo:id,name',
                 'estadoEquipo:id,name'
             ]);
@@ -972,6 +963,7 @@ class EquipmentController extends ApiController
                     'equipos.numero_invima',
                     'equipos.fecha_vencimiento_invima',
                     'equipos.estado_invima',
+                    'equipos.fecha_ad',
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
@@ -992,14 +984,30 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT fecha_mantenimiento FROM correctivos_generales
                              WHERE equipo_id = equipos.id
                              ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_correctivo'),
+                    DB::raw('(SELECT fecha_inicio FROM correctivos_generales 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_inicio DESC LIMIT 1) AS ultimo_correctivo_general'),
+                    DB::raw('(SELECT fecha_mantenimiento FROM correctivos_generales 
+                             WHERE equipo_id = equipos.id AND fecha_mantenimiento IS NOT NULL
+                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_procedimiento_correctivo'),
                     DB::raw('(SELECT fecha_inicio FROM ordenes
                              WHERE equipo_id = equipos.id
                              ORDER BY fecha_inicio DESC LIMIT 1) AS fecha_inicio_ultimo_ticket'),
+                    DB::raw('(SELECT fecha_fin FROM ordenes 
+                             WHERE equipo_id = equipos.id AND fecha_fin IS NOT NULL
+                             ORDER BY fecha_fin DESC LIMIT 1) AS fecha_ultimo_cierre_ticket'),
+                    DB::raw('(SELECT CASE WHEN estado_id = 3 THEN 1 ELSE 0 END FROM ordenes 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_inicio DESC LIMIT 1) AS ultimo_ticket_cerrado'),
                     // Conteos específicos para reemplazar archivos y planes mantenimiento
                     DB::raw('(SELECT COUNT(*) FROM calibracion 
                              WHERE equipo_id = equipos.id) AS cuenta_calibraciones'),
                     DB::raw('(SELECT COUNT(*) FROM mantenimiento 
                              WHERE equipo_id = equipos.id) AS cuenta_preventivos'),
+                    DB::raw('(SELECT COUNT(*) FROM contingencias 
+                             WHERE equipo_id = equipos.id) AS cuenta_contingencias'),
+                    DB::raw('(SELECT COUNT(*) FROM contingencias 
+                             WHERE equipo_id = equipos.id AND estado_id = 1) AS contingencias_abiertas'),
                     DB::raw('(SELECT description FROM observaciones
                              WHERE equipo_id = equipos.id
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
@@ -1105,15 +1113,18 @@ class EquipmentController extends ApiController
                         'archivoInvima' => $equipo->archivo_invima,
                         'clasificacion' => $equipo->clasificacion,
                         'riesgo' => $equipo->riesgo,
-                        'archivos' => (int) $equipo->cuenta_archivos,
-                        'planesMantenimiento' => (int) $equipo->cuenta_planes_mantenimientos,
+                        'archivos' => (int) ($equipo->cuenta_archivos ?? 0),
+                        'planesMantenimiento' => (int) ($equipo->cuenta_planes_mantenimientos ?? 0),
                     ],
                     // Nuevos campos agregados directamente al nivel raíz
+                    'fecha_ad' => $equipo->fecha_ad,
                     'zona_hospitalaria' => $equipo->zona_hospitalaria,
                     'piso_servicio' => $equipo->piso_servicio,
                     'localizacion_actual' => $equipo->localizacion_actual,
                     'cuenta_calibraciones' => (int) ($equipo->cuenta_calibraciones ?? 0),
                     'cuenta_preventivos' => (int) ($equipo->cuenta_preventivos ?? 0),
+                    'cuenta_contingencias' => (int) ($equipo->cuenta_contingencias ?? 0),
+                    'contingencias_abiertas' => (int) ($equipo->contingencias_abiertas ?? 0),
                     'orden_compra' => $equipo->orden_compra,
                     'orden_compra_file' => $equipo->orden_compra_file,
                     'tipo_compra' => $equipo->tipo_compra,
@@ -1130,7 +1141,7 @@ class EquipmentController extends ApiController
                         'ultima_calibracion' => $equipo->ultima_calibracion,
                         'ultimo_correctivo' => $equipo->ultimo_correctivo,
                         'fecha_inicio_ultimo_ticket' => $equipo->fecha_inicio_ultimo_ticket,
-                        'cuenta_archivos' => (int) $equipo->cuenta_archivos,
+                        'cuenta_archivos' => (int) ($equipo->cuenta_archivos ?? 0),
                     ],
 
                     'mantenimiento' => [
@@ -1142,6 +1153,7 @@ class EquipmentController extends ApiController
                     'propietario' => [
                         'nombre' => $equipo->propietario,
                         'logo' => $equipo->propietario_logo,
+                        'logo_url' => $equipo->propietario_logo ? url('storage/equipos/images/' . $equipo->propietario_logo) : null,
                     ],
 
                     'compra' => [
@@ -1156,6 +1168,7 @@ class EquipmentController extends ApiController
 
                     'tickets' => [
                         'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket,
+                        'ultimoTicketCerrado' => (bool) ($equipo->ultimo_ticket_cerrado ?? false),
                     ],
                 ];
             });
@@ -1225,6 +1238,7 @@ class EquipmentController extends ApiController
                     'equipos.numero_invima',
                     'equipos.fecha_vencimiento_invima',
                     'equipos.estado_invima',
+                    'equipos.fecha_ad',
                     // IDs para documentos asociados
                     'equipos.manual_id',
                     'equipos.guia_id', 
@@ -1266,14 +1280,47 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT fecha_fin FROM ordenes 
                              WHERE equipo_id = equipos.id AND fecha_fin IS NOT NULL
                              ORDER BY fecha_fin DESC LIMIT 1) AS fecha_ultimo_cierre_ticket'),
+                    DB::raw('(SELECT CASE WHEN estado_id = 3 THEN 1 ELSE 0 END FROM ordenes 
+                             WHERE equipo_id = equipos.id 
+                             ORDER BY fecha_inicio DESC LIMIT 1) AS ultimo_ticket_cerrado'),
                     // Conteos específicos para reemplazar archivos y planes mantenimiento
                     DB::raw('(SELECT COUNT(*) FROM calibracion 
                              WHERE equipo_id = equipos.id) AS cuenta_calibraciones'),
                     DB::raw('(SELECT COUNT(*) FROM mantenimiento 
                              WHERE equipo_id = equipos.id) AS cuenta_preventivos'),
+                    DB::raw('(SELECT COUNT(*) FROM contingencias 
+                             WHERE equipo_id = equipos.id) AS cuenta_contingencias'),
+                    DB::raw('(SELECT COUNT(*) FROM contingencias 
+                             WHERE equipo_id = equipos.id AND estado_id = 1) AS contingencias_abiertas'),
                     DB::raw('(SELECT description FROM observaciones 
                              WHERE equipo_id = equipos.id 
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
+                    // Plan de mantenimiento del año vigente
+                    DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos 
+                             WHERE equipo_id = equipos.id 
+                             AND anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)) AS incluido_en_plan'),
+                    DB::raw('(SELECT fm.name FROM planes_mantenimientos pm
+                             LEFT JOIN frecuenciam fm ON fm.id = pm.frecuencia_id
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS frecuencia_plan'),
+                    DB::raw('(SELECT pm.mes1 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado1'),
+                    DB::raw('(SELECT pm.mes2 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado2'),
+                    DB::raw('(SELECT pm.mes3 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado3'),
+                    DB::raw('(SELECT pm.responsable FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS responsable_plan'),
+                    DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) AS anio_vigente'),
                     'invimas.invima as registro_sanitario_invima',
                     'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
@@ -1460,6 +1507,7 @@ class EquipmentController extends ApiController
             $formattedEquipos = $equipos->map(function ($equipo) {
                 return [
                     'id' => $equipo->id,
+                    'propietario' => $equipo->propietario,
                     'equipo' => [
                         'id' => $equipo->id,
                         'name' => $equipo->name,
@@ -1487,11 +1535,14 @@ class EquipmentController extends ApiController
                         'planesMantenimiento' => (int) ($equipo->cuenta_planes_mantenimientos ?? 0),
                     ],
                     // Nuevos campos agregados directamente al nivel raíz
+                    'fecha_ad' => $equipo->fecha_ad,
                     'zona_hospitalaria' => $equipo->zona_hospitalaria,
                     'piso_servicio' => $equipo->piso_servicio,
                     'localizacion_actual' => $equipo->localizacion_actual,
                     'cuenta_calibraciones' => (int) ($equipo->cuenta_calibraciones ?? 0),
                     'cuenta_preventivos' => (int) ($equipo->cuenta_preventivos ?? 0),
+                    'cuenta_contingencias' => (int) ($equipo->cuenta_contingencias ?? 0),
+                    'contingencias_abiertas' => (int) ($equipo->contingencias_abiertas ?? 0),
                     'orden_compra' => $equipo->orden_compra,
                     'orden_compra_file' => $equipo->orden_compra_file,
                     'tipo_compra' => $equipo->tipo_compra,
@@ -1507,9 +1558,18 @@ class EquipmentController extends ApiController
                         'ultimoCorrectivoGeneral' => $equipo->ultimo_correctivo_general ?? null,
                         'ultimoProcedimientoCorrectivo' => $equipo->ultimo_procedimiento_correctivo ?? null,
                     ],
+                    // Plan de mantenimiento vigente
+                    'incluido_en_plan' => (int) ($equipo->incluido_en_plan ?? 0),
+                    'frecuencia_plan' => $equipo->frecuencia_plan ?? null,
+                    'responsable_plan' => $equipo->responsable_plan ?? null,
+                    'mes_programado1' => $equipo->mes_programado1 ?? null,
+                    'mes_programado2' => $equipo->mes_programado2 ?? null,
+                    'mes_programado3' => $equipo->mes_programado3 ?? null,
+                    'anio_vigente' => $equipo->anio_vigente ?? null,
                     'propietario' => [
                         'nombre' => $equipo->propietario,
                         'logo' => $equipo->propietario_logo,
+                        'logo_url' => $equipo->propietario_logo ? url('storage/equipos/images/' . $equipo->propietario_logo) : null,
                     ],
                     'compra' => [
                         'orden' => $equipo->orden_compra,
@@ -1522,6 +1582,7 @@ class EquipmentController extends ApiController
                         'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
                         'fechaCreacionUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
                         'fechaUltimoCierre' => $equipo->fecha_ultimo_cierre_ticket ?? null,
+                        'ultimoTicketCerrado' => (bool) ($equipo->ultimo_ticket_cerrado ?? false),
                     ],
                     // Documentos asociados  
                     'manual' => $equipo->manual_descripcion ? [
@@ -1596,7 +1657,34 @@ class EquipmentController extends ApiController
                     'areas.name as area_nombre',
                     'estadoequipos.name as estado_nombre',
                     'pro.nombre as propietario_nombre',
-                    'pro.logo as propietario_logo'
+                    'pro.logo as propietario_logo',
+                    
+                    // Plan de mantenimiento del año vigente
+                    DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos 
+                             WHERE equipo_id = equipos.id 
+                             AND anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)) AS incluido_en_plan'),
+                    DB::raw('(SELECT fm.name FROM planes_mantenimientos pm
+                             LEFT JOIN frecuenciam fm ON fm.id = pm.frecuencia_id
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS frecuencia_plan'),
+                    DB::raw('(SELECT pm.mes1 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado1'),
+                    DB::raw('(SELECT pm.mes2 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado2'),
+                    DB::raw('(SELECT pm.mes3 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado3'),
+                    DB::raw('(SELECT pm.responsable FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS responsable_plan'),
+                    DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) AS anio_vigente')
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
@@ -1722,17 +1810,28 @@ class EquipmentController extends ApiController
 
             // ===== OBTENER DATOS RELACIONADOS PARA PDF =====
 
-            // 1. Mantenimientos Preventivos (últimos 5)
+            // 1. Mantenimientos Preventivos (últimos 10)
             try {
                 $mantenimientos = DB::table('mantenimiento')
                     ->leftJoin('proveedores_mantenimiento', 'mantenimiento.proveedor_mantenimiento_id', '=', 'proveedores_mantenimiento.id')
                     ->where('mantenimiento.equipo_id', $id)
                     ->select(
-                        'mantenimiento.*',
+                        'mantenimiento.id',
+                        'mantenimiento.description',
+                        'mantenimiento.created_at',
+                        'mantenimiento.status',
+                        'mantenimiento.equipo_id',
+                        'mantenimiento.file',
+                        'mantenimiento.fecha_mantenimiento',
+                        'mantenimiento.fecha_programada',
+                        'mantenimiento.repuesto_pendiente',
+                        'mantenimiento.repuesto_id',
+                        'mantenimiento.observacion',
+                        'mantenimiento.proveedor_mantenimiento_id',
                         'proveedores_mantenimiento.name as tecnico_nombre'
                     )
-                    ->orderBy('mantenimiento.fecha_programada', 'desc')
-                    ->limit(5)
+                    ->orderBy('mantenimiento.fecha_mantenimiento', 'desc')
+                    ->limit(10)
                     ->get();
                 $equipoData['mantenimientos_preventivos'] = $mantenimientos;
             } catch (\Exception $e) {
@@ -1819,22 +1918,103 @@ class EquipmentController extends ApiController
                 $equipoData['contactos_tecnicos'] = [];
             }
 
-            // 6. Observaciones Recientes (últimas 3)
+            // 6. Observaciones del Equipo (últimas 10)
             try {
                 $observaciones = DB::table('observaciones')
                     ->leftJoin('usuarios', 'observaciones.usuario_id', '=', 'usuarios.id')
                     ->where('observaciones.equipo_id', $id)
                     ->select(
-                        'observaciones.*',
+                        'observaciones.id',
+                        'observaciones.description',
+                        'observaciones.created_at',
+                        'observaciones.equipo_id',
+                        'observaciones.file',
+                        'observaciones.usuario_id',
+                        'observaciones.repuesto_id',
+                        'observaciones.repuesto_pendiente',
+                        'observaciones.preventivo_id',
+                        'observaciones.fecha_nota',
                         'usuarios.nombre as usuario_nombre',
-                        'usuarios.apellido as usuario_apellido'
+                        'usuarios.apellido as usuario_apellido',
+                        DB::raw("CONCAT(usuarios.nombre, ' ', COALESCE(usuarios.apellido, '')) as usuario_nombre_completo")
                     )
                     ->orderBy('observaciones.created_at', 'desc')
-                    ->limit(3)
+                    ->limit(10)
                     ->get();
-                $equipoData['observaciones_recientes'] = $observaciones;
+                $equipoData['observaciones'] = $observaciones;
             } catch (\Exception $e) {
-                $equipoData['observaciones_recientes'] = [];
+                \Log::warning('Error obteniendo observaciones: ' . $e->getMessage());
+                $equipoData['observaciones'] = [];
+            }
+
+            // 7. Capacitaciones (documentos de tipo capacitacion en equipo_archivo)
+            try {
+                $capacitaciones = DB::table('equipo_archivo')
+                    ->join('archivos', 'equipo_archivo.archivo_id', '=', 'archivos.id')
+                    ->where('equipo_archivo.equipo_id', $id)
+                    ->where('archivos.name', 'Capacitación')
+                    ->select([
+                        'equipo_archivo.id',
+                        'equipo_archivo.vinculo as archivo',
+                        'equipo_archivo.created_at as fecha_subida',
+                        'equipo_archivo.otro as descripcion',
+                        'archivos.name as tipo_documento',
+                        'archivos.id as archivo_id'
+                    ])
+                    ->orderBy('equipo_archivo.created_at', 'desc')
+                    ->get()
+                    ->map(function ($doc) {
+                        $doc->url_acceso = url('storage/equipos/archivos/' . $doc->archivo);
+                        return $doc;
+                    });
+                $equipoData['capacitaciones'] = $capacitaciones;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo capacitaciones: ' . $e->getMessage());
+                $equipoData['capacitaciones'] = [];
+            }
+
+            // 8. Movimientos (cambios de ubicacion)
+            try {
+                // Primero verificar si hay registros
+                $countMovimientos = DB::table('cambios_ubicaciones')
+                    ->where('equipo_id', $id)
+                    ->count();
+                
+                \Log::info("Movimientos para equipo {$id}: {$countMovimientos} registros encontrados");
+                
+                $movimientos = DB::table('cambios_ubicaciones')
+                    ->leftJoin('areas as areas_origen', 'cambios_ubicaciones.area_origen_id', '=', 'areas_origen.id')
+                    ->leftJoin('areas as areas_destino', 'cambios_ubicaciones.area_destino_id', '=', 'areas_destino.id')
+                    ->leftJoin('sedes as sedes_origen', 'cambios_ubicaciones.sede_origen_id', '=', 'sedes_origen.id')
+                    ->leftJoin('sedes as sedes_destino', 'cambios_ubicaciones.sede_destino_id', '=', 'sedes_destino.id')
+                    ->leftJoin('usuarios', 'cambios_ubicaciones.usuario_id', '=', 'usuarios.id')
+                    ->where('cambios_ubicaciones.equipo_id', $id)
+                    ->select([
+                        'cambios_ubicaciones.id',
+                        'cambios_ubicaciones.equipo_id',
+                        'cambios_ubicaciones.area_origen_id',
+                        'cambios_ubicaciones.area_destino_id',
+                        'cambios_ubicaciones.sede_origen_id',
+                        'cambios_ubicaciones.sede_destino_id',
+                        'cambios_ubicaciones.usuario_id',
+                        'cambios_ubicaciones.created_at as fecha',
+                        'areas_origen.name as area_origen_nombre',
+                        'areas_destino.name as area_destino_nombre',
+                        'sedes_origen.name as sede_origen_nombre',
+                        'sedes_destino.name as sede_destino_nombre',
+                        'usuarios.nombre as usuario_nombre',
+                        'usuarios.apellido as usuario_apellido',
+                        'usuarios.username as usuario_username',
+                        DB::raw("CONCAT(COALESCE(usuarios.nombre, ''), ' ', COALESCE(usuarios.apellido, '')) as responsable_nombre")
+                    ])
+                    ->orderBy('cambios_ubicaciones.created_at', 'desc')
+                    ->get();
+                
+                \Log::info("Movimientos obtenidos: " . $movimientos->count());
+                $equipoData['movimientos'] = $movimientos;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo movimientos: ' . $e->getMessage());
+                $equipoData['movimientos'] = [];
             }
 
             return response()->json([
@@ -2262,7 +2442,7 @@ class EquipmentController extends ApiController
                     'sedes.name as sede',
                     'equipos.localizacion_actual',
                     
-                    // Mantenimiento (7 columnas)
+                    // Mantenimiento (9 columnas)
                     DB::raw("(SELECT MAX(fecha_mantenimiento) FROM mantenimiento WHERE equipo_id = equipos.id) as ultimo_mantenimiento"),
                     'frecuenciam.name as frecuencia',
                     DB::raw("(SELECT frecuencia_id FROM planes_mantenimientos WHERE equipo_id = equipos.id ORDER BY anio DESC LIMIT 1) as frecuencia_utilizada"),
@@ -2270,6 +2450,8 @@ class EquipmentController extends ApiController
                     DB::raw("(SELECT pm.name FROM mantenimiento m LEFT JOIN proveedores_mantenimiento pm ON m.proveedor_mantenimiento_id = pm.id WHERE m.equipo_id = equipos.id ORDER BY m.fecha_mantenimiento DESC LIMIT 1) as proveedor_mantenimiento"),
                     DB::raw("(SELECT COUNT(*) FROM mantenimiento WHERE equipo_id = equipos.id) as cuenta_preventivos"),
                     'equipos.estado_mantenimiento as estadom',
+                    DB::raw("(SELECT responsable FROM planes_mantenimientos WHERE equipo_id = equipos.id ORDER BY anio DESC LIMIT 1) as responsable_mantenimiento"),
+                    DB::raw("(SELECT f.name FROM planes_mantenimientos pm LEFT JOIN frecuenciam f ON pm.frecuencia_id = f.id WHERE pm.equipo_id = equipos.id ORDER BY pm.anio DESC LIMIT 1) as frecuencia_mantenimiento"),
                     
                     // Calibración (2 columnas)
                     DB::raw("(SELECT MAX(fecha_calibracion) FROM calibracion WHERE equipo_id = equipos.id) as ultima_calibracion"),
@@ -2708,6 +2890,82 @@ class EquipmentController extends ApiController
                 'success' => false,
                 'message' => 'Error al obtener calibraciones: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Obtener historial completo de cambios de hoja de vida de un equipo
+     * Tabla: cambios_hdv
+     */
+    public function getCambiosHdv($id)
+    {
+        try {
+            // Verificar que el equipo existe
+            $equipo = DB::table('equipos')->where('id', $id)->first();
+            
+            if (!$equipo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Equipo no encontrado'
+                ], 404)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            }
+
+            // Obtener cambios de hoja de vida del equipo con información del usuario
+            $cambiosHdv = DB::table('cambios_hdv')
+                ->leftJoin('usuarios', 'cambios_hdv.usuario_id', '=', 'usuarios.id')
+                ->where('cambios_hdv.equipo_id', $id)
+                ->select([
+                    'cambios_hdv.id',
+                    'cambios_hdv.equipo_id',
+                    'cambios_hdv.descripcion',
+                    'cambios_hdv.usuario_id',
+                    'cambios_hdv.created_at',
+                    'usuarios.nombre as usuario_nombre',
+                    'usuarios.apellido as usuario_apellido',
+                    'usuarios.username as usuario_username',
+                    DB::raw("CONCAT(COALESCE(usuarios.nombre, 'Sistema'), ' ', COALESCE(usuarios.apellido, '')) as responsable_nombre")
+                ])
+                ->orderBy('cambios_hdv.created_at', 'desc')
+                ->get();
+
+            // Formatear los datos para el frontend
+            $historialFormateado = $cambiosHdv->map(function ($cambio) {
+                return [
+                    'id' => $cambio->id,
+                    'descripcion' => $cambio->descripcion,
+                    'usuario_id' => $cambio->usuario_id,
+                    'usuario_nombre' => $cambio->usuario_nombre ?? 'Sistema',
+                    'usuario_apellido' => $cambio->usuario_apellido ?? '',
+                    'usuario_username' => $cambio->usuario_username ?? '',
+                    'responsable_nombre' => $cambio->responsable_nombre ?? 'Sistema',
+                    'fecha' => $cambio->created_at,
+                    'fecha_formateada' => \Carbon\Carbon::parse($cambio->created_at)->format('d/m/Y H:i:s')
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Historial de cambios obtenido exitosamente',
+                'data' => $historialFormateado,
+                'total' => $historialFormateado->count()
+            ])
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+        } catch (\Exception $e) {
+            \Log::error('Error en getCambiosHdv: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener historial de cambios: ' . $e->getMessage(),
+                'data' => []
+            ], 500)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
         }
     }
 }

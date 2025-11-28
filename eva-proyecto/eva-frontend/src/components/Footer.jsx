@@ -3,9 +3,9 @@ const Footer = () => {
     <footer className=" bottom-0 left-0 w-full bg-white border-t border-gray-200 px-4 sm:px-8 py-3 sm:py-4 z-50">
       <div className="flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm text-gray-600 gap-2 sm:gap-0">
         <span className="text-center sm:text-right">
-          Copyright © 2021{" "}
+          Copyright © 2025{" "}
           <span className="text-blue-600 font-medium">
-            EVA gestiona la tecnología
+            EVA gestiona la tecnología. Desarrollado por: innovación y desarrollo
           </span>
           .
           <span className="hidden sm:inline">

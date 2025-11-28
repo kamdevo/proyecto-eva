@@ -28,6 +28,7 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
   const [firmaRecibidoData, setFirmaRecibidoData] = useState(null);
   const [firmaTecnicoInfo, setFirmaTecnicoInfo] = useState(null); // {name, date}
   const [firmaRecibidoInfo, setFirmaRecibidoInfo] = useState(null); // {name, date}
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Autocompletar datos al abrir el modal
   useEffect(() => {
@@ -35,11 +36,11 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
       const user = authService.getStoredUser();
       const userName = user ? (user.username || user.nombre || user.name || '') : '';
       
-      // Generar código de cierre basado en el ID del ticket
-      const generatedCode = ticketCode || `CIERRE-${new Date().getFullYear()}-${String(ticketId).padStart(4, '0')}`;
+      // Autocompletar solo el ID del ticket sin prefijos
+      const generatedCode = String(ticketId);
       
       setFormData({
-        retro_cierre: generatedCode, // ✅ Siempre usar el código generado
+        retro_cierre: generatedCode, // ✅ Solo el ID
         reparacion: "",
         fecha_asignacion_cierre: "",
         hora_asignacion_cierre: "",
@@ -86,11 +87,12 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
       return;
     }
 
-    // Confirmación antes de enviar a cierre
-    if (!window.confirm('¿Está seguro de enviar este ticket a cierre? Esta acción cambiará el estado del ticket.')) {
-      return;
-    }
+    // Mostrar diálogo de confirmación
+    setShowConfirmDialog(true);
+  };
 
+  const handleConfirmSubmit = async () => {
+    setShowConfirmDialog(false);
     setIsSubmitting(true);
 
     try {
@@ -230,6 +232,7 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
                 type="date"
                 value={formData.fecha_asignacion_cierre}
                 onChange={handleInputChange}
+                max={new Date().toISOString().split('T')[0]}
                 className="w-full"
               />
               <p className="text-xs text-gray-500">
@@ -457,6 +460,39 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
       onSave={handleSaveFirmaRecibido}
       signerName="Recibido"
     />
+
+    {/* Modal de confirmación */}
+    <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <DialogContent className="sm:max-w-md">
+        <div className="flex flex-col items-center text-center p-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Enviar Ticket a Cierre
+          </h3>
+          <p className="text-sm text-gray-600 mb-6">
+            ¿Está seguro de enviar este ticket a cierre? Esta acción cambiará el estado del ticket.
+          </p>
+          <div className="flex gap-3 w-full">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmDialog(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConfirmSubmit}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Enviar a Cierre
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

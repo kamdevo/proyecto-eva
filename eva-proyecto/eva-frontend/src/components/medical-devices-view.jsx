@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Eye,
@@ -14,13 +15,17 @@ import {
   Files,
   Link,
   X,
+  AlertTriangle,
+  CheckCircle2,
+  FileStack,
+  Clock,
 } from "lucide-react";
 import { useEquipment } from "@/hooks/useEquipment";
 import { useAuth } from "@/hooks/useAuth.jsx";
 import PermissionWrapper from "./PermissionWrapper";
 import { MainActionButtons } from "./equipment/MainActionButtons";
 import { StatsActionButtons } from "./equipment/StatsActionButtons";
-import { EquipmentPagination } from "./equipment/EquipmentPagination";
+import Pagination from "@/components/common/Pagination";
 import { RowActionButtons } from "./equipment/RowActionButtons";
 import { useEquipmentSearch } from "@/contexts/EquipmentSearchContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +40,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
+
+// Variantes de animación para las cards
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.05,
+      duration: 0.3,
+      ease: "easeOut"
+    }
+  }),
+  hover: {
+    y: -4,
+    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.2)",
+    transition: { duration: 0.2 }
+  }
+};
 import { Badge } from "@/components/ui/badge";
 import { FilterModal } from "@/components/modals/filter-modal";
 import { AddEquipmentModal } from "@/components/modals/add-equipment-modal";
@@ -52,6 +77,9 @@ import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import AddObservacionModal from "@/components/modals/add-observacion-modal";
 import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
+import { ContingenciasModal } from "@/components/modals/contingencias-modal";
+import { CapacitacionesModal } from "@/components/modals/capacitaciones-modal";
+import { MovimientosModal } from "@/components/modals/movimientos-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
 import EquipmentImage from "./ui/equipment-image";
 import { EquipmentImageHover } from "./ui/equipment-image-hover";
@@ -113,9 +141,38 @@ export function MedicalDevicesView() {
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
   const [darBajaEquipoModalOpen, setDarBajaEquipoModalOpen] = useState(false);
+  const [contingenciasModalOpen, setContingenciasModalOpen] = useState(false);
+  const [movimientosModalOpen, setMovimientosModalOpen] = useState(false);
+  const [capacitacionesModalOpen, setCapacitacionesModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [equipmentId, setEquipmentId] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [sedes, setSedes] = useState([]);
+  const [selectedSede, setSelectedSede] = useState("TODOS");
+
+  // Fetch sedes from database
+  useEffect(() => {
+    const fetchSedes = async () => {
+      try {
+        const response = await httpService.get('/v1/sedes');
+        if (response.data.success) {
+          setSedes(response.data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching sedes:', error);
+      }
+    };
+    fetchSedes();
+  }, []);
+
+  // Apply sede filter
+  useEffect(() => {
+    if (selectedSede === "TODOS") {
+      updateFilters({ sede_id: "" });
+    } else {
+      updateFilters({ sede_id: selectedSede });
+    }
+  }, [selectedSede]);
 
   // Handlers
   const handlePageSizeChange = (newSize) => {
@@ -124,8 +181,9 @@ export function MedicalDevicesView() {
 
   // Handle export equipment list (listado completo de equipos)
   const handleExportEquipmentCounts = async () => {
+    const toastId = 'export-equipment-list';
     try {
-      console.log('📊 Exportando listado completo de equipos biomédicos...');
+      toast.loading('Exportando listado de equipos biomédicos...', { id: toastId });
       
       const response = await httpService.get('/v1/export/equipment-list', {
         responseType: 'blob',
@@ -141,17 +199,16 @@ export function MedicalDevicesView() {
       link.remove();
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ Listado de equipos biomédicos exportado exitosamente');
+      toast.success('Listado de equipos exportado exitosamente', { id: toastId });
     } catch (err) {
       console.error('❌ Error exportando listado de equipos:', err);
-      // You could add a toast notification here
+      toast.error('Error al exportar listado de equipos', { id: toastId });
     }
   };
 
   // Handle opening maintenance documents - PREVENTIVO
   const handleOpenMaintenanceDocument = async (equipmentId) => {
     try {
-      console.log('🔍 Buscando último mantenimiento PREVENTIVO para equipo ID:', equipmentId);
       
       // Casos específicos conocidos con archivos preventivos
       const equiposConocidos = {
@@ -160,10 +217,8 @@ export function MedicalDevicesView() {
       };
       
       if (equiposConocidos[equipmentId]) {
-        console.log('🎯 Equipo conocido con archivo preventivo, abriendo directamente...');
         const knownFile = equiposConocidos[equipmentId];
         const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${knownFile}`;
-        console.log('🌐 Opening URL:', fileUrl);
         window.open(fileUrl, "_blank");
         return;
       }
@@ -179,14 +234,11 @@ export function MedicalDevicesView() {
         }
       );
 
-      console.log('📡 Response status:', response.status);
-
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('📊 Mantenimientos data received:', data);
 
       // Buscar mantenimientos ejecutados con archivos
       let maintenanceRecords = [];
@@ -201,8 +253,6 @@ export function MedicalDevicesView() {
         maintenanceRecords = data;
       }
 
-      console.log('🔧 Maintenance records:', maintenanceRecords);
-
       if (maintenanceRecords && maintenanceRecords.length > 0) {
         // Filtrar solo los que tienen archivo y ordenar por fecha más reciente
         const recordsWithFiles = maintenanceRecords
@@ -215,11 +265,9 @@ export function MedicalDevicesView() {
         
         if (recordsWithFiles.length > 0) {
           const latestMaintenance = recordsWithFiles[0];
-          console.log('📄 Latest maintenance with file:', latestMaintenance);
 
           // Abrir el documento directamente
           const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${latestMaintenance.file}`;
-          console.log('🌐 Opening maintenance document:', fileUrl);
           
           window.open(fileUrl, "_blank");
           return;
@@ -227,19 +275,63 @@ export function MedicalDevicesView() {
       }
       
       // Si no se encontró ningún archivo
-      console.warn('⚠️ No preventive maintenance documents found');
-      alert("No se encontraron documentos de mantenimiento preventivo para este equipo");
+      toast.warning("No se encontraron documentos de mantenimiento preventivo para este equipo");
       
     } catch (error) {
       console.error("❌ Error al abrir documento de mantenimiento preventivo:", error);
-      alert(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
+      toast.error(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
+    }
+  };
+
+  // Function to export Parada de Equipo Biomédico
+  const handleExportParadaEquipo = async () => {
+    const toastId = 'export-parada-biomedico';
+    try {
+      toast.loading('Exportando Parada de Equipo Biomédico...', { id: toastId });
+
+      const response = await httpService.get(
+        `/v1/correctivos-generales/export-excel?formato=parada&tipo=biomedico`,
+        {
+          responseType: "blob",
+          timeout: 120000, // 2 minutos para exportaciones grandes
+          headers: {
+            Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }
+      );
+
+      // Crear blob y descargar
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `Parada_Equipo_Biomedico_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('Parada de Equipo Biomédico exportada exitosamente', { id: toastId });
+    } catch (error) {
+      console.error("❌ [EXPORT] Error exportando parada de equipo:", error);
+      
+      if (error.code === 'ECONNABORTED') {
+        toast.error('La exportación está tardando demasiado. Intenta más tarde.', { id: toastId });
+      } else {
+        toast.error('Error al exportar Parada de Equipo Biomédico', { id: toastId });
+      }
     }
   };
 
   // Function to handle calibration document opening
   const handleOpenCalibrationDocument = async (equipmentId) => {
     try {
-      console.log('🔬 Opening calibration document for equipment:', equipmentId);
       
       // Try to get calibration data for this equipment
       let response;
@@ -249,7 +341,7 @@ export function MedicalDevicesView() {
         response = await httpService.get(`/v1/equipos/${equipmentId}/calibraciones`);
       } else {
         // Fallback to public endpoint
-        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/calibraciones`, {
+        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/calibraciones`, {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -264,7 +356,8 @@ export function MedicalDevicesView() {
         if (publicData && publicData.length > 0) {
           const calibration = publicData[0];
           if (calibration.file) {
-            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/calibraciones/${calibration.file}`;
+            // calibration.file ya incluye la carpeta 'calibraciones/', no duplicar
+            const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${calibration.file}`;
             window.open(fileUrl, "_blank");
             return;
           }
@@ -276,25 +369,24 @@ export function MedicalDevicesView() {
       if (data && data.length > 0) {
         const calibration = data[0];
         if (calibration.file) {
-          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/calibraciones/${calibration.file}`;
-          console.log('🌐 Opening calibration document:', fileUrl);
+          // calibration.file ya incluye la carpeta 'calibraciones/', no duplicar
+          const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${calibration.file}`;
           window.open(fileUrl, "_blank");
         } else {
-          alert("No hay documento de calibración disponible para este equipo");
+          toast.warning("No hay documento de calibración disponible para este equipo");
         }
       } else {
-        alert("No se encontraron registros de calibración para este equipo");
+        toast.warning("No se encontraron registros de calibración para este equipo");
       }
     } catch (error) {
       console.error("❌ Error al abrir documento de calibración:", error);
-      alert(`Error al acceder al documento de calibración: ${error.message}`);
+      toast.error(`Error al acceder al documento de calibración: ${error.message}`);
     }
   };
 
   // Function to handle corrective document opening
   const handleOpenCorrectiveDocument = async (equipmentId) => {
     try {
-      console.log('🔧 Opening corrective document for equipment:', equipmentId);
       
       // Try to get corrective data for this equipment
       let response;
@@ -304,7 +396,7 @@ export function MedicalDevicesView() {
         response = await httpService.get(`/v1/equipos/${equipmentId}/correctivos`);
       } else {
         // Fallback to public endpoint
-        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/correctivos`, {
+        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/correctivos`, {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -319,7 +411,8 @@ export function MedicalDevicesView() {
         if (publicData && publicData.length > 0) {
           const corrective = publicData[0];
           if (corrective.file) {
-            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_asociados/${corrective.file}`;
+            // corrective.file ya incluye la carpeta, no duplicar
+            const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${corrective.file}`;
             window.open(fileUrl, "_blank");
             return;
           }
@@ -331,18 +424,18 @@ export function MedicalDevicesView() {
       if (data && data.length > 0) {
         const corrective = data[0];
         if (corrective.file) {
-          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_asociados/${corrective.file}`;
-          console.log('🌐 Opening corrective document:', fileUrl);
+          // corrective.file ya incluye la carpeta, no duplicar
+          const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${corrective.file}`;
           window.open(fileUrl, "_blank");
         } else {
-          alert("No hay documento de correctivo disponible para este equipo");
+          toast.warning("No hay documento de correctivo disponible para este equipo");
         }
       } else {
-        alert("No se encontraron registros de correctivo para este equipo");
+        toast.warning("No se encontraron registros de correctivo para este equipo");
       }
     } catch (error) {
       console.error("❌ Error al abrir documento de correctivo:", error);
-      alert(`Error al acceder al documento de correctivo: ${error.message}`);
+      toast.error(`Error al acceder al documento de correctivo: ${error.message}`);
     }
   };
 
@@ -364,20 +457,9 @@ export function MedicalDevicesView() {
     setDateFilter(filters.anio_plan || "");
   }, [filters]);
 
-  // Count active filters
-  useEffect(() => {
-    let count = 0;
-    if (filters.search && filters.search.trim()) count++;
-    if (equipmentId.trim()) count++;
-    if (dateFilter) count++;
-
-    setActiveFiltersCount(count);
-  }, [filters.search, equipmentId, dateFilter]);
-
   // Debug filters changes
   useEffect(() => {
-    console.log("🔄 Filters changed:", filters);
-    console.log("📊 Current devices count:", devices.length);
+    // Filters changed
   }, [filters, devices]);
 
   // Estados para filtros avanzados
@@ -406,7 +488,6 @@ export function MedicalDevicesView() {
 
   // Función para manejar la eliminación exitosa de un equipo
   const handleEquipmentDeleted = (equipmentId) => {
-    console.log("🔄 Equipo eliminado, refrescando lista:", equipmentId);
     // Refrescar la lista de equipos después de eliminar
     refresh();
     // Limpiar el equipo seleccionado
@@ -426,19 +507,17 @@ export function MedicalDevicesView() {
     if (trimmedId) {
       // Verificar que sea solo números
       if (!/^\d+$/.test(trimmedId)) {
-        alert("Por favor ingrese un ID válido (solo números enteros)");
+        toast.error("Por favor ingrese un ID válido (solo números enteros)");
         return;
       }
 
       // Verificar que sea un número positivo
       const numericId = parseInt(trimmedId, 10);
       if (numericId <= 0) {
-        alert("Por favor ingrese un ID válido (número mayor a 0)");
+        toast.error("Por favor ingrese un ID válido (número mayor a 0)");
         return;
       }
     }
-
-    console.log("🔍 Frontend: Searching for equipment ID:", trimmedId);
 
     if (trimmedId) {
       // Limpiar otros filtros cuando se busca por ID específico
@@ -447,10 +526,8 @@ export function MedicalDevicesView() {
         search: "", // Limpiar búsqueda general
         page: 1, // Resetear a primera página
       });
-      console.log("✅ Frontend: Filter updated with consulta_id:", trimmedId);
     } else {
       updateFilters({ consulta_id: "" });
-      console.log("🧹 Frontend: Cleared consulta_id filter");
     }
   };
 
@@ -467,7 +544,7 @@ export function MedicalDevicesView() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1 xs:p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-1 xs:p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
       {/* Medical Equipment Management Header */}
       <div className="mb-3 sm:mb-4 md:mb-6">
         <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-slate-800 mb-1 sm:mb-2">
@@ -500,7 +577,7 @@ export function MedicalDevicesView() {
             onPreventiveClick={() => setPreventiveModalOpen(true)}
             onCalibrationClick={() => setCalibrationModalOpen(true)}
             onCorrectiveClick={() => setCorrectiveModalOpen(true)}
-            onMonthClick={() => setMonthModalOpen(true)}
+            onParadaEquipoClick={handleExportParadaEquipo}
             equipmentType="biomedical"
           />
         </PermissionWrapper>
@@ -508,7 +585,7 @@ export function MedicalDevicesView() {
       {/* Main Content Card */}
       <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
         {/* Enhanced Filters Section */}
-        <div className="bg-gradient-to-r from-teal-50 to-blue-50 border-b border-teal-100 p-2 sm:p-3 md:p-4 lg:p-6">
+        <div className="bg-gradient-to-r from-teal-50 to-[#1d293d]/5 border-b border-teal-100 p-2 sm:p-3 md:p-4 lg:p-6">
           <div className="space-y-2 sm:space-y-3 md:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
               <h2 className="text-sm sm:text-base md:text-lg font-semibold text-slate-800">
@@ -522,45 +599,49 @@ export function MedicalDevicesView() {
               </Badge>
             </div>
 
-            {/* Top Filter Row */}
-            <div className="flex flex-col lg:flex-row lg:items-center gap-2 sm:gap-3 md:gap-4 flex-wrap">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
-                  Sede Hospitalaria:
+            {/* Top Filter Row - Full Responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-700">
+                  Sede Hospitalaria
                 </span>
-                <Select defaultValue="TODOS">
-                  <SelectTrigger className="w-28 sm:w-32 md:w-40 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80">
+                <Select value={selectedSede} onValueChange={setSelectedSede}>
+                  <SelectTrigger className="w-full h-8 text-sm bg-white/80">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TODOS">Todas las Sedes</SelectItem>
-                    <SelectItem value="PRINCIPAL">Sede Principal</SelectItem>
+                    {sedes.map((sede) => (
+                      <SelectItem key={sede.id} value={sede.id.toString()}>
+                        {sede.name || sede.nombre}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
-                <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
-                  Consultar Equipo por ID:
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-700">
+                  Consultar Equipo por ID
                 </span>
-                <div className="flex gap-1 sm:gap-2 flex-1 min-w-0">
+                <div className="flex gap-2">
                   <Input
-                    placeholder="Ingrese ID del equipo médico"
+                    placeholder="ID del equipo"
                     value={equipmentId}
                     onChange={(e) => setEquipmentId(e.target.value)}
                     onKeyDown={(e) =>
                       e.key === "Enter" && handleEquipmentIdSearch()
                     }
-                    className="flex-1 min-w-0 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200 px-1 sm:px-2"
+                    className="flex-1 h-8 text-sm bg-white/80 border-slate-200"
                   />
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={handleEquipmentIdSearch}
-                    className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 bg-white/80 hover:bg-white"
+                    className="h-8 px-3 bg-white/80 hover:bg-white"
                     title="Buscar por ID"
                   >
-                    <Search className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 text-teal-600" />
+                    <Search className="w-4 h-4 text-teal-600" />
                   </Button>
                   {equipmentId && (
                     <Button
@@ -570,40 +651,42 @@ export function MedicalDevicesView() {
                         setEquipmentId("");
                         updateFilters({ consulta_id: "" });
                       }}
-                      className="h-6 sm:h-7 md:h-8 px-1 text-slate-400 hover:text-slate-600"
+                      className="h-8 px-2 text-slate-400 hover:text-slate-600"
                       title="Limpiar búsqueda por ID"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-4 h-4" />
                     </Button>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-xs sm:text-sm font-medium text-slate-700">
-                  Período:
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-700">
+                  Período
                 </span>
-                <Input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  className="w-24 sm:w-28 md:w-32 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80 border-slate-200 px-1 sm:px-2"
-                  placeholder="Fecha inicio"
-                />
-                {dateFilter && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setDateFilter("");
-                      updateFilters({ anio_plan: "" });
-                    }}
-                    className="h-6 sm:h-7 md:h-8 px-1 text-slate-400 hover:text-slate-600"
-                    title="Limpiar filtro de fecha"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="flex-1 h-8 text-sm bg-white/80 border-slate-200"
+                    placeholder="Fecha inicio"
+                  />
+                  {dateFilter && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setDateFilter("");
+                        updateFilters({ anio_plan: "" });
+                      }}
+                      className="h-8 px-2 text-slate-400 hover:text-slate-600"
+                      title="Limpiar filtro de fecha"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -652,68 +735,29 @@ export function MedicalDevicesView() {
           </div>
         </div>
 
-        {/* Enhanced Pagination Top */}
-        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 border-b bg-slate-50">
-          <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
-            <Select defaultValue="2">
-              <SelectTrigger className="w-12 sm:w-14 md:w-16 h-6 sm:h-7 md:h-8 text-xs sm:text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2">2</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs sm:text-sm text-slate-700">
-              equipos por página
-            </span>
-          </div>
-
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-teal-600 hover:bg-teal-700 h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              1
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              2
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              3
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-            >
-              Siguiente
-            </Button>
-          </div>
+        {/* Items per page selector */}
+        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex items-center gap-2 border-b bg-slate-50">
+          <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
+          <Select 
+            value={pagination.per_page.toString()}
+            onValueChange={(value) => changePageSize(parseInt(value))}
+          >
+            <SelectTrigger className="w-16 h-7 text-xs sm:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="15">15</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs sm:text-sm text-slate-700">equipos por página</span>
         </div>
 
-        {/* Enhanced Medical Equipment Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[600px] xs:min-w-[700px] sm:min-w-[800px] md:min-w-[900px]">
+        {/* Enhanced Medical Equipment Table - Desktop Only */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="border-b bg-gradient-to-r from-slate-50 to-slate-100">
                 <th className="text-left p-1 xs:p-2 sm:p-3 md:p-4 text-[10px] xs:text-xs sm:text-sm md:text-base font-semibold text-slate-800 border-r border-slate-200">
@@ -804,6 +848,16 @@ export function MedicalDevicesView() {
                           {safeRenderText(device.equipo?.name, "Sin nombre")}
                         </div>
 
+                        {/* Año de Adquisición */}
+                        <div className="text-[9px] xs:text-[10px] sm:text-xs text-slate-600 mt-1">
+                          <span className="font-bold text-slate-700">Año Adquisición: </span>
+                          <span className="text-slate-900">
+                            {device.fecha_ad 
+                              ? new Date(device.fecha_ad).getFullYear()
+                              : "N/A"}
+                          </span>
+                        </div>
+
                         {/* Imagen del equipo con efecto hover mejorado */}
                         <EquipmentImageHover
                           equipmentId={device.id}
@@ -819,11 +873,11 @@ export function MedicalDevicesView() {
                           {/* Registro Sanitario */}
                           {device.equipo?.invima_id && device.registros_invima?.length > 0 && (
                             <div className="space-y-1">
-                              <div className="text-[9px] xs:text-[10px] font-semibold text-blue-700 uppercase tracking-wide">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-[#1d293d] uppercase tracking-wide">
                                 Registro INVIMA
                               </div>
                               <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                <FileText className="w-4 h-4 text-[#1d293d] flex-shrink-0" />
                                 <button
                                   onClick={() => {
                                     const registro = device.registros_invima[0];
@@ -832,7 +886,7 @@ export function MedicalDevicesView() {
                                       window.open(fileUrl, "_blank");
                                     }
                                   }}
-                                  className="text-[10px] xs:text-[11px] sm:text-xs text-blue-600 hover:text-blue-800 hover:underline truncate"
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-[#1d293d] hover:text-[#2a3b52] hover:underline truncate"
                                   title={`Ver registro sanitario: ${device.registros_invima[0]?.numero_registro || 'N/A'}`}
                                 >
                                   {device.registros_invima[0]?.numero_registro || "Ver Registro"}
@@ -887,6 +941,39 @@ export function MedicalDevicesView() {
                               </div>
                             </div>
                           )}
+
+                          {/* Botones de Acciones Rápidas */}
+                          <div className="mt-3 pt-3 border-t border-slate-200 flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEquipment(device);
+                                setContingenciasModalOpen(true);
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white text-[9px] xs:text-[10px] h-7 px-2 flex items-center gap-1"
+                              title="Contingencias"
+                            >
+                              <AlertTriangle className="w-3 h-3" />
+                              <span className="hidden sm:inline">Contingencias</span>
+                              {(device.cuenta_contingencias > 0 || device.contingencias_abiertas > 0) && (
+                                <span className="ml-1 bg-white text-red-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                                  {device.contingencias_abiertas > 0 ? device.contingencias_abiertas : device.cuenta_contingencias}
+                                </span>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEquipment(device);
+                                setCapacitacionesModalOpen(true);
+                              }}
+                              className="bg-teal-500 hover:bg-teal-600 text-white text-[9px] xs:text-[10px] h-7 px-2 flex items-center gap-1"
+                              title="Capacitaciones"
+                            >
+                              <FileText className="w-3 h-3" />
+                              <span className="hidden sm:inline">Capacitaciones</span>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -933,10 +1020,10 @@ export function MedicalDevicesView() {
                               </span>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-700">
+                              <span className="font-bold text-slate-700">
                                 Marca:
                               </span>
-                              <span className="font-medium text-slate-700">
+                              <span className="ml-1 text-slate-900">
                                 {safeRenderText(
                                   device.equipo?.brand,
                                   "SIN MARCA"
@@ -944,10 +1031,21 @@ export function MedicalDevicesView() {
                               </span>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-700">
+                              <span className="font-bold text-slate-700">
+                                Modelo:
+                              </span>
+                              <span className="ml-1 text-slate-900">
+                                {safeRenderText(
+                                  device.equipo?.model,
+                                  "SIN MODELO"
+                                )}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700">
                                 Serie:
                               </span>
-                              <span className="font-medium text-slate-700">
+                              <span className="ml-1 text-slate-900">
                                 {safeRenderText(
                                   device.equipo?.series,
                                   "SIN SERIE"
@@ -955,7 +1053,7 @@ export function MedicalDevicesView() {
                               </span>
                             </div>
                             <div className="flex items-center gap-1 xs:gap-2">
-                              <span className="font-medium text-slate-700">
+                              <span className="font-bold text-slate-700">
                                 Calibraciones:
                               </span>
                               <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
@@ -963,10 +1061,10 @@ export function MedicalDevicesView() {
                               </Badge>
                             </div>
                             <div className="flex items-center gap-1 xs:gap-2">
-                              <span className="font-medium text-slate-700">
+                              <span className="font-bold text-slate-700">
                                 Preventivos:
                               </span>
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[8px] xs:text-[9px] sm:text-xs border border-blue-200">
+                              <Badge className="bg-[#1d293d]/10 text-[#1d293d] hover:bg-[#1d293d]/15 text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30">
                                 {safeRenderText(device.cuenta_preventivos, "0")}
                               </Badge>
                             </div>
@@ -981,7 +1079,7 @@ export function MedicalDevicesView() {
                                   href={`${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/ordenes_compra/${device.orden_compra_file}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline text-[8px] xs:text-[9px] sm:text-xs"
+                                  className="text-[#1d293d] hover:text-[#2a3b52] underline text-[8px] xs:text-[9px] sm:text-xs"
                                 >
                                   {device.orden_compra}
                                 </a>
@@ -1005,7 +1103,7 @@ export function MedicalDevicesView() {
                               <div className="flex items-center justify-between">
                                 <Badge
                                   variant="outline"
-                                  className="bg-blue-50 text-blue-700 border-blue-200 text-[8px] xs:text-[9px] sm:text-xs cursor-pointer hover:bg-blue-100"
+                                  className="bg-[#1d293d]/5 text-[#1d293d] border-[#1d293d]/30 text-[8px] xs:text-[9px] sm:text-xs cursor-pointer hover:bg-[#1d293d]/10"
                                   onClick={() => {
                                     setSelectedEquipment(device);
                                     setAddObservacionModalOpen(true);
@@ -1016,7 +1114,7 @@ export function MedicalDevicesView() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-5 w-5 xs:h-6 xs:w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  className="h-5 w-5 xs:h-6 xs:w-6 p-0 text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5"
                                   onClick={() => {
                                     setSelectedEquipment(device);
                                     setAddObservacionModalOpen(true);
@@ -1090,6 +1188,22 @@ export function MedicalDevicesView() {
                             {safeRenderText(device.localizacion_actual, "Sin localización")}
                           </span>
                         </div>
+                        
+                        {/* Botón de Movimientos */}
+                        <div className="mt-2 flex justify-center">
+                          <Button
+                            size="sm"
+                            className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
+                            onClick={() => {
+                              setSelectedEquipment(device);
+                              setMovimientosModalOpen(true);
+                            }}
+                          >
+                            <FileStack className="w-3 h-3 mr-1" />
+                            Movimientos
+                          </Button>
+                        </div>
+                        
                         <div>
                           <span className="font-medium text-slate-700">
                             Estado:
@@ -1113,7 +1227,7 @@ export function MedicalDevicesView() {
                         </div>
                         <div>
                           <span className="font-medium text-slate-700">
-                            Clasificación:
+                            Clasificación Biomédica:
                           </span>
                           <span className="ml-1 text-slate-900">
                             {safeRenderText(
@@ -1155,10 +1269,22 @@ export function MedicalDevicesView() {
                           </span>
                           <div className="text-[8px] xs:text-[9px] sm:text-xs text-slate-600 leading-tight bg-slate-50 p-1 xs:p-2 rounded border">
                             {safeRenderText(
-                              device.propietario,
+                              typeof device.propietario === 'object' ? device.propietario?.nombre : device.propietario,
                               "Sin propietario"
                             )}
                           </div>
+                          
+                          {/* Logo del propietario */}
+                          {device.propietario?.logo_url && (
+                            <div className="mt-2 flex justify-center">
+                              <img 
+                                src={device.propietario.logo_url}
+                                alt={device.propietario?.nombre || device.propietario}
+                                className="h-16 xs:h-20 sm:h-24 md:h-28 object-contain"
+                                onError={(e) => e.target.style.display = 'none'}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -1191,7 +1317,7 @@ export function MedicalDevicesView() {
                             Última Calibración:
                           </span>
                         </div>
-                        <div className="text-slate-600 bg-blue-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-blue-200 flex justify-between items-center">
+                        <div className="text-slate-600 bg-[#1d293d]/5 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30 flex justify-between items-center">
                           {device.mantenimiento?.ultimaCalibración
                             ? new Date(
                                 device.mantenimiento.ultimaCalibración
@@ -1199,7 +1325,7 @@ export function MedicalDevicesView() {
                             : "Sin registros"}
                           <Link
                             size={15}
-                            className="cursor-pointer hover:text-blue-600 transition-colors"
+                            className="cursor-pointer hover:text-[#1d293d] transition-colors"
                             onClick={() =>
                               handleOpenCalibrationDocument(device.id)
                             }
@@ -1212,26 +1338,114 @@ export function MedicalDevicesView() {
                               Información de plan de ejecución
                             </span>
                           </div>
+                          {/* Información del Plan de Mantenimiento Vigente */}
+                          {device.incluido_en_plan > 0 && (
+                            <div className="space-y-0.5 xs:space-y-1 text-slate-700 bg-emerald-50 p-1 xs:p-2 rounded border border-emerald-300 mb-2">
+                              <div className="font-semibold text-emerald-800 text-[9px] xs:text-[10px] sm:text-xs flex items-center gap-1">
+                                <CheckCircle2 size={14} className="text-emerald-600" />
+                                Incluido en Plan {device.anio_vigente || 'Vigente'}
+                              </div>
+                              {device.responsable_plan && (
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                  <span className="font-medium">Responsable:</span>{' '}
+                                  <span className="text-emerald-900">{device.responsable_plan}</span>
+                                </div>
+                              )}
+                              {device.frecuencia_plan && (
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                  <span className="font-medium">Frecuencia:</span>{' '}
+                                  <span className="text-emerald-900">{device.frecuencia_plan}</span>
+                                </div>
+                              )}
+                              {(device.mes_programado1 || device.mes_programado2 || device.mes_programado3) && (
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs space-y-0.5">
+                                  {device.mes_programado1 && (
+                                    <div>
+                                      <span className="font-medium">Fecha 1:</span>{' '}
+                                      <span className="text-emerald-900">
+                                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][device.mes_programado1 - 1]}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {device.mes_programado2 && (
+                                    <div>
+                                      <span className="font-medium">Fecha 2:</span>{' '}
+                                      <span className="text-emerald-900">
+                                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][device.mes_programado2 - 1]}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {device.mes_programado3 && (
+                                    <div>
+                                      <span className="font-medium">Fecha 3:</span>{' '}
+                                      <span className="text-emerald-900">
+                                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][device.mes_programado3 - 1]}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
                             <div>
-                              <div className="font-medium text-slate-700">
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
                                 Último correctivo general generado:
+                                {/* CORRECTIVOS GENERALES: Mostrar ícono basado en si existe correctivo */}
+                                {device.mantenimiento?.ultimoCorrectivoGeneral && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-[#72a836]" 
+                                    title="Correctivo general completado"
+                                  />
+                                )}
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {device.mantenimiento?.ultimoCorrectivoGeneral || "Sin registros"}
                               </div>
                             </div>
                             <div>
-                              <div className="font-medium text-slate-700">
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
                                 Último procedimiento correctivo realizado:
+                                {/* ✓ Verde: Tiene fecha de cierre (correctivo general cerrado exitosamente) */}
+                                {device.mantenimiento?.ultimoProcedimientoCorrectivo && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-green-600" 
+                                    title="Correctivo general cerrado exitosamente"
+                                  />
+                                )}
+                                {/* ⏰ Rojo: Tiene fecha de inicio pero NO fecha de cierre (correctivo abierto) */}
+                                {device.mantenimiento?.ultimoCorrectivoGeneral && !device.mantenimiento?.ultimoProcedimientoCorrectivo && (
+                                  <Clock 
+                                    size={14} 
+                                    className="text-red-600" 
+                                    title="Hay un correctivo general abierto sin resolver"
+                                  />
+                                )}
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {device.mantenimiento?.ultimoProcedimientoCorrectivo || "Sin registros"}
                               </div>
                             </div>
                             <div>
-                              <div className="font-medium text-slate-700">
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
                                 Fecha de creación del último ticket:
+                                {/* TICKETS: Mostrar reloj si no está cerrado, chulo si está cerrado */}
+                                {device.tickets?.fechaCreacionUltimoTicket && !device.tickets?.ultimoTicketCerrado && (
+                                  <Clock 
+                                    size={14} 
+                                    className="text-[#c33a31]" 
+                                    title="Ticket creado pero no cerrado"
+                                  />
+                                )}
+                                {device.tickets?.ultimoTicketCerrado && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-[#72a836]" 
+                                    title="Ticket cerrado/completado"
+                                  />
+                                )}
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {device.tickets?.fechaCreacionUltimoTicket
@@ -1240,8 +1454,24 @@ export function MedicalDevicesView() {
                               </div>
                             </div>
                             <div>
-                              <div className="font-medium text-slate-700">
+                              <div className="font-medium text-slate-700 flex items-center gap-1">
                                 Fecha de último cierre de tickets:
+                                {/* ✓ Verde: Tiene fecha de cierre (ticket cerrado exitosamente) */}
+                                {device.tickets?.fechaUltimoCierre && (
+                                  <CheckCircle2 
+                                    size={14} 
+                                    className="text-green-600" 
+                                    title="Último ticket cerrado exitosamente"
+                                  />
+                                )}
+                                {/* ⏰ Rojo: Tiene fecha de inicio pero NO fecha de cierre (ticket abierto) */}
+                                {device.tickets?.fechaCreacionUltimoTicket && !device.tickets?.fechaUltimoCierre && (
+                                  <Clock 
+                                    size={14} 
+                                    className="text-red-600" 
+                                    title="Hay un ticket abierto sin resolver"
+                                  />
+                                )}
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {device.tickets?.fechaUltimoCierre
@@ -1254,7 +1484,7 @@ export function MedicalDevicesView() {
                                 Última calibración:
                                 <Link
                                   size={12}
-                                  className="cursor-pointer hover:text-blue-600 transition-colors"
+                                  className="cursor-pointer hover:text-[#1d293d] transition-colors"
                                   onClick={() => handleOpenCalibrationDocument(device.id)}
                                   title="Abrir documento de calibración"
                                 />
@@ -1352,6 +1582,203 @@ export function MedicalDevicesView() {
           </table>
         </div>
 
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3 p-2 sm:p-3">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <Card key={index} className="p-4">
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-32 w-full rounded-lg" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="flex gap-2 pt-2">
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </div>
+              </Card>
+            ))
+          ) : filteredDevices.length > 0 ? (
+            filteredDevices.map((device) => (
+              <motion.div
+                key={device.id}
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+              >
+                <Card className="overflow-hidden border-l-4 border-l-teal-500">
+                  <CardContent className="p-4 space-y-3">
+                    {/* ID y Nombre */}
+                    <div className="space-y-2">
+                      <EquipmentIdBadge 
+                        equipmentId={device.id}
+                        variant="primary"
+                        size="sm"
+                        showCopyButton={true}
+                      />
+                      <h3 className="font-bold text-slate-900 text-base">
+                        {safeRenderText(device.equipo?.name, "Sin nombre")}
+                      </h3>
+                      <p className="text-xs text-slate-600">
+                        <span className="font-semibold">Año: </span>
+                        {device.fecha_ad 
+                          ? new Date(device.fecha_ad).getFullYear()
+                          : "N/A"}
+                      </p>
+                    </div>
+
+                    {/* Imagen */}
+                    <EquipmentImageHover
+                      equipmentId={device.id}
+                      equipmentData={device.equipo}
+                      equipmentName={device.equipo?.name || "Equipo médico"}
+                      className="w-full h-48 rounded-lg"
+                      fallbackImage={notFoundImg}
+                      showLoader={true}
+                    />
+
+                    {/* Datos Técnicos */}
+                    <div className="bg-slate-50 p-3 rounded-lg space-y-2">
+                      <h4 className="font-semibold text-slate-700 text-sm">Datos Técnicos</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="font-medium text-slate-600">Código:</span>
+                          <p className="text-slate-900">{device.equipo?.codigo || "N/A"}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-600">Marca:</span>
+                          <p className="text-slate-900">{safeRenderText(device.equipo?.marca, "Sin información")}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-600">Modelo:</span>
+                          <p className="text-slate-900">{safeRenderText(device.equipo?.modelo, "Sin información")}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium text-slate-600">Serie:</span>
+                          <p className="text-slate-900">{safeRenderText(device.equipo?.serie, "Sin información")}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ubicación */}
+                    <div className="bg-[#1d293d]/5 p-3 rounded-lg space-y-2">
+                      <h4 className="font-semibold text-slate-700 text-sm">Ubicación</h4>
+                      <div className="space-y-1 text-xs">
+                        <p><span className="font-medium">Sede:</span> {safeRenderText(device.ubicacion?.sede, "Sin información")}</p>
+                        <p><span className="font-medium">Servicio:</span> {safeRenderText(device.ubicacion?.servicio, "Sin información")}</p>
+                        <p><span className="font-medium">Área:</span> {safeRenderText(device.ubicacion?.area, "Sin información")}</p>
+                      </div>
+                    </div>
+
+                    {/* Plan de Ejecución */}
+                    {device.incluido_en_plan > 0 && (
+                      <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-300">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                          <h4 className="font-semibold text-emerald-800 text-sm">Plan {device.anio_vigente || 'Vigente'}</h4>
+                        </div>
+                        <div className="space-y-1 text-xs text-slate-700">
+                          {device.responsable_plan && (
+                            <p><span className="font-medium">Responsable:</span> {device.responsable_plan}</p>
+                          )}
+                          {device.frecuencia_plan && (
+                            <p><span className="font-medium">Frecuencia:</span> {device.frecuencia_plan}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Acciones */}
+                    <div className="pt-3 border-t border-slate-200">
+                      <RowActionButtons
+                        equipment={device}
+                        onViewClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setViewEquipmentModalOpen(true);
+                        }}
+                        onEditClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setEditEquipmentModalOpen(true);
+                        }}
+                        onDocumentsClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentListModalOpen(true);
+                        }}
+                        onUploadClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDocumentUploadModalOpen(true);
+                        }}
+                        onObservationClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setAddObservacionModalOpen(true);
+                        }}
+                        onDeleteClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDeleteConfirmModalOpen(true);
+                        }}
+                        onDecommissionClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setDarBajaEquipoModalOpen(true);
+                        }}
+                        onCopyClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCopyEquipmentModalOpen(true);
+                        }}
+                        onContingenciasClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setContingenciasModalOpen(true);
+                        }}
+                        onCapacitacionesClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCapacitacionesModalOpen(true);
+                        }}
+                        equipmentType="biomedical"
+                        showCopyButton={false}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          ) : (
+            <Card className="p-8">
+              <div className="text-center text-slate-500">
+                {error ? (
+                  <div className="text-red-500">
+                    <p className="font-semibold">Error al cargar los equipos</p>
+                    <p className="text-sm mt-2">{error}</p>
+                  </div>
+                ) : (
+                  <div>
+                    {filters.search && filters.search.trim() ? (
+                      <>
+                        <p className="font-semibold">No se encontraron equipos</p>
+                        <p className="text-sm mt-2">No hay equipos que coincidan con "{filters.search}"</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => search("")}
+                          className="mt-4"
+                        >
+                          Limpiar búsqueda
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold">No hay equipos disponibles</p>
+                        <p className="text-sm mt-2">No se encontraron equipos médicos registrados</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+        </div>
+
         {/* Results Info Bottom */}
         <div className="p-2 sm:p-3 md:p-4 text-xs sm:text-sm text-slate-600 border-t bg-slate-50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -1374,106 +1801,16 @@ export function MedicalDevicesView() {
           </div>
         </div>
 
-        {/* Enhanced Pagination Bottom */}
-        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-slate-50">
-          <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
-            <Select
-              value={pagination.per_page.toString()}
-              onValueChange={(value) => changePageSize(parseInt(value))}
-            >
-              <SelectTrigger className="w-12 sm:w-14 md:w-16 h-6 sm:h-7 md:h-8 text-xs sm:text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="15">15</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs sm:text-sm text-slate-700">
-              equipos por página
-            </span>
-          </div>
-
-          <div className="flex items-center gap-0.5 sm:gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => changePage(pagination.current_page - 1)}
-              disabled={pagination.current_page <= 1 || loading}
-            >
-              Anterior
-            </Button>
-
-            {/* Page numbers */}
-            {[...Array(Math.min(5, pagination.last_page))].map((_, index) => {
-              const pageNumber = index + 1;
-              const isCurrentPage = pageNumber === pagination.current_page;
-
-              return (
-                <Button
-                  key={pageNumber}
-                  variant={isCurrentPage ? "default" : "outline"}
-                  size="sm"
-                  className={`h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm ${
-                    isCurrentPage ? "bg-teal-600 hover:bg-teal-700" : ""
-                  }`}
-                  onClick={() => changePage(pageNumber)}
-                  disabled={loading}
-                >
-                  {pageNumber}
-                </Button>
-              );
-            })}
-
-            {pagination.last_page > 5 && (
-              <>
-                <span className="text-xs sm:text-sm text-slate-500 px-1">
-                  ...
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                  onClick={() => changePage(pagination.last_page)}
-                  disabled={loading}
-                >
-                  {pagination.last_page}
-                </Button>
-              </>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 sm:h-7 md:h-8 px-2 sm:px-3 text-xs sm:text-sm"
-              onClick={() => changePage(pagination.current_page + 1)}
-              disabled={
-                pagination.current_page >= pagination.last_page || loading
-              }
-            >
-              Siguiente
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-600">
-            <span>
-              Página {pagination.current_page} de {pagination.last_page}
-            </span>
-            <span className="hidden sm:inline">
-              ({(pagination.current_page - 1) * pagination.per_page + 1}-
-              {Math.min(
-                pagination.current_page * pagination.per_page,
-                pagination.total
-              )}{" "}
-              de {pagination.total})
-            </span>
-          </div>
-        </div>
+        {/* Global Pagination Component */}
+        <Pagination
+          currentPage={pagination.current_page}
+          totalPages={pagination.last_page}
+          totalItems={pagination.total}
+          itemsPerPage={pagination.per_page}
+          onPageChange={changePage}
+          loading={loading}
+          showInfo={true}
+        />
       </Card>
 
       {/* Modals */}
@@ -1509,6 +1846,7 @@ export function MedicalDevicesView() {
       <CorrectiveModal
         open={correctiveModalOpen}
         onOpenChange={setCorrectiveModalOpen}
+        equipmentType="biomedico"
       />
       <MonthModal open={monthModalOpen} onOpenChange={setMonthModalOpen} />
       <DocumentListModal
@@ -1567,6 +1905,24 @@ export function MedicalDevicesView() {
           // Refresh the equipment data after decommissioning
           refresh();
         }}
+      />
+      <ContingenciasModal
+        open={contingenciasModalOpen}
+        onOpenChange={setContingenciasModalOpen}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
+      />
+      <CapacitacionesModal
+        open={capacitacionesModalOpen}
+        onOpenChange={setCapacitacionesModalOpen}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
+      />
+      <MovimientosModal
+        open={movimientosModalOpen}
+        onOpenChange={setMovimientosModalOpen}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
       />
     </div>
   );

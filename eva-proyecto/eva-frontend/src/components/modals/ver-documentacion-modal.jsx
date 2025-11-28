@@ -126,7 +126,7 @@ export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
       case "pendiente":
         return "bg-yellow-100 text-yellow-800";
       case "en proceso":
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#1d293d]/10 text-[#1d293d]";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -193,7 +193,7 @@ export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
                 <h3 className="text-lg font-medium text-slate-800">
                   Manuales y Documentación Técnica
                 </h3>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                <Badge variant="outline" className="bg-[#1d293d]/5 text-[#1d293d]">
                   {documentacionEjemplo.manuales.length} documentos
                 </Badge>
               </div>
@@ -228,7 +228,7 @@ export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleViewDocument(manual)}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 w-8 h-8 p-0"
+                          className="text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5 w-8 h-8 p-0"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -294,7 +294,7 @@ export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 w-8 h-8 p-0"
+                          className="text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5 w-8 h-8 p-0"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -333,8 +333,8 @@ export function VerDocumentacionModal({ open, onOpenChange, equipo }) {
                       <div className="absolute left-4 top-8 bottom-0 w-px bg-slate-200"></div>
                     )}
                     <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <AlertCircle className="w-4 h-4 text-blue-600" />
+                      <div className="w-8 h-8 bg-[#1d293d]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                        <AlertCircle className="w-4 h-4 text-[#1d293d]" />
                       </div>
                       <div className="flex-1 border border-slate-200 rounded-lg p-4 hover:bg-slate-50">
                         <div className="flex items-start justify-between gap-4">

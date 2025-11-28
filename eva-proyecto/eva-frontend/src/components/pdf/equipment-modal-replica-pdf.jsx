@@ -1,4 +1,3 @@
-import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Link } from '@react-pdf/renderer';
 
 // Estilos para PDF que replican el modal
@@ -18,7 +17,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 15,
     borderBottomWidth: 2,
-    borderBottomColor: '#2563eb',
+    borderBottomColor: '#1d293d',
     marginBottom: 15
   },
   logo: {
@@ -35,17 +34,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1d4ed8',
+    color: '#1d293d',
     marginBottom: 4
   },
   subtitle: {
     fontSize: 12,
-    color: '#2563eb',
+    color: '#1d293d',
     fontWeight: 'bold'
   },
   systemInfo: {
     fontSize: 8,
-    color: '#3b82f6'
+    color: '#1d293d'
   },
   equipmentSection: {
     flexDirection: 'row',
@@ -62,7 +61,7 @@ const styles = StyleSheet.create({
   equipmentName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#1e40af',
+    color: '#1d293d',
     marginBottom: 8
   },
   equipmentGrid: {
@@ -78,7 +77,9 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: 80,
     height: 80,
-    border: '1pt solid #d1d5db',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderStyle: 'solid',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff'
@@ -92,41 +93,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#ffffff',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#1d293d',
     padding: 8,
     marginBottom: 0,
     marginTop: 15
   },
   table: {
     borderWidth: 1,
-    borderColor: '#93c5fd',
+    borderColor: '#4a5568',
     marginBottom: 15
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#bfdbfe'
+    borderBottomColor: '#4a5568'
   },
   tableCellHeader: {
     width: '25%',
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#e2e8f0',
     padding: 6,
     borderRightWidth: 1,
-    borderRightColor: '#bfdbfe',
+    borderRightColor: '#4a5568',
     fontSize: 9,
     fontWeight: 'bold',
-    color: '#1e40af'
+    color: '#1d293d'
   },
   tableCellData: {
     width: '25%',
     padding: 6,
     borderRightWidth: 1,
-    borderRightColor: '#bfdbfe',
+    borderRightColor: '#4a5568',
     fontSize: 9
   },
   dataTable: {
     borderWidth: 1,
-    borderColor: '#93c5fd',
+    borderColor: '#4a5568',
     marginBottom: 10
   },
   dataTableHeader: {
@@ -137,21 +138,21 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 6,
     borderRightWidth: 1,
-    borderRightColor: '#93c5fd',
+    borderRightColor: '#4a5568',
     fontSize: 8,
     fontWeight: 'bold',
-    color: '#1e40af'
+    color: '#1d293d'
   },
   dataTableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#bfdbfe'
+    borderBottomColor: '#4a5568'
   },
   dataTableCell: {
     flex: 1,
     padding: 6,
     borderRightWidth: 1,
-    borderRightColor: '#bfdbfe',
+    borderRightColor: '#4a5568',
     fontSize: 8
   },
   historyButton: {
@@ -167,7 +168,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: '#fef3cd',
-    border: '1pt solid #d97706',
+    borderWidth: 1,
+    borderColor: '#d97706',
+    borderStyle: 'solid',
     padding: 8,
     marginTop: 15,
     alignItems: 'center'
@@ -185,7 +188,7 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   link: {
-    color: '#2563eb',
+    color: '#1d293d',
     textDecoration: 'underline',
     fontSize: 9
   },
@@ -194,10 +197,51 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#6b7280',
     padding: 10
+  },
+  equipmentImage: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderStyle: 'solid'
+  },
+  noImageContainer: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderStyle: 'solid',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 5
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
+    objectFit: 'contain'
+  },
+  emptyHistoryContainer: {
+    textAlign: 'center',
+    padding: 20
+  },
+  emptyHistoryText: {
+    fontStyle: 'italic',
+    color: '#6b7280'
   }
 });
 
 const EquipmentModalReplicaPDF = ({ data }) => {
+  // 🖼️ Logs de debug para imagen
+  console.log('🖼️ [PDF Component] Recibiendo datos:', {
+    hasData: !!data,
+    hasEquipmentImageBase64: !!data?.equipmentImageBase64,
+    imageType: typeof data?.equipmentImageBase64,
+    imageLength: data?.equipmentImageBase64?.length || 0,
+    isValidBase64: data?.equipmentImageBase64?.startsWith('data:image/') || false,
+    imagePreview: data?.equipmentImageBase64?.substring(0, 50) || 'N/A'
+  });
+
   const safeValue = (value, defaultValue = 'N/A') => {
     if (value === null || value === undefined || value === '') return defaultValue;
     if (value === 0) return '0';
@@ -226,176 +270,8 @@ const EquipmentModalReplicaPDF = ({ data }) => {
     }
   };
 
-  // Función para convertir imagen a base64
-  const [equipmentImageBase64, setEquipmentImageBase64] = React.useState(null);
-  const [logoBase64, setLogoBase64] = React.useState(null);
-
-  // Función para convertir imagen de URL a base64 con timeout
-  const convertImageToBase64 = async (imageUrl, timeout = 10000) => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      const response = await fetch(imageUrl, { 
-        signal: controller.signal,
-        mode: 'cors',
-        cache: 'no-cache'
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Verificar que es una imagen válida
-      if (!blob.type.startsWith('image/')) {
-        throw new Error(`Invalid image type: ${blob.type}`);
-      }
-      
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result;
-          // Verificar que el resultado es válido
-          if (result && result.startsWith('data:image/')) {
-            resolve(result);
-          } else {
-            reject(new Error('Invalid base64 result'));
-          }
-        };
-        reader.onerror = () => reject(new Error('FileReader error'));
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error(`Error converting image to base64 (${imageUrl}):`, error.message);
-      return null;
-    }
-  };
-
-  // Cargar imágenes al montar el componente
-  React.useEffect(() => {
-    const loadImages = async () => {
-      // Convertir logo del hospital - probando múltiples rutas
-      try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001";
-        const logoPossiblePaths = [
-          `${baseUrl}/images/logo_huv.jpg`,
-          `${baseUrl}/public/images/logo_huv.jpg`,
-          `${baseUrl}/storage/images/logo_huv.jpg`,
-          `${baseUrl}/assets/images/logo_huv.jpg`,
-          `${baseUrl}/logo_huv.jpg`,
-          `${baseUrl}/images/logo_huv.png`,
-          `${baseUrl}/public/images/logo_huv.png`
-        ];
-        
-        let logoLoaded = false;
-        for (const logoPath of logoPossiblePaths) {
-          try {
-            const response = await fetch(logoPath, { method: 'HEAD' });
-            if (response.ok) {
-              const logoBase64Result = await convertImageToBase64(logoPath);
-              if (logoBase64Result) {
-                setLogoBase64(logoBase64Result);
-                console.log(`✅ Logo del hospital cargado desde: ${logoPath}`);
-                logoLoaded = true;
-                break;
-              }
-            }
-          } catch (e) {
-            continue; // Probar la siguiente ruta
-          }
-        }
-        
-        if (!logoLoaded) {
-          console.warn('⚠️ No se pudo cargar el logo del hospital desde ninguna ruta');
-        }
-      } catch (error) {
-        console.error('❌ Error loading hospital logo:', error);
-      }
-
-      // Convertir imagen del equipo si existe - probando múltiples rutas
-      const imageFields = [
-        data?.image_url, 
-        data?.imagen_url, 
-        data?.image, 
-        data?.imagen,
-        data?.foto_url,
-        data?.archivo_imagen
-      ];
-      
-      const imageFileName = imageFields.find(field => field && field.trim() !== '');
-      
-      if (imageFileName) {
-        try {
-          let imageUrl = imageFileName;
-          
-          // Si no es una URL completa, probar diferentes rutas del backend
-          if (!imageUrl.startsWith('http')) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001";
-            const possiblePaths = [
-              `${baseUrl}/storage/equipos/${imageUrl}`,
-              `${baseUrl}/storage/app/public/equipos/${imageUrl}`,
-              `${baseUrl}/public/storage/equipos/${imageUrl}`,
-              `${baseUrl}/images/equipos/${imageUrl}`,
-              `${baseUrl}/storage/${imageUrl}`,
-              `${baseUrl}/${imageUrl}`
-            ];
-            
-            // Probar cada ruta hasta encontrar una que funcione
-            for (const path of possiblePaths) {
-              try {
-                const response = await fetch(path, { method: 'HEAD' });
-                if (response.ok) {
-                  imageUrl = path;
-                  console.log(`✅ Imagen encontrada en: ${path}`);
-                  break;
-                }
-              } catch (e) {
-                continue; // Probar la siguiente ruta
-              }
-            }
-          }
-          
-          const equipmentBase64 = await convertImageToBase64(imageUrl);
-          if (equipmentBase64) {
-            setEquipmentImageBase64(equipmentBase64);
-            console.log(`✅ Imagen del equipo convertida a base64 exitosamente`);
-          } else {
-            console.warn(`⚠️ No se pudo convertir la imagen: ${imageUrl}`);
-          }
-        } catch (error) {
-          console.error('❌ Error loading equipment image:', error);
-        }
-      } else {
-        console.log('ℹ️ No se encontró imagen para el equipo');
-      }
-    };
-
-    loadImages();
-  }, [data]);
-
-  // Función para obtener la fuente de imagen del equipo
-  const getEquipmentImageSource = () => {
-    if (equipmentImageBase64) {
-      return equipmentImageBase64;
-    }
-    return null;
-  };
-
-  // Logo por defecto en base64 (simple círculo azul con HUV)
-  const defaultLogoBase64 = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ1IiBmaWxsPSIjMjU2M2ViIiBzdHJva2U9IiMxZDRlZDgiIHN0cm9rZS13aWR0aD0iMyIvPgo8dGV4dCB4PSI1MCIgeT0iNDAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5IVVY8L3RleHQ+Cjx0ZXh0IHg9IjUwIiB5PSI2MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5IT1NQSVRBTDWVDGV4dD4KPC9zdmc+';
-
-  // Función para obtener la fuente del logo
-  const getLogoSource = () => {
-    if (logoBase64) {
-      return logoBase64;
-    }
-    // Usar logo por defecto si no se pudo cargar el real
-    return defaultLogoBase64;
-  };
+  // Logo del hospital - usar ruta pública directamente
+  const logoHUV = '/images/logo_huv.jpg';
 
   return (
     <Document>
@@ -404,8 +280,8 @@ const EquipmentModalReplicaPDF = ({ data }) => {
         <View style={styles.header}>
           <View style={styles.logo}>
             <Image 
-              src={getLogoSource()}
-              style={{ width: 100, height: 100, objectFit: 'contain' }}
+              src={logoHUV}
+              style={styles.logoImage}
             />
           </View>
           <View style={styles.headerText}>
@@ -437,15 +313,27 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             </View>
           </View>
           <View style={styles.imageContainer}>
-            {getEquipmentImageSource() ? (
-              <Image 
-                src={getEquipmentImageSource()} 
-                style={{ width: 80, height: 80, objectFit: 'cover' }}
-              />
+            {data?.equipmentImageBase64 ? (
+              <>
+                {console.log('✅ [PDF] Renderizando imagen en PDF:', {
+                  hasImage: true,
+                  imageLength: data.equipmentImageBase64.length,
+                  imageStart: data.equipmentImageBase64.substring(0, 30)
+                })}
+                <Image 
+                  src={data.equipmentImageBase64} 
+                  style={styles.equipmentImage}
+                />
+              </>
             ) : (
-              <Text style={styles.noImage}>
-                {equipmentImageBase64 === null ? 'Cargando imagen...' : 'Sin imagen disponible'}
-              </Text>
+              <>
+                {console.log('⚠️ [PDF] NO HAY IMAGEN - Mostrando placeholder')}
+                <View style={styles.noImageContainer}>
+                  <Text style={styles.noImage}>
+                    Sin imagen
+                  </Text>
+                </View>
+              </>
             )}
           </View>
         </View>
@@ -537,9 +425,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableCellHeader}>F. Venc. Garantía</Text>
-            <Text style={styles.tableCellData}>{formatDate(data?.fecha_vencimiento_garantia)}</Text>
-            <Text style={styles.tableCellHeader}>F. Venc. INVIMA</Text>
-            <Text style={styles.tableCellData}>{formatDate(data?.fecha_vencimiento_invima)}</Text>
+            <Text style={[styles.tableCellData, { flex: 3 }]}>{formatDate(data?.fecha_vencimiento_garantia)}</Text>
           </View>
         </View>
 
@@ -751,8 +637,8 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             ))}
           </View>
         ) : (
-          <View style={[styles.table, { textAlign: 'center', padding: 20 }]}>
-            <Text style={{ fontStyle: 'italic', color: '#6b7280' }}>
+          <View style={[styles.table, styles.emptyHistoryContainer]}>
+            <Text style={styles.emptyHistoryText}>
               No hay actividad registrada para este equipo
             </Text>
           </View>

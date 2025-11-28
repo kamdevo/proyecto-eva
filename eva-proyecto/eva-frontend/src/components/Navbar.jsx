@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useAuth as usePermissions } from "../hooks/useAuth.jsx";
 import { Button } from "./ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   DropdownMenu,
@@ -108,19 +109,23 @@ const Header = () => {
 
 const AppSidebar = () => {
   const [openSubmenus, setOpenSubmenus] = useState([]);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const { permissionService, isAdmin, user } = useAuth();
   const { hasModuleAccess, isAdmin: isPermissionAdmin } = usePermissions();
   
-
-  // Debug: mostrar información del usuario y permisos
+  // Verificar si los permisos están cargados
   useEffect(() => {
-    if (user) {
-      console.log('🔍 Navbar - Usuario:', user.nombre, 'Rol:', user.rol_id);
-      console.log('🔍 Navbar - isPermissionAdmin():', isPermissionAdmin());
-      console.log('🔍 Navbar - Debe ver CONFIGURACIÓN:', user.rol_id === 1);
-      console.log('🔍 Navbar - Debe ver DASHBOARD:', user.rol_id <= 2);
+    if (user && permissionService) {
+      // Dar un pequeño delay para asegurar que los permisos se carguen
+      const timer = setTimeout(() => {
+        const readableModules = permissionService.getReadableModules();
+        setPermissionsLoaded(true);
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, isPermissionAdmin]);
+  }, [user, permissionService]);
+
 
   // Initialize permissions when user changes
   useEffect(() => {
@@ -233,64 +238,142 @@ const AppSidebar = () => {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {permissionService.filterMenuItems(navigationItems).map((item, index) => (
+              {(() => {
+                // Si los permisos no están cargados, usar fallback basado en rol
+                if (!permissionsLoaded) {
+                  
+                  // Admins ven todo
+                  if (user && user.rol_id <= 2) {
+                    return navigationItems;
+                  }
+                  
+                  // Usuarios normales ven módulos básicos
+                  return navigationItems.filter(item => {
+                    if (item.alwaysVisible) return true; // INICIO
+                    if (item.label === 'EQUIPOS') return true; // EQUIPOS
+                    if (item.label === 'ORDENES') {
+                      // Solo mostrar "MIS TICKETS"
+                      item.submenu = item.submenu.filter(sub => sub.href === '/ordenes/mis-tickets');
+                      return item.submenu.length > 0;
+                    }
+                    return false;
+                  });
+                }
+                
+                // Una vez cargados, usar el filtro normal de permisos
+                const filteredItems = permissionService.filterMenuItems(navigationItems);
+                
+                // Si no hay items filtrados, mostrar solo INICIO
+                if (filteredItems.length === 0) {
+                  const inicioItem = navigationItems.find(item => item.alwaysVisible);
+                  return inicioItem ? [inicioItem] : [];
+                }
+                
+                return filteredItems;
+              })().map((item, index) => (
                 <SidebarMenuItem key={index}>
                   {item.href ? (
                     // Item with direct link
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.href}
-                        className={({ isActive }) =>
-                          `w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 transition-colors text-white ${
-                            isActive ? "bg-slate-700 text-white" : ""
-                          }`
-                        }
-                      >
-                        <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-                        <span className="flex-1">{item.label}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      whileHover={{ 
+                        scale: 1.03,
+                        x: 6,
+                        transition: { duration: 0.2, ease: "easeOut" }
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <SidebarMenuButton asChild>
+                        <NavLink
+                          to={item.href}
+                          className={({ isActive }) =>
+                            `w-full justify-start text-left h-auto py-3 px-3 hover:bg-white hover:text-gray-900 transition-all duration-200 text-white rounded-lg group shadow-sm hover:shadow-lg ${
+                              isActive ? "bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg" : ""
+                            }`
+                          }
+                        >
+                          <item.icon className="h-4 w-4 mr-3 flex-shrink-0 group-hover:scale-110 transition-all duration-300" />
+                          <span className="flex-1 font-semibold">{item.label}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </motion.div>
                   ) : (
                     // Item with submenu
                     <>
-                      <SidebarMenuButton
-                        onClick={() => toggleSubmenu(item.label)}
-                        className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-slate-700 text-white transition-colors"
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        whileHover={{ 
+                          scale: 1.03,
+                          x: 6,
+                          transition: { duration: 0.2, ease: "easeOut" }
+                        }}
+                        whileTap={{ scale: 0.98 }}
                       >
-                        <item.icon className="h-4 w-4 mr-3 flex-shrink-0" />
-                        <span className="flex-1">{item.label}</span>
-                        {item.submenu.length > 0 && (
-                          <ChevronRight
-                            className={`h-4 w-4 ml-auto transition-transform duration-200 ${
-                              openSubmenus.includes(item.label)
-                                ? "rotate-90"
-                                : ""
-                            }`}
-                          />
-                        )}
-                      </SidebarMenuButton>
+                        <SidebarMenuButton
+                          onClick={() => toggleSubmenu(item.label)}
+                          className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-white hover:text-gray-900 text-white transition-all duration-200 rounded-lg group shadow-sm hover:shadow-lg"
+                        >
+                          <item.icon className="h-4 w-4 mr-3 flex-shrink-0 group-hover:scale-110 transition-all duration-300" />
+                          <span className="flex-1 font-semibold">{item.label}</span>
+                          {item.submenu.length > 0 && (
+                            <ChevronRight
+                              className={`h-4 w-4 ml-auto transition-transform duration-300 group-hover:translate-x-1 ${
+                                openSubmenus.includes(item.label)
+                                  ? "rotate-90"
+                                  : ""
+                              }`}
+                            />
+                          )}
+                        </SidebarMenuButton>
+                      </motion.div>
 
                       {/* Submenu */}
-                      {openSubmenus.includes(item.label) && (
-                        <SidebarMenuSub className="ml-4 mt-1 space-y-1 border-l border-slate-600 pl-4">
-                          {item.submenu.map((subItem, subIndex) => (
-                            <SidebarMenuSubItem key={subIndex}>
-                              <SidebarMenuSubButton asChild>
-                                <NavLink
-                                  to={subItem.href}
-                                  className={({ isActive }) =>
-                                    `w-full justify-start text-left h-auto py-2 px-3 hover:bg-slate-700 text-sm transition-colors text-white ${
-                                      isActive ? "bg-slate-700" : ""
-                                    }`
-                                  }
+                      <AnimatePresence>
+                        {openSubmenus.includes(item.label) && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <SidebarMenuSub className="ml-4 mt-1 space-y-1 border-l-2 border-blue-500/30 pl-4">
+                              {item.submenu.map((subItem, subIndex) => (
+                                <motion.div
+                                  key={subIndex}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ duration: 0.2, delay: subIndex * 0.05 }}
+                                  whileHover={{
+                                    scale: 1.05,
+                                    x: 8,
+                                    transition: { duration: 0.2, ease: "easeOut" }
+                                  }}
+                                  whileTap={{ scale: 0.95 }}
                                 >
-                                  <span>{subItem.label}</span>
-                                </NavLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      )}
+                                  <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild>
+                                      <NavLink
+                                        to={subItem.href}
+                                        className={({ isActive }) =>
+                                          `w-full justify-start text-left h-auto py-2 px-3 hover:bg-white hover:text-gray-900 text-sm transition-all duration-200 text-white rounded-md group shadow-sm hover:shadow-md ${
+                                            isActive ? "bg-gradient-to-r from-blue-600/80 to-blue-700/80 font-semibold" : ""
+                                          }`
+                                        }
+                                      >
+                                        <span className="group-hover:translate-x-2 transition-transform duration-200 font-medium">{subItem.label}</span>
+                                      </NavLink>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                </motion.div>
+                              ))}
+                            </SidebarMenuSub>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </>
                   )}
                 </SidebarMenuItem>

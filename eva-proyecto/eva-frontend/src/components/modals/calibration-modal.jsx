@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
 import httpService from "@/services/httpService";
+import { toast } from "sonner";
 
 export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
   const {  hasPermission } = useAuth();
@@ -228,9 +229,11 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
       return;
     }
 
+    const toastId = 'save-calibration';
     try {
       setLoading(true);
       setError(null);
+      toast.loading(viewMode === 'edit' ? 'Actualizando calibración...' : 'Registrando calibración...', { id: toastId });
 
       const submitData = new FormData();
       Object.keys(formData).forEach(key => {
@@ -251,10 +254,12 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
         await httpService.put(`/v1/calibracion/${selectedCalibration.id}`, submitData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        toast.success('Calibración actualizada exitosamente', { id: toastId });
       } else {
         await httpService.post('/v1/calibracion', submitData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        toast.success('Calibración registrada exitosamente', { id: toastId });
       }
 
       // Reset form and reload data
@@ -270,6 +275,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
     } catch (err) {
       console.error('Error saving calibration:', err);
       setError('Error al guardar la calibración');
+      toast.error('Error al guardar la calibración', { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -295,8 +301,11 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
 
   // Export to Excel
   const handleExport = async () => {
+    const toastId = 'export-calibraciones';
     try {
       setLoading(true);
+      toast.loading('Exportando calibraciones...', { id: toastId });
+      
       const response = await httpService.get('/v1/export/calibraciones', {
         responseType: 'blob',
         params: { ...(equipoId && { equipo_id: equipoId }) }
@@ -309,9 +318,12 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      toast.success('Calibraciones exportadas exitosamente', { id: toastId });
     } catch (err) {
       console.error('Error exporting:', err);
       setError('Error al exportar las calibraciones');
+      toast.error('Error al exportar las calibraciones', { id: toastId });
     } finally {
       setLoading(false);
     }

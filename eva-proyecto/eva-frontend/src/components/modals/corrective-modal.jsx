@@ -60,7 +60,7 @@ import Pagination from "@/components/common/Pagination";
  * @param {boolean} props.open - Estado de visibilidad del modal
  * @param {function} props.onOpenChange - Función para cambiar el estado del modal
  */
-export function CorrectiveModal({ open, onOpenChange }) {
+export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico" }) {
   // Agregar estilos CSS para sobrescribir limitaciones globales
   React.useEffect(() => {
     if (open) {
@@ -120,14 +120,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
     ) => {
       setLoading(true);
       try {
-        console.log("🔄 [CORRECTIVE] Cargando datos de correctivos...", {
-          page,
-          perPage,
-          search,
-          status,
-          filters
-        });
-
         const params = {
           page: page,
           per_page: perPage,
@@ -144,8 +136,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
         const response = await httpService.get("/v1/correctivos-generales", {
           params
         });
-
-        console.log("✅ [CORRECTIVE] Datos cargados:", response.data);
 
         // Extract correctivos and pagination from the nested structure
         let dataToSet = [];
@@ -164,15 +154,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
         } else if (response.data && Array.isArray(response.data)) {
           dataToSet = response.data;
         }
-
-        console.log(
-          "🔍 [CORRECTIVE] Datos extraídos para mostrar:",
-          dataToSet,
-          "Total:",
-          dataToSet.length,
-          "Paginación:",
-          paginationInfo
-        );
 
         // Set data and pagination info
         setCorrectiveData(Array.isArray(dataToSet) ? dataToSet : []);
@@ -384,13 +365,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
     // Defensive check to ensure correctiveData is always an array
     let filtered = Array.isArray(correctiveData) ? correctiveData : [];
 
-    console.log(
-      "🔍 [CORRECTIVE] Datos originales:",
-      correctiveData,
-      "Total:",
-      filtered.length
-    );
-
     // Global search across all fields
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -400,7 +374,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
             value && value.toString().toLowerCase().includes(searchLower)
         )
       );
-      console.log("🔍 [CORRECTIVE] Después de búsqueda:", filtered.length);
     }
 
     // Status filtering
@@ -419,10 +392,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
             return true;
         }
       });
-      console.log(
-        "🔍 [CORRECTIVE] Después de filtro de estado:",
-        filtered.length
-      );
     }
 
     // Sorting - now we're sure filtered is an array
@@ -439,7 +408,6 @@ export function CorrectiveModal({ open, onOpenChange }) {
       });
     }
 
-    console.log("🔍 [CORRECTIVE] Datos finales filtrados:", filtered.length);
     return filtered;
   }, [correctiveData, searchTerm, statusFilter, sortConfig]);
 
@@ -453,11 +421,15 @@ export function CorrectiveModal({ open, onOpenChange }) {
   /**
    * Export functionality - TODOS los correctivos (sin filtros)
    */
-  const handleExportAll = async (format = "excel") => {
+  const handleExportAll = async (formatOrEvent = "excel") => {
+    const toastId = 'export-all-correctivos';
     try {
       setLoading(true);
 
-      console.log("🔄 [EXPORT] Exportando TODOS los correctivos...");
+      // Si el primer parámetro es un evento (objeto), usar formato por defecto
+      const format = typeof formatOrEvent === 'string' ? formatOrEvent : 'excel';
+
+      toast.loading('Exportando todos los correctivos...', { id: toastId });
 
       // Llamada directa al endpoint para exportar TODOS los datos reales
       const response = await httpService.get(
@@ -492,14 +464,64 @@ export function CorrectiveModal({ open, onOpenChange }) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
-      console.log("✅ [EXPORT] Exportación de TODOS completada");
-      toast.success(
-        `Exportación COMPLETA ${format.toUpperCase()} - Todos los correctivos descargados exitosamente`
-      );
+      toast.success('Todos los correctivos exportados exitosamente', { id: toastId });
     } catch (error) {
       console.error("❌ [EXPORT] Error exportando todos:", error);
-      toast.error("Error durante la exportación de todos los correctivos");
+      toast.error("Error al exportar todos los correctivos", { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Export functionality - Parada de Equipo Biomédico
+   */
+  const handleExportParadaEquipo = async () => {
+    const equipmentTypeName = equipmentType === 'biomedico' ? 'Biomédico' : 'Industrial';
+    const toastId = 'export-parada-equipo';
+    
+    try {
+      setLoading(true);
+      toast.loading(`Exportando Parada de Equipo ${equipmentTypeName}...`, { id: toastId });
+
+      // Llamada al endpoint con parámetros formato=parada y tipo según equipmentType
+      const response = await httpService.get(
+        `/v1/correctivos-generales/export-excel?formato=parada&tipo=${equipmentType}`,
+        {
+          responseType: "blob",
+          timeout: 120000, // 2 minutos para exportaciones grandes
+          headers: {
+            Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }
+      );
+
+      // Crear blob y descargar
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `Parada_Equipo_${equipmentTypeName}_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success(`Parada de Equipo ${equipmentTypeName} exportada exitosamente`, { id: toastId });
+    } catch (error) {
+      console.error("❌ [EXPORT] Error exportando parada de equipo:", error);
+      
+      if (error.code === 'ECONNABORTED') {
+        toast.error("La exportación está tardando demasiado. Intenta más tarde.", { id: toastId });
+      } else {
+        toast.error("Error al exportar Parada de Equipo", { id: toastId });
+      }
     } finally {
       setLoading(false);
     }
@@ -509,14 +531,10 @@ export function CorrectiveModal({ open, onOpenChange }) {
    * Export functionality - SOLO correctivos filtrados/visibles
    */
   const handleExportFiltered = async (format = "excel") => {
+    const toastId = 'export-filtered-correctivos';
     try {
       setLoading(true);
-
-      console.log(
-        "🔄 [EXPORT] Exportando correctivos FILTRADOS...",
-        "Total filtrados:",
-        displayData.length
-      );
+      toast.loading('Exportando correctivos filtrados...', { id: toastId });
 
       // Enviar solo los IDs para que el backend consulte los datos reales
       const exportData = displayData.map((item) => ({
@@ -562,16 +580,10 @@ export function CorrectiveModal({ open, onOpenChange }) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
-      console.log("✅ [EXPORT] Exportación de FILTRADOS completada");
-      toast.success(
-        `Exportación FILTRADA ${format.toUpperCase()} - ${
-          exportData.length
-        } correctivos descargados exitosamente`
-      );
+      toast.success(`${exportData.length} correctivos filtrados exportados exitosamente`, { id: toastId });
     } catch (error) {
       console.error("❌ [EXPORT] Error exportando filtrados:", error);
-      toast.error("Error durante la exportación de correctivos filtrados");
+      toast.error("Error al exportar correctivos filtrados", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -1032,12 +1044,12 @@ export function CorrectiveModal({ open, onOpenChange }) {
               <div className="flex items-center gap-2">
                 {/* Botón para exportar TODOS los correctivos */}
                 <Button
-                  onClick={() => handleExportAll("excel")}
+                  onClick={handleExportAll}
                   variant="default"
                   size="sm"
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                   disabled={loading}
-                  title="Exportar TODOS los correctivos reales de la base de datos"
+                  title="Exportar todos los correctivos"
                 >
                   <FileSpreadsheet className="h-4 w-4" />
                   📊 Exportar TODOS

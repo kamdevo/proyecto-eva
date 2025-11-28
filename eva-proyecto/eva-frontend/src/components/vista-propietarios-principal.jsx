@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Table,
   TableBody,
@@ -19,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Eye, Search } from "lucide-react";
+import { Edit, Trash2, Plus, Eye, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 // Importar modales
 import UIModalAgregarPropietario from "@/components/modals/ui-modal-agregar-propietario";
@@ -37,10 +39,95 @@ export default function VistaPropietariosPrincipal() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Estados de ordenamiento
+  const [sortField, setSortField] = useState('nombre');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [propietariosData, setPropietariosData] = useState([]);
+  
+  // Función para manejar ordenamiento
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
-  // Datos de ejemplo para propietarios
-  const propietariosData = [
+  // Función para obtener icono de ordenamiento
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-4 h-4 text-slate-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-4 h-4 text-blue-600" />
+      : <ArrowDown className="w-4 h-4 text-blue-600" />;
+  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    per_page: 5,
+    current_page: 1,
+    last_page: 1
+  });
+
+  // Cargar propietarios desde la API
+  const fetchPropietarios = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/v1/propietarios?per_page=${itemsPerPage}&page=${currentPage}&search=${searchTerm}&sort_by=${sortField}&sort_direction=${sortDirection}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Error al cargar propietarios');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setPropietariosData(result.data || []);
+        if (result.pagination) {
+          setPagination(result.pagination);
+        }
+      } else {
+        throw new Error(result.message || 'Error al cargar propietarios');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(error.message || "Error al cargar propietarios");
+      setPropietariosData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPropietarios();
+  }, [currentPage, itemsPerPage, sortField, sortDirection]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (currentPage === 1) {
+        fetchPropietarios();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  // Datos de ejemplo (ya no se usan)
+  const propietariosDataEjemplo = [
     {
       id: 1,
       nombre: "ABBOTT",
@@ -121,6 +208,10 @@ export default function VistaPropietariosPrincipal() {
     },
   ];
 
+  const handleRefresh = () => {
+    fetchPropietarios();
+  };
+
   const handleEdit = (propietario) => {
     setSelectedPropietario(propietario);
     setIsEditModalOpen(true);
@@ -136,24 +227,30 @@ export default function VistaPropietariosPrincipal() {
     setIsExamineModalOpen(true);
   };
 
-  const filteredData = propietariosData.filter((propietario) =>
-    propietario.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const totalItems = filteredData.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentData = filteredData.slice(startIndex, endIndex);
+  const totalItems = pagination.total;
+  const totalPages = pagination.last_page;
+  const startIndex = pagination.from || 0;
+  const endIndex = pagination.to || 0;
+  const currentData = propietariosData;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header responsivo */}
-        <div className="mb-8">
+        <motion.div 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mb-8"
+        >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="text-center lg:text-left">
-              <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
+              <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
                 Propietarios
               </h1>
               <p className="text-base lg:text-lg text-gray-600">
@@ -175,7 +272,7 @@ export default function VistaPropietariosPrincipal() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Botón agregar flotante mejorado */}
         <div className="flex justify-center mb-25">
@@ -237,23 +334,26 @@ export default function VistaPropietariosPrincipal() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+                    <TableHead className="text-center font-bold text-gray-700 py-4 px-6 text-base w-20">
+                      <button 
+                        onClick={() => handleSort('id')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
+                      >
+                        ID
+                        {getSortIcon('id')}
+                      </button>
+                    </TableHead>
                     <TableHead className="text-left font-bold text-gray-700 py-4 px-6 text-base">
-                      <div className="flex items-center space-x-2">
-                        <span>Nombre del Propietario</span>
-                        <div className="flex flex-col">
-                          <div className="w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-500"></div>
-                          <div className="w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-400 mt-0.5"></div>
-                        </div>
-                      </div>
+                      <button 
+                        onClick={() => handleSort('nombre')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Nombre del Propietario
+                        {getSortIcon('nombre')}
+                      </button>
                     </TableHead>
                     <TableHead className="text-center font-bold text-gray-700 py-4 px-6 text-base">
-                      <div className="flex items-center justify-center space-x-2">
-                        <span>Logo</span>
-                        <div className="flex flex-col">
-                          <div className="w-0 h-0 border-l-2 border-r-2 border-b-2 border-transparent border-b-gray-500"></div>
-                          <div className="w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-400 mt-0.5"></div>
-                        </div>
-                      </div>
+                      Logo
                     </TableHead>
                     <TableHead className="text-center font-bold text-gray-700 py-4 px-6 text-base w-40">
                       Acciones
@@ -262,28 +362,44 @@ export default function VistaPropietariosPrincipal() {
                 </TableHeader>
                 <TableBody>
                   {currentData.map((propietario, index) => (
-                    <TableRow
+                    <motion.tr
                       key={propietario.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
                       className={`${
                         index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
                       } hover:bg-blue-50/70 border-b border-gray-100 transition-colors duration-200`}
                     >
+                      <TableCell className="py-6 px-6 text-center">
+                        <div className="font-semibold text-gray-700 text-base">
+                          {propietario.id}
+                        </div>
+                      </TableCell>
                       <TableCell className="py-6 px-6">
                         <div className="font-semibold text-gray-900 text-base">
                           {propietario.nombre}
                         </div>
                         <div className="text-sm text-gray-500 mt-1">
-                          {propietario.tipoEmpresa}
+                          {propietario.equipos_count || 0} equipos asociados
                         </div>
                       </TableCell>
                       <TableCell className="py-6 px-6">
                         <div className="flex justify-center">
                           <div className="w-28 h-20 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-200">
-                            <img
-                              src={propietario.logo || "/placeholder.svg"}
-                              alt={`Logo ${propietario.nombre}`}
-                              className="max-w-full max-h-full object-contain rounded-lg"
-                            />
+                            {propietario.logo ? (
+                              <img
+                                src={propietario.logo_url || `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/storage/equipos/images/${propietario.logo}`}
+                                alt={`Logo ${propietario.nombre}`}
+                                className="max-w-full max-h-full object-contain rounded-lg"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.innerHTML = '<div class="text-gray-400 text-xs">Sin logo</div>';
+                                }}
+                              />
+                            ) : (
+                              <div className="text-gray-400 text-xs">Sin logo</div>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -315,7 +431,7 @@ export default function VistaPropietariosPrincipal() {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   ))}
                 </TableBody>
               </Table>
@@ -324,25 +440,39 @@ export default function VistaPropietariosPrincipal() {
             {/* Vista de cards para móvil */}
             <div className="lg:hidden space-y-4 p-4">
               {currentData.map((propietario, index) => (
-                <Card
+                <motion.div
                   key={propietario.id}
-                  className="rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
+                  <Card className="rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
+                  >
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-4">
                       <div className="w-16 h-12 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <img
-                          src={propietario.logo || "/placeholder.svg"}
-                          alt={`Logo ${propietario.nombre}`}
-                          className="max-w-full max-h-full object-contain rounded"
-                        />
+                        {propietario.logo ? (
+                          <img
+                            src={propietario.logo_url || `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/storage/equipos/images/${propietario.logo}`}
+                            alt={`Logo ${propietario.nombre}`}
+                            className="max-w-full max-h-full object-contain rounded"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = '<div class="text-gray-400 text-[10px]">Sin logo</div>';
+                            }}
+                          />
+                        ) : (
+                          <div className="text-gray-400 text-[10px]">Sin logo</div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 text-sm truncate">
                           {propietario.nombre}
                         </h3>
                         <p className="text-xs text-gray-500 mt-1">
-                          {propietario.tipoEmpresa}
+                          {propietario.equipos_count || 0} equipos
                         </p>
                       </div>
                       <div className="flex space-x-1 flex-shrink-0">
@@ -374,6 +504,7 @@ export default function VistaPropietariosPrincipal() {
                     </div>
                   </CardContent>
                 </Card>
+                </motion.div>
               ))}
             </div>
           </CardContent>
@@ -432,18 +563,27 @@ export default function VistaPropietariosPrincipal() {
       {/* Modales */}
       <UIModalAgregarPropietario
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          handleRefresh();
+        }}
       />
 
       <UIModalEditarPropietario
         isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          handleRefresh();
+        }}
         propietario={selectedPropietario}
       />
 
       <UIModalEliminarPropietario
         isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          handleRefresh();
+        }}
         propietario={selectedPropietario}
       />
 
@@ -452,6 +592,6 @@ export default function VistaPropietariosPrincipal() {
         onClose={() => setIsExamineModalOpen(false)}
         propietario={selectedPropietario}
       />
-    </div>
+    </motion.div>
   );
 }

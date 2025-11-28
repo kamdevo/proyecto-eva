@@ -91,6 +91,29 @@ class ReactEmailService
     }
     
     /**
+     * Renderizar email de confirmación de cuenta
+     */
+    public function renderConfirmacionCuenta($usuario, $urlConfirmacion)
+    {
+        try {
+            $data = [
+                'usuario' => [
+                    'nombre' => $usuario->nombre ?? '',
+                    'apellido' => $usuario->apellido ?? '',
+                    'email' => $usuario->email ?? '',
+                ],
+                'urlConfirmacion' => $urlConfirmacion
+            ];
+            
+            return $this->renderEmail('confirmacion-cuenta', $data);
+            
+        } catch (\Exception $e) {
+            Log::error('Error renderizando email de confirmación de cuenta: ' . $e->getMessage());
+            return $this->getFallbackHtml('confirmacion-cuenta', $data);
+        }
+    }
+    
+    /**
      * Renderizar email de prueba
      */
     public function renderTestEmail($email = 'test@example.com')
@@ -201,6 +224,8 @@ class ReactEmailService
                 return $this->getFallbackRepuestoHtml($data);
             case 'nuevo-ticket':
                 return $this->getFallbackTicketHtml($data);
+            case 'confirmacion-cuenta':
+                return $this->getFallbackConfirmacionCuentaHtml($data);
             case 'test-email':
                 return $this->getFallbackTestHtml($data['email'] ?? 'test@example.com');
             default:
@@ -407,6 +432,135 @@ class ReactEmailService
         </html>';
     }
     
+    
+    /**
+     * HTML de fallback para email de confirmación de cuenta
+     */
+    private function getFallbackConfirmacionCuentaHtml($data)
+    {
+        $usuario = $data['usuario'] ?? [];
+        $urlConfirmacion = $data['urlConfirmacion'] ?? '#';
+        $nombreCompleto = trim(($usuario['nombre'] ?? '') . ' ' . ($usuario['apellido'] ?? ''));
+        $email = $usuario['email'] ?? '';
+        $fechaActual = now()->format('d/m/Y H:i:s');
+        $año = now()->year;
+        
+        return '<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Confirmación de Cuenta - Sistema EVA</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+                .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+                .header { background-color: #70bbd9; padding: 30px 20px; text-align: center; }
+                .header img { display: block; margin: 0 auto 15px auto; border-radius: 10px; }
+                .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; }
+                .subtitle { background-color: #5aa9c9; padding: 15px 20px; text-align: center; }
+                .subtitle p { color: #ffffff; font-size: 16px; font-style: italic; margin: 0; }
+                .content { padding: 30px 20px; background-color: #ffffff; }
+                .welcome-box { background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; margin: 20px 0; text-align: center; }
+                .welcome-box h2 { color: #2e7d32; margin: 0 0 10px 0; font-size: 20px; }
+                .welcome-box p { color: #388e3c; margin: 5px 0; font-size: 14px; }
+                .info-section { margin: 20px 0; }
+                .info-row { margin: 8px 0; }
+                .info-label { color: #333333; font-weight: bold; }
+                .info-value { color: #666666; }
+                .button-container { text-align: center; margin: 30px 0; }
+                .confirm-button { 
+                    display: inline-block; 
+                    background-color: #2196F3; 
+                    color: #ffffff; 
+                    padding: 15px 40px; 
+                    text-decoration: none; 
+                    border-radius: 5px; 
+                    font-weight: bold; 
+                    font-size: 16px;
+                }
+                .confirm-button:hover { background-color: #1976D2; }
+                .footer { background-color: #ee4c50; padding: 20px; text-align: center; color: #ffffff; }
+                .footer p { margin: 5px 0; font-size: 12px; }
+                .note { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; font-size: 13px; color: #856404; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <!-- Header con Logo -->
+                <div class="header">
+                    <img src="https://biotronitech.com.co/wp-content/uploads/2021/03/logo-HUV.jpg" 
+                         alt="Hospital Universitario del Valle" 
+                         width="120" height="120">
+                    <h1>CONFIRMACIÓN DE CUENTA</h1>
+                </div>
+
+                <!-- Subtítulo -->
+                <div class="subtitle">
+                    <p>Eva Gestiona la tecnología</p>
+                </div>
+
+                <!-- Contenido -->
+                <div class="content">
+                    <!-- Mensaje de Bienvenida -->
+                    <div class="welcome-box">
+                        <h2>¡Bienvenido al Sistema EVA!</h2>
+                        <p>Gracias por registrarte en nuestro sistema de gestión tecnológica</p>
+                    </div>
+
+                    <p style="color: #333; font-size: 15px; line-height: 1.6;">
+                        Hola <strong>' . htmlspecialchars($nombreCompleto) . '</strong>,
+                    </p>
+
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 15px;">
+                        Tu cuenta ha sido creada exitosamente. Para activarla y poder acceder al sistema, 
+                        necesitamos que confirmes tu dirección de correo electrónico.
+                    </p>
+
+                    <!-- Información de la cuenta -->
+                    <div class="info-section">
+                        <div class="info-row">
+                            <span class="info-label">📧 Email:</span> 
+                            <span class="info-value">' . htmlspecialchars($email) . '</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">👤 Nombre:</span> 
+                            <span class="info-value">' . htmlspecialchars($nombreCompleto) . '</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📅 Fecha de registro:</span> 
+                            <span class="info-value">' . $fechaActual . '</span>
+                        </div>
+                    </div>
+
+                    <!-- Botón de Confirmación -->
+                    <div class="button-container">
+                        <a href="' . htmlspecialchars($urlConfirmacion) . '" class="confirm-button">
+                            ✓ CONFIRMAR MI CUENTA
+                        </a>
+                    </div>
+
+                    <!-- Nota importante -->
+                    <div class="note">
+                        <strong>⚠️ Nota Importante:</strong><br>
+                        Este enlace de confirmación expirará en <strong>24 horas</strong>. 
+                        Si no confirmaste tu cuenta dentro de este período, deberás solicitar un nuevo enlace.
+                    </div>
+
+                    <p style="color: #999; font-size: 12px; margin-top: 20px; line-height: 1.5;">
+                        Si no creaste esta cuenta, puedes ignorar este mensaje. 
+                        Si tienes alguna pregunta, contacta con el administrador del sistema.
+                    </p>
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <p><strong>Sistema EVA</strong></p>
+                    <p>Eva Gestiona la tecnología - Hospital Universitario del Valle</p>
+                    <p>' . $fechaActual . ' - ' . $año . '</p>
+                </div>
+            </div>
+        </body>
+        </html>';
+    }
     
     /**
      * HTML de fallback para email de prueba

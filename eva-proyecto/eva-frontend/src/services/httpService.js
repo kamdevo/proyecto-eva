@@ -29,10 +29,6 @@ const initializeTokenFromStorage = () => {
     httpService.defaults.headers.common[
       "Authorization"
     ] = `Bearer ${storedToken}`;
-    console.log("🔄 [HTTP] Token restaurado desde localStorage:", storedToken);
-    console.log("🔄 [HTTP] Header Authorization configurado:", `Bearer ${storedToken}`);
-  } else {
-    console.log("⚠️ [HTTP] No hay token en localStorage");
   }
 };
 
@@ -42,12 +38,17 @@ initializeTokenFromStorage();
 // Interceptor de peticiones (request)
 httpService.interceptors.request.use(
   (config) => {
+    // Log de la petición
+    console.log(`🌐 [HTTP] ${config.method?.toUpperCase()} ${config.url}`, {
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      headers: config.headers,
+      withCredentials: config.withCredentials
+    });
+
     // Agregar token de autorización si existe
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
-      console.log("🔐 [HTTP] Enviando token en request:", config.method?.toUpperCase(), config.url);
-    } else {
-      console.log("⚠️ [HTTP] Sin token para request:", config.method?.toUpperCase(), config.url);
     }
 
     // Agregar timestamp para evitar cache
@@ -57,14 +58,6 @@ httpService.interceptors.request.use(
         _t: Date.now(),
       };
     }
-
-    console.log(`🚀 [HTTP] ${config.method?.toUpperCase()} ${config.url}`, {
-      baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`,
-      headers: config.headers,
-      params: config.params,
-      data: config.data,
-    });
 
     return config;
   },
@@ -77,25 +70,6 @@ httpService.interceptors.request.use(
 // Interceptor de respuestas (response)
 httpService.interceptors.response.use(
   (response) => {
-    // Si es una respuesta blob, no loguear el contenido completo
-    if (response.config.responseType === 'blob') {
-      console.log(
-        `✅ [HTTP] ${response.status} ${response.config.method?.toUpperCase()} ${
-          response.config.url
-        } (blob: ${response.data.size} bytes)`
-      );
-    } else {
-      console.log(
-        `✅ [HTTP] ${response.status} ${response.config.method?.toUpperCase()} ${
-          response.config.url
-        }`,
-        {
-          data: response.data,
-          headers: response.headers,
-        }
-      );
-    }
-
     return response;
   },
   async (error) => {
@@ -161,11 +135,9 @@ export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem("eva_auth_token", token);
     httpService.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    console.log("✅ [HTTP] Token establecido y persistido");
   } else {
     localStorage.removeItem("eva_auth_token");
     delete httpService.defaults.headers.common["Authorization"];
-    console.log("🧹 [HTTP] Token eliminado y headers limpiados");
   }
 };
 
@@ -205,7 +177,6 @@ const handleAuthenticationError = () => {
 
 // Función para mostrar notificaciones de error usando nuestro sistema de toasts
 const showErrorNotification = (message) => {
-  console.error("🔔 [NOTIFICATION]", message);
   
   // Usar nuestro sistema de toasts si está disponible
   try {
@@ -224,7 +195,6 @@ export const getCsrfToken = async () => {
     await axios.get(`${API_CONFIG.BASE_URL}/sanctum/csrf-cookie`, {
       withCredentials: true,
     });
-    console.log("✅ [CSRF] Token obtenido correctamente");
   } catch (error) {
     console.error("❌ [CSRF] Error al obtener token:", error);
     throw error;
@@ -234,7 +204,6 @@ export const getCsrfToken = async () => {
 // Función para inicializar la autenticación
 export const initializeAuth = async () => {
   try {
-    console.log("🔄 [AUTH] Inicializando autenticación...");
 
     // Obtener CSRF token
     await getCsrfToken();
@@ -242,16 +211,11 @@ export const initializeAuth = async () => {
     // Verificar si hay token almacenado
     const storedToken = localStorage.getItem("eva_auth_token");
     if (storedToken) {
-      console.log("🔍 [AUTH] Token encontrado, validando...");
       setAuthToken(storedToken);
 
       // Verificar que el token sigue siendo válido
       try {
         const response = await httpService.get(AUTH_ENDPOINTS.USER);
-        console.log(
-          "✅ [AUTH] Token válido, usuario autenticado:",
-          response.data
-        );
         return { success: true, user: response.data };
       } catch (error) {
         const status = error.response?.status;
@@ -289,7 +253,6 @@ export const initializeAuth = async () => {
         }
       }
     } else {
-      console.log("ℹ️ [AUTH] No hay token almacenado");
       return { success: false, error: "No hay token" };
     }
   } catch (error) {

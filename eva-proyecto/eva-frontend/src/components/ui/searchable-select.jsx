@@ -16,9 +16,17 @@ const SearchableSelect = ({
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef(null);
 
+  // Normalize text to remove accents/tildes for search
+  const normalizeText = (text) => {
+    return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  };
+
   // Find selected option
   const selectedOption = options.find(
-    (option) => option.id.toString() === value
+    (option) => option && option.id && option.id.toString() === value
   );
 
   // Filter options based on search term and ensure valid options
@@ -30,16 +38,19 @@ const SearchableSelect = ({
         option.id !== null &&
         option.id !== undefined &&
         option.id !== "" &&
-        option.nombre
+        (option.label || option.nombre || option.name)
     );
 
     if (!searchTerm.trim()) return validOptions;
 
+    const normalizedSearchTerm = normalizeText(searchTerm.trim());
+
     return validOptions.filter(
-      (option) =>
-        option.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (option.codigo &&
-          option.codigo.toLowerCase().includes(searchTerm.toLowerCase()))
+      (option) => {
+        const displayText = option.label || option.nombre || option.name || '';
+        return normalizeText(displayText).includes(normalizedSearchTerm) ||
+               (option.codigo && normalizeText(option.codigo).includes(normalizedSearchTerm));
+      }
     );
   }, [options, searchTerm]);
 
@@ -91,9 +102,9 @@ const SearchableSelect = ({
       {/* Search Input */}
       <Input
         ref={inputRef}
-        placeholder={selectedOption ? selectedOption.nombre : placeholder}
+        placeholder={selectedOption ? (selectedOption.label || selectedOption.nombre || selectedOption.name) : placeholder}
         value={
-          isSearching ? searchTerm : selectedOption ? selectedOption.nombre : ""
+          isSearching ? searchTerm : selectedOption ? (selectedOption.label || selectedOption.nombre || selectedOption.name) : ""
         }
         onChange={handleInputChange}
         onFocus={() => {
@@ -113,9 +124,9 @@ const SearchableSelect = ({
               <div
                 key={option.id}
                 className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                onClick={() => handleSelectValue(option.id.toString())}
+                onClick={() => handleSelectValue(option.id ? option.id.toString() : '')}
               >
-                {option.nombre}
+                {option.label || option.nombre || option.name}
               </div>
             ))
           ) : (

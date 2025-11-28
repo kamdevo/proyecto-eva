@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -8,71 +8,124 @@ import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
 import { TicketsProvider } from "./contexts/TicketsContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
-
-// Importa tus vistas
-import ContingenciesView from "./components/contingencies-view";
-import HomePage from "./components/HomePage";
-import LoginPage from "./components/LoginPage";
-import ManualesView from "./components/manuales-view";
-import MedicalDevicesView from "./components/medical-devices-view";
-import PlanesMantenimientoView from "./components/planes-mantenimiento-view";
-import PurchaseOrdersView from "./components/purchase-orders-view";
-import ProfilePage from "./components/ProfilePage";
-import MyTickets from "./components/MyTickets";
-import ClosedTickets from "./components/ClosedTickets";
-import DashboardView from "./components/Dashboard";
-import DashboardReportes from "./components/DashboardReportes"; 
-import ContactsView from "./components/vista-contactos-principal";
-import ControlPanel from "./components/control-panel";
-import VistaAreasPrincipal from "./components/vista-areas-principal";
-import VistaPropietariosPrincipal from "./components/vista-propietarios-principal";
-import VistaServiciosPrincipal from "./components/vista-servicios-principal";
-import Usuarios from "./components/Usuarios";
-import Navbar from "./components/Navbar";
-import IndustrialDevicesView from "./components/IndustrialDevices";
-import GestionTickets from "./components/GestionTickets";
-import Footer from "./components/Footer";
-import EquiposBajas from "./components/EquiposBajas";
-import GuiasRapidas from "./components/GuiasRapidas";
-import RepuestosView from "./components/RepuestosView";
-import CapacitacionesView from "./components/CapacitacionesView";
-import ConsultaIndustrialView from "./components/ConsultaIndustrialView";
-import DebugRegistration from "./components/DebugRegistration";
-import CompleteDebugTest from "./components/CompleteDebugTest";
-import LogoutPage from "./components/LogoutPage";
 import { useLocation } from "react-router-dom";
+
+// Componentes críticos (no lazy)
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
+// 🚀 Lazy loading de vistas para mejor rendimiento
+const ContingenciesView = lazy(() => import("./components/contingencies-view"));
+const HomePage = lazy(() => import("./components/HomePage"));
+const LoginPage = lazy(() => import("./components/LoginPage"));
+const ManualesView = lazy(() => import("./components/manuales-view"));
+const MedicalDevicesView = lazy(() => import("./components/medical-devices-view"));
+const PlanesMantenimientoView = lazy(() => import("./components/planes-mantenimiento-view"));
+const PurchaseOrdersView = lazy(() => import("./components/purchase-orders-view"));
+const ProfilePage = lazy(() => import("./components/ProfilePage"));
+const MyTickets = lazy(() => import("./components/MyTickets"));
+const ClosedTickets = lazy(() => import("./components/ClosedTickets"));
+const DashboardView = lazy(() => import("./components/Dashboard"));
+const DashboardReportes = lazy(() => import("./components/DashboardReportesFuncional")); 
+const ContactsView = lazy(() => import("./components/vista-contactos-principal"));
+const ControlPanel = lazy(() => import("./components/control-panel"));
+const VistaAreasPrincipal = lazy(() => import("./components/vista-areas-principal"));
+const VistaPropietariosPrincipal = lazy(() => import("./components/vista-propietarios-principal"));
+const VistaServiciosPrincipal = lazy(() => import("./components/vista-servicios-principal"));
+const Usuarios = lazy(() => import("./components/Usuarios"));
+const IndustrialDevicesView = lazy(() => import("./components/IndustrialDevices"));
+const GestionTickets = lazy(() => import("./components/GestionTickets"));
+const EquiposBajas = lazy(() => import("./components/EquiposBajas"));
+const GuiasRapidas = lazy(() => import("./components/GuiasRapidas"));
+const RepuestosView = lazy(() => import("./components/RepuestosView"));
+const CapacitacionesView = lazy(() => import("./components/CapacitacionesView"));
+const ConsultaIndustrialView = lazy(() => import("./components/ConsultaIndustrialView"));
+const DebugRegistration = lazy(() => import("./components/DebugRegistration"));
+const CompleteDebugTest = lazy(() => import("./components/CompleteDebugTest"));
+const LogoutPage = lazy(() => import("./components/LogoutPage"));
+const ConfirmarCuenta = lazy(() => import("./pages/ConfirmarCuenta"));
+const ReenviarVerificacion = lazy(() => import("./pages/ReenviarVerificacion"));
+const VerificacionPendiente = lazy(() => import("./pages/VerificacionPendiente"));
+
+// Componente de loading
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-[#1d293d]/5">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1d293d] mx-auto mb-4"></div>
+      <p className="text-slate-600 text-sm">Cargando...</p>
+    </div>
+  </div>
+);
+
 
 // Componente interno que usa useLocation
 function AppContent() {
   const location = useLocation();
-  const isLoginPage = location.pathname === "/";
+  // Páginas que NO deben tener sidebar/navbar (standalone)
+  const standalonePages = [
+    "/",
+    "/login",
+    "/confirmar-cuenta",
+    "/verificacion-pendiente",
+    "/resend-verification"
+  ];
+  const isStandalonePage = standalonePages.some(page => 
+    location.pathname === page || location.pathname.startsWith(page + "/")
+  );
 
   return (
-    <SidebarProvider>
-      {!isLoginPage && <Navbar />}
-
-      <SidebarInset>
-        {/* Main content wrapper with conditional padding */}
-        <div className={isLoginPage ? "" : "pt-16"}>
-          {/* All routes */}
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute requireAuth={false}>
-                  <LoginPage />
-                </ProtectedRoute>
-              }
-            />
-            {/* Redirect /login to / for compatibility */}
-            <Route
-              path="/login"
-              element={
-                <ProtectedRoute requireAuth={true}>
-                  <LoginPage />
-                </ProtectedRoute>
-              }
-            />
+    <Suspense fallback={<LoadingFallback />}>
+      {/* Rutas standalone sin sidebar/navbar */}
+      {isStandalonePage ? (
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute requireAuth={false}>
+                <LoginPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <ProtectedRoute requireAuth={false}>
+                <LoginPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/confirmar-cuenta/:token"
+            element={
+              <ProtectedRoute requireAuth={false}>
+                <ConfirmarCuenta />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/verificacion-pendiente"
+            element={
+              <ProtectedRoute requireAuth={false}>
+                <VerificacionPendiente />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/resend-verification"
+            element={
+              <ProtectedRoute requireAuth={false}>
+                <ReenviarVerificacion />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      ) : (
+        /* Rutas con sidebar/navbar (layout principal) */
+        <SidebarProvider>
+          <Navbar />
+          <SidebarInset>
+            <div className="pt-16">
+              <Routes>
             <Route
               path="/perfil"
               element={
@@ -295,11 +348,12 @@ function AppContent() {
               }
             />
           </Routes>
-
-          {!isLoginPage && <Footer />}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+          <Footer />
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      )}
+    </Suspense>
   );
 }
 
@@ -319,5 +373,6 @@ export default function App() {
         </AuthProvider>
       </ToastProvider>
     </Router>
+    
   );
 }

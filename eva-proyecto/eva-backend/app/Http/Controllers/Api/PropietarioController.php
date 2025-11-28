@@ -5,11 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\ConexionesVista\ApiController;
 use App\ConexionesVista\ResponseFormatter;
-use App\Models\Propietario;
-use App\Models\Equipo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 /**
@@ -35,35 +34,67 @@ class PropietarioController extends ApiController
     public function index(Request $request)
     {
         try {
-            $query = Propietario::query();
+            $query = DB::table('propietarios');
 
             // Aplicar filtros
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
-                });
+                $query->where('nombre', 'like', "%{$search}%");
             }
 
-            if ($request->has('activo')) {
-                $query->where('activo', $request->activo);
-            }
-
-            // Ordenamiento
+            // Ordenamiento (aceptar sort_order o sort_direction)
             $sortBy = $request->get('sort_by', 'nombre');
-            $sortOrder = $request->get('sort_order', 'asc');
-            $query->orderBy($sortBy, $sortOrder);
+            $sortOrder = $request->get('sort_direction', $request->get('sort_order', 'asc'));
+            
+            // Mapear campos si es necesario
+            $sortFieldMap = [
+                'id' => 'id',
+                'nombre' => 'nombre'
+            ];
+            
+            $sortField = $sortFieldMap[$sortBy] ?? 'nombre';
+            $sortDir = in_array(strtolower($sortOrder), ['asc', 'desc']) ? strtolower($sortOrder) : 'asc';
+            
+            $query->orderBy($sortField, $sortDir);
 
             // Paginación
             $perPage = $request->get('per_page', 10);
+            $total = $query->count();
             $propietarios = $query->paginate($perPage);
 
-            return $this->paginatedResponse($propietarios, 'Propietarios obtenidos exitosamente');
+            // Agregar conteo de equipos para cada propietario
+            $propietarios->getCollection()->transform(function ($propietario) {
+                $propietario->equipos_count = DB::table('equipos')
+                    ->where('propietario_id', $propietario->id)
+                    ->count();
+                
+                // Agregar URL completa del logo si existe
+                if ($propietario->logo) {
+                    $propietario->logo_url = url('storage/equipos/images/' . $propietario->logo);
+                }
+                
+                return $propietario;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $propietarios->items(),
+                'pagination' => [
+                    'total' => $propietarios->total(),
+                    'per_page' => $propietarios->perPage(),
+                    'current_page' => $propietarios->currentPage(),
+                    'last_page' => $propietarios->lastPage(),
+                    'from' => $propietarios->firstItem(),
+                    'to' => $propietarios->lastItem()
+                ],
+                'message' => 'Propietarios obtenidos exitosamente'
+            ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Error al obtener propietarios: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener propietarios: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -86,39 +117,55 @@ class PropietarioController extends ApiController
         try {
             $validator = Validator::make($request->all(), [
                 'nombre' => 'required|string|max:255',
-                'codigo' => 'required|string|max:50|unique:propietarios,codigo',
-                'descripcion' => 'nullable|string',
-                'contacto' => 'nullable|string|max:255',
-                'telefono' => 'nullable|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'direccion' => 'nullable|string',
-                'activo' => 'boolean'
+                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
             ]);
 
             if ($validator->fails()) {
-                return $this->validationErrorResponse($validator->errors());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
             DB::beginTransaction();
 
-            $propietario = Propietario::create([
+            $logoName = null;
+            
+            // Logo es opcional
+            if ($request->hasFile('logo')) {
+                $logo = $request->file('logo');
+                $logoName = time() . '_' . uniqid() . '.' . $logo->getClientOriginalExtension();
+                $logo->move(public_path('storage/equipos/images'), $logoName);
+            }
+
+            $insertData = [
                 'nombre' => $request->nombre,
-                'codigo' => $request->codigo,
-                'descripcion' => $request->descripcion,
-                'contacto' => $request->contacto,
-                'telefono' => $request->telefono,
-                'email' => $request->email,
-                'direccion' => $request->direccion,
-                'activo' => $request->get('activo', true)
-            ]);
+                'logo' => $logoName
+            ];
+
+            $propietarioId = DB::table('propietarios')->insertGetId($insertData);
+
+            $propietario = DB::table('propietarios')->where('id', $propietarioId)->first();
+            
+            if ($propietario->logo) {
+                $propietario->logo_url = url('storage/equipos/images/' . $propietario->logo);
+            }
 
             DB::commit();
 
-            return $this->successResponse($propietario, 'Propietario creado exitosamente', 201);
+            return response()->json([
+                'success' => true,
+                'data' => $propietario,
+                'message' => 'Propietario creado exitosamente'
+            ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Error al crear propietario: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear propietario: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -145,23 +192,38 @@ class PropietarioController extends ApiController
     public function show($id)
     {
         try {
-            $propietario = Propietario::with(['equipos'])->find($id);
+            $propietario = DB::table('propietarios')->where('id', $id)->first();
 
             if (!$propietario) {
-                return $this->notFoundResponse('Propietario no encontrado');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Propietario no encontrado'
+                ], 404);
             }
 
             // Agregar estadísticas
-            $propietario->estadisticas = [
-                'total_equipos' => $propietario->equipos->count(),
-                'equipos_activos' => $propietario->equipos->where('status', 1)->count(),
-                'equipos_inactivos' => $propietario->equipos->where('status', 0)->count()
-            ];
+            $totalEquipos = DB::table('equipos')->where('propietario_id', $id)->count();
+            $equiposActivos = DB::table('equipos')->where('propietario_id', $id)->where('status', 1)->count();
+            
+            $propietario->equipos_count = $totalEquipos;
+            $propietario->equipos_activos = $equiposActivos;
+            $propietario->equipos_inactivos = $totalEquipos - $equiposActivos;
+            
+            if ($propietario->logo) {
+                $propietario->logo_url = url('storage/equipos/images/' . $propietario->logo);
+            }
 
-            return $this->successResponse($propietario, 'Propietario obtenido exitosamente');
+            return response()->json([
+                'success' => true,
+                'data' => $propietario,
+                'message' => 'Propietario obtenido exitosamente'
+            ]);
 
         } catch (\Exception $e) {
-            return $this->errorResponse('Error al obtener propietario: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener propietario: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -188,47 +250,69 @@ class PropietarioController extends ApiController
     public function update(Request $request, $id)
     {
         try {
-            $propietario = Propietario::find($id);
+            $propietario = DB::table('propietarios')->where('id', $id)->first();
 
             if (!$propietario) {
-                return $this->notFoundResponse('Propietario no encontrado');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Propietario no encontrado'
+                ], 404);
             }
 
             $validator = Validator::make($request->all(), [
                 'nombre' => 'required|string|max:255',
-                'codigo' => 'required|string|max:50|unique:propietarios,codigo,' . $id,
-                'descripcion' => 'nullable|string',
-                'contacto' => 'nullable|string|max:255',
-                'telefono' => 'nullable|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'direccion' => 'nullable|string',
-                'activo' => 'boolean'
+                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
             ]);
 
             if ($validator->fails()) {
-                return $this->validationErrorResponse($validator->errors());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
             DB::beginTransaction();
 
-            $propietario->update([
-                'nombre' => $request->nombre,
-                'codigo' => $request->codigo,
-                'descripcion' => $request->descripcion,
-                'contacto' => $request->contacto,
-                'telefono' => $request->telefono,
-                'email' => $request->email,
-                'direccion' => $request->direccion,
-                'activo' => $request->get('activo', $propietario->activo)
-            ]);
+            $updateData = [
+                'nombre' => $request->nombre
+            ];
+
+            // Manejar logo
+            if ($request->hasFile('logo')) {
+                // Eliminar logo anterior si existe
+                if ($propietario->logo && file_exists(public_path('storage/equipos/images/' . $propietario->logo))) {
+                    unlink(public_path('storage/equipos/images/' . $propietario->logo));
+                }
+                
+                $logo = $request->file('logo');
+                $logoName = time() . '_' . uniqid() . '.' . $logo->getClientOriginalExtension();
+                $logo->move(public_path('storage/equipos/images'), $logoName);
+                $updateData['logo'] = $logoName;
+            }
+
+            DB::table('propietarios')->where('id', $id)->update($updateData);
+
+            $propietarioActualizado = DB::table('propietarios')->where('id', $id)->first();
+            
+            if ($propietarioActualizado->logo) {
+                $propietarioActualizado->logo_url = url('storage/equipos/images/' . $propietarioActualizado->logo);
+            }
 
             DB::commit();
 
-            return $this->successResponse($propietario, 'Propietario actualizado exitosamente');
+            return response()->json([
+                'success' => true,
+                'data' => $propietarioActualizado,
+                'message' => 'Propietario actualizado exitosamente'
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Error al actualizar propietario: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar propietario: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -255,27 +339,45 @@ class PropietarioController extends ApiController
     public function destroy($id)
     {
         try {
-            $propietario = Propietario::find($id);
+            $propietario = DB::table('propietarios')->where('id', $id)->first();
 
             if (!$propietario) {
-                return $this->notFoundResponse('Propietario no encontrado');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Propietario no encontrado'
+                ], 404);
             }
 
             // Verificar si tiene equipos asociados
-            $equiposCount = Equipo::where('propietario_id', $id)->count();
+            $equiposCount = DB::table('equipos')->where('propietario_id', $id)->count();
             if ($equiposCount > 0) {
-                return $this->errorResponse('No se puede eliminar el propietario porque tiene equipos asociados', 409);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar el propietario porque tiene ' . $equiposCount . ' equipos asociados'
+                ], 409);
             }
 
             DB::beginTransaction();
-            $propietario->delete();
+            
+            // Eliminar logo si existe
+            if ($propietario->logo && file_exists(public_path('storage/equipos/images/' . $propietario->logo))) {
+                unlink(public_path('storage/equipos/images/' . $propietario->logo));
+            }
+            
+            DB::table('propietarios')->where('id', $id)->delete();
             DB::commit();
 
-            return $this->successResponse(null, 'Propietario eliminado exitosamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Propietario eliminado exitosamente'
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->errorResponse('Error al eliminar propietario: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar propietario: ' . $e->getMessage()
+            ], 500);
         }
     }
 

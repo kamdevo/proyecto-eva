@@ -43,10 +43,30 @@ export const useSecopService = () => {
       }
 
       const data = await response.json();
+      
+      console.log('📦 [SECOP] Datos recibidos del backend:', data);
+      console.log('📦 [SECOP] data.success:', data.success);
+      console.log('📦 [SECOP] data.data:', data.data);
+      console.log('📦 [SECOP] Array length:', data.data?.length);
 
       if (data.success) {
-        setProcesses(data.data || []);
-        console.log('✅ [SECOP] Procesos obtenidos:', data.data?.length || 0);
+        // Normalizar datos para asegurar compatibilidad
+        const normalizedData = (data.data || []).map(process => ({
+          ...process,
+          // Asegurar que valor sea número
+          valor: typeof process.valor === 'string' ? parseFloat(process.valor) || 0 : (process.valor || 0),
+          // Normalizar fecha
+          fecha_firma: process.fecha_firma ? process.fecha_firma.split('T')[0] : null,
+          // Asegurar que los strings estén decodificados
+          objeto: process.objeto || '',
+          entidad: process.entidad || '',
+          proveedor: process.proveedor || '',
+          estado: process.estado || 'Sin estado'
+        }));
+        
+        console.log('✨ [SECOP] Datos normalizados:', normalizedData);
+        setProcesses(normalizedData);
+        console.log('✅ [SECOP] Procesos obtenidos:', normalizedData.length);
       } else {
         throw new Error(data.message || 'Error al consultar SECOP');
       }
@@ -86,10 +106,30 @@ export const useSecopService = () => {
       }
 
       const data = await response.json();
+      
+      console.log('📦 [SECOP BÚSQUEDA] Datos recibidos del backend:', data);
+      console.log('📦 [SECOP BÚSQUEDA] data.success:', data.success);
+      console.log('📦 [SECOP BÚSQUEDA] data.data:', data.data);
+      console.log('📦 [SECOP BÚSQUEDA] Array length:', data.data?.length);
 
       if (data.success) {
-        setProcesses(data.data || []);
-        console.log('🔍 [SECOP] Búsqueda completada:', data.data?.length || 0, 'resultados');
+        // Normalizar datos para asegurar compatibilidad
+        const normalizedData = (data.data || []).map(process => ({
+          ...process,
+          // Asegurar que valor sea número
+          valor: typeof process.valor === 'string' ? parseFloat(process.valor) || 0 : (process.valor || 0),
+          // Normalizar fecha
+          fecha_firma: process.fecha_firma ? process.fecha_firma.split('T')[0] : null,
+          // Asegurar que los strings estén decodificados
+          objeto: process.objeto || '',
+          entidad: process.entidad || '',
+          proveedor: process.proveedor || '',
+          estado: process.estado || 'Sin estado'
+        }));
+        
+        console.log('✨ [SECOP BÚSQUEDA] Datos normalizados:', normalizedData);
+        setProcesses(normalizedData);
+        console.log('🔍 [SECOP] Búsqueda completada:', normalizedData.length, 'resultados');
       } else {
         throw new Error(data.message || 'Error en búsqueda SECOP');
       }

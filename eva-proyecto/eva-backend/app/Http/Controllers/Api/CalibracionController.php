@@ -138,19 +138,10 @@ class CalibracionController extends ApiController
     {
         $validator = Validator::make($request->all(), [
             'equipo_id' => 'required|exists:equipos,id',
-            'descripcion' => 'required|string|max:500',
-            'fecha' => 'required|date',
-            'fecha_vencimiento' => 'required|date|after:fecha',
-            'tecnico_id' => 'nullable|exists:usuarios,id',
-            'tipo' => 'required|in:interna,externa,verificacion,ajuste',
-            'estado' => 'nullable|in:programada,en_proceso,completada,vencida,no_aplica',
-            'patron_referencia' => 'nullable|string|max:255',
-            'metodo' => 'nullable|string|max:255',
-            'incertidumbre' => 'nullable|string|max:100',
-            'resultado' => 'nullable|in:conforme,no_conforme,condicional',
-            'observaciones' => 'nullable|string',
-            'costo' => 'nullable|numeric|min:0',
-            'certificado' => 'nullable|file|mimes:pdf|max:10240'
+            'description' => 'required|string|max:500',
+            'fecha_calibracion' => 'required|date',
+            'fecha_programada' => 'required|date',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
         ]);
 
         if ($validator->fails()) {
@@ -160,34 +151,25 @@ class CalibracionController extends ApiController
         try {
             DB::beginTransaction();
 
-            $calibracionData = $request->except(['certificado']);
-            $calibracionData['estado'] = $calibracionData['estado'] ?? 'programada';
-            $calibracionData['created_at'] = now();
-
-            // Manejar archivo de certificado
-            if ($request->hasFile('certificado')) {
-                $file = $request->file('certificado');
-                $fileName = 'certificados_calibracion/' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $filePath = $file->storeAs('certificados_calibracion', $fileName, 'public');
-                $calibracionData['certificado'] = $filePath;
+            // Procesar archivo si existe
+            $filePath = null;
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('calibraciones', $fileName, 'public');
             }
 
-            $calibracion = Calibracion::create($calibracionData);
-
-            // Actualizar estado de calibración en el equipo
-            $equipo = Equipo::find($request->equipo_id);
-            if ($equipo) {
-                $equipo->update([
-                    'fecha_ultima_calibracion' => $request->fecha,
-                    'fecha_vencimiento_calibracion' => $request->fecha_vencimiento
-                ]);
-            }
-
-            // Cargar relaciones para la respuesta
-            $calibracion->load([
-                'equipo:id,name,code',
-                'tecnico:id,nombre,apellido'
+            // Insertar directamente en la tabla calibracion
+            $calibracionId = DB::table('calibracion')->insertGetId([
+                'equipo_id' => $request->equipo_id,
+                'description' => $request->description,
+                'fecha_calibracion' => $request->fecha_calibracion,
+                'fecha_programada' => $request->fecha_programada,
+                'file' => $filePath,
+                'created_at' => now(),
             ]);
+
+            $calibracion = DB::table('calibracion')->where('id', $calibracionId)->first();
 
             DB::commit();
 
@@ -195,6 +177,7 @@ class CalibracionController extends ApiController
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error al crear calibración: ' . $e->getMessage());
             return ResponseFormatter::error('Error al crear calibración: ' . $e->getMessage(), 500);
         }
     }

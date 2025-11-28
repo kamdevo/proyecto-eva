@@ -20,6 +20,8 @@ export const usePurchaseOrders = () => {
     status: "",
     per_page: 15,
     page: 1,
+    sort_by: "id",
+    sort_order: "desc",
   });
 
   const fetchPurchaseOrders = useCallback(
@@ -34,7 +36,7 @@ export const usePurchaseOrders = () => {
         });
 
         const response = await fetch(
-          `${API_CONFIG.API_URL}/v1/ordencompra?${queryParams}`,
+          `${API_CONFIG.API_URL}/v1/ordenes-compra?${queryParams}`,
           {
             method: "GET",
             headers: {
@@ -137,6 +139,14 @@ export const usePurchaseOrders = () => {
     [updateFilters]
   );
 
+  // Sort function
+  const sort = useCallback(
+    (sortBy, sortOrder) => {
+      updateFilters({ sort_by: sortBy, sort_order: sortOrder, page: 1 });
+    },
+    [updateFilters]
+  );
+
   // Clear all filters
   const clearFilters = useCallback(() => {
     const clearedFilters = {
@@ -144,6 +154,8 @@ export const usePurchaseOrders = () => {
       status: "",
       per_page: 15,
       page: 1,
+      sort_by: "id",
+      sort_order: "desc",
     };
     setFilters(clearedFilters);
     fetchPurchaseOrders(clearedFilters);
@@ -196,6 +208,7 @@ export const usePurchaseOrders = () => {
     changePageSize,
     search,
     filterByStatus,
+    sort,
     clearFilters,
     refresh,
 
@@ -215,5 +228,7 @@ export const usePurchaseOrders = () => {
     itemsPerPage: pagination.per_page,
     showingFrom: pagination.from,
     showingTo: pagination.to,
+    sortBy: filters.sort_by,
+    sortOrder: filters.sort_order,
   };
 };

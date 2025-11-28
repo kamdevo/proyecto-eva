@@ -155,12 +155,16 @@ class MantenimientoController extends ApiController
         $validator = Validator::make($request->all(), [
             'equipo_id' => 'required|exists:equipos,id',
             'description' => 'required|string|max:500',
-            'fecha_programada' => 'required|date|after_or_equal:today',
+            'proveedor_mantenimiento_id' => 'required|integer',
+            'fecha_mantenimiento' => 'nullable|date',
+            'fecha_programada' => 'required|date',
             'tecnico_id' => 'nullable|exists:usuarios,id',
-            'tipo' => 'required|in:preventivo,correctivo,calibracion,verificacion',
-            'prioridad' => 'nullable|in:baja,media,alta,critica',
+            'tipo' => 'nullable|in:preventivo,correctivo,calibracion,verificacion',
+            'prioridad' => 'nullable|in:baja,media,alta,critica,urgente',
             'observacion' => 'nullable|string',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,png|max:10240'
+            'repuesto_id' => 'nullable|string|max:100',
+            'repuesto_pendiente' => 'nullable|in:si,no',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
         ]);
 
         if ($validator->fails()) {
@@ -171,13 +175,14 @@ class MantenimientoController extends ApiController
             DB::beginTransaction();
 
             $mantenimientoData = $request->except(['file']);
-            $mantenimientoData['status'] = 'programado';
+            $mantenimientoData['status'] = $request->status ?? 1;
             $mantenimientoData['created_at'] = now();
+            $mantenimientoData['repuesto_pendiente'] = $request->repuesto_pendiente ?? 'no';
 
             // Manejar archivo adjunto
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
-                $fileName = 'mantenimientos/' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('mantenimientos', $fileName, 'public');
                 $mantenimientoData['file'] = $filePath;
             }

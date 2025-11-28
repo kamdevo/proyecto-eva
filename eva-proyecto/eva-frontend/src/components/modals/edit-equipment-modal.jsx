@@ -17,6 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -35,6 +36,9 @@ import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
 import { ManualSearchModal } from "./manual-search-modal";
 import { QuickGuideSearchModal } from "./quick-guide-search-modal";
 import { OrderSearchModal } from "./order-search-modal";
+import AddPreventivoModal from "./add-preventivo-modal";
+import AddCalibracionModal from "./add-calibracion-modal";
+import AddRepuestoModal from "./add-repuesto-modal";
 
 export function EditEquipmentModal({
   open = false,
@@ -87,6 +91,11 @@ export function EditEquipmentModal({
   
   // Estados para modales de búsqueda
   const [showManualSearchModal, setShowManualSearchModal] = useState(false);
+  
+  // Estados para modales de agregar (Preventivos, Calibraciones, Repuestos)
+  const [showAddPreventivoModal, setShowAddPreventivoModal] = useState(false);
+  const [showAddCalibracionModal, setShowAddCalibracionModal] = useState(false);
+  const [showAddRepuestoModal, setShowAddRepuestoModal] = useState(false);
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
   const [showOrderSearchModal, setShowOrderSearchModal] = useState(false);
   
@@ -1305,6 +1314,34 @@ export function EditEquipmentModal({
     newWindow.document.close();
   };
 
+  // Función para ver documentos PDF de preventivos
+  const viewPreventivoDocument = (filename) => {
+    if (!filename) {
+      toast.error("No hay archivo PDF disponible para este preventivo");
+      return;
+    }
+
+    // Construir URL del archivo de preventivo
+    const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/storage/mantenimientos/${filename}`;
+    
+    // Abrir directamente en nueva pestaña
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  // Función para ver documentos PDF de calibraciones
+  const viewCalibracionDocument = (filename) => {
+    if (!filename) {
+      toast.error("No hay certificado disponible para esta calibración");
+      return;
+    }
+
+    // Construir URL del archivo de calibración (filename ya incluye la carpeta)
+    const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${filename}`;
+    
+    // Abrir directamente en nueva pestaña
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
   // Función para ver documentos PDF de correctivos
   const viewCorrectivoDocument = (filename) => {
     if (!filename) {
@@ -1313,7 +1350,21 @@ export function EditEquipmentModal({
     }
 
     // Construir URL del archivo de correctivo
-    const fileUrl = `/storage/correctivos/${filename}`;
+    const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/storage/correctivos_generales/${filename}`;
+    
+    // Abrir directamente en nueva pestaña
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  // Función simplificada anterior (comentada)
+  const viewCorrectivoDocumentOLD = (filename) => {
+    if (!filename) {
+      toast.error("No hay archivo PDF disponible para este correctivo");
+      return;
+    }
+
+    // Construir URL del archivo de correctivo
+    const fileUrl = `/storage/correctivos_generales/${filename}`;
 
     // Abrir en nueva ventana optimizada para visualización e impresión empresarial
     const newWindow = window.open(
@@ -4071,6 +4122,11 @@ export function EditEquipmentModal({
               <CardHeader className="bg-yellow-50 py-3">
                 <CardTitle className="text-sm font-medium text-center text-yellow-700 flex items-center justify-center gap-2">
                   OTROS CORRECTIVOS
+                  {equipmentHistory.correctivos && equipmentHistory.correctivos.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {equipmentHistory.correctivos.length}
+                    </Badge>
+                  )}
                   <Button
                     type="button"
                     variant="ghost"
@@ -4093,49 +4149,183 @@ export function EditEquipmentModal({
               </CardHeader>
               {expandedSections?.otrosCorrectivos && (
                 <CardContent className="p-3 sm:p-4 md:p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">
-                        Información de la Orden de trabajo
-                      </h4>
-                      <div className="border border-gray-300 p-3 min-h-[80px] bg-gray-50">
-                        <p className="text-xs text-gray-600">
-                          Información de órdenes de trabajo adicionales
-                        </p>
-                      </div>
+                  {equipmentHistory.correctivos && equipmentHistory.correctivos.length > 0 ? (
+                    <div className="space-y-4">
+                      {equipmentHistory.correctivos.map((correctivo, index) => (
+                        <div key={correctivo.id || index} className="border border-gray-300 rounded-lg p-4 bg-white">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Columna 1: Información de la Orden de Trabajo */}
+                            <div className="space-y-2">
+                              <h4 className="font-medium text-sm text-yellow-700 border-b border-yellow-200 pb-1">
+                                Información de la Orden de Trabajo
+                              </h4>
+                              <div className="space-y-1 text-xs">
+                                <div>
+                                  <span className="font-medium">Número de orden:</span>{" "}
+                                  <span className="text-gray-700">
+                                    {correctivo.code_orden || "NO REGISTRA"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-medium">Descripción:</span>
+                                  <div className="mt-1 p-2 bg-gray-50 rounded border border-gray-200">
+                                    {correctivo.orden || "NO REGISTRA"}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="font-medium">Fecha de inicio:</span>{" "}
+                                  <span className="text-gray-700">
+                                    {correctivo.fecha_inicio && correctivo.fecha_inicio !== "0000-00-00 00:00:00"
+                                      ? correctivo.fecha_inicio
+                                      : "NO REGISTRA"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Columna 2: Información de Cierre */}
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-yellow-700 border-b border-yellow-200 pb-1">
+                                Información de Cierre
+                              </h4>
+                              
+                              {/* Diagnóstico */}
+                              <div className="space-y-1 text-xs">
+                                <div className="font-medium text-gray-700">DIAGNÓSTICO:</div>
+                                <div className="text-gray-600">
+                                  Código: {correctivo.code_diagnostico || "NO REGISTRA"}
+                                </div>
+                                <div className="text-gray-600">{correctivo.diagnostico || "NO REGISTRA"}</div>
+                                <div className="text-gray-500 text-[10px]">
+                                  {correctivo.fecha_diagnostico && correctivo.fecha_diagnostico !== "0000-00-00 00:00:00"
+                                    ? correctivo.fecha_diagnostico
+                                    : ""}
+                                </div>
+                              </div>
+
+                              {/* Trabajo Realizado */}
+                              <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
+                                <div className="font-medium text-gray-700">TRABAJO REALIZADO:</div>
+                                <div className="text-gray-600">
+                                  Código: {correctivo.code || "NO REGISTRA"}
+                                </div>
+                                <div className="text-gray-600">{correctivo.description || "NO REGISTRA"}</div>
+                                <div className="text-gray-500 text-[10px]">
+                                  {correctivo.fecha_mantenimiento && correctivo.fecha_mantenimiento !== "0000-00-00 00:00:00"
+                                    ? correctivo.fecha_mantenimiento
+                                    : ""}
+                                </div>
+                              </div>
+
+                              {/* Cierre */}
+                              <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
+                                <div className="font-medium text-gray-700">CIERRE:</div>
+                                <div className="text-gray-600">
+                                  Código: {correctivo.codigo_cierre || "NO REGISTRA"}
+                                </div>
+                                <div className="text-gray-600">{correctivo.descripcion_codigo || "NO REGISTRA"}</div>
+                              </div>
+
+                              {/* Notas de Avance */}
+                              {(correctivo.notas_avance > 0 || correctivo.last_description) && (
+                                <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
+                                  <div className="font-medium text-gray-700 flex items-center gap-2">
+                                    NOTAS DE AVANCE:
+                                    {correctivo.notas_avance > 0 && (
+                                      <Badge variant="outline" className="text-[10px]">
+                                        {correctivo.notas_avance}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {correctivo.last_description && (
+                                    <div className="text-gray-600 italic">
+                                      Última: "{correctivo.last_description}"
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Botones de Acción */}
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  // TODO: Implementar ver detalle del correctivo
+                                  console.log("Ver detalle correctivo:", correctivo.id);
+                                }}
+                              >
+                                Ver detalle
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  // TODO: Implementar editar correctivo
+                                  console.log("Editar correctivo:", correctivo.id);
+                                }}
+                              >
+                                Editar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-red-600 hover:text-red-700"
+                                onClick={() => {
+                                  // TODO: Implementar eliminar correctivo
+                                  console.log("Eliminar correctivo:", correctivo.id);
+                                }}
+                              >
+                                Eliminar
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-blue-600 hover:text-blue-700"
+                                onClick={() => {
+                                  // TODO: Implementar agregar nota de avance
+                                  console.log("Agregar nota a correctivo:", correctivo.id);
+                                }}
+                              >
+                                Agregar nota
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Archivo relacionado */}
+                          {correctivo.image && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <div className="text-xs">
+                                <span className="font-medium">Archivo:</span>{" "}
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs text-blue-600"
+                                  onClick={() => handleViewCorrectivoFile(correctivo.image)}
+                                >
+                                  {correctivo.image}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">
-                        Información de cierre
-                      </h4>
-                      <div className="border border-gray-300 p-3 min-h-[80px] bg-gray-50">
-                        <p className="text-xs text-gray-600">
-                          Información de cierre de órdenes
-                        </p>
-                      </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 text-sm">
+                      No hay correctivos generales registrados para este equipo
                     </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button type="button" variant="outline" size="sm">
-                      Editar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
-                  <div className="mt-4 border border-gray-300 p-3 bg-gray-50">
-                    <h4 className="font-medium text-sm mb-2">
-                      ARCHIVO RELACIONADO
-                    </h4>
-                    <div className="text-xs text-gray-600">
-                      Archivos relacionados con órdenes de trabajo
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               )}
             </Card>
@@ -4143,27 +4333,42 @@ export function EditEquipmentModal({
             {/* PREVENTIVOS */}
             <Card>
               <CardHeader className="bg-green-50 py-3">
-                <CardTitle className="text-sm font-medium text-center text-green-700 flex items-center justify-center gap-2">
-                  PREVENTIVOS
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        preventivos: !prev.preventivos,
-                      }))
-                    }
-                  >
-                    <Plus
-                      className={`h-4 w-4 transition-transform ${
-                        expandedSections?.preventivos ? "rotate-45" : ""
-                      }`}
-                    />
-                  </Button>
-                </CardTitle>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex-1"></div>
+                  <CardTitle className="text-sm font-medium text-green-700 flex items-center gap-2">
+                    PREVENTIVOS
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          preventivos: !prev.preventivos,
+                        }))
+                      }
+                    >
+                      <Plus
+                        className={`h-4 w-4 transition-transform ${
+                          expandedSections?.preventivos ? "rotate-45" : ""
+                        }`}
+                      />
+                    </Button>
+                  </CardTitle>
+                  <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => setShowAddPreventivoModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               {expandedSections?.preventivos && (
                 <CardContent className="p-3 sm:p-4 md:p-6">
@@ -4179,6 +4384,9 @@ export function EditEquipmentModal({
                           </th>
                           <th className="border border-gray-300 p-2 text-xs">
                             información relacionada
+                          </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            documento
                           </th>
                         </tr>
                       </thead>
@@ -4208,6 +4416,23 @@ export function EditEquipmentModal({
                                     preventivo.observacion ||
                                     "-"}
                                 </td>
+                                <td className="border border-gray-300 p-2 text-xs">
+                                  {preventivo.file || preventivo.archivo ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs"
+                                      onClick={() =>
+                                        viewPreventivoDocument(preventivo.file || preventivo.archivo)
+                                      }
+                                    >
+                                      Ver documento
+                                    </Button>
+                                  ) : (
+                                    "-"
+                                  )}
+                                </td>
                               </tr>
                             )
                           )
@@ -4215,7 +4440,7 @@ export function EditEquipmentModal({
                           <tr>
                             <td
                               className="border border-gray-300 p-2 text-xs text-center text-gray-500"
-                              colSpan="3"
+                              colSpan="4"
                             >
                               No hay mantenimientos preventivos registrados
                             </td>
@@ -4231,27 +4456,42 @@ export function EditEquipmentModal({
             {/* CALIBRACIONES */}
             <Card>
               <CardHeader className="bg-blue-50 py-3">
-                <CardTitle className="text-sm font-medium text-center text-blue-700 flex items-center justify-center gap-2">
-                  CALIBRACIONES
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        calibraciones: !prev.calibraciones,
-                      }))
-                    }
-                  >
-                    <Plus
-                      className={`h-4 w-4 transition-transform ${
-                        expandedSections?.calibraciones ? "rotate-45" : ""
-                      }`}
-                    />
-                  </Button>
-                </CardTitle>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex-1"></div>
+                  <CardTitle className="text-sm font-medium text-blue-700 flex items-center gap-2">
+                    CALIBRACIONES
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          calibraciones: !prev.calibraciones,
+                        }))
+                      }
+                    >
+                      <Plus
+                        className={`h-4 w-4 transition-transform ${
+                          expandedSections?.calibraciones ? "rotate-45" : ""
+                        }`}
+                      />
+                    </Button>
+                  </CardTitle>
+                  <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => setShowAddCalibracionModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               {expandedSections?.calibraciones && (
                 <CardContent className="p-3 sm:p-4 md:p-6">
@@ -4298,12 +4538,15 @@ export function EditEquipmentModal({
                                     : "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs">
-                                  {calibracion.file ? (
+                                  {calibracion.file || calibracion.archivo ? (
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="sm"
                                       className="text-xs"
+                                      onClick={() =>
+                                        viewCalibracionDocument(calibracion.file || calibracion.archivo)
+                                      }
                                     >
                                       Ver certificado
                                     </Button>
@@ -4334,27 +4577,42 @@ export function EditEquipmentModal({
             {/* REPUESTOS/ACCESORIOS */}
             <Card>
               <CardHeader className="bg-purple-50 py-3">
-                <CardTitle className="text-sm font-medium text-center text-purple-700 flex items-center justify-center gap-2">
-                  REPUESTOS/ACCESORIOS
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        repuestos: !prev.repuestos,
-                      }))
-                    }
-                  >
-                    <Plus
-                      className={`h-4 w-4 transition-transform ${
-                        expandedSections?.repuestos ? "rotate-45" : ""
-                      }`}
-                    />
-                  </Button>
-                </CardTitle>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex-1"></div>
+                  <CardTitle className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                    REPUESTOS/ACCESORIOS
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          repuestos: !prev.repuestos,
+                        }))
+                      }
+                    >
+                      <Plus
+                        className={`h-4 w-4 transition-transform ${
+                          expandedSections?.repuestos ? "rotate-45" : ""
+                        }`}
+                      />
+                    </Button>
+                  </CardTitle>
+                  <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      onClick={() => setShowAddRepuestoModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               {expandedSections?.repuestos && (
                 <CardContent className="p-3 sm:p-4 md:p-6">
@@ -4500,6 +4758,48 @@ export function EditEquipmentModal({
         onOpenChange={setShowOrderSearchModal}
         onSelectOrder={handleOrderSelection}
         currentOrderId={formData.orden_compra_id}
+      />
+
+      {/* Modal para agregar preventivo */}
+      <AddPreventivoModal
+        isOpen={showAddPreventivoModal}
+        onClose={() => setShowAddPreventivoModal(false)}
+        equipmentId={equipment?.id}
+        equipmentName={equipment?.name || equipment?.equipo?.name}
+        onPreventivoAdded={() => {
+          // Recargar historial del equipo
+          if (equipment?.id) {
+            loadEquipmentHistory(equipment.id);
+          }
+        }}
+      />
+
+      {/* Modal para agregar calibración */}
+      <AddCalibracionModal
+        isOpen={showAddCalibracionModal}
+        onClose={() => setShowAddCalibracionModal(false)}
+        equipmentId={equipment?.id}
+        equipmentName={equipment?.name || equipment?.equipo?.name}
+        onCalibracionAdded={() => {
+          // Recargar historial del equipo
+          if (equipment?.id) {
+            loadEquipmentHistory(equipment.id);
+          }
+        }}
+      />
+
+      {/* Modal para agregar repuesto */}
+      <AddRepuestoModal
+        isOpen={showAddRepuestoModal}
+        onClose={() => setShowAddRepuestoModal(false)}
+        equipmentId={equipment?.id}
+        equipmentName={equipment?.name || equipment?.equipo?.name}
+        onRepuestoAdded={() => {
+          // Recargar historial del equipo
+          if (equipment?.id) {
+            loadEquipmentHistory(equipment.id);
+          }
+        }}
       />
     </Dialog>
   );

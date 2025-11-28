@@ -13,11 +13,13 @@ import { toast } from "sonner";
 export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerName = "" }) {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [signatureName, setSignatureName] = useState(signerName);
+  const [signatureName, setSignatureName] = useState(""); // ✅ Siempre vacío
   const [signatureDate, setSignatureDate] = useState(new Date().toISOString().split('T')[0]);
+  const maxDate = new Date().toISOString().split('T')[0]; // Fecha máxima = hoy
   const [signatureType, setSignatureType] = useState("draw");
   const [typedSignature, setTypedSignature] = useState("");
   const [fontStyle, setFontStyle] = useState("cursive");
+  const [hasSignature, setHasSignature] = useState(false); // Track if signature exists
 
   // ✅ Función para corregir coordenadas del canvas escalado
   const getCanvasCoordinates = (e, canvas) => {
@@ -53,6 +55,8 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
     ctx.strokeStyle = '#000';
     ctx.lineTo(x, y);
     ctx.stroke();
+    
+    setHasSignature(true); // Mark that user has drawn something
   };
 
   const stopDrawing = () => {
@@ -64,6 +68,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setHasSignature(false);
     } else {
       setTypedSignature("");
     }
@@ -72,18 +77,12 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
   const saveSignature = () => {
     // Validar campos obligatorios
     if (!signatureName.trim()) {
-      toast.error("El nombre del firmante es obligatorio");
+      toast.error("❌ El nombre del firmante es obligatorio");
       return;
     }
     
     if (!signatureDate) {
-      toast.error("La fecha de firma es obligatoria");
-      return;
-    }
-    
-    // Validar que haya firma dibujada o escrita
-    if (signatureType === "type" && !typedSignature.trim()) {
-      toast.error("Debe escribir su firma");
+      toast.error("❌ La fecha de firma es obligatoria");
       return;
     }
     
@@ -91,32 +90,60 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
     
     if (signatureType === "draw") {
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const hasDrawing = imageData.data.some((channel, i) => i % 4 !== 3 && channel < 255);
       
-      if (!hasDrawing) {
-        toast.error("Debe dibujar su firma en el canvas");
+      // VALIDACIÓN ESTRICTA: Verificar que realmente se dibujó algo
+      if (!hasSignature) {
+        toast.error("❌ Debe dibujar su firma. La firma es OBLIGATORIA para continuar.");
         return;
       }
       
-      signatureData = canvas.toDataURL();
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+      
+      // Verificar que hay píxeles negros (firma dibujada)
+      let hasDrawing = false;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const a = pixels[i + 3];
+        
+        // Si encontramos un píxel que no es blanco y tiene alpha > 0
+        if (a > 0 && (r < 250 || g < 250 || b < 250)) {
+          hasDrawing = true;
+          break;
+        }
+      }
+      
+      if (!hasDrawing) {
+        toast.error("❌ Debe dibujar su firma en el canvas. La firma es OBLIGATORIA.");
+        return;
+      }
+      
+      // Exportar con máxima calidad
+      signatureData = canvas.toDataURL('image/png', 1.0);
     } else {
+      // Validar firma escrita
+      if (!typedSignature.trim()) {
+        toast.error("❌ Debe escribir su firma. La firma es OBLIGATORIA.");
+        return;
+      }
       const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 100;
+      canvas.width = 600; // Aumentado para mejor calidad
+      canvas.height = 150; // Aumentado para mejor calidad
       const ctx = canvas.getContext('2d');
       
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       ctx.fillStyle = '#000000';
-      ctx.font = `36px ${fontStyle}`;
+      ctx.font = `48px ${fontStyle}`; // Aumentado de 36px a 48px
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(typedSignature, canvas.width / 2, canvas.height / 2);
       
-      signatureData = canvas.toDataURL();
+      signatureData = canvas.toDataURL('image/png', 1.0); // Máxima calidad
     }
     
     onSave({
@@ -296,6 +323,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
     
     if (isOpen) {
       loadGoogleFonts();
+      setHasSignature(false);
     }
   }, [isOpen]);
 
@@ -303,7 +331,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] min-w-3xl max-w-5xl mx-auto max-h-[90vh] overflow-y-auto" style={{width: '90vw', maxWidth: '1000px'}}>
+      <DialogContent className="w-[95vw] sm:w-[90vw] md:w-[85vw] lg:w-[80vw] max-w-5xl mx-auto max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PenTool className="w-5 h-5 text-blue-600" />
@@ -312,7 +340,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 lg:gap-6">
             <div>
               <Label className="text-sm font-semibold">Nombre del Firmante <span className="text-red-600">*</span></Label>
               <Input 
@@ -329,33 +357,35 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
                 type="date" 
                 value={signatureDate} 
                 onChange={(e) => setSignatureDate(e.target.value)}
+                max={maxDate}
                 required
                 className="border-gray-300"
               />
+              <p className="text-xs text-gray-500 mt-1">Máximo: {new Date().toLocaleDateString('es-CO')}</p>
             </div>
           </div>
 
           <div>
             <Label>Método de Firma</Label>
             <Tabs value={signatureType} onValueChange={setSignatureType} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="draw" className="flex items-center gap-2">
-                  <Tablet className="w-4 h-4" />
-                  Dibujar
+              <TabsList className="grid w-full grid-cols-2 h-auto">
+                <TabsTrigger value="draw" className="flex items-center justify-center gap-2 py-3 md:py-4">
+                  <Tablet className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="text-sm md:text-base">Dibujar</span>
                 </TabsTrigger>
-                <TabsTrigger value="type" className="flex items-center gap-2">
-                  <Type className="w-4 h-4" />
-                  Escribir
+                <TabsTrigger value="type" className="flex items-center justify-center gap-2 py-3 md:py-4">
+                  <Type className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="text-sm md:text-base">Escribir</span>
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="draw" className="mt-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 lg:p-6">
                   <canvas
                     ref={canvasRef}
-                    width={600}
-                    height={200}
-                    className="w-full border border-gray-200 rounded cursor-crosshair bg-white touch-none"
+                    width={800}
+                    height={250}
+                    className="w-full border border-gray-200 rounded cursor-crosshair bg-white touch-none aspect-[8/2.5] md:aspect-[16/5]"
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
@@ -451,8 +481,9 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
               </Button>
               <Button 
                 onClick={saveSignature}
-                disabled={!signatureName.trim() || !signatureDate}
-                className="bg-blue-600 hover:bg-blue-700"
+                disabled={!signatureName.trim() || !signatureDate || (signatureType === 'draw' && !hasSignature) || (signatureType === 'type' && !typedSignature.trim())}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!hasSignature && signatureType === 'draw' ? 'Debe dibujar su firma primero' : ''}
               >
                 <Save className="w-4 h-4 mr-2" />
                 Guardar Firma

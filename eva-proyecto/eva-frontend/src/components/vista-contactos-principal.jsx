@@ -10,6 +10,9 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,17 +67,23 @@ export default function ContactsView() {
   const [tiposContacto, setTiposContacto] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
-  // Cargar datos al montar el componente
+  // Cargar datos al montar el componente y cuando cambie el ordenamiento
   useEffect(() => {
-    fetchContactos();
+    fetchContactos(searchTerm);
     fetchTiposContacto();
-  }, []);
+  }, [sortField, sortDirection]);
 
   const fetchContactos = async (search = "") => {
     try {
       setLoading(true);
-      const params = search ? { search } : {};
+      const params = { 
+        ...(search ? { search } : {}),
+        sort_by: sortField,
+        sort_direction: sortDirection
+      };
       const response = await httpService.get("/v1/contactos/list", { params });
       if (response.data.success) {
         setContactsData(response.data.data);
@@ -96,6 +105,26 @@ export default function ContactsView() {
     } catch (error) {
       console.error("Error cargando tipos de contacto:", error);
     }
+  };
+
+  // Función para manejar ordenamiento
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Función para obtener icono de ordenamiento
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-3 w-3" /> 
+      : <ArrowDown className="h-3 w-3" />;
   };
 
   const handleOpenModal = (contact = null) => {
@@ -369,19 +398,49 @@ export default function ContactsView() {
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead className="font-semibold text-gray-900 min-w-[200px]">
-                      Nombre
+                      <button 
+                        onClick={() => handleSort('name')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Nombre
+                        {getSortIcon('name')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 w-16">
-                      ID
+                      <button 
+                        onClick={() => handleSort('id')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        ID
+                        {getSortIcon('id')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 min-w-[200px]">
-                      Email
+                      <button 
+                        onClick={() => handleSort('email')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Email
+                        {getSortIcon('email')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 min-w-[150px]">
-                      Teléfono
+                      <button 
+                        onClick={() => handleSort('telefono')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Teléfono
+                        {getSortIcon('telefono')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 min-w-[120px]">
-                      Tipo
+                      <button 
+                        onClick={() => handleSort('tcontacto_id')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                      >
+                        Tipo
+                        {getSortIcon('tcontacto_id')}
+                      </button>
                     </TableHead>
                     <TableHead className="font-semibold text-gray-900 text-center w-24">
                       Acciones

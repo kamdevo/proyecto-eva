@@ -18,10 +18,11 @@ import {
   ChevronRight,
   Search,
   ExternalLink,
+  X,
 } from "lucide-react";
 
 import HomeImg from "../assets/Img/imagenes/home-img.jpg";
-import PermissionTest from "./PermissionTest";
+import { toast } from "sonner";
 
 export default function EvaDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false); // Changed from true to false for mobile
@@ -29,6 +30,7 @@ export default function EvaDashboard() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [guiasRapidas, setGuiasRapidas] = useState([]);
   const [loadingGuias, setLoadingGuias] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Función para cargar guías rápidas desde la BD
   const fetchGuiasRapidas = async () => {
@@ -41,7 +43,6 @@ export default function EvaDashboard() {
       
       if (data.success) {
         setGuiasRapidas(data.data);
-        console.log('📚 Guías rápidas cargadas:', data.data.length);
       } else {
         console.error('❌ Error cargando guías:', data.message);
         setGuiasRapidas([]);
@@ -73,17 +74,21 @@ export default function EvaDashboard() {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  // Filtrar guías rápidas según término de búsqueda
+  const guiasFiltradas = guiasRapidas.filter((guia) =>
+    guia.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   // Función para abrir documento de guía rápida
   const abrirGuiaRapida = async (guia) => {
     try {
       const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
       const url = `${API_BASE_URL}/v1/guias-rapidas/${guia.id}/archivo`;
       
-      console.log('📚 Abriendo guía:', guia.name);
       window.open(url, '_blank');
     } catch (error) {
       console.error('❌ Error abriendo guía:', error);
-      alert('Error al abrir la guía rápida');
+      toast.error('Error al abrir la guía rápida');
     }
   };
 
@@ -102,9 +107,6 @@ export default function EvaDashboard() {
 
         {/* Main Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 flex flex-col">
-          {/* Permission Test Component (Development Only) */}
-          <PermissionTest />
-
           {/* Main Heading */}
           <div className="text-center mb-8 sm:mb-12">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-700 mb-4 sm:mb-8 tracking-wide">
@@ -141,10 +143,29 @@ export default function EvaDashboard() {
                       </h3>
                     </div>
                   </div>
-                  <Input
-                    placeholder="Guías rápidas equipos biomédicos"
-                    className="w-full text-sm sm:text-base"
-                  />
+                  <div className="relative">
+                    <Input
+                      placeholder="Guías rápidas equipos biomédicos"
+                      className="w-full text-sm sm:text-base pr-10"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        // Abrir dropdown automáticamente al escribir
+                        if (e.target.value && !showDropdown) {
+                          setShowDropdown(true);
+                        }
+                      }}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Limpiar búsqueda"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                   <div
                     onClick={() => setShowDropdown((prev) => !prev)}
                     className="mt-4 w-full text-center p-2 bg-[#f5f5f5] rounded-md cursor-pointer relative"
@@ -152,6 +173,11 @@ export default function EvaDashboard() {
                     <p>
                       Navega todas las guías rápidas
                       {loadingGuias && <span className="ml-2 text-sm text-gray-500">(Cargando...)</span>}
+                      {!loadingGuias && searchTerm && (
+                        <span className="ml-2 text-sm text-blue-600 font-medium">
+                          ({guiasFiltradas.length} {guiasFiltradas.length === 1 ? 'resultado' : 'resultados'})
+                        </span>
+                      )}
                     </p>
                     {showDropdown && (
                       <div
@@ -162,8 +188,8 @@ export default function EvaDashboard() {
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto mb-2"></div>
                             Cargando guías...
                           </div>
-                        ) : guiasRapidas.length > 0 ? (
-                          guiasRapidas.map((guia) => (
+                        ) : guiasFiltradas.length > 0 ? (
+                          guiasFiltradas.map((guia) => (
                             <div
                               key={guia.id}
                               onClick={(e) => {
@@ -180,7 +206,10 @@ export default function EvaDashboard() {
                           ))
                         ) : (
                           <div className="p-4 text-center text-gray-500">
-                            No se encontraron guías rápidas
+                            {searchTerm 
+                              ? `No se encontraron guías que coincidan con "${searchTerm}"`
+                              : "No se encontraron guías rápidas"
+                            }
                           </div>
                         )}
                       </div>

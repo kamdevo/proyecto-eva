@@ -26,14 +26,15 @@ export function DeleteConfirmModal({
     }
 
     setIsDeleting(true);
+    const toastId = 'delete-equipment';
 
     try {
-      console.log("🗑️ Iniciando eliminación del equipo:", equipment.id);
+      toast.loading('Eliminando equipo...', { id: toastId });
 
       const result = await deleteEquipment(equipment.id);
 
       if (result.success) {
-        toast.success(result.message || "Equipo eliminado exitosamente");
+        toast.success(result.message || "Equipo eliminado exitosamente", { id: toastId });
 
         // Notificar al componente padre que se eliminó el equipo
         if (onEquipmentDeleted) {
@@ -42,11 +43,11 @@ export function DeleteConfirmModal({
 
         onOpenChange(false);
       } else {
-        toast.error(result.error || "Error al eliminar el equipo");
+        toast.error(result.error || "Error al eliminar el equipo", { id: toastId });
       }
     } catch (error) {
       console.error("❌ Error inesperado al eliminar equipo:", error);
-      toast.error("Error inesperado al eliminar el equipo");
+      toast.error("Error inesperado al eliminar el equipo", { id: toastId });
     } finally {
       setIsDeleting(false);
     }

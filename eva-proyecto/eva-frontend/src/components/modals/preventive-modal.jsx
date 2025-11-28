@@ -186,9 +186,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
    * Exportar TODOS los preventivos (sin filtros)
    */
   const handleExportAll = async (format = "excel") => {
+    const toastId = 'export-all-preventivos';
     try {
       setLoading(true);
-      console.log("🔄 [EXPORT] Exportando TODOS los preventivos...");
+      toast.loading('Exportando todos los preventivos...', { id: toastId });
 
       const response = await httpService.get(
         `/v1/planes-mantenimientos/export-${format}`,
@@ -218,11 +219,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      console.log("✅ [EXPORT] Exportación de TODOS completada");
-      toast.success(`Exportación COMPLETA - Todos los preventivos descargados exitosamente`);
+      toast.success('Todos los preventivos exportados exitosamente', { id: toastId });
     } catch (error) {
       console.error("❌ [EXPORT] Error exportando todos:", error);
-      toast.error("Error durante la exportación de todos los preventivos");
+      toast.error("Error al exportar todos los preventivos", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -232,9 +232,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
    * Exportar SOLO preventivos filtrados/visibles
    */
   const handleExportFiltered = async (format = "excel") => {
+    const toastId = 'export-filtered-preventivos';
     try {
       setLoading(true);
-      console.log("🔄 [EXPORT] Exportando preventivos FILTRADOS...", "Total:", preventiveData.length);
+      toast.loading('Exportando preventivos filtrados...', { id: toastId });
 
       const exportData = preventiveData.map((item) => ({ id: item.id }));
 
@@ -271,11 +272,10 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      console.log("✅ [EXPORT] Exportación FILTRADA completada");
-      toast.success(`Exportación FILTRADA - ${preventiveData.length} preventivos descargados exitosamente`);
+      toast.success(`${preventiveData.length} preventivos filtrados exportados exitosamente`, { id: toastId });
     } catch (error) {
       console.error("❌ [EXPORT] Error exportando filtrados:", error);
-      toast.error("Error durante la exportación de preventivos filtrados");
+      toast.error("Error al exportar preventivos filtrados", { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -651,13 +651,14 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="text-xs font-medium text-gray-700 mb-1 block">
         Fecha Programada *
       </label>
       <Input
         type="date"
         value={formData.fecha_programada}
         onChange={(e) => handleFormChange('fecha_programada', e.target.value)}
+        max={new Date().toISOString().split('T')[0]}
         required
       />
     </div>

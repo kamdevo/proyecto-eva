@@ -23,6 +23,8 @@ import { Upload, X, Loader2, FileText, AlertCircle, Search, ExternalLink } from 
 import { useOrdenesCompra } from "../../hooks/useOrdenesCompra";
 import { useTiposCompra, useProveedores } from "../../hooks/useTiposCompra";
 import { SecopConsultationModal } from "./secop-consultation-modal";
+import SearchableSelect from "@/components/ui/searchable-select";
+import { toast } from "sonner";
 
 export function AddPurchaseOrderModal({ open, onOpenChange }) {
   const [dragActive, setDragActive] = useState(false);
@@ -44,8 +46,6 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
     fecha: new Date().toISOString().split("T")[0], // Fecha actual por defecto
     proveedor_id: "",
     tipo_compra_id: "",
-    monto: "",
-    descripcion: "",
     status: 1,
     secop_id: "",
     url_secop: "",
@@ -88,7 +88,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
     e.preventDefault();
 
     if (!formData.orden || !formData.fecha || !formData.tipo_compra_id) {
-      alert("Por favor complete todos los campos obligatorios");
+      toast.error("Por favor complete todos los campos obligatorios");
       return;
     }
 
@@ -103,14 +103,6 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
 
       if (formData.proveedor_id) {
         submitData.append("proveedor_id", formData.proveedor_id);
-      }
-
-      if (formData.monto) {
-        submitData.append("monto", formData.monto);
-      }
-
-      if (formData.descripcion) {
-        submitData.append("descripcion", formData.descripcion);
       }
 
       // Datos SECOP
@@ -134,8 +126,6 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
         fecha: new Date().toISOString().split("T")[0],
         proveedor_id: "",
         tipo_compra_id: "",
-        monto: "",
-        descripcion: "",
         status: 1,
         secop_id: "",
         url_secop: "",
@@ -144,10 +134,10 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
       setSelectedSecopProcess(null);
       onOpenChange(false);
 
-      alert("Orden de compra creada exitosamente");
+      toast.success("Orden de compra creada exitosamente");
     } catch (error) {
       console.error("Error creating order:", error);
-      alert("Error al crear orden de compra: " + error.message);
+      toast.error("Error al crear orden de compra: " + (error.message || "Error desconocido"));
     } finally {
       setLoading(false);
     }
@@ -178,18 +168,11 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
       ...prev,
       secop_id: secopId,
       url_secop: secopUrl,
-      descripcion: prev.descripcion || process.objeto || process.descripcion || "",
-      monto: prev.monto || (process.valor ? process.valor.toString() : ""),
-      // Si el proceso tiene proveedor, también lo podemos usar
-      ...(process.proveedor && !prev.proveedor_id && {
-        // proveedor_nombre: process.proveedor
-      })
     }));
     
-    console.log('� [SECOP] Campos auto-llenados:', {
+    console.log('📦 [SECOP] Campos auto-llenados:', {
       secop_id: secopId,
-      url_secop: secopUrl,
-      descripcion: process.objeto || process.descripcion || ""
+      url_secop: secopUrl
     });
   };
 
@@ -201,8 +184,6 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
         fecha: new Date().toISOString().split("T")[0],
         proveedor_id: "",
         tipo_compra_id: "",
-        monto: "",
-        descripcion: "",
         status: 1,
         secop_id: "",
         url_secop: "",
@@ -214,9 +195,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className=" max-w-none w-[95vw]  mx-auto max-h-[90vh] overflow-y-auto"
-      style={{ width: '40vw', maxWidth: 'none', height: '70vh', maxHeight: 'none' }}
->
+      <DialogContent className="w-[95vw] sm:w-[90vw] md:w-[75vw] lg:w-[65vw] xl:w-[55vw] max-w-6xl mx-auto max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
         <DialogHeader className="border-b border-teal-200 pb-3">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base sm:text-lg font-semibold text-slate-800">
@@ -237,12 +216,12 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
           <div className="h-1 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4" id="purchase-order-form">
           <h3 className="text-sm sm:text-base font-medium text-slate-800 mb-4">
             Soporte de compra
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             <div className="space-y-2">
               <Label
                 htmlFor="codigo"
@@ -284,33 +263,14 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               >
                 Proveedor
               </Label>
-              <Select
+              <SearchableSelect
                 value={formData.proveedor_id}
-                onValueChange={(value) =>
-                  handleInputChange("proveedor_id", value)
-                }
+                onValueChange={(value) => handleInputChange("proveedor_id", value)}
+                options={proveedores}
+                placeholder={proveedoresLoading ? "Cargando..." : "Seleccionar proveedor"}
                 disabled={proveedoresLoading}
-              >
-                <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
-                  <SelectValue placeholder="----------" />
-                </SelectTrigger>
-                <SelectContent>
-                  {proveedoresLoading ? (
-                    <SelectItem value="loading" disabled>
-                      Cargando proveedores...
-                    </SelectItem>
-                  ) : (
-                    proveedores.map((proveedor) => (
-                      <SelectItem
-                        key={proveedor.id}
-                        value={proveedor.id.toString()}
-                      >
-                        {proveedor.nombre || proveedor.empresa}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                loading={proveedoresLoading}
+              />
             </div>
           </div>
 
@@ -321,86 +281,18 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             >
               Tipo de compra<span className="text-destructive">*</span>
             </Label>
-            <Select
+            <SearchableSelect
               value={formData.tipo_compra_id}
-              onValueChange={(value) =>
-                handleInputChange("tipo_compra_id", value)
-              }
+              onValueChange={(value) => handleInputChange("tipo_compra_id", value)}
+              options={tipos}
+              placeholder={tiposLoading ? "Cargando..." : "Seleccionar tipo de compra"}
               disabled={tiposLoading}
-            >
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm">
-                <SelectValue placeholder="-----" />
-              </SelectTrigger>
-              <SelectContent>
-                {tiposLoading ? (
-                  <SelectItem value="loading" disabled>
-                    Cargando tipos...
-                  </SelectItem>
-                ) : (
-                  tipos.map((tipo) => (
-                    <SelectItem key={tipo.id} value={tipo.id.toString()}>
-                      {tipo.nombre}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Campo de Descripción/Observaciones */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="descripcion"
-              className="text-xs sm:text-sm font-medium text-slate-700 flex items-center gap-1"
-            >
-              Descripción/Observaciones
-              {formData.descripcion && selectedSecopProcess && (
-                <span className="text-green-600 text-xs">✓ Auto-llenado desde SECOP</span>
-              )}
-            </Label>
-            <Textarea
-              id="descripcion"
-              value={formData.descripcion}
-              onChange={(e) => handleInputChange("descripcion", e.target.value)}
-              placeholder="Descripción de la orden de compra o observaciones adicionales"
-              className={`h-20 text-xs sm:text-sm resize-none ${
-                formData.descripcion && selectedSecopProcess 
-                  ? 'border-green-300 bg-green-50' 
-                  : ''
-              }`}
-              rows={3}
-            />
-          </div>
-
-          {/* Campo de Monto */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="monto"
-              className="text-xs sm:text-sm font-medium text-slate-700 flex items-center gap-1"
-            >
-              Monto/Valor
-              {formData.monto && selectedSecopProcess && (
-                <span className="text-green-600 text-xs">✓ Auto-llenado desde SECOP</span>
-              )}
-            </Label>
-            <Input
-              id="monto"
-              type="number"
-              value={formData.monto}
-              onChange={(e) => handleInputChange("monto", e.target.value)}
-              placeholder="Valor de la orden de compra"
-              className={`h-8 sm:h-9 text-xs sm:text-sm ${
-                formData.monto && selectedSecopProcess 
-                  ? 'border-green-300 bg-green-50' 
-                  : ''
-              }`}
-              step="0.01"
-              min="0"
+              loading={tiposLoading}
             />
           </div>
 
           {/* Sección SECOP */}
-          <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="space-y-4 p-3 md:p-4 lg:p-5 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-blue-800">
                 Integración SECOP
@@ -456,12 +348,6 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
                         Ver en SECOP <ExternalLink className="w-3 h-3" />
                       </a>
                     ) : 'No disponible'}</div>
-                    {formData.descripcion && (
-                      <div><strong>Descripción:</strong> {formData.descripcion.substring(0, 100)}{formData.descripcion.length > 100 ? '...' : ''}</div>
-                    )}
-                    {formData.monto && (
-                      <div><strong>Monto:</strong> ${parseFloat(formData.monto).toLocaleString('es-CO')}</div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -547,33 +433,34 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               )}
             </div>
           </div>
-        </form>
 
-        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creando...
-              </>
-            ) : (
-              "Crear Orden"
-            )}
-          </Button>
-        </div>
+          {/* Botones dentro del formulario */}
+          <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto px-4 sm:px-6 h-9 text-sm"
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Orden"
+              )}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
 
       {/* Modal de consulta SECOP */}

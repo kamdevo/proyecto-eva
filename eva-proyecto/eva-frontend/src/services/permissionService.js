@@ -11,23 +11,49 @@ class PermissionService {
   }
 
   /**
-   * Inicializar el servicio con los permisos del usuario
-   * @param {Object} user - Objeto usuario con permisos
+   * Inicializar permisos con los datos del usuario
+   * @param {Object} user - Objeto de usuario con permisos
+   * @param {Array|Object} permissionsData - Permisos en formato array u objeto (opcional)
    */
-  initialize(user) {
+  initialize(user, permissionsData = null) {
     
-    if (user && user.permissions) {
-      this.permissions = user.permissions;
+    if (user) {
       this.userRole = user.rol_id;
       this.userId = user.id;
       
-    } else {
-      // CORRECCIÓN: Inicializar con los datos básicos del usuario aunque no tenga permissions
-      if (user) {
-        this.userRole = user.rol_id;
-        this.userId = user.id;
-        this.permissions = {}; // Objeto vacío pero no null
+      // Si se pasan permisos explícitamente, usarlos
+      if (permissionsData) {
+        if (Array.isArray(permissionsData)) {
+          // Convertir array a objeto
+          this.permissions = {};
+          permissionsData.forEach(perm => {
+            if (perm.modulo_name) {
+              this.permissions[perm.modulo_name] = {
+                leer: perm.leer || false,
+                insertar: perm.insertar || false,
+                editar: perm.editar || false,
+                eliminar: perm.eliminar || false
+              };
+            }
+          });
+        } else {
+          // Ya es objeto
+          this.permissions = permissionsData;
+        }
+      } else if (user.permissions) {
+        // Usar permisos del usuario
+        this.permissions = user.permissions;
+      } else {
+        // Sin permisos
+        this.permissions = {};
       }
+      
+      console.log(' [PermissionService] Inicializado:', {
+        userId: this.userId,
+        userRole: this.userRole,
+        permissionsCount: Object.keys(this.permissions).length,
+        readableModules: this.getReadableModules()
+      });
     }
   }
 
@@ -180,6 +206,9 @@ class PermissionService {
    * @returns {boolean}
    */
   canAccessRoute(route) {
+    // SIEMPRE permitir acceso a /home (página de inicio)
+    if (route === '/home') return true;
+    
     if (this.isAdmin()) return true;
     
     const module = PermissionService.ROUTE_MODULE_MAPPING[route];

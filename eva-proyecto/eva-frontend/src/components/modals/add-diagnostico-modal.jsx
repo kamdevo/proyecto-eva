@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,16 @@ export default function AddDiagnosticoModal({ isOpen, onClose, ticketId }) {
     file_diagnostico: null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Autocomplete ticket ID when modal opens
+  useEffect(() => {
+    if (isOpen && ticketId) {
+      setFormData(prev => ({
+        ...prev,
+        retro_diagnostico: String(ticketId)
+      }));
+    }
+  }, [isOpen, ticketId]);
 
   if (!isOpen) return null;
 
@@ -177,6 +187,7 @@ export default function AddDiagnosticoModal({ isOpen, onClose, ticketId }) {
                 type="date"
                 value={formData.fecha_diagnostico}
                 onChange={handleInputChange}
+                max={new Date().toISOString().split('T')[0]}
                 className="w-full"
               />
               <p className="text-xs text-gray-500">

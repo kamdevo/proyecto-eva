@@ -79,23 +79,46 @@ export default defineConfig(({ mode }) => {
       // Configuración de rollup
       rollupOptions: {
         output: {
-          // Configuración de chunks
-          manualChunks: {
-            // Vendor chunks
-            "vendor-react": ["react", "react-dom"],
-            "vendor-utils": ["axios"],
-
-            // Utility chunks
-            "utils-monitoring": [
-              "./src/services/realUserMonitoring.js",
-              "./src/services/connectionPool.js",
-              "./src/services/websocketManager.js",
-            ],
-            "utils-error-handling": [
-              "./src/utils/errorHandler.js",
-              "./src/utils/circuitBreaker.js",
-              "./src/utils/smartCache.js",
-            ],
+          // Configuración de chunks optimizada
+          manualChunks: (id) => {
+            // React y React Router en chunk separado
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/react-router')) {
+              return 'vendor-router';
+            }
+            
+            // UI libraries
+            if (id.includes('node_modules/@radix-ui') || id.includes('node_modules/lucide-react')) {
+              return 'vendor-ui';
+            }
+            
+            // Axios y networking
+            if (id.includes('node_modules/axios')) {
+              return 'vendor-axios';
+            }
+            
+            // Charting libraries (si existen)
+            if (id.includes('recharts') || id.includes('chart.js')) {
+              return 'vendor-charts';
+            }
+            
+            // Otros vendors node_modules
+            if (id.includes('node_modules')) {
+              return 'vendor-libs';
+            }
+            
+            // Components by feature
+            if (id.includes('/components/modals/')) {
+              return 'feature-modals';
+            }
+            if (id.includes('medical-devices') || id.includes('IndustrialDevices')) {
+              return 'feature-equipment';
+            }
+            if (id.includes('tickets') || id.includes('Tickets')) {
+              return 'feature-tickets';
+            }
           },
 
           // Configuración de nombres de archivos

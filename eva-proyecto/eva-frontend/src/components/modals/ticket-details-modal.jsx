@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { X, Building, Calendar, User, FileText, Clock, AlertCircle, Plus, Wrench, UserPlus, Printer } from "lucide-react";
 import AddProgressModal from "./add-progress-modal";
 import AssociateSparePart from "./associate-spare-part-modal";
@@ -51,11 +51,20 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl w-full max-h-[95vh] overflow-y-auto p-0" showCloseButton={false}>
+          <DialogTitle className="sr-only">Detalle del Ticket #{ticket?.id}</DialogTitle>
         {/* Header */}
         <div className="bg-blue-600 text-white p-6 rounded-t-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Building className="w-8 h-8 mr-3" />
+              <img 
+                src="/images/logo_huv.jpg" 
+                alt="Logo HUV" 
+                className="w-16 h-16 mr-4 object-contain"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://www.huv.gov.co/wp-content/uploads/2020/01/logo-huv.png';
+                }}
+              />
               <div>
                 <h1 className="text-xl font-bold">Hospital Universitario del Valle</h1>
                 <p className="text-blue-100 text-sm">Evaristo García - Sistema de Gestión de Tickets</p>

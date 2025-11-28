@@ -16,6 +16,8 @@ const mantenimientoService = {
     if (filters.search) params.append('search', filters.search);
     if (filters.page) params.append('page', filters.page);
     if (filters.per_page) params.append('per_page', filters.per_page);
+    if (filters.sort_by) params.append('sort_by', filters.sort_by);
+    if (filters.sort_direction) params.append('sort_direction', filters.sort_direction);
     
     // Usar endpoint de cronograma para datos mixtos (planificación + ejecución)
     const response = await fetch(`${API_V1_URL}/cronograma-mantenimientos?${params}`);

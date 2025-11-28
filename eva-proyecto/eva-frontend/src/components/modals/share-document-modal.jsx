@@ -46,14 +46,11 @@ export function ShareDocumentModal({
 
   // Cargar equipos al abrir el modal
   useEffect(() => {
-    console.log('🔄 useEffect triggered:', { open, currentPage, pageSize, searchId, searchSerie });
     if (open) {
-      console.log('📂 Modal abierto - cargando equipos...');
       loadEquipments();
       setSelectedEquipments(new Set());
     } else {
       // Resetear estado cuando se cierra el modal
-      console.log('🔒 Modal cerrado - reseteando estado...');
       setEquipments([]);
       setTotalItems(0);
       setTotalPages(1);
@@ -81,8 +78,6 @@ export function ShareDocumentModal({
       }
 
       const response = await httpService.get('/v1/equipos/medical-devices-complete', { params });
-
-      console.log('🔍 Respuesta completa de la API:', response.data);
       
       if (response.data.success) {
         // Los equipos están en response.data.data.data
@@ -99,22 +94,10 @@ export function ShareDocumentModal({
           to: paginationData.to || 0
         };
         
-        console.log('📊 Datos extraídos:', {
-          equipmentData,
-          equipmentDataLength: equipmentData.length,
-          firstEquipment: equipmentData[0],
-          pagination,
-          allResponseKeys: Object.keys(response.data)
-        });
-        
         // Usar equipmentData encontrado
         setEquipments(equipmentData);
         setTotalPages(pagination.last_page || 1);
         setTotalItems(pagination.total || 0);
-        
-        console.log('✅ Estado actualizado - equipments count:', equipmentData.length);
-        console.log('✅ Total items:', pagination.total);
-        console.log('✅ Total pages:', pagination.last_page);
       } else {
         toast.error("Error al cargar equipos");
         setEquipments([]);
@@ -208,15 +191,6 @@ export function ShareDocumentModal({
     return String(value);
   };
 
-  // Log del estado actual del componente
-  console.log('🎯 ShareDocumentModal render:', {
-    open,
-    loading,
-    equipments: equipments?.length || 0,
-    totalItems,
-    totalPages,
-    currentPage
-  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -441,11 +415,9 @@ export function ShareDocumentModal({
                 perPage={pageSize}
                 loading={loading}
                 onPageChange={(page) => {
-                  console.log('Cambiando a página:', page);
                   setCurrentPage(page);
                 }}
                 onPageSizeChange={(newSize) => {
-                  console.log('Cambiando tamaño de página:', newSize);
                   setPageSize(parseInt(newSize));
                   setCurrentPage(1);
                 }}

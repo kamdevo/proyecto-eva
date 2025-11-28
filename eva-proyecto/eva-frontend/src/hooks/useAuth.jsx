@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, createContext, useCallback } from 'react';
 import { useAuth as useOriginalAuth } from '../contexts/AuthContext';
 import apiClient from '../config/apiClient';
+import permissionService from '../services/permissionService';
 
 const PermissionContext = createContext();
 
@@ -23,6 +24,7 @@ export const AuthProvider = ({ children }) => {
               
             const response = await apiClient.get(permissionsUrl);
             
+            
             if (response.data && response.data.success) {
               const rawPermissions = response.data.data || response.data.permissions || {};
               
@@ -40,19 +42,20 @@ export const AuthProvider = ({ children }) => {
               }
               
               setPermissions(permissionsData);
+              
+              // Inicializar permissionService con los permisos cargados
+              if (originalUser) {
+                permissionService.initialize(originalUser, permissionsData);
+              }
             } else {
               setPermissions([]);
             }
           } catch (permError) {
+            console.error('❌ [PERMISOS] Error cargando permisos:', permError);
             // Set empty permissions array to avoid undefined
             setPermissions([]);
           }
         } else {
-          console.log('⚠️ No se puede cargar permisos:');
-          console.log('   - Usuario existe:', !!originalUser);
-          console.log('   - Usuario tiene ID:', !!originalUser?.id);
-          console.log('   - Está autenticado:', isAuthenticated);
-          console.log('   - Está cargando:', isLoading);
           setPermissions([]);
         }
       } catch (error) {
@@ -62,40 +65,27 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    console.log('🔄 Decidiendo si ejecutar initPermissions...');
-    console.log('   - isLoading:', isLoading);
-    console.log('   - originalUser:', !!originalUser);
-    console.log('   - isAuthenticated:', isAuthenticated);
     
     if (!isLoading && originalUser) {
-      console.log('✅ Ejecutando initPermissions...');
       initPermissions();
-    } else {
-      console.log('❌ NO ejecutando initPermissions - condiciones no cumplidas');
     }
   }, [originalUser, isAuthenticated, isLoading]);
 
   const hasPermission = useCallback((moduleName, action = 'leer') => {
     if (!originalUser) {
-      console.log('❌ No user found for permission check');
       return false;
     }
     
     // Convert rol_id to number to ensure proper comparison
     const userRoleId = parseInt(originalUser.rol_id);
     
-    console.log(`🔍 Permission check: ${moduleName} -> ${action}`);
-    console.log(`👤 User:`, originalUser.nombre, `Role ID:`, originalUser.rol_id, `Parsed:`, userRoleId);
-    
     // Super admin (role 1) has ALL permissions - no restrictions
     if (userRoleId === 1) {
-      console.log('✅ SUPER ADMIN - All permissions granted');
       return true;
     }
     
     // Admin (role 2) has most permissions
     if (userRoleId === 2) {
-      console.log('✅ ADMIN - All permissions granted');
       return true;
     }
     
@@ -106,13 +96,9 @@ export const AuthProvider = ({ children }) => {
     }
     
     // SIEMPRE usar permisos de la base de datos para todos los roles (excepto super admin)
-    console.log(`🔍 Verificando permiso: ${moduleName} -> ${action}`);
-    console.log('📊 Permisos disponibles:', permissions.length);
-    console.log('👤 Usuario rol:', userRoleId);
     
     // Si no hay permisos cargados, permitir para admins y algunos módulos básicos para usuarios
     if (!permissions.length) {
-      console.log('⚠️ Sin permisos cargados, usando fallback por rol');
       if (userRoleId <= 2) return true; // Admins siempre
       
       // Para usuarios normales, permitir módulos básicos
@@ -128,16 +114,12 @@ export const AuthProvider = ({ children }) => {
       p.modulo_name?.toLowerCase() === moduleName.toLowerCase()
     );
     
-    console.log(`🎯 Permiso encontrado para "${moduleName}":`, modulePermission);
-    
     if (!modulePermission) {
-      console.log(`❌ No se encontró permiso para módulo "${moduleName}"`);
       return userRoleId <= 2; // Solo admins si no hay permiso específico
     }
     
     // Verificar el permiso específico
     const result = modulePermission[action] === 1 || modulePermission[action] === true;
-    console.log(`✅ Resultado para "${moduleName}" (${action}): ${result ? 'PERMITIDO' : 'DENEGADO'}`);
     
     return result;
   }, [originalUser, permissions]);
@@ -162,7 +144,6 @@ export const AuthProvider = ({ children }) => {
     if (!originalUser) return false;
     const userRoleId = parseInt(originalUser.rol_id);
     const result = userRoleId === 1 || userRoleId === 2;
-    console.log('🔍 isAdmin check:', originalUser.nombre, 'Role:', originalUser.rol_id, 'Parsed:', userRoleId, 'Result:', result);
     return result;
   };
 
@@ -170,7 +151,6 @@ export const AuthProvider = ({ children }) => {
     if (!originalUser) return false;
     const userRoleId = parseInt(originalUser.rol_id);
     const result = userRoleId === 1;
-    console.log('🔍 isSuperAdmin check:', originalUser.nombre, 'Role:', originalUser.rol_id, 'Parsed:', userRoleId, 'Result:', result);
     return result;
   };
 

@@ -277,15 +277,15 @@ export function DocumentUploadModal({
           maxHeight: "90vh",
         }}
       >
-        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-          <DialogTitle className="text-lg font-semibold text-blue-700 flex items-center gap-2">
+        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-[#1d293d]/5 to-[#1d293d]/10">
+          <DialogTitle className="text-lg font-semibold text-[#1d293d] flex items-center gap-2">
             📎 Subir Documento al Equipo
           </DialogTitle>
           {/* Información del Equipo - Compacta */}
           {equipment && (
-            <div className="text-sm text-blue-600 mt-2">
+            <div className="text-sm text-[#1d293d] mt-2">
               <span className="font-medium">🔧 {equipment.name}</span>
-              <span className="ml-2 text-blue-500">
+              <span className="ml-2 text-[#2a3b52]">
                 #{equipment.id} | {equipment.code}
                 {equipment.serial && ` | Serie: ${equipment.serial}`}
               </span>
@@ -393,8 +393,8 @@ export function DocumentUploadModal({
                   transition-all duration-300 ease-in-out
                   ${
                     isDragOver
-                      ? "border-blue-500 bg-blue-50 scale-105"
-                      : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+                      ? "border-[#1d293d] bg-[#1d293d]/5 scale-105"
+                      : "border-gray-300 hover:border-[#1d293d] hover:bg-gray-50"
                   }
                   ${formData.document ? "border-green-500 bg-green-50" : ""}
                 `}
@@ -419,13 +419,13 @@ export function DocumentUploadModal({
                       <div
                         className={`
                         p-4 rounded-full transition-colors duration-300
-                        ${isDragOver ? "bg-blue-200" : "bg-gray-100"}
+                        ${isDragOver ? "bg-[#1d293d]/20" : "bg-gray-100"}
                       `}
                       >
                         <CloudUpload
                           className={`
                           h-8 w-8 transition-colors duration-300
-                          ${isDragOver ? "text-blue-600" : "text-gray-500"}
+                          ${isDragOver ? "text-[#1d293d]" : "text-gray-500"}
                         `}
                         />
                       </div>
@@ -434,7 +434,7 @@ export function DocumentUploadModal({
                         <p
                           className={`
                           text-lg font-medium transition-colors duration-300
-                          ${isDragOver ? "text-blue-700" : "text-gray-700"}
+                          ${isDragOver ? "text-[#1d293d]" : "text-gray-700"}
                         `}
                         >
                           {isDragOver
@@ -443,7 +443,7 @@ export function DocumentUploadModal({
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
                           o{" "}
-                          <span className="text-blue-600 font-medium">
+                          <span className="text-[#1d293d] font-medium">
                             haz clic para seleccionar
                           </span>
                         </p>
@@ -501,7 +501,7 @@ export function DocumentUploadModal({
                             e.stopPropagation();
                             fileInputRef.current?.click();
                           }}
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          className="text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5"
                         >
                           <Upload className="h-4 w-4 mr-1" />
                           Cambiar

@@ -694,41 +694,301 @@ class CorrectivoGeneralController extends Controller
      *     @OA\Response(response=200, description="Archivo Excel descargado")
      * )
      */
-    public function exportAllToExcel(): StreamedResponse
+    public function exportAllToExcel(Request $request): StreamedResponse
     {
         try {
-            Log::info('🔄 [EXPORT] Iniciando exportación COMPLETA a Excel...');
+            // Aumentar límites para exportaciones grandes
+            set_time_limit(600); // 10 minutos
+            ini_set('memory_limit', '1024M');
+            
+            $formato = $request->query('formato', 'completo'); // 'completo' o 'parada'
+            $tipo = $request->query('tipo', null); // 'biomedico' o 'industrial'
+            $limit = $request->query('limit', null); // Límite opcional
+            
+            Log::info("🔄 [EXPORT] Iniciando exportación a Excel - Formato: {$formato}, Tipo: {$tipo}");
 
-            // Obtener TODOS los correctivos directamente de la tabla con JOIN a equipos
-            $correctivos = DB::table('correctivos_generales as cg')
+            // Obtener correctivos de la tabla correctivos_generales
+            // Subquery para obtener el responsable del plan de mantenimiento más reciente
+            $subqueryResponsableGeneral = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cg.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
+            
+            $queryGenerales = DB::table('correctivos_generales as cg')
                 ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
+                ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+                ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
+                ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
                 ->select([
-                    'cg.*',
+                    'cg.id',
+                    'cg.created_at',
+                    DB::raw("cg.created_at as fecha_inicio"),
+                    DB::raw("NULL as retro_cierre"),
+                    DB::raw("COALESCE(sede.name, 'N/A') as sede_nombre"),
+                    DB::raw("'Correctivo General' as tipo"),
+                    DB::raw("COALESCE({$subqueryResponsableGeneral}, '') as responsable_nombre"),
                     'e.name as equipo_name',
                     'e.code as equipo_code', 
                     'e.marca',
                     'e.modelo',
                     'e.serial',
-                    'e.localizacion_actual as sede'
+                    's.name as servicio_nombre',
+                    DB::raw("COALESCE(ee.name, 'N/A') as estado_actual"),
+                    'cg.fecha_mantenimiento as fecha_cierre',
+                    DB::raw("NULL as fecha_fin"),
+                    DB::raw("COALESCE(cg.description, cg.orden) as descripcion"),
+                    DB::raw("NULL as tecnico_cierre_text")
                 ])
-                ->orderBy('cg.created_at', 'desc')
-                ->get();
+                ->orderBy('cg.created_at', 'desc');
+
+            // Filtrar por tipo de equipo si se especifica
+            if ($tipo === 'biomedico') {
+                $queryGenerales->where('e.tipo_id', 1);
+            } elseif ($tipo === 'industrial') {
+                $queryGenerales->where('e.tipo_id', 2);
+            }
+            
+            if ($limit) {
+                $queryGenerales->limit($limit);
+            }
+            
+            $correctivosGenerales = $queryGenerales->get();
+
+            // Obtener tickets/órdenes (tabla ordenes - todos son tickets del sistema)
+            // Subquery para obtener el responsable del plan de mantenimiento más reciente
+            $subqueryResponsable = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = o.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
+            
+            $queryTickets = DB::table('ordenes as o')
+                ->leftJoin('equipos as e', 'o.equipo_id', '=', 'e.id')
+                ->leftJoin('servicios as s', 'o.servicio_id', '=', 's.id')
+                ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
+                ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
+                ->select([
+                    'o.id',
+                    DB::raw("CAST(o.fecha_inicio AS DATETIME) as created_at"),
+                    'o.fecha_inicio',
+                    'o.retro_cierre',
+                    DB::raw("COALESCE(sede.name, 'N/A') as sede_nombre"),
+                    DB::raw("'Ticket/Orden' as tipo"),
+                    DB::raw("COALESCE({$subqueryResponsable}, '') as responsable_nombre"),
+                    DB::raw("COALESCE(e.name, o.nombre_equipo) as equipo_name"),
+                    DB::raw("COALESCE(e.code, o.codigo_equipo) as equipo_code"), 
+                    DB::raw("COALESCE(e.marca, o.marca_equipo) as marca"),
+                    DB::raw("COALESCE(e.modelo, o.modelo_equipo) as modelo"),
+                    DB::raw("COALESCE(e.serial, o.serie_equipo) as serial"),
+                    's.name as servicio_nombre',
+                    DB::raw("COALESCE(ee.name, 'N/A') as estado_actual"),
+                    'o.fecha_fin as fecha_cierre',
+                    'o.fecha_fin',
+                    'o.descripcion as descripcion',
+                    'o.tecnico_cierre_text'
+                ])
+                ->orderBy('o.fecha_inicio', 'desc');
+
+            // Filtrar por tipo de equipo si se especifica
+            if ($tipo === 'biomedico') {
+                $queryTickets->where(function($query) {
+                    $query->where('e.tipo_id', 1)
+                          ->orWhere('o.subproceso_id', 1); // Para tickets sin equipo asociado
+                });
+            } elseif ($tipo === 'industrial') {
+                $queryTickets->where(function($query) {
+                    $query->where('e.tipo_id', 2)
+                          ->orWhere('o.subproceso_id', 2); // Para tickets sin equipo asociado
+                });
+            }
+            
+            if ($limit) {
+                $queryTickets->limit($limit);
+            }
+            
+            $tickets = $queryTickets->get();
+
+            // Combinar ambas colecciones
+            $correctivos = $correctivosGenerales->concat($tickets)->sortByDesc('created_at');
 
             $totalRecords = $correctivos->count();
+            $totalGenerales = $correctivosGenerales->count();
+            $totalTickets = $tickets->count();
+            
             Log::info("📊 [EXPORT] Total de correctivos a exportar: {$totalRecords}");
+            Log::info("   - Correctivos Generales: {$totalGenerales}");
+            Log::info("   - Tickets/Órdenes: {$totalTickets}");
 
             if ($totalRecords === 0) {
                 throw new Exception('No hay correctivos para exportar');
             }
 
-            $filename = 'correctivos_TODOS_' . date('Y-m-d_H-i-s') . '.xlsx';
+            if ($formato === 'parada') {
+                $tipoNombre = $tipo === 'industrial' ? 'Industrial' : 'Biomedico';
+                $filename = "Parada_Equipo_{$tipoNombre}_" . date('Y-m-d') . '.xlsx';
+            } else {
+                $filename = 'correctivos_TODOS_' . date('Y-m-d_H-i-s') . '.xlsx';
+            }
 
-            return new StreamedResponse(function() use ($correctivos, $filename) {
+            return new StreamedResponse(function() use ($correctivos, $filename, $formato, $tipo) {
                 $spreadsheet = new Spreadsheet();
                 $sheet = $spreadsheet->getActiveSheet();
 
-                // Encabezados exactos según CorrectivosEB.xls
-                $headers = [
+                if ($formato === 'parada') {
+                    // ========== FORMATO PARADA DE EQUIPO ==========
+                    $sheet->setTitle('Parada de Equipo');
+
+                    // Agregar logo
+                    $logoPath = public_path('logo_huv.jpg');
+                    if (file_exists($logoPath)) {
+                        $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+                        $drawing->setName('Logo HUV');
+                        $drawing->setDescription('Logo Hospital Universitario del Valle');
+                        $drawing->setPath($logoPath);
+                        $drawing->setHeight(80);
+                        $drawing->setCoordinates('A1');
+                        $drawing->setWorksheet($sheet);
+                    } else {
+                        \Log::warning('⚠️ Logo HUV no encontrado en: ' . $logoPath);
+                    }
+
+                    // Ajustar altura de filas para el header
+                    $sheet->getRowDimension('1')->setRowHeight(40);
+                    $sheet->getRowDimension('2')->setRowHeight(30);
+                    $sheet->getRowDimension('3')->setRowHeight(10); // Fila vacía
+                    
+                    // Título principal - Hospital
+                    $sheet->mergeCells('C1:Q1');
+                    $sheet->setCellValue('C1', 'HOSPITAL UNIVERSITARIO DEL VALLE "EVARISTO GARCÍA" ESE');
+                    $sheet->getStyle('C1')->getFont()->setBold(true)->setSize(14);
+                    $sheet->getStyle('C1')->getAlignment()
+                        ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+
+                    // Subtítulo - Parada de Equipo (dinámico según tipo)
+                    $tipoEquipo = $tipo === 'industrial' ? 'INDUSTRIAL' : 'BIOMÉDICO';
+                    $sheet->mergeCells('C2:Q2');
+                    $sheet->setCellValue('C2', "PARADA DE EQUIPO {$tipoEquipo}");
+                    $sheet->getStyle('C2')->getFont()->setBold(true)->setSize(12);
+                    $sheet->getStyle('C2')->getAlignment()
+                        ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+
+                    // Headers de la tabla (fila 4)
+                    $headers = [
+                        'FECHA DE CREACIÓN',
+                        'CODIFICACIÓN DE CIERRE',
+                        'SEDE',
+                        'TIPO',
+                        'RESPONSABLE DE MANTENIMIENTO',
+                        'ID',
+                        'NOMBRE',
+                        'CÓDIGO',
+                        'MARCA',
+                        'MODELO',
+                        'SERIE',
+                        'SERVICIO',
+                        'ESTADO DEL EQUIPO',
+                        'CIERRE',
+                        'FECHA FIN',
+                        'DESCRIPCIÓN',
+                        'DESCRIPCIÓN DE CIERRE DEL TICKET'
+                    ];
+
+                    // Ajustar altura de fila de headers
+                    $sheet->getRowDimension('4')->setRowHeight(30);
+
+                    $col = 'A';
+                    foreach ($headers as $header) {
+                        $sheet->setCellValue($col . '4', $header);
+                        $sheet->getStyle($col . '4')->getFont()->setBold(true);
+                        $sheet->getStyle($col . '4')->getFill()
+                            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                            ->getStartColor()->setARGB('FFFFFF00'); // Amarillo
+                        $sheet->getStyle($col . '4')->getBorders()->getAllBorders()
+                            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                        $sheet->getStyle($col . '4')->getAlignment()
+                            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                            ->setWrapText(true);
+                        $col++;
+                    }
+
+                    // Datos
+                    $row = 5;
+                    foreach ($correctivos as $correctivo) {
+                        // FECHA DE CREACIÓN (con hora)
+                        $fechaCreacion = $correctivo->fecha_inicio ?? $correctivo->created_at ?? '';
+                        if ($fechaCreacion) {
+                            $fechaCreacion = date('Y-m-d H:i:s', strtotime($fechaCreacion));
+                        }
+                        $sheet->setCellValueExplicit('A' . $row, $fechaCreacion, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // CODIFICACIÓN DE CIERRE
+                        $sheet->setCellValueExplicit('B' . $row, $correctivo->retro_cierre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // SEDE
+                        $sheet->setCellValueExplicit('C' . $row, $correctivo->sede_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // TIPO
+                        $sheet->setCellValueExplicit('D' . $row, $correctivo->tipo ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // RESPONSABLE DE MANTENIMIENTO
+                        $sheet->setCellValueExplicit('E' . $row, trim($correctivo->responsable_nombre ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // ID
+                        $sheet->setCellValue('F' . $row, $correctivo->id ?? '');
+                        
+                        // NOMBRE del equipo
+                        $sheet->setCellValueExplicit('G' . $row, $correctivo->equipo_name ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // CÓDIGO del equipo
+                        $sheet->setCellValueExplicit('H' . $row, $correctivo->equipo_code ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // MARCA
+                        $sheet->setCellValueExplicit('I' . $row, $correctivo->marca ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // MODELO
+                        $sheet->setCellValueExplicit('J' . $row, $correctivo->modelo ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // SERIE
+                        $sheet->setCellValueExplicit('K' . $row, $correctivo->serial ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // SERVICIO
+                        $sheet->setCellValueExplicit('L' . $row, $correctivo->servicio_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // ESTADO DEL EQUIPO
+                        $sheet->setCellValueExplicit('M' . $row, $correctivo->estado_actual ?? 'N/A', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // CIERRE (con hora)
+                        $fechaCierre = $correctivo->fecha_cierre ?? '';
+                        if ($fechaCierre) {
+                            $fechaCierre = date('Y-m-d H:i:s', strtotime($fechaCierre));
+                        }
+                        $sheet->setCellValueExplicit('N' . $row, $fechaCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // FECHA FIN (con hora)
+                        $fechaFin = $correctivo->fecha_fin ?? '';
+                        if ($fechaFin) {
+                            $fechaFin = date('Y-m-d H:i:s', strtotime($fechaFin));
+                        }
+                        $sheet->setCellValueExplicit('O' . $row, $fechaFin, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // DESCRIPCIÓN
+                        $sheet->setCellValueExplicit('P' . $row, $correctivo->descripcion ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // DESCRIPCIÓN DE CIERRE DEL TICKET
+                        $sheet->setCellValueExplicit('Q' . $row, $correctivo->tecnico_cierre_text ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // Bordes para todas las celdas de datos
+                        $sheet->getStyle('A' . $row . ':Q' . $row)->getBorders()->getAllBorders()
+                            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+                        
+                        $row++;
+                    }
+
+                    // Auto-size columns
+                    foreach (range('A', 'Q') as $col) {
+                        $sheet->getColumnDimension($col)->setAutoSize(true);
+                    }
+
+                } else {
+                    // ========== FORMATO COMPLETO (ORIGINAL) ==========
+                    // Encabezados exactos según CorrectivosEB.xls
+                    $headers = [
                     'Fuente',
                     'Responsable del mantenimiento', 
                     'Equipo Id',
@@ -825,11 +1085,13 @@ class CorrectivoGeneralController extends Controller
                     $row++;
                 }
 
-                // Auto-ajustar anchos de columnas
-                foreach (range('A', \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers))) as $col) {
-                    $sheet->getColumnDimension($col)->setAutoSize(true);
+                    // Auto-ajustar anchos de columnas
+                    foreach (range('A', \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers))) as $col) {
+                        $sheet->getColumnDimension($col)->setAutoSize(true);
+                    }
                 }
 
+                // Guardar el archivo (común para ambos formatos)
                 $writer = new Xlsx($spreadsheet);
                 $writer->save('php://output');
             }, 200, [

@@ -74,12 +74,10 @@ class AuthService {
    */
   async logout() {
     try {
-      console.log("🔐 [AUTH] Cerrando sesión...");
 
       // Intentar llamar al endpoint de logout, pero no fallar si hay error
       try {
         await httpService.post(AUTH_ENDPOINTS.LOGOUT);
-        console.log("✅ [AUTH] Logout del servidor exitoso");
       } catch (logoutError) {
         console.warn("⚠️ [AUTH] Error en logout del servidor (continuando con logout local):", logoutError.response?.status);
         // Continuar con logout local aunque falle el servidor
@@ -87,7 +85,6 @@ class AuthService {
 
       // Limpiar datos locales SIEMPRE
       this.clearAuthData();
-      console.log("✅ [AUTH] Datos locales limpiados");
 
       return {
         success: true,
@@ -111,40 +108,67 @@ class AuthService {
    */
   async register(userData) {
     try {
-      // Debug logging disabled for production
-      // console.log("🔐 [AUTH] Registrando usuario...");
-      // console.log(
-      //   "🔍 [DEBUG] AUTH_ENDPOINTS.REGISTER:",
-      //   AUTH_ENDPOINTS.REGISTER
-      // );
-      // console.log("🔍 [DEBUG] Datos del usuario:", userData);
+      console.log("🔐 [AUTH] Registrando usuario...");
+      console.log("🔍 [DEBUG] AUTH_ENDPOINTS.REGISTER:", AUTH_ENDPOINTS.REGISTER);
+      console.log("🔍 [DEBUG] Datos del usuario:", userData);
 
       // Obtener CSRF token
+      console.log("🔐 [AUTH] Obteniendo CSRF token...");
       await getCsrfToken();
+      console.log("✅ [AUTH] CSRF token obtenido");
 
       const response = await httpService.post(
         AUTH_ENDPOINTS.REGISTER,
         userData
       );
 
-      const { user, token } = response.data;
+      console.log("📦 [AUTH] Respuesta completa del servidor:", response.data);
 
-      // Establecer token y usuario
-      setAuthToken(token);
-      this.user = user;
-      this._isAuthenticated = true;
+      // ✅ CORRECCIÓN: El backend devuelve response.data.data, no response.data directamente
+      const responseData = response.data.data || response.data;
+      const { user, token, verification_required, email_sent, message } = responseData;
 
-      localStorage.setItem("eva_user", JSON.stringify(user));
+      console.log("📦 [AUTH] Datos extraídos:", { user, token, verification_required, email_sent });
 
-      // Debug logging disabled for production
-      // console.log("✅ [AUTH] Usuario registrado correctamente:", user);
+      // ⚠️ NUEVO FLUJO: Si requiere verificación de email, NO logear automáticamente
+      if (verification_required) {
+        console.log("📧 [AUTH] Cuenta creada. Verificación de email requerida.");
+        console.log("📧 Email enviado:", email_sent);
+        
+        return {
+          success: true,
+          user,
+          verification_required: true,
+          email_sent: email_sent || false,
+          message: message || "Cuenta creada. Por favor verifica tu email.",
+        };
+      }
 
+      // FLUJO ANTIGUO: Si devuelve token, logear automáticamente
+      if (token) {
+        // Establecer token y usuario
+        setAuthToken(token);
+        this.user = user;
+        this._isAuthenticated = true;
+
+        localStorage.setItem("eva_user", JSON.stringify(user));
+
+        console.log("✅ [AUTH] Usuario registrado y logeado correctamente:", user);
+
+        return {
+          success: true,
+          user,
+          token,
+          message: "Usuario registrado correctamente",
+        };
+      }
+
+      // Si no hay token ni verification_required, algo está mal
       return {
-        success: true,
-        user,
-        token,
-        message: "Usuario registrado correctamente",
+        success: false,
+        message: "Respuesta inesperada del servidor",
       };
+
     } catch (error) {
       console.error("❌ [AUTH] Error al registrar usuario:", error);
 
@@ -172,8 +196,6 @@ class AuthService {
       this._isAuthenticated = true;
 
       localStorage.setItem("eva_user", JSON.stringify(this.user));
-
-      console.log("✅ [AUTH] Usuario obtenido y guardado:", this.user);
 
       return {
         success: true,
@@ -210,7 +232,6 @@ class AuthService {
         // Actualizar usuario almacenado si es necesario
         localStorage.setItem("eva_user", JSON.stringify(this.user));
 
-        console.log("✅ [AUTH] Token válido, usuario actualizado:", this.user);
         return true;
       } catch (error) {
         const status = error.response?.status;

@@ -1,128 +1,289 @@
 "use client";
 
-import { useState } from "react";
-import { FolderOpen, Search } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Pagination from "@/components/common/Pagination";
+import TicketDetailsModal from "@/components/modals/ticket-details-complete";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useTickets } from "@/contexts/TicketsContext";
-import { PdfModal } from "@/components/modals/pdf-modal";
-
-const documents = [
-  {
-    id: 1,
-    codigo: "LAB001",
-    reporte:
-      "LABORATORIO CLINICO - Hemograma completo, glucosa, creatinina, urea, ácido úrico, colesterol total, triglicéridos, HDL, LDL",
-    cierre: "26-01-2024 08:30:15",
-    tiempoCierre: "26-07-2024",
-    estado: "VIGENTE",
-    fuente: "Sistema externo: www.lab.com.co",
-    observaciones: "Paciente en ayunas",
-    responsable: "Dr. García López",
-  },
-  {
-    id: 2,
-    codigo: "RAD002",
-    reporte:
-      "RADIOLOGIA - Radiografía de tórax PA y lateral, evaluación de campos pulmonares y silueta cardiovascular",
-    cierre: "25-01-2024 14:20:30",
-    tiempoCierre: "25-07-2024",
-    estado: "VIGENTE",
-    fuente: "Sistema externo: www.radiologia.com.co",
-    observaciones: "Control post-operatorio",
-    responsable: "Dr. Martínez Ruiz",
-  },
-  {
-    id: 3,
-    codigo: "CONS003",
-    reporte:
-      "CONSULTA ESPECIALIZADA - Cardiología, evaluación de función ventricular, electrocardiograma, ecocardiograma",
-    cierre: "24-01-2024 10:15:45",
-    tiempoCierre: "24-12-2024",
-    estado: "VIGENTE",
-    fuente: "Sistema externo: www.cardio.com.co",
-    observaciones: "Seguimiento rutinario",
-    responsable: "Dr. López Herrera",
-  },
-  {
-    id: 4,
-    codigo: "PROC004",
-    reporte:
-      "PROCEDIMIENTO QUIRURGICO - Cirugía laparoscópica, colecistectomía, preparación pre-operatoria completa",
-    cierre: "23-01-2024 16:45:20",
-    tiempoCierre: "23-03-2024",
-    estado: "PENDIENTE",
-    fuente: "Sistema externo: www.cirugia.com.co",
-    observaciones: "Programado para febrero",
-    responsable: "Dr. Rodríguez Silva",
-  },
-  {
-    id: 5,
-    codigo: "FARM005",
-    reporte:
-      "FARMACIA - Dispensación de medicamentos, antihipertensivos, hipoglucemiantes, anticoagulantes orales",
-    cierre: "22-01-2024 09:30:10",
-    tiempoCierre: "22-04-2024",
-    estado: "VIGENTE",
-    fuente: "Sistema externo: www.farmacia.com.co",
-    observaciones: "Medicación crónica",
-    responsable: "Dr. Fernández Castro",
-  },
-];
-
-const searchOptions = [
-  { value: "todos", label: "Todos los documentos" },
-  { value: "laboratorio", label: "Laboratorio Clínico" },
-  { value: "radiologia", label: "Radiología" },
-  { value: "consulta", label: "Consulta Especializada" },
-  { value: "procedimiento", label: "Procedimiento Quirúrgico" },
-  { value: "farmacia", label: "Farmacia" },
-  { value: "vigente", label: "Estado: Vigente" },
-  { value: "pendiente", label: "Estado: Pendiente" },
-];
+  Search,
+  FolderOpen,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Building,
+  X,
+  Wrench,
+  User,
+  Users,
+  CheckCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  Eye,
+} from "lucide-react";
+import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleton";
+import httpService from "@/services/httpService";
+import { useSedes } from "@/hooks/useRoles";
 
 export default function ClosedTickets() {
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Hook para obtener sedes de la BD
+  const { sedes, loading: sedesLoading } = useSedes();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState("all");
-  const [searchValue, setSearchValue] = useState("todos");
+  const [filterField, setFilterField] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
 
-  const { getTicketsByStatus, filterTickets } = useTickets();
+  // Estados para datos reales
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Filtros adicionales (sin estado ya que solo mostramos cerrados)
+  const [sedeFilter, setSedeFilter] = useState("all");
+  const [reportanteFilter, setReportanteFilter] = useState("all");
   
-  // Get closed tickets and convert to document format
-  const closedTickets = getTicketsByStatus("Cerrado").map(ticket => ({
-    id: ticket.id,
-    codigo: `TK-${ticket.id}`,
-    reporte: ticket.description,
-    cierre: `${ticket.date} ${ticket.time}`,
-    tiempoCierre: ticket.date,
-    estado: "CERRADO",
-    fuente: ticket.origin,
-    observaciones: `Área: ${ticket.area}`,
-    responsable: ticket.asignadoA
-  }));
+  // Estados para ordenamiento
+  const [sortField, setSortField] = useState("id");
+  const [sortOrder, setSortOrder] = useState("desc");
 
-  // Filter closed tickets based on search
-  const filteredDocuments = closedTickets.filter(doc => 
-    doc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.reporte.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.observaciones.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getStatusBadge = (status, color) => {
+    const colorClasses = {
+      red: "bg-red-100 text-red-800 border-red-200",
+      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200", 
+      blue: "bg-blue-100 text-blue-800 border-blue-200",
+      green: "bg-green-100 text-green-800 border-green-200",
+      gray: "bg-gray-100 text-gray-800 border-gray-200"
+    };
 
-  const handleDocumentClick = (document) => {
-    setSelectedDocument(document);
-    setIsModalOpen(true);
+    return (
+      <Badge className={`${colorClasses[color] || colorClasses.gray} border text-xs`}>
+        {status}
+      </Badge>
+    );
   };
+
+  const getPriorityBadge = (priority, color) => {
+    const colorClasses = {
+      red: "bg-red-500 text-white border-red-600",
+      orange: "bg-orange-100 text-orange-800 border-orange-200",
+      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      green: "bg-green-100 text-green-800 border-green-200",
+      gray: "bg-gray-100 text-gray-800 border-gray-200"
+    };
+
+    return (
+      <Badge className={`${colorClasses[color] || colorClasses.gray} border text-xs`}>
+        {priority}
+      </Badge>
+    );
+  };
+
+  // Función para recargar detalles de un ticket específico
+  const refreshTicketDetails = async (ticketId) => {
+    try {
+      const response = await httpService.get(`/v1/gestion-tickets/${ticketId}`);
+      
+      if (response.data.success) {
+        const updatedTicket = response.data.data;
+        setSelectedTicket(updatedTicket);
+        setTickets(prevTickets => 
+          prevTickets.map(t => t.id === ticketId ? updatedTicket : t)
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error recargando ticket:', error);
+    }
+  };
+
+  // Función para obtener tickets cerrados del API
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      
+      // Preparar parámetros para el endpoint
+      const params = {
+        page: currentPage,
+        per_page: itemsPerPage,
+        sort_by: sortField,
+        sort_order: sortOrder,
+        estado: '4' // SIEMPRE filtrar por estado Cerrado (ID: 4)
+      };
+
+      if (searchTerm) {
+        if (filterField === 'id' && /^\d+$/.test(searchTerm)) {
+          params.id = searchTerm;
+        } else {
+          params.search = searchTerm;
+          if (filterField !== 'all') {
+            params.search_field = filterField;
+          }
+        }
+      }
+
+      if (selectedOrigin && selectedOrigin !== 'all') {
+        // Filtrar por tipo de equipo (no por origen)
+        params.tipo_equipo = selectedOrigin;
+      }
+
+      if (sedeFilter && sedeFilter !== 'all') {
+        params.sede_id = sedeFilter; // Filtrar por sede del equipo (equipos.servicio.sede_id)
+      }
+
+      if (reportanteFilter && reportanteFilter !== 'all' && reportanteFilter.trim() !== '') {
+        params.reportante_nombre = reportanteFilter;
+      }
+
+      const response = await httpService.get('/v1/gestion-tickets', { params });
+      
+      if (response.data.success) {
+        const ticketsData = response.data.data.data || [];
+        setTickets(ticketsData);
+        setTotalPages(response.data.data.total_pages || 1);
+        setTotalItems(response.data.data.total || 0);
+      } else {
+        setTickets([]);
+        setTotalPages(1);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error('❌ Error obteniendo tickets cerrados:', error);
+      setTickets([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar tickets al montar el componente y cuando cambien los filtros
+  useEffect(() => {
+    fetchTickets();
+  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, sedeFilter, reportanteFilter, sortField, sortOrder, filterField]);
+
+  // Función para limpiar todos los filtros
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSelectedOrigin("all");
+    setSedeFilter("all");
+    setReportanteFilter("all");
+    setFilterField("all");
+    setCurrentPage(1);
+  };
+
+  // Función para ordenar columnas
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const currentTickets = tickets;
+
+  const openDocumentModal = (ticket) => {
+    setSelectedTicket(ticket);
+    setIsDocumentModalOpen(true);
+  };
+
+  const closeDocumentModal = () => {
+    setIsDocumentModalOpen(false);
+    setSelectedTicket(null);
+  };
+
+  // Mobile Card Component
+  const TicketCard = ({ ticket }) => (
+    <Card className="mb-4 hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-sm sm:text-base md:text-lg text-gray-900">#{ticket.id}</h3>
+              {getStatusBadge(ticket.estado, ticket.estado_color)}
+            </div>
+            <p className="text-xs sm:text-sm text-blue-600 font-medium">{ticket.origen}</p>
+          </div>
+          <div className="flex items-center justify-center gap-1 mt-2">
+            <div className="flex flex-col items-center min-h-[4rem] justify-start">
+              <Button
+                onClick={() => openDocumentModal(ticket)}
+                className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded w-full h-7"
+                size="sm"
+                title="Ver detalles del ticket"
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
+              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>VER</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-xs sm:text-sm">
+          <div className="flex items-start gap-2">
+            <Wrench className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-gray-700">Descripción:</p>
+              <p className="text-gray-600 line-clamp-2">{ticket.descripcion_problema || 'Sin descripción'}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <div>
+                <p className="text-gray-500 text-xs">Fecha</p>
+                <p className="font-medium text-gray-700">{ticket.fecha_creacion}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-gray-400" />
+              <div>
+                <p className="text-gray-500 text-xs">Sede</p>
+                <p className="font-medium text-gray-700">{ticket.sede || 'N/A'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-gray-400" />
+            <div>
+              <p className="text-gray-500 text-xs">Reportante</p>
+              <p className="font-medium text-gray-700">{ticket.reportante_nombre || 'N/A'}</p>
+            </div>
+          </div>
+
+          {ticket.responsable_nombre && (
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-gray-400" />
+              <div>
+                <p className="text-gray-500 text-xs">Responsable</p>
+                <p className="font-medium text-gray-700">{ticket.responsable_nombre}</p>
+              </div>
+            </div>
+          )}
+
+          {ticket.prioridad && (
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 text-xs">Prioridad:</span>
+              {getPriorityBadge(ticket.prioridad, ticket.prioridad_color)}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -130,251 +291,311 @@ export default function ClosedTickets() {
       <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Closedoc
+            Tickets Cerrados
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Gestión de documentos médicos
+            Visualización de tickets finalizados
           </p>
         </div>
       </header>
 
-      {/* Search Section */}
+      {/* Filters Section */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
-        <div className="mb-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-            Buscar
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-600 mb-4">
-            Documentos registrados del 1 al 31 de enero del 2024 registrados.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Buscar
-              </label>
-              <Select value={searchValue} onValueChange={setSearchValue}>
-                <SelectTrigger className="bg-gray-50 border-gray-300 w-full">
-                  <SelectValue placeholder="Seleccione una opción" />
-                </SelectTrigger>
-                <SelectContent>
-                  {searchOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              onClick={() => {}}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
-            >
-              Buscar
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Document List */}
-      <div className="p-4 sm:p-6">
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="bg-slate-600 text-white px-4 sm:px-6 py-3">
-            <h4 className="font-semibold text-sm sm:text-base">Documentos</h4>
-          </div>
-
-          {/* Desktop Table */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-500 text-white">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium">
-                    CÓDIGO
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">
-                    REPORTE
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">
-                    CIERRE
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">
-                    TIEMPO DE CIERRE
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">
-                    ESTADO
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">
-                    ACCIONES
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredDocuments.map((doc, index) => (
-                  <tr
-                    key={doc.id}
-                    className={`hover:bg-gray-50 transition-colors ${
-                      index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                    }`}
-                  >
-                    <td className="px-4 py-4 text-sm">
-                      <div className="font-medium text-gray-900">
-                        {doc.codigo}
-                      </div>
-                      <div className="text-xs text-gray-500">ID: {doc.id}</div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="text-gray-900 max-w-md">
-                        <div className="font-medium mb-1">{doc.reporte}</div>
-                        <div className="text-xs text-gray-500 mb-1">
-                          <strong>Fuente externa:</strong> {doc.fuente}
-                        </div>
-                        <div className="text-xs text-gray-500 mb-1">
-                          <strong>Observaciones:</strong> {doc.observaciones}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          <strong>Responsable:</strong> {doc.responsable}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">
-                      {doc.cierre}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">
-                      {doc.tiempoCierre}
-                    </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          doc.estado === "VIGENTE"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
-                      >
-                        {doc.estado}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <Button
-                        onClick={() => handleDocumentClick(doc)}
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-                        size="sm"
-                        title="Ver documento de trabajo"
-                      >
-                        <FolderOpen className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile/Tablet Cards */}
-          <div className="lg:hidden">
-            {filteredDocuments.map((doc, index) => (
-              <div
-                key={doc.id}
-                className={`p-4 border-b border-gray-200 last:border-b-0 ${
-                  index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                }`}
+        <div className="space-y-4">
+          {/* Search and Filter Field */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="md:col-span-3">
+              <Label htmlFor="filterField" className="text-sm font-medium text-gray-700">
+                Buscar en
+              </Label>
+              <select
+                id="filterField"
+                value={filterField}
+                onChange={(e) => setFilterField(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="font-medium text-gray-900 text-sm">
-                      {doc.codigo}
-                    </div>
-                    <div className="text-xs text-gray-500">ID: {doc.id}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800"
-                    >
-                      {doc.estado}
-                    </span>
-                    <button
-                      onClick={() => handleDocumentClick(doc)}
-                      className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
-                      title="Ver documento"
-                    >
-                      <FolderOpen className="h-4 w-4 text-blue-600" />
-                    </button>
-                  </div>
-                </div>
+                <option value="all">Todos los campos</option>
+                <option value="id">ID</option>
+                <option value="descripcion">Descripción</option>
+                <option value="equipo">Equipo</option>
+                <option value="reportante">Reportante</option>
+              </select>
+            </div>
 
-                <div className="mb-3">
-                  <div className="font-medium text-gray-900 text-sm mb-1">
-                    {doc.reporte}
-                  </div>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div>
-                      <strong>Fuente externa:</strong> {doc.fuente}
-                    </div>
-                    <div>
-                      <strong>Observaciones:</strong> {doc.observaciones}
-                    </div>
-                    <div>
-                      <strong>Responsable:</strong> {doc.responsable}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <div className="font-medium text-gray-700">Cierre</div>
-                    <div className="text-gray-900">{doc.cierre}</div>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-700">
-                      Tiempo de Cierre
-                    </div>
-                    <div className="text-gray-900">{doc.tiempoCierre}</div>
-                  </div>
-                </div>
+            <div className="md:col-span-6">
+              <Label htmlFor="search" className="text-sm font-medium text-gray-700">
+                Término de búsqueda
+              </Label>
+              <div className="mt-1 relative">
+                <Input
+                  id="search"
+                  type="text"
+                  placeholder="Buscar tickets..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Footer Info */}
-        <div className="mt-6 text-xs sm:text-sm text-gray-600">
-          <p>
-            Tickets cerrados del sistema EVA.
-          </p>
-          <p className="mt-2">
-            <strong>Registros:</strong> {filteredDocuments.length} |
-            <strong className="ml-2">Cerrados:</strong> {closedTickets.length}
-          </p>
-          <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <p className="text-xs">
-              Copyright © Grupo EVA Soluciones en Tecnología. Todos los derechos
-              reservados.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white text-gray-700 border-gray-300"
+            <div className="md:col-span-3">
+              <Label htmlFor="origin" className="text-sm font-medium text-gray-700">
+                Tipo de Equipo
+              </Label>
+              <select
+                id="origin"
+                value={selectedOrigin}
+                onChange={(e) => setSelectedOrigin(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
               >
-                Anterior
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white text-gray-700 border-gray-300"
+                <option value="all">Todos los tipos</option>
+                <option value="1">Biomédico</option>
+                <option value="2">Industrial</option>
+                <option value="3">Infraestructura</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Additional Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="sede" className="text-sm font-medium text-gray-700">
+                Sede
+              </Label>
+              <select
+                id="sede"
+                value={sedeFilter}
+                onChange={(e) => setSedeFilter(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                disabled={sedesLoading}
               >
-                Siguiente
+                <option value="all">Todas las Sedes</option>
+                {sedes.map((sede) => (
+                  <option key={sede.id} value={sede.id}>
+                    {sede.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="reportante" className="text-sm font-medium text-gray-700">
+                Reportante
+              </Label>
+              <Input
+                id="reportante"
+                type="text"
+                placeholder="Filtrar por reportante..."
+                value={reportanteFilter === 'all' ? '' : reportanteFilter}
+                onChange={(e) => setReportanteFilter(e.target.value || 'all')}
+              />
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                onClick={handleClearFilters}
+                variant="outline"
+                className="w-full"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Limpiar Filtros
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* PDF Modal */}
-      {selectedDocument && (
-        <PdfModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          documentTitle={`${selectedDocument.codigo} - ${selectedDocument.reporte}`}
-          documentDate={selectedDocument.cierre}
+      {/* Tickets Table/Cards */}
+      <div className="p-4 sm:p-6">
+        {loading ? (
+          <TicketsTableSkeleton />
+        ) : currentTickets.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <CheckCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No se encontraron tickets cerrados
+            </h3>
+            <p className="text-gray-500">
+              Intenta ajustar los filtros de búsqueda
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table - Exact copy from GestionTickets */}
+            <div className="hidden lg:block border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] table-fixed">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th 
+                        className="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('id')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Ticket
+                          {sortField === 'id' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="w-64 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('descripcion')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Descripción
+                          {sortField === 'descripcion' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
+                      <th className="w-40 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignación</th>
+                      <th 
+                        className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('estado_id')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Estado
+                          {sortField === 'estado_id' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('prioridad')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Prioridad
+                          {sortField === 'prioridad' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-30" />
+                          )}
+                        </div>
+                      </th>
+                      <th className="w-24 px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentTickets.map((ticket) => (
+                      <tr key={ticket.id} className="hover:bg-gray-50">
+                        <td className="px-2 py-3 align-top">
+                          <div className="space-y-1">
+                            <div className="text-xs font-bold text-gray-900 truncate">#{ticket.id}</div>
+                            <div className="text-xs text-blue-600 font-medium truncate">{ticket.origen}</div>
+                            <div className="text-xs text-gray-500">{new Date(ticket.fecha_inicio).toLocaleDateString('es-CO')}</div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 align-top">
+                          <div className="space-y-2">
+                            <div className="text-sm text-gray-900 font-medium leading-tight">{ticket.descripcion}</div>
+                            <div className="text-xs text-gray-600 space-y-1">
+                              <div className="truncate"><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
+                              <div className="truncate"><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>
+                              <div className="truncate"><span className="font-medium">Equipo:</span> {ticket.equipo_final}</div>
+                              <div className="truncate"><span className="font-medium">Código:</span> {ticket.codigo_final}</div>
+                              <div className="truncate"><span className="font-medium">Marca:</span> {ticket.marca_final} | <span className="font-medium">Modelo:</span> {ticket.modelo_final}</div>
+                              <div className="truncate"><span className="font-medium">Serie:</span> {ticket.serie_final}</div>
+                              <div className="truncate"><span className="font-medium">Última Localización:</span> {ticket.localizacion_actual || 'N/A'}</div>
+                              <div className="truncate"><span className="font-medium">Responsable Mant.:</span> {ticket.responsable_mantenimiento || 'N/A'}</div>
+                              <div className="truncate"><span className="font-medium">Estado Equipo:</span> {ticket.estado_equipo_nombre || 'N/A'}</div>
+                              <div className="flex flex-wrap gap-1 text-xs">
+                                {ticket.equipo_id && (
+                                  <span className="text-blue-600 font-medium bg-blue-100 px-1 rounded">🔗ID:{ticket.equipo_id}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 align-top">
+                          <div className="space-y-1">
+                            <div className="text-xs text-gray-600">
+                              <div className="font-medium text-gray-700">Reportante:</div>
+                              <div className="text-gray-900 truncate">{ticket.reportante_nombre}</div>
+                            </div>
+                            {ticket.asignado_nombre && (
+                              <div className="text-xs text-gray-600 mt-2">
+                                <div className="font-medium text-gray-700">Asignado:</div>
+                                <div className="text-blue-600 truncate">{ticket.asignado_nombre}</div>
+                              </div>
+                            )}
+                            {ticket.usuario_asigno_nombre && (
+                              <div className="text-xs text-gray-600 mt-2">
+                                <div className="font-medium text-gray-700">Asignado por:</div>
+                                <div className="text-gray-900 truncate">{ticket.usuario_asigno_nombre}</div>
+                              </div>
+                            )}
+                            {ticket.empresa_nombre && (
+                              <div className="text-xs text-gray-600 mt-2">
+                                <div className="font-medium text-gray-700">Asignado a:</div>
+                                <div className="text-purple-600 truncate">{ticket.empresa_nombre}</div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 align-top">
+                          {getStatusBadge(ticket.estado, ticket.estado_color)}
+                        </td>
+                        <td className="px-2 py-3 align-top">
+                          {getPriorityBadge(ticket.prioridad_texto, ticket.prioridad_color)}
+                        </td>
+                        <td className="px-2 py-3">
+                          <div className="flex items-center justify-center">
+                            <Button
+                              onClick={() => openDocumentModal(ticket)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded"
+                              size="sm"
+                              title="Ver detalles del ticket"
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden">
+              {currentTickets.map((ticket) => (
+                <TicketCard key={ticket.id} ticket={ticket} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                itemsPerPage={itemsPerPage}
+                onItemsPerPageChange={setItemsPerPage}
+                totalItems={totalItems}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Ticket Details Modal */}
+      {isDocumentModalOpen && selectedTicket && (
+        <TicketDetailsModal
+          isOpen={isDocumentModalOpen}
+          onClose={closeDocumentModal}
+          ticket={selectedTicket}
+          readOnly={true}
+          onRefresh={() => refreshTicketDetails(selectedTicket.id)}
         />
       )}
     </div>

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Upload, X, FileText } from "lucide-react";
+import { toast } from "sonner";
 import useBajas from "../../hooks/useBajas";
 
 function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
@@ -111,9 +112,14 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
     }
 
     setSubmitError(null);
+    const toastId = 'dar-baja-equipo';
 
     try {
+      toast.loading('Procesando baja del equipo...', { id: toastId });
+      
       await decommissionEquipment(equipo.id, formData, selectedFile);
+      
+      toast.success('Equipo dado de baja exitosamente', { id: toastId });
       
       if (onSuccess) {
         onSuccess();
@@ -122,6 +128,7 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
       onOpenChange(false);
     } catch (err) {
       setSubmitError(err.message || 'Error al dar de baja el equipo');
+      toast.error(err.message || 'Error al dar de baja el equipo', { id: toastId });
     }
   };
 

@@ -7,51 +7,75 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { X, UserPlus, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 import SearchableSelect from "@/components/ui/searchable-select";
+import httpService from "@/services/httpService";
 
 export default function AssignResponsibleModal({ isOpen, onClose, ticketId }) {
-  const [usuarios, setUsuarios] = useState([]);
-  const [selectedUsuario, setSelectedUsuario] = useState("");
+  const [empresas, setEmpresas] = useState([]);
+  const [selectedEmpresa, setSelectedEmpresa] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchUsuarios();
+      fetchEmpresas();
     }
   }, [isOpen]);
 
-  const fetchUsuarios = async () => {
+  const fetchEmpresas = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/v1/usuarios-asignables`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al cargar usuarios');
-      }
-
-      const result = await response.json();
+      const response = await httpService.get('/v1/empresas');
+      const result = response.data;
       
-      if (!result.success) {
-        throw new Error(result.message || 'Error al cargar usuarios');
+      console.log('📦 Respuesta del servidor:', result);
+      
+      if (!result.success && !result.data) {
+        throw new Error(result.message || 'Error al cargar empresas');
       }
       
       // Transformar datos para el SearchableSelect
-      const usuariosOptions = result.data.map(usuario => ({
-        id: usuario.id,
-        nombre: `${usuario.nombre} ${usuario.apellido || ''} - ${usuario.username}`,
-        email: usuario.email,
-        rol: usuario.rol_nombre || 'Sin rol',
-        username: usuario.username
-      }));
+      const empresasData = result.data || result;
+      console.log('📋 Datos de empresas:', empresasData);
+      
+      // Filtrar solo empresas activas (estado puede ser boolean, string o number)
+      const empresasOptions = empresasData
+        .filter(empresa => {
+          const estado = empresa.estado;
+          return estado === true || estado === 'true' || estado === 1 || estado === '1';
+        })
+        .map(empresa => {
+          console.log('🔍 Procesando empresa:', empresa);
+          
+          // Limpiar área de caracteres especiales y espacios
+          let areaLimpia = empresa.area || 'Sin área';
+          areaLimpia = areaLimpia.trim().replace(/[\t\r\n]/g, '');
+          
+          // Formatear área para mostrar
+          let areaFormateada = areaLimpia;
+          if (areaLimpia === 'mantenimiento_biomedico') {
+            areaFormateada = 'Mantenimiento Biomédico';
+          } else if (areaLimpia === 'mantenimiento_ind') {
+            areaFormateada = 'Mantenimiento Industrial';
+          } else if (areaLimpia === 'both') {
+            areaFormateada = 'Biomédico e Industrial';
+          } else if (areaLimpia === '') {
+            areaFormateada = 'Sin área especificada';
+          }
+          
+          return {
+            id: empresa.id,
+            nombre: empresa.name || 'Sin nombre',
+            area: areaFormateada,
+            areaOriginal: areaLimpia,
+            estado: empresa.estado
+          };
+        });
 
-      setUsuarios(usuariosOptions);
+      console.log('✅ Empresas procesadas:', empresasOptions);
+      setEmpresas(empresasOptions);
     } catch (error) {
       console.error('Error:', error);
-      toast.error(error.message || "Error al cargar la lista de usuarios");
+      toast.error(error.message || "Error al cargar la lista de empresas");
     } finally {
       setIsLoading(false);
     }
@@ -60,33 +84,25 @@ export default function AssignResponsibleModal({ isOpen, onClose, ticketId }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!selectedUsuario) {
-      toast.error("Debe seleccionar un responsable");
+    if (!selectedEmpresa) {
+      toast.error("Debe seleccionar una empresa responsable");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/v1/tickets/${ticketId}/asignar-responsable`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          usuario_id: selectedUsuario
-        })
+      const response = await httpService.post(`/v1/tickets/${ticketId}/asignar-responsable`, {
+        empresa_id: selectedEmpresa
       });
 
-      const result = await response.json();
+      const result = response.data;
 
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || 'Error al asignar responsable');
       }
 
-      const usuarioAsignado = usuarios.find(u => u.id === selectedUsuario);
-      toast.success(`✅ Responsable asignado: ${usuarioAsignado?.nombre || 'Usuario'}`);
+      toast.success("Empresa asignada exitosamente");
       
       // Cerrar modal - el padre se encarga de recargar los datos
       onClose();
@@ -116,9 +132,9 @@ export default function AssignResponsibleModal({ isOpen, onClose, ticketId }) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="usuario" className="text-sm font-semibold text-gray-700 flex items-center">
+            <Label htmlFor="empresa" className="text-sm font-semibold text-gray-700 flex items-center">
               <Search className="w-4 h-4 mr-2 text-purple-600" />
-              Seleccionar Usuario Responsable *
+              Seleccionar Empresa Responsable *
             </Label>
             
             {isLoading ? (
@@ -135,36 +151,39 @@ export default function AssignResponsibleModal({ isOpen, onClose, ticketId }) {
               </div>
             ) : (
               <SearchableSelect
-                options={usuarios}
-                value={selectedUsuario}
-                onChange={setSelectedUsuario}
-                placeholder="Buscar usuario por nombre o email..."
-                emptyMessage="No se encontraron usuarios"
+                options={empresas}
+                value={selectedEmpresa ? selectedEmpresa.toString() : ""}
+                onChange={(val) => setSelectedEmpresa(parseInt(val))}
+                placeholder="Buscar empresa por nombre..."
+                emptyMessage="No se encontraron empresas activas"
                 className="w-full"
               />
             )}
             
             <p className="text-xs text-gray-500">
-              Busque y seleccione el usuario que será responsable de este ticket
+              Busque y seleccione la empresa que será responsable de este ticket
             </p>
           </div>
 
-          {/* Usuario seleccionado */}
-          {selectedUsuario && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <p className="text-sm font-semibold text-purple-900 mb-2">Usuario Seleccionado:</p>
-              <div className="text-sm text-purple-800">
-                <p><strong>Nombre:</strong> {usuarios.find(u => u.id === selectedUsuario)?.nombre}</p>
-                <p><strong>Email:</strong> {usuarios.find(u => u.id === selectedUsuario)?.email}</p>
-                <p><strong>Rol:</strong> {usuarios.find(u => u.id === selectedUsuario)?.rol}</p>
+          {/* Empresa seleccionada */}
+          {selectedEmpresa && (() => {
+            const empresa = empresas.find(e => e.id === selectedEmpresa);
+            console.log('🎯 Empresa seleccionada:', empresa);
+            return (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-purple-900 mb-2">Empresa Seleccionada:</p>
+                <div className="text-sm text-purple-800">
+                  <p><strong>Nombre:</strong> {empresa?.nombre || 'No disponible'}</p>
+                  <p><strong>Área:</strong> {empresa?.area || 'No disponible'}</p>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Información adicional */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <strong>Nota:</strong> El usuario asignado recibirá una notificación sobre su nueva responsabilidad en este ticket.
+              <strong>Nota:</strong> La empresa asignada será la responsable de este ticket.
             </p>
           </div>
 
@@ -181,7 +200,7 @@ export default function AssignResponsibleModal({ isOpen, onClose, ticketId }) {
             <Button 
               type="submit" 
               className="bg-purple-600 hover:bg-purple-700 text-white"
-              disabled={isSubmitting || !selectedUsuario}
+              disabled={isSubmitting || !selectedEmpresa}
             >
               <Save className="w-4 h-4 mr-2" />
               {isSubmitting ? "Asignando..." : "Asignar Responsable"}

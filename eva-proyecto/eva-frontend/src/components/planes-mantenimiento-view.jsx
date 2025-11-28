@@ -14,6 +14,9 @@ import {
   Upload,
   ImageIcon,
   Video,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,8 @@ import { EditarObservacionesModal } from "@/components/modals/editar-observacion
 import { ConcluirObservacionModal } from "@/components/modals/concluir-observacion-modal";
 import { VerDocumentacionModal } from "@/components/modals/ver-documentacion-modal";
 import { EliminarEquipoModal } from "@/components/modals/eliminar-equipo-modal";
+import { HistorialCambiosModal } from "@/components/modals/historial-cambios-modal";
+import { EditarPlanModal } from "@/components/modals/editar-plan-modal";
 import { useMantenimientoData } from "@/hooks/useMantenimientoData";
 import Pagination from "@/components/common/Pagination";
 
@@ -57,7 +62,28 @@ export function PlanesMantenimientoView() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [entriesPerPage, setEntriesPerPage] = useState("10");
-  const [selectedYear, setSelectedYear] = useState("2024");
+  const [selectedYear, setSelectedYear] = useState("2024"); // Año original para filtrar tabla
+  
+  // Generar años dinámicamente para el selector de subir Excel: año actual - 2 hasta año actual + 3
+  const generateYears = () => {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 2;
+    const endYear = currentYear + 3;
+    const years = [];
+    for (let year = startYear; year <= endYear; year++) {
+      years.push(year.toString());
+    }
+    return years;
+  };
+  
+  const availableYears = generateYears();
+  const currentYear = new Date().getFullYear().toString();
+  
+  const [uploadYear, setUploadYear] = useState(currentYear); // Año NUEVO para subir cronograma (dinámico)
+  
+  // Estados de ordenamiento
+  const [sortField, setSortField] = useState('equipo_id');
+  const [sortDirection, setSortDirection] = useState('asc');
   const [replaceInfo, setReplaceInfo] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -74,7 +100,11 @@ export function PlanesMantenimientoView() {
   const [verDocumentacionModalOpen, setVerDocumentacionModalOpen] =
     useState(false);
   const [eliminarEquipoModalOpen, setEliminarEquipoModalOpen] = useState(false);
+  const [historialCambiosModalOpen, setHistorialCambiosModalOpen] = useState(false);
+  const [editarPlanModalOpen, setEditarPlanModalOpen] = useState(false);
   const [selectedEquipo, setSelectedEquipo] = useState(null);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   
   // Estados de validación y errores
   const [errors, setErrors] = useState({});
@@ -85,13 +115,18 @@ export function PlanesMantenimientoView() {
   // Cargar datos iniciales
   useEffect(() => {
     const loadInitialData = async () => {
-      await loadPlanes({ anio: selectedYear, per_page: entriesPerPage });
+      await loadPlanes({ 
+        anio: selectedYear, 
+        per_page: entriesPerPage,
+        sort_by: sortField,
+        sort_direction: sortDirection
+      });
       await loadProveedores({ status: 1 });
       await loadEquipos();
     };
     
     loadInitialData();
-  }, [selectedYear, entriesPerPage, loadPlanes, loadProveedores, loadEquipos]);
+  }, [selectedYear, entriesPerPage, sortField, sortDirection, loadPlanes, loadProveedores, loadEquipos]);
 
   // Función para limpiar mensajes después de un tiempo
   const clearMessages = () => {
@@ -127,7 +162,30 @@ export function PlanesMantenimientoView() {
     return true;
   };
 
-  // Función para validar formularios
+  // Función para manejar ordenamiento
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Función para obtener icono de ordenamiento
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-300" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 text-white" />
+      : <ArrowDown className="w-3 h-3 text-white" />;
+  };
+
+  // Los datos ya vienen ordenados del backend, no es necesario ordenar localmente
+  const sortedPlanes = planesData;
+
+  // Función para validar formularios (solo para subir Excel)
   const validateForm = (formData) => {
     const newErrors = {};
     
@@ -139,9 +197,7 @@ export function PlanesMantenimientoView() {
       newErrors.replaceInfo = "Debe especificar si reemplazar información";
     }
     
-    if (!formData.entriesPerPage || formData.entriesPerPage === "") {
-      newErrors.entriesPerPage = "Debe seleccionar número de entradas";
-    }
+    // NO validar entriesPerPage - ese campo es solo para paginación de la tabla
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -151,7 +207,7 @@ export function PlanesMantenimientoView() {
   const handleExcelUpload = async () => {
     // Validar datos antes del upload
     const formData = {
-      year: selectedYear,
+      year: uploadYear,
       replaceInfo: replaceInfo,
       files: selectedFiles
     };
@@ -175,7 +231,7 @@ export function PlanesMantenimientoView() {
     try {
       const result = await uploadExcel(
         selectedFiles[0], 
-        selectedYear, 
+        uploadYear, 
         replaceInfo === 'si'
       );
       
@@ -244,7 +300,7 @@ export function PlanesMantenimientoView() {
 
   const getFileIcon = (file) => {
     if (file.type.startsWith("image/"))
-      return <ImageIcon className="w-4 h-4 text-blue-600" />;
+      return <ImageIcon className="w-4 h-4 text-[#1d293d]" />;
     if (file.type.startsWith("video/"))
       return <Video className="w-4 h-4 text-purple-600" />;
     return <Upload className="w-4 h-4 text-green-600" />;
@@ -265,9 +321,31 @@ export function PlanesMantenimientoView() {
     setConcluirObservacionModalOpen(true);
   };
 
+  const handleEditarPlan = (plan) => {
+    setSelectedPlan(plan);
+    setEditarPlanModalOpen(true);
+  };
+
+  const handlePlanEditSuccess = async () => {
+    // Recargar datos después de editar
+    await loadPlanes({ 
+      anio: selectedYear, 
+      per_page: entriesPerPage,
+      sort_by: sortField,
+      sort_direction: sortDirection
+    });
+    setSuccessMessage("Plan actualizado exitosamente");
+    clearMessages();
+  };
+
   const handleVerDocumentacion = (equipo) => {
     setSelectedEquipo(equipo);
     setVerDocumentacionModalOpen(true);
+  };
+
+  const handleVerHistorial = (plan) => {
+    setSelectedPlanId(plan.id);
+    setHistorialCambiosModalOpen(true);
   };
 
   const handleEliminarEquipo = (equipo) => {
@@ -335,7 +413,7 @@ export function PlanesMantenimientoView() {
   const isLoadingData = dataLoading || isLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
       {/* Header Responsivo */}
       <div className="mb-4 sm:mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -377,7 +455,7 @@ export function PlanesMantenimientoView() {
       {isLoadingData && (
         <div className="mb-4 space-y-3">
           <div className="bg-white rounded-lg shadow p-4 space-y-3">
-            <div className="h-6 bg-blue-100 rounded w-1/3 animate-pulse"></div>
+            <div className="h-6 bg-[#1d293d]/10 rounded w-1/3 animate-pulse"></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse"></div>
@@ -389,7 +467,7 @@ export function PlanesMantenimientoView() {
 
       {/* Upload Section Responsivo */}
       <Card className="mb-4 sm:mb-6 shadow-lg">
-        <CardHeader className="bg-blue-600 text-white p-3 sm:p-4 lg:p-6">
+        <CardHeader className="bg-[#1d293d] text-white p-3 sm:p-4 lg:p-6">
           <CardTitle className="text-sm sm:text-base lg:text-lg">
             Ingresar Plan de Mantenimiento
           </CardTitle>
@@ -401,20 +479,25 @@ export function PlanesMantenimientoView() {
                 Año del cronograma
               </Label>
               <Select 
-                value={selectedYear} 
-                onValueChange={handleYearChange}
+                value={uploadYear} 
+                onValueChange={(value) => {
+                  setUploadYear(value);
+                  if (errors.year) {
+                    setErrors(prev => ({ ...prev, year: '' }));
+                  }
+                }}
               >
                 <SelectTrigger className={`h-8 sm:h-9 lg:h-10 text-xs sm:text-sm ${
                   errors.year ? 'border-red-500' : ''
                 }`}>
-                  <SelectValue placeholder="--------" />
+                  <SelectValue placeholder="Seleccionar año" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2024">2024</SelectItem>
-                  <SelectItem value="2023">2023</SelectItem>
-                  <SelectItem value="2022">2022</SelectItem>
-                  <SelectItem value="2021">2021</SelectItem>
-                  <SelectItem value="2020">2020</SelectItem>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}{year === currentYear ? ' (Actual)' : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.year && (
@@ -465,7 +548,7 @@ export function PlanesMantenimientoView() {
             <div
               className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-colors ${
                 dragActive
-                  ? "border-blue-400 bg-blue-50"
+                  ? "border-[#1d293d] bg-[#1d293d]/5"
                   : errors.fileUpload
                   ? "border-red-400 bg-red-50"
                   : "border-slate-300 bg-slate-50"
@@ -511,7 +594,7 @@ export function PlanesMantenimientoView() {
               >
                 {isLoading ? 'Procesando...' : '📤 Subir Excel'}
               </Button>
-              <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm">
+              <Button className="w-full sm:w-auto bg-[#1d293d] hover:bg-[#2a3b52] text-white h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm">
                 📁 Explorar
               </Button>
             </div>
@@ -580,24 +663,49 @@ export function PlanesMantenimientoView() {
         </CardContent>
       </Card>
 
-      {/* Export Buttons Responsivos */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-        <Button
-          onClick={() => setExportConsolidadoModalOpen(true)}
-          className="bg-green-600 hover:bg-green-700 text-white h-8 sm:h-9 text-xs sm:text-sm"
-        >
-          <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-          📄 Exportar Consolidado
-        </Button>
-        <Button
-          onClick={handleDownloadTemplate}
-          disabled={dataLoading}
-          className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white h-8 sm:h-9 text-xs sm:text-sm"
-        >
-          <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-          📄 Exportar Plantilla
-          {dataLoading && <span className="ml-1">...</span>}
-        </Button>
+      {/* Selector de Año (ORIGINAL) y Botones de Exportar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+        {/* Selector de Año ORIGINAL para filtrar tabla */}
+        <div className="flex items-center gap-2">
+          <Label className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
+            Año:
+          </Label>
+          <Select 
+            value={selectedYear} 
+            onValueChange={handleYearChange}
+          >
+            <SelectTrigger className="w-24 sm:w-28 h-8 sm:h-9 text-xs sm:text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2024">2024</SelectItem>
+              <SelectItem value="2023">2023</SelectItem>
+              <SelectItem value="2022">2022</SelectItem>
+              <SelectItem value="2021">2021</SelectItem>
+              <SelectItem value="2020">2020</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Botones de Exportar */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <Button
+            onClick={() => setExportConsolidadoModalOpen(true)}
+            className="bg-green-600 hover:bg-green-700 text-white h-8 sm:h-9 text-xs sm:text-sm"
+          >
+            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            📄 Exportar Consolidado
+          </Button>
+          <Button
+            onClick={handleDownloadTemplate}
+            disabled={dataLoading}
+            className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white h-8 sm:h-9 text-xs sm:text-sm"
+          >
+            <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            📄 Exportar Plantilla
+            {dataLoading && <span className="ml-1">...</span>}
+          </Button>
+        </div>
       </div>
 
       {/* Table Section Responsivo */}
@@ -613,9 +721,7 @@ export function PlanesMantenimientoView() {
                 value={entriesPerPage} 
                 onValueChange={handleEntriesPerPageChange}
               >
-                <SelectTrigger className={`w-12 sm:w-16 h-7 sm:h-8 text-xs sm:text-sm ${
-                  errors.entriesPerPage ? 'border-red-500' : ''
-                }`}>
+                <SelectTrigger className="w-12 sm:w-16 h-7 sm:h-8 text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -628,12 +734,6 @@ export function PlanesMantenimientoView() {
               <span className="text-xs sm:text-sm text-slate-600">
                 registros
               </span>
-              {errors.entriesPerPage && (
-                <div className="text-red-500 text-xs flex items-center gap-1 ml-2">
-                  <XCircle className="w-3 h-3" />
-                  {errors.entriesPerPage}
-                </div>
-              )}
             </div>
           </div>
         </CardHeader>
@@ -647,25 +747,67 @@ export function PlanesMantenimientoView() {
                     Acciones
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[80px]">
-                    ID Equipo
+                    <button 
+                      onClick={() => handleSort('equipo_id')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      ID Equipo
+                      {getSortIcon('equipo_id')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[150px]">
-                    Equipo
+                    <button 
+                      onClick={() => handleSort('equipo_nombre')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      Equipo
+                      {getSortIcon('equipo_nombre')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Código
+                    <button 
+                      onClick={() => handleSort('equipo_codigo')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      Código
+                      {getSortIcon('equipo_codigo')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Serie
+                    <button 
+                      onClick={() => handleSort('equipo_serie')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      Serie
+                      {getSortIcon('equipo_serie')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Marca
+                    <button 
+                      onClick={() => handleSort('equipo_marca')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      Marca
+                      {getSortIcon('equipo_marca')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[100px]">
-                    Modelo
+                    <button 
+                      onClick={() => handleSort('equipo_modelo')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      Modelo
+                      {getSortIcon('equipo_modelo')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[120px]">
-                    Responsable
+                    <button 
+                      onClick={() => handleSort('responsable')}
+                      className="flex items-center gap-1 hover:text-slate-200 transition-colors"
+                    >
+                      Responsable
+                      {getSortIcon('responsable')}
+                    </button>
                   </th>
                   <th className="text-left p-1.5 font-semibold min-w-[150px]">
                     Rango Programado 1
@@ -688,7 +830,7 @@ export function PlanesMantenimientoView() {
                 </tr>
               </thead>
               <tbody>
-                {planesData.map((plan) => (
+                {sortedPlanes.map((plan) => (
                   <tr
                     key={plan.id}
                     className="border-b hover:bg-slate-50 transition-colors"
@@ -699,8 +841,8 @@ export function PlanesMantenimientoView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditarObservaciones(plan)}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 w-6 h-6 p-0"
+                          onClick={() => handleEditarPlan(plan)}
+                          className="text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5 w-6 h-6 p-0"
                           title="Editar plan"
                         >
                           <Edit className="w-3 h-3" />
@@ -709,9 +851,9 @@ export function PlanesMantenimientoView() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleVerDocumentacion(plan)}
+                            onClick={() => handleVerHistorial(plan)}
                             className="text-green-600 hover:text-green-800 hover:bg-green-50 w-6 h-6 p-0"
-                            title="Ver historial"
+                            title="Ver historial de cambios"
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
@@ -783,7 +925,7 @@ export function PlanesMantenimientoView() {
                     <td className="p-1.5 text-center">
                       <Badge
                         variant="outline"
-                        className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5"
+                        className="bg-[#1d293d]/5 text-[#1d293d] text-xs px-2 py-0.5"
                       >
                         {plan.cantidad_programados}
                       </Badge>
@@ -797,7 +939,7 @@ export function PlanesMantenimientoView() {
                           plan.estado_cumplimiento === 'COMPLETO' 
                             ? 'bg-green-50 text-green-700' 
                             : plan.estado_cumplimiento === 'ALTO'
-                            ? 'bg-blue-50 text-blue-700'
+                            ? 'bg-[#1d293d]/5 text-[#1d293d]'
                             : plan.estado_cumplimiento === 'MEDIO'
                             ? 'bg-yellow-50 text-yellow-700'
                             : 'bg-red-50 text-red-700'
@@ -833,7 +975,7 @@ export function PlanesMantenimientoView() {
                     <td className="p-2">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1">
-                          <Edit className="w-3 h-3 text-blue-600" />
+                          <Edit className="w-3 h-3 text-[#1d293d]" />
                           <span className="font-medium text-xs">
                             #{plan.equipo_id}
                           </span>
@@ -875,7 +1017,7 @@ export function PlanesMantenimientoView() {
                           plan.estado_cumplimiento === 'COMPLETO' 
                             ? 'bg-green-50 text-green-700' 
                             : plan.estado_cumplimiento === 'ALTO'
-                            ? 'bg-blue-50 text-blue-700'
+                            ? 'bg-[#1d293d]/5 text-[#1d293d]'
                             : plan.estado_cumplimiento === 'MEDIO'
                             ? 'bg-yellow-50 text-yellow-700'
                             : 'bg-red-50 text-red-700'
@@ -889,8 +1031,8 @@ export function PlanesMantenimientoView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditarObservaciones(plan)}
-                          className="text-blue-600 hover:bg-blue-50 w-6 h-6 p-0"
+                          onClick={() => handleEditarPlan(plan)}
+                          className="text-[#1d293d] hover:bg-[#1d293d]/5 w-6 h-6 p-0"
                           title="Editar plan"
                         >
                           <Edit className="w-3 h-3" />
@@ -899,9 +1041,9 @@ export function PlanesMantenimientoView() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleVerDocumentacion(plan)}
+                            onClick={() => handleVerHistorial(plan)}
                             className="text-green-600 hover:bg-green-50 w-6 h-6 p-0"
-                            title="Ver historial"
+                            title="Ver historial de cambios"
                           >
                             <Eye className="w-3 h-3" />
                           </Button>
@@ -944,7 +1086,7 @@ export function PlanesMantenimientoView() {
                           plan.estado_cumplimiento === 'COMPLETO' 
                             ? 'bg-green-50 text-green-700' 
                             : plan.estado_cumplimiento === 'ALTO'
-                            ? 'bg-blue-50 text-blue-700'
+                            ? 'bg-[#1d293d]/5 text-[#1d293d]'
                             : plan.estado_cumplimiento === 'MEDIO'
                             ? 'bg-yellow-50 text-yellow-700'
                             : 'bg-red-50 text-red-700'
@@ -998,8 +1140,8 @@ export function PlanesMantenimientoView() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleEditarObservaciones(plan)}
-                        className="text-blue-600 hover:bg-blue-50 w-7 h-7 p-0"
+                        onClick={() => handleEditarPlan(plan)}
+                        className="text-[#1d293d] hover:bg-[#1d293d]/5 w-7 h-7 p-0"
                         title="Editar plan"
                       >
                         <Edit className="w-3 h-3" />
@@ -1008,9 +1150,9 @@ export function PlanesMantenimientoView() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleVerDocumentacion(plan)}
+                          onClick={() => handleVerHistorial(plan)}
                           className="text-green-600 hover:bg-green-50 w-7 h-7 p-0"
-                          title="Ver historial"
+                          title="Ver historial de cambios"
                         >
                           <Eye className="w-3 h-3" />
                         </Button>
@@ -1069,6 +1211,18 @@ export function PlanesMantenimientoView() {
         open={eliminarEquipoModalOpen}
         onOpenChange={setEliminarEquipoModalOpen}
         equipo={selectedEquipo}
+      />
+      <HistorialCambiosModal
+        open={historialCambiosModalOpen}
+        onOpenChange={setHistorialCambiosModalOpen}
+        planId={selectedPlanId}
+      />
+      <EditarPlanModal
+        open={editarPlanModalOpen}
+        onOpenChange={setEditarPlanModalOpen}
+        plan={selectedPlan}
+        proveedores={proveedoresData}
+        onSuccess={handlePlanEditSuccess}
       />
     </div>
   );

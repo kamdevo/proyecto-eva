@@ -1,13 +1,37 @@
 "use client"
 
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { Button } from "../ui/button"
 import { AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
 
-export default function UIModalEliminarArea({ isOpen, onClose, area }) {
-  const handleConfirmDelete = () => {
-    console.log("Eliminando área:", area)
-    onClose()
+export default function UIModalEliminarArea({ isOpen, onClose, area, onSuccess }) {
+  const [loading, setLoading] = useState(false)
+
+  const handleConfirmDelete = async () => {
+    setLoading(true)
+    
+    try {
+      const response = await fetch(`http://192.168.2.146:8001/api/v1/areas/${area.id}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast.success('Área eliminada exitosamente')
+        if (onSuccess) onSuccess()
+        onClose()
+      } else {
+        toast.error(data.message || 'Error al eliminar área')
+      }
+    } catch (error) {
+      console.error('Error eliminando área:', error)
+      toast.error('Error al eliminar área')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -33,44 +57,23 @@ export default function UIModalEliminarArea({ isOpen, onClose, area }) {
           {area && (
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
               <h4 className="font-medium text-gray-800 mb-3">Área a eliminar:</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-600">
-                <div className="space-y-2">
-                  <p className="break-words">
-                    <span className="font-medium text-gray-700">Nombre:</span><br />
-                    {area.nombre}
-                  </p>
-                  <p className="break-words">
-                    <span className="font-medium text-gray-700">Servicio:</span><br />
-                    {area.servicio}
-                  </p>
-                  <p className="break-words">
-                    <span className="font-medium text-gray-700">Sede:</span><br />
-                    {area.sede}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <p>
-                    <span className="font-medium text-gray-700">Piso:</span><br />
-                    {area.piso}
-                  </p>
-                  <p>
-                    <span className="font-medium text-gray-700">Zona:</span><br />
-                    {area.zona}
-                  </p>
-                  <p className="break-words">
-                    <span className="font-medium text-gray-700">Responsable:</span><br />
-                    {area.responsable}
-                  </p>
-                </div>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p className="break-words">
+                  <span className="font-medium text-gray-700">ID:</span> {area.id}
+                </p>
+                <p className="break-words">
+                  <span className="font-medium text-gray-700">Nombre:</span> {area.name}
+                </p>
+                <p className="break-words">
+                  <span className="font-medium text-gray-700">Servicio:</span> {area.servicio_nombre || 'N/A'}
+                </p>
+                <p className="break-words">
+                  <span className="font-medium text-gray-700">Sede:</span> {area.sede_nombre || 'N/A'}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-700">Piso:</span> {area.piso_nombre || 'N/A'}
+                </p>
               </div>
-              
-              {area.capacidad && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-700">Capacidad:</span> {area.capacidad}
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
@@ -80,8 +83,7 @@ export default function UIModalEliminarArea({ isOpen, onClose, area }) {
               <div>
                 <h4 className="text-sm font-medium text-yellow-800">Advertencia</h4>
                 <p className="text-sm text-yellow-700 mt-1">
-                  Al eliminar esta área, también se eliminarán todas las asociaciones con equipos y servicios. Esta
-                  acción es permanente y no se puede revertir.
+                  No se puede eliminar un área si tiene equipos asociados. Esta acción es permanente y no se puede revertir.
                 </p>
               </div>
             </div>
@@ -93,6 +95,7 @@ export default function UIModalEliminarArea({ isOpen, onClose, area }) {
               variant="outline"
               onClick={onClose}
               className="px-6 w-full sm:w-auto order-2 sm:order-1"
+              disabled={loading}
             >
               Cancelar
             </Button>
@@ -101,8 +104,9 @@ export default function UIModalEliminarArea({ isOpen, onClose, area }) {
               type="button"
               onClick={handleConfirmDelete}
               className="bg-red-500 hover:bg-red-600 text-white px-6 w-full sm:w-auto order-1 sm:order-2"
+              disabled={loading}
             >
-              Eliminar
+              {loading ? 'Eliminando...' : 'Eliminar Área'}
             </Button>
           </div>
         </div>
