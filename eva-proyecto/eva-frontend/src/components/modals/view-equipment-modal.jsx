@@ -540,6 +540,7 @@ export function ViewEquipmentModal({
           selectedManualInfo,
           selectedGuideInfo,
           userHistory,
+          equipmentTickets, // ✅ Incluir tickets
           equipmentImageBase64 // Incluir la imagen convertida a base64
         };
         
@@ -548,6 +549,12 @@ export function ViewEquipmentModal({
           hasManualInfo: !!selectedManualInfo,
           hasGuideInfo: !!selectedGuideInfo,
           hasUserHistory: !!userHistory,
+          hasEquipmentTickets: !!equipmentTickets,
+          ticketsCount: equipmentTickets?.length || 0,
+          hasObservaciones: !!equipmentDetails.observaciones,
+          observacionesCount: equipmentDetails.observaciones?.length || 0,
+          hasContingencias: !!equipmentDetails.contingencias,
+          contingenciasCount: equipmentDetails.contingencias?.length || 0,
           hasEquipmentImage: !!equipmentImageBase64,
           imageSize: equipmentImageBase64 ? `${(equipmentImageBase64.length / 1024).toFixed(2)} KB` : 'N/A',
           imageType: typeof equipmentImageBase64,
@@ -567,7 +574,7 @@ export function ViewEquipmentModal({
         console.error("Error updating PDF instance:", error);
       }
     }
-  }, [equipmentDetails, selectedManualInfo, selectedGuideInfo, userHistory, equipmentImageBase64, updateInstance]);
+  }, [equipmentDetails, selectedManualInfo, selectedGuideInfo, userHistory, equipmentTickets, equipmentImageBase64, updateInstance]);
 
   // Handle PDF download
   const handleDownloadPDF = () => {

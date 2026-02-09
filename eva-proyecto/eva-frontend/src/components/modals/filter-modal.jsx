@@ -403,24 +403,22 @@ export function FilterModal({
                 <Label htmlFor="filtro_zona" className="text-sm font-medium">
                   Zona/Sede:
                 </Label>
-                <Select
-                  value={filters.filtro_zona}
-                  onValueChange={(value) =>
-                    handleFilterChange("filtro_zona", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar sede..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las sedes</SelectItem>
-                    {filterOptions.sedes.map((sede) => (
-                      <SelectItem key={sede.id} value={sede.id.toString()}>
-                        {sede.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todas las sedes" },
+                      ...filterOptions.sedes.map((sede) => ({
+                        id: sede.id.toString(),
+                        label: sede.name,
+                      }))
+                    ]}
+                    value={filters.filtro_zona || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("filtro_zona", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar sede..."
+                  />
+                </div>
               </div>
               <div>
                 <Label
@@ -456,28 +454,26 @@ export function FilterModal({
                 >
                   Área Específica:
                 </Label>
-                <Select
-                  value={filters.area_id_auxiliar}
-                  onValueChange={(value) =>
-                    handleFilterChange("area_id_auxiliar", value)
-                  }
-                  disabled={
-                    !filters.servicio_id_auxiliar ||
-                    filters.servicio_id_auxiliar === "all"
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar área..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las áreas</SelectItem>
-                    {filteredAreas.map((area) => (
-                      <SelectItem key={area.id} value={area.id.toString()}>
-                        {area.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todas las áreas" },
+                      ...filteredAreas.map((area) => ({
+                        id: area.id.toString(),
+                        label: area.name,
+                      }))
+                    ]}
+                    value={filters.area_id_auxiliar || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("area_id_auxiliar", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar área..."
+                    disabled={
+                      !filters.servicio_id_auxiliar ||
+                      filters.servicio_id_auxiliar === "all"
+                    }
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -495,47 +491,43 @@ export function FilterModal({
                 >
                   Estado del Equipo:
                 </Label>
-                <Select
-                  value={filters.filtro_estadoequipo_id}
-                  onValueChange={(value) =>
-                    handleFilterChange("filtro_estadoequipo_id", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar estado..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los estados</SelectItem>
-                    {filterOptions.estados.map((estado) => (
-                      <SelectItem key={estado.id} value={estado.id.toString()}>
-                        {estado.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todos los estados" },
+                      ...filterOptions.estados.map((estado) => ({
+                        id: estado.id.toString(),
+                        label: estado.name,
+                      }))
+                    ]}
+                    value={filters.filtro_estadoequipo_id || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("filtro_estadoequipo_id", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar estado..."
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="filtro_estadom" className="text-sm font-medium">
                   Estado de Mantenimiento:
                 </Label>
-                <Select
-                  value={filters.filtro_estadom}
-                  onValueChange={(value) =>
-                    handleFilterChange("filtro_estadom", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar estado..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los estados</SelectItem>
-                    {filterOptions.estados_mantenimiento.map((estado) => (
-                      <SelectItem key={estado.id} value={estado.id.toString()}>
-                        {estado.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todos los estados" },
+                      ...filterOptions.estados_mantenimiento.map((estado) => ({
+                        id: estado.id.toString(),
+                        label: estado.name,
+                      }))
+                    ]}
+                    value={filters.filtro_estadom || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("filtro_estadom", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar estado..."
+                  />
+                </div>
               </div>
               <div>
                 <Label
@@ -544,27 +536,22 @@ export function FilterModal({
                 >
                   Proveedor de Mantenimiento:
                 </Label>
-                <Select
-                  value={filters.proveedor_mantenimiento}
-                  onValueChange={(value) =>
-                    handleFilterChange("proveedor_mantenimiento", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar proveedor..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los proveedores</SelectItem>
-                    {filterOptions.proveedores.map((proveedor) => (
-                      <SelectItem
-                        key={proveedor.id}
-                        value={proveedor.id.toString()}
-                      >
-                        {proveedor.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todos los proveedores" },
+                      ...filterOptions.proveedores.map((proveedor) => ({
+                        id: proveedor.id.toString(),
+                        label: proveedor.name,
+                      }))
+                    ]}
+                    value={filters.proveedor_mantenimiento || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("proveedor_mantenimiento", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar proveedor..."
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -579,75 +566,64 @@ export function FilterModal({
                 <Label htmlFor="tipo_id" className="text-sm font-medium">
                   Tipo de Equipo:
                 </Label>
-                <Select
-                  value={filters.tipo_id}
-                  onValueChange={(value) =>
-                    handleFilterChange("tipo_id", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar tipo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los tipos</SelectItem>
-                    {filterOptions.tipos_equipos.map((tipo) => (
-                      <SelectItem key={tipo.id} value={tipo.id.toString()}>
-                        {tipo.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todos los tipos" },
+                      ...filterOptions.tipos_equipos.map((tipo) => ({
+                        id: tipo.id.toString(),
+                        label: tipo.name,
+                      }))
+                    ]}
+                    value={filters.tipo_id || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("tipo_id", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar tipo..."
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="estado_id" className="text-sm font-medium">
                   Clasificación de Riesgo:
                 </Label>
-                <Select
-                  value={filters.estado_id}
-                  onValueChange={(value) =>
-                    handleFilterChange("estado_id", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar riesgo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      Todas las clasificaciones
-                    </SelectItem>
-                    {filterOptions.riesgos.map((riesgo) => (
-                      <SelectItem key={riesgo.id} value={riesgo.id.toString()}>
-                        {riesgo.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todas las clasificaciones" },
+                      ...filterOptions.riesgos.map((riesgo) => ({
+                        id: riesgo.id.toString(),
+                        label: riesgo.name,
+                      }))
+                    ]}
+                    value={filters.estado_id || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("estado_id", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar clasificación..."
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="estado_id_cg" className="text-sm font-medium">
                   Propietario:
                 </Label>
-                <Select
-                  value={filters.estado_id_cg}
-                  onValueChange={(value) =>
-                    handleFilterChange("estado_id_cg", value)
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar propietario..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los propietarios</SelectItem>
-                    {filterOptions.propietarios.map((propietario) => (
-                      <SelectItem
-                        key={propietario.id}
-                        value={propietario.id.toString()}
-                      >
-                        {propietario.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <SearchableSelect
+                    options={[
+                      { id: "all", label: "Todos los propietarios" },
+                      ...filterOptions.propietarios.map((propietario) => ({
+                        id: propietario.id.toString(),
+                        label: propietario.name,
+                      }))
+                    ]}
+                    value={filters.estado_id_cg || "all"}
+                    onValueChange={(value) =>
+                      handleFilterChange("estado_id_cg", value === "all" ? "" : value)
+                    }
+                    placeholder="Buscar propietario..."
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="anio_plan" className="text-sm font-medium">

@@ -76,7 +76,12 @@ return [
             'http://10.0.0.100:5175',     // Puerto alternativo
             'http://10.0.0.100:8001',     // Backend Laravel
             
-            // Tu red específica
+            // Tu red específica (VirtualBox/VMware)
+            'http://192.168.56.1:5173',   // Frontend Vite
+            'http://192.168.56.1:5174',   // Frontend Vite alternativo
+            'http://192.168.56.1:8001',   // Backend Laravel
+            
+            // Red específica alternativa
             'http://192.168.2.146:5173',  // Frontend
             'http://192.168.2.146:8001',  // Backend
 

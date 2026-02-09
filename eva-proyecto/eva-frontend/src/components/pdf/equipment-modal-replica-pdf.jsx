@@ -412,14 +412,14 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             <Text style={styles.tableCellData}>{safeValue(data?.estado_invima)}</Text>
           </View>
           <View style={styles.tableRow}>
+            <Text style={styles.tableCellHeader}>F. Adquisición</Text>
+            <Text style={styles.tableCellData}>{formatDate(data?.fecha_ad)}</Text>
             <Text style={styles.tableCellHeader}>F. Fabricación</Text>
             <Text style={styles.tableCellData}>{formatDate(data?.fecha_fabricacion)}</Text>
-            <Text style={styles.tableCellHeader}>F. Instalación</Text>
-            <Text style={styles.tableCellData}>{formatDate(data?.fecha_instalacion)}</Text>
           </View>
           <View style={styles.tableRow}>
-            <Text style={styles.tableCellHeader}>F. Acta Recibo</Text>
-            <Text style={styles.tableCellData}>{formatDate(data?.fecha_acta_recibo)}</Text>
+            <Text style={styles.tableCellHeader}>F. Instalación</Text>
+            <Text style={styles.tableCellData}>{formatDate(data?.fecha_instalacion)}</Text>
             <Text style={styles.tableCellHeader}>F. Operación</Text>
             <Text style={styles.tableCellData}>{formatDate(data?.fecha_inicio_operacion)}</Text>
           </View>
@@ -446,22 +446,82 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           </View>
         </View>
 
+        {/* PLAN DE EJECUCIÓN */}
+        <Text style={styles.sectionTitle}>PLAN DE EJECUCIÓN</Text>
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableCellHeader}>Incluido en Plan</Text>
+            <Text style={styles.tableCellData}>
+              {data?.incluido_en_plan > 0 
+                ? `Incluido en Plan ${data?.anio_vigente || 'Vigente'}` 
+                : 'No incluido'}
+            </Text>
+          </View>
+          {data?.incluido_en_plan > 0 && (
+            <>
+              <View style={styles.tableRow}>
+                <Text style={styles.tableCellHeader}>Responsable</Text>
+                <Text style={styles.tableCellData}>{safeValue(data?.responsable_plan)}</Text>
+              </View>
+              <View style={styles.tableRow}>
+                <Text style={styles.tableCellHeader}>Frecuencia</Text>
+                <Text style={styles.tableCellData}>{safeValue(data?.frecuencia_plan || data?.frecuencia)}</Text>
+              </View>
+              {(data?.mes_programado1 || data?.mes_programado2 || data?.mes_programado3) && (
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellHeader}>Meses Programados</Text>
+                  <Text style={styles.tableCellData}>
+                    {data?.mes_programado1 && `Fecha 1: ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][data.mes_programado1 - 1]}`}
+                    {data?.mes_programado2 && ` | Fecha 2: ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][data.mes_programado2 - 1]}`}
+                    {data?.mes_programado3 && ` | Fecha 3: ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][data.mes_programado3 - 1]}`}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* EVALUACIÓN DE DESEMPEÑO */}
+        <Text style={styles.sectionTitle}>EVALUACIÓN DE DESEMPEÑO</Text>
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableCellHeader}>Evaluación de Desempeño</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.evaluacion_desempenio)}</Text>
+          </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableCellHeader}>Calibración</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.calibracion)}</Text>
+          </View>
+          <View style={styles.tableRow}>
+            <Text style={styles.tableCellHeader}>Periodicidad</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.periodicidad)}</Text>
+          </View>
+        </View>
+
         {/* MANTENIMIENTOS PREVENTIVOS */}
         <Text style={styles.sectionTitle}>MANTENIMIENTOS PREVENTIVOS RECIENTES</Text>
         <View style={styles.dataTable}>
           <View style={styles.dataTableHeader}>
+            <Text style={styles.dataTableHeaderCell}>Número de Preventivo</Text>
             <Text style={styles.dataTableHeaderCell}>Fecha</Text>
-            <Text style={styles.dataTableHeaderCell}>Tipo</Text>
-            <Text style={styles.dataTableHeaderCell}>Técnico</Text>
+            <Text style={styles.dataTableHeaderCell}>Observación</Text>
             <Text style={styles.dataTableHeaderCell}>Estado</Text>
+            <Text style={styles.dataTableHeaderCell}>Archivo</Text>
           </View>
           {data?.mantenimientos_preventivos && data.mantenimientos_preventivos.length > 0 ? (
-            data.mantenimientos_preventivos.slice(0, 5).map((mant, index) => (
+            data.mantenimientos_preventivos.slice(0, 10).map((mant, index) => (
               <View key={index} style={styles.dataTableRow}>
-                <Text style={styles.dataTableCell}>{formatDate(mant.fecha_programada)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(mant.tipo)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(mant.tecnico_nombre)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(mant.estado)}</Text>
+                <Text style={styles.dataTableCell}>#{mant.id || '-'}</Text>
+                <Text style={styles.dataTableCell}>{formatDate(mant.fecha_mantenimiento || mant.fecha_programada)}</Text>
+                <Text style={styles.dataTableCell}>{mant.observacion ? (mant.observacion.length > 80 ? mant.observacion.substring(0, 80) + '...' : mant.observacion) : 'Sin observación'}</Text>
+                <Text style={styles.dataTableCell}>{mant.status === 1 ? 'Completado' : 'Pendiente'}</Text>
+                <Text style={styles.dataTableCell}>
+                  {mant.file ? (
+                    <Link src={`http://localhost:8001/api/storage/mantenimientos/${mant.file}`} style={styles.link}>Ver</Link>
+                  ) : (
+                    'Sin archivo'
+                  )}
+                </Text>
               </View>
             ))
           ) : (
@@ -478,7 +538,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
         <View style={styles.dataTable}>
           <View style={styles.dataTableHeader}>
             <Text style={styles.dataTableHeaderCell}>Fecha Calibración</Text>
-            <Text style={styles.dataTableHeaderCell}>Tipo</Text>
+            <Text style={styles.dataTableHeaderCell}>Número de Correctivo</Text>
             <Text style={styles.dataTableHeaderCell}>Próxima</Text>
             <Text style={styles.dataTableHeaderCell}>Resultado</Text>
           </View>
@@ -486,7 +546,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             data.calibraciones.slice(0, 4).map((cal, index) => (
               <View key={index} style={styles.dataTableRow}>
                 <Text style={styles.dataTableCell}>{formatDate(cal.fecha_calibracion)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(cal.tipo_calibracion)}</Text>
+                <Text style={styles.dataTableCell}>#{cal.id || safeValue(cal.tipo_calibracion)}</Text>
                 <Text style={styles.dataTableCell}>{formatDate(cal.proxima_calibracion)}</Text>
                 <Text style={styles.dataTableCell}>{safeValue(cal.resultado)}</Text>
               </View>
@@ -500,26 +560,137 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           )}
         </View>
 
-        {/* MANTENIMIENTOS CORRECTIVOS RECIENTES */}
-        <Text style={styles.sectionTitle}>MANTENIMIENTOS CORRECTIVOS RECIENTES</Text>
+        {/* TICKETS/MANTENIMIENTOS CORRECTIVOS */}
+        <Text style={styles.sectionTitle}>MANTENIMIENTOS CORRECTIVOS / TICKETS</Text>
         <View style={styles.dataTable}>
           <View style={styles.dataTableHeader}>
-            <Text style={styles.dataTableHeaderCell}>Fecha</Text>
+            <Text style={styles.dataTableHeaderCell}>ID Ticket</Text>
             <Text style={styles.dataTableHeaderCell}>Descripción</Text>
-            <Text style={styles.dataTableHeaderCell}>Usuario</Text>
+            <Text style={styles.dataTableHeaderCell}>Estado</Text>
+            <Text style={styles.dataTableHeaderCell}>Archivo</Text>
           </View>
-          {data?.contingencias && data.contingencias.length > 0 ? (
-            data.contingencias.slice(0, 6).map((cont, index) => (
+          {data?.equipmentTickets && data.equipmentTickets.length > 0 ? (
+            data.equipmentTickets.slice(0, 10).map((ticket, index) => (
               <View key={index} style={styles.dataTableRow}>
-                <Text style={styles.dataTableCell}>{formatDate(cont.fecha_reporte)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(cont.descripcion_problema).substring(0, 100)}...</Text>
-                <Text style={styles.dataTableCell}>{safeValue(cont.usuario_nombre)}</Text>
+                <Text style={styles.dataTableCell}>#{ticket.id}</Text>
+                <Text style={styles.dataTableCell}>
+                  {ticket.descripcion_completa 
+                    ? (ticket.descripcion_completa.length > 80 
+                        ? ticket.descripcion_completa.substring(0, 80) + '...' 
+                        : ticket.descripcion_completa)
+                    : (ticket.descripcion_problema || ticket.descripcion || 'Sin descripción')}
+                </Text>
+                <Text style={styles.dataTableCell}>{ticket.estado || ticket.estado_nombre || 'Sin estado'}</Text>
+                <Text style={styles.dataTableCell}>
+                  {ticket.file_cierre ? (
+                    <Link 
+                      src={`http://localhost:8001/storage/correctivos_generales/${ticket.file_cierre}`}
+                      style={styles.link}
+                    >
+                      Ver
+                    </Link>
+                  ) : (
+                    'Sin archivo'
+                  )}
+                </Text>
               </View>
             ))
           ) : (
             <View style={styles.dataTableRow}>
               <Text style={[styles.dataTableCell, { textAlign: 'center', fontStyle: 'italic', color: '#6b7280' }]}>
-                No hay mantenimientos correctivos registrados
+                No hay tickets asociados a este equipo
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* OBSERVACIONES DEL EQUIPO */}
+        <Text style={styles.sectionTitle}>OBSERVACIONES DEL EQUIPO</Text>
+        <View style={styles.dataTable}>
+          <View style={styles.dataTableHeader}>
+            <Text style={styles.dataTableHeaderCell}>Fecha</Text>
+            <Text style={styles.dataTableHeaderCell}>Usuario</Text>
+            <Text style={styles.dataTableHeaderCell}>Descripción</Text>
+            <Text style={styles.dataTableHeaderCell}>Archivo</Text>
+          </View>
+          {data?.observaciones && data.observaciones.length > 0 ? (
+            data.observaciones.slice(0, 10).map((obs, index) => (
+              <View key={index} style={styles.dataTableRow}>
+                <Text style={styles.dataTableCell}>{formatDate(obs.created_at || obs.fecha_nota)}</Text>
+                <Text style={styles.dataTableCell}>{safeValue(obs.usuario_nombre || 'Usuario')}</Text>
+                <Text style={styles.dataTableCell}>
+                  {obs.description 
+                    ? (obs.description.length > 80 
+                        ? obs.description.substring(0, 80) + '...' 
+                        : obs.description)
+                    : 'Sin descripción'}
+                </Text>
+                <Text style={styles.dataTableCell}>
+                  {obs.file ? (
+                    <Link 
+                      src={`http://localhost:8001/api/storage/observaciones/${obs.file}`}
+                      style={styles.link}
+                    >
+                      Ver
+                    </Link>
+                  ) : (
+                    'Sin archivo'
+                  )}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.dataTableRow}>
+              <Text style={[styles.dataTableCell, { textAlign: 'center', fontStyle: 'italic', color: '#6b7280' }]}>
+                No hay observaciones registradas para este equipo
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* CONTINGENCIAS / EVENTOS */}
+        <Text style={styles.sectionTitle}>CONTINGENCIAS / EVENTOS</Text>
+        <View style={styles.dataTable}>
+          <View style={styles.dataTableHeader}>
+            <Text style={styles.dataTableHeaderCell}>Fecha</Text>
+            <Text style={styles.dataTableHeaderCell}>Usuario</Text>
+            <Text style={styles.dataTableHeaderCell}>Observación</Text>
+            <Text style={styles.dataTableHeaderCell}>Archivo</Text>
+          </View>
+          {data?.contingencias && data.contingencias.length > 0 ? (
+            data.contingencias.slice(0, 10).map((cont, index) => (
+              <View key={index} style={styles.dataTableRow}>
+                <Text style={styles.dataTableCell}>{formatDate(cont.fecha || cont.created_at)}</Text>
+                <Text style={styles.dataTableCell}>
+                  {cont.usuario_nombre 
+                    ? `${cont.usuario_nombre} ${cont.usuario_apellido || ''}`.trim()
+                    : 'Usuario'}
+                </Text>
+                <Text style={styles.dataTableCell}>
+                  {cont.observacion 
+                    ? (cont.observacion.length > 80 
+                        ? cont.observacion.substring(0, 80) + '...' 
+                        : cont.observacion)
+                    : 'Sin observación'}
+                </Text>
+                <Text style={styles.dataTableCell}>
+                  {cont.file ? (
+                    <Link 
+                      src={`http://localhost:8001/storage/contingencias/${cont.file}`}
+                      style={styles.link}
+                    >
+                      Ver
+                    </Link>
+                  ) : (
+                    'Sin archivo'
+                  )}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.dataTableRow}>
+              <Text style={[styles.dataTableCell, { textAlign: 'center', fontStyle: 'italic', color: '#6b7280' }]}>
+                No hay contingencias registradas para este equipo
               </Text>
             </View>
           )}
@@ -532,21 +703,23 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             <Text style={styles.dataTableHeaderCell}>Nombre</Text>
             <Text style={styles.dataTableHeaderCell}>Tipo de Documento</Text>
             <Text style={styles.dataTableHeaderCell}>Fecha</Text>
+            <Text style={styles.dataTableHeaderCell}>Archivo</Text>
           </View>
           {data?.documentos && data.documentos.length > 0 ? (
             data.documentos.slice(0, 6).map((doc, index) => (
               <View key={index} style={styles.dataTableRow}>
-                <Text style={styles.dataTableCell}>
-                  {doc.url ? (
-                    <Link src={doc.url} style={styles.link}>
-                      {safeValue(doc.nombre_archivo)}
-                    </Link>
-                  ) : (
-                    safeValue(doc.nombre_archivo)
-                  )}
-                </Text>
+                <Text style={styles.dataTableCell}>{safeValue(doc.nombre_archivo)}</Text>
                 <Text style={styles.dataTableCell}>{safeValue(doc.tipo_documento)}</Text>
                 <Text style={styles.dataTableCell}>{safeValue(doc.fecha_documento)}</Text>
+                <Text style={styles.dataTableCell}>
+                  {doc.vinculo ? (
+                    <Link src={`http://192.168.2.146:8001/api/storage/equipos/archivos/${doc.vinculo}`} style={styles.link}>
+                      Ver
+                    </Link>
+                  ) : (
+                    'Sin archivo'
+                  )}
+                </Text>
               </View>
             ))
           ) : (
@@ -580,7 +753,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             <Text style={styles.tableCellData}>
               {data?.selectedGuideInfo ? (
                 <Link 
-                  src={`${process.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/guias/${data.selectedGuideInfo.file}`} 
+                  src={`http://192.168.2.146:8001/storage/guias/${data.selectedGuideInfo.file}`} 
                   style={styles.link}
                 >
                   {data.selectedGuideInfo.name}
