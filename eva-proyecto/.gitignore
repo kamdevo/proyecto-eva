@@ -13,6 +13,14 @@ build/
 *.log
 logs/
 
+# Variables de entorno (solo archivos .env principales, NO los .example)
+.env
+.env.local
+.env.*.local
+# Ignorar configuraciones específicas de Docker
+.env.docker
+.env.docker-simple
+
 # IDE
 .vscode/
 .idea/
