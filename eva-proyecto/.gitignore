@@ -13,11 +13,6 @@ build/
 *.log
 logs/
 
-# Variables de entorno
-.env
-.env.local
-.env.production
-
 # IDE
 .vscode/
 .idea/
