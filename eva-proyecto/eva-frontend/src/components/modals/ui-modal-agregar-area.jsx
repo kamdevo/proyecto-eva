@@ -25,7 +25,7 @@ export default function UIModalAgregarArea({ isOpen, onClose, servicios = [], on
     setLoading(true)
     
     try {
-      const response = await fetch('http://192.168.2.146:8001/api/v1/areas', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/areas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

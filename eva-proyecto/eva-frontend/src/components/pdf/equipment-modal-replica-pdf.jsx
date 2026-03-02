@@ -517,7 +517,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                 <Text style={styles.dataTableCell}>{mant.status === 1 ? 'Completado' : 'Pendiente'}</Text>
                 <Text style={styles.dataTableCell}>
                   {mant.file ? (
-                    <Link src={`http://localhost:8001/api/storage/mantenimientos/${mant.file}`} style={styles.link}>Ver</Link>
+                    <Link src={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/api/storage/mantenimientos/${mant.file}`} style={styles.link}>Ver</Link>
                   ) : (
                     'Sin archivo'
                   )}
@@ -584,7 +584,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                 <Text style={styles.dataTableCell}>
                   {ticket.file_cierre ? (
                     <Link 
-                      src={`http://localhost:8001/storage/correctivos_generales/${ticket.file_cierre}`}
+                      src={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${ticket.file_cierre}`}
                       style={styles.link}
                     >
                       Ver
@@ -628,7 +628,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                 <Text style={styles.dataTableCell}>
                   {obs.file ? (
                     <Link 
-                      src={`http://localhost:8001/api/storage/observaciones/${obs.file}`}
+                      src={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/api/storage/observaciones/${obs.file}`}
                       style={styles.link}
                     >
                       Ver
@@ -713,7 +713,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                 <Text style={styles.dataTableCell}>{safeValue(doc.fecha_documento)}</Text>
                 <Text style={styles.dataTableCell}>
                   {doc.vinculo ? (
-                    <Link src={`http://192.168.2.146:8001/api/storage/equipos/archivos/${doc.vinculo}`} style={styles.link}>
+                    <Link src={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/api/storage/equipos/archivos/${doc.vinculo}`} style={styles.link}>
                       Ver
                     </Link>
                   ) : (
@@ -753,7 +753,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             <Text style={styles.tableCellData}>
               {data?.selectedGuideInfo ? (
                 <Link 
-                  src={`http://192.168.2.146:8001/storage/guias/${data.selectedGuideInfo.file}`} 
+                  src={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/guias/${data.selectedGuideInfo.file}`} 
                   style={styles.link}
                 >
                   {data.selectedGuideInfo.name}

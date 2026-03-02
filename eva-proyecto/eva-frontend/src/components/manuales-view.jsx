@@ -47,7 +47,7 @@ export function ManualesView() {
                 params.append('search', searchTerm.trim())
             }
             
-            const response = await fetch(`http://192.168.2.146:8001/api/v1/manuales?${params}`)
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://192.168.56.1:8001/api'}/v1/manuales?${params}`)
             const data = await response.json()
             
             if (data.success) {

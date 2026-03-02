@@ -241,7 +241,7 @@ function IndustrialDevices() {
       
       if (equiposConocidos[equipmentId]) {
         const knownFile = equiposConocidos[equipmentId];
-        const fileUrl = `http://127.0.0.1:8001/storage/mantenimientos/${knownFile}`;
+        const fileUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${knownFile}`;
         window.open(fileUrl, "_blank");
         return;
       }
@@ -260,14 +260,14 @@ function IndustrialDevices() {
       
       // Fetch maintenance data for the equipment - solo PREVENTIVOS
       const response = await fetch(
-        `http://127.0.0.1:8001/api/v1/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1&order_by=fecha_mantenimiento&order_direction=desc`,
+        `${import.meta.env.VITE_API_URL || 'http://192.168.56.1:8001/api'}/v1/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1&order_by=fecha_mantenimiento&order_direction=desc`,
         { headers }
       );
 
       if (response.status === 401) {
         // Intentar con endpoint público si existe - solo PREVENTIVOS
         const publicResponse = await fetch(
-          `http://127.0.0.1:8001/api/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1`
+          `${import.meta.env.VITE_API_URL || 'http://192.168.56.1:8001/api'}/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1`
         );
         
         if (!publicResponse.ok) {
@@ -280,7 +280,7 @@ function IndustrialDevices() {
         if (publicData && publicData.length > 0) {
           const maintenance = publicData[0];
           if (maintenance.file) {
-            const fileUrl = `http://127.0.0.1:8001/storage/mantenimientos/${maintenance.file}`;
+            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${maintenance.file}`;
             window.open(fileUrl, "_blank");
             return;
           }
@@ -319,9 +319,9 @@ function IndustrialDevices() {
         if (maintenance.file) {
           // Construct the file URL - archivos preventivos están en mantenimientos
           const possibleUrls = [
-            `http://127.0.0.1:8001/storage/mantenimientos/${maintenance.file}`,
-            `http://127.0.0.1:8001/storage/correctivos_asociados/${maintenance.file}`,
-            `http://127.0.0.1:8001/storage/correctivos_generales/${maintenance.file}`
+            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${maintenance.file}`,
+            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_asociados/${maintenance.file}`,
+            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${maintenance.file}`
           ];
           
           // Intentar abrir la primera URL (mantenimientos preventivos)

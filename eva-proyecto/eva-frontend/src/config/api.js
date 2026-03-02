@@ -1,13 +1,33 @@
 /**
  * Configuración de la API para el sistema EVA
  * Centraliza todas las URLs y configuraciones de la API
+ * 
+ * Prioridad de URLs:
+ * 1. window.APP_CONFIG (runtime, config.js - se puede cambiar sin rebuild)
+ * 2. import.meta.env.VITE_* (build-time, .env)
+ * 3. Fallback hardcoded (desarrollo local)
  */
+
+// Obtener URL base con prioridad: runtime > build-time > fallback
+const getBaseURL = () => {
+  if (typeof window !== 'undefined' && window.APP_CONFIG?.API_BASE_URL) {
+    return window.APP_CONFIG.API_BASE_URL;
+  }
+  return import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
+};
+
+const getApiURL = () => {
+  if (typeof window !== 'undefined' && window.APP_CONFIG?.API_BASE_URL) {
+    return window.APP_CONFIG.API_BASE_URL + '/api';
+  }
+  return import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api";
+};
 
 // Configuración base de la API
 export const API_CONFIG = {
   // URLs base
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001",
-  API_URL: import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api",
+  BASE_URL: getBaseURL(),
+  API_URL: getApiURL(),
 
   // Configuración de timeouts
   TIMEOUT: parseInt(import.meta.env.VITE_REQUEST_TIMEOUT) || 30000,

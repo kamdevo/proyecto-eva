@@ -6,7 +6,6 @@ yarn-error.log*
 
 # Archivos de compilación
 dist/
-build/
 .cache/
 
 # Logs

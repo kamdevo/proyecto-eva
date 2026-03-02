@@ -38,7 +38,7 @@ export default function VistaAreasPrincipal() {
   const fetchAreas = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://192.168.2.146:8001/api/v1/areas')
+      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/areas`)
       const data = await response.json()
       
       if (data.success) {

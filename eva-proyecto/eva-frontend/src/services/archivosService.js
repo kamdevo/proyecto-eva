@@ -1,4 +1,6 @@
-const API_BASE = "http://localhost/reportes-innovacion/api"
+import { API_CONFIG } from '../config/api.js';
+
+const API_BASE = API_CONFIG.API_URL
 
 export const fetchArchivos = async () => {
   try {

@@ -1185,7 +1185,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`http://localhost:8001/storage/correctivos_generales/${ticket.file_cierre}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${ticket.file_cierre}`, '_blank')}
                                 className="text-gray-800 hover:bg-gray-100 h-7 px-2"
                                 title="Ver orden de trabajo"
                               >
@@ -1319,7 +1319,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`http://localhost:8001/storage/contingencias/${cont.file}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/contingencias/${cont.file}`, '_blank')}
                                 className="text-orange-600 hover:bg-orange-100 h-7 px-2"
                                 title="Ver archivo de contingencia"
                               >

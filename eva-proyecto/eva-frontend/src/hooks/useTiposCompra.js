@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE_URL = 'http://127.0.0.1:8001/api/v1';
+import { API_CONFIG } from '../config/api.js';
+
+const API_BASE_URL = API_CONFIG.API_URL + '/v1';
 
 export const useTiposCompra = () => {
   const [tipos, setTipos] = useState([]);

@@ -90,7 +90,7 @@ export default function ProfilePage() {
       const token = localStorage.getItem('eva_auth_token')
       console.log('🔐 Enviando POST con token:', token ? token.substring(0, 30) + '...' : 'NO HAY TOKEN')
       
-      const response = await fetch('http://192.168.2.146:8001/api/v1/user/update-password', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/user/update-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
