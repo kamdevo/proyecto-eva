@@ -676,7 +676,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                 <Text style={styles.dataTableCell}>
                   {cont.file ? (
                     <Link 
-                      src={`http://localhost:8001/storage/contingencias/${cont.file}`}
+                      src={`${import.meta.env.VITE_API_BASE_URL || 'http://api.eva2.huv.gov.co'}/storage/contingencias/${cont.file}`}
                       style={styles.link}
                     >
                       Ver

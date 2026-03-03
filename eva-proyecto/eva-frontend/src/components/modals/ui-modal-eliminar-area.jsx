@@ -13,7 +13,7 @@ export default function UIModalEliminarArea({ isOpen, onClose, area, onSuccess }
     setLoading(true)
     
     try {
-      const response = await fetch(`http://192.168.2.146:8001/api/v1/areas/${area.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://api.eva2.huv.gov.co/api'}/v1/areas/${area.id}`, {
         method: 'DELETE'
       })
       

@@ -13,20 +13,9 @@ const useCentrosCosto = () => {
         setLoading(true);
         setError(null);
 
-        // Usar endpoint real de centros
-        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/centros`, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        // Usar httpService que lee la URL de config.js (runtime)
+        const response = await httpService.get("/v1/centros");
+        const data = response.data;
 
         if (data.success && data.data) {
           // Formatear datos para el componente
