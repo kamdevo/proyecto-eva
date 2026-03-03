@@ -959,7 +959,6 @@ class EquipmentController extends ApiController
                     'equipos.image',
                     'equipos.file',
                     'equipos.archivo_invima',
-                    'equipos.registro_sanitario',
                     'equipos.numero_invima',
                     'equipos.fecha_vencimiento_invima',
                     'equipos.estado_invima',
@@ -1234,7 +1233,6 @@ class EquipmentController extends ApiController
                     'equipos.image',
                     'equipos.file',
                     'equipos.archivo_invima',
-                    'equipos.registro_sanitario',
                     'equipos.numero_invima',
                     'equipos.fecha_vencimiento_invima',
                     'equipos.estado_invima',
@@ -2427,8 +2425,7 @@ class EquipmentController extends ApiController
                     'equipos.code',
                     'equipos.codigo_antiguo',
                     
-                    // Información regulatoria (2 columnas)
-                    'equipos.registro_sanitario',
+                    // Información regulatoria
                     'estadoequipos.name as estado_equipo',
                     
                     // Fechas importantes (3 columnas)
