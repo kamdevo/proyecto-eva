@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Archivos de compilación
-dist/
+# dist/ -- incluido en repo para deploy en servidor
 .cache/
 
 # Logs
