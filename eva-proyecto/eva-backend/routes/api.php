@@ -9829,8 +9829,21 @@ Route::post('/auth/login', function (Request $request) {
             ], 401);
         }
         
-        // Check password
-        if (!\Illuminate\Support\Facades\Hash::check($password, $usuario->password)) {
+        // Check password (Bcrypt + fallback MD5/plaintext para usuarios legacy)
+        $passwordValid = false;
+        try {
+            $passwordValid = \Illuminate\Support\Facades\Hash::check($password, $usuario->password);
+        } catch (\Exception $e) {
+            $passwordValid = false;
+        }
+        if (!$passwordValid && $usuario->password === md5($password)) {
+            $passwordValid = true;
+        }
+        if (!$passwordValid && $usuario->password === $password) {
+            $passwordValid = true;
+        }
+
+        if (!$passwordValid) {
             // Increment failed attempts
             Cache::put($cacheKey, $attempts + 1, 900); // 15 minutes
 
