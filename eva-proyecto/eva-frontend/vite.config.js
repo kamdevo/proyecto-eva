@@ -61,65 +61,19 @@ export default defineConfig(({ mode }) => {
       target: "es2020",
       outDir: "dist",
       assetsDir: "assets",
-      sourcemap: isDev,
-      minify: "terser",
-
-      // Configuración de terser para minificación
-      terserOptions: {
-        compress: {
-          drop_console: !isDev,
-          drop_debugger: true,
-          pure_funcs: ["console.log", "console.debug"],
-        },
-        mangle: {
-          safari10: true,
-        },
+      sourcemap: false,
+      minify: "esbuild", // Cambié de terser a esbuild (más estable)
+      
+      // esbuild options (más simple y estable que terser)
+      esbuildOptions: {
+        drop: isDev ? [] : ['console', 'debugger'],
       },
 
       // Configuración de rollup
       rollupOptions: {
         output: {
-          // Configuración de chunks optimizada
-          manualChunks: (id) => {
-            // React y React Router en chunk separado
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('node_modules/react-router')) {
-              return 'vendor-router';
-            }
-            
-            // UI libraries
-            if (id.includes('node_modules/@radix-ui') || id.includes('node_modules/lucide-react')) {
-              return 'vendor-ui';
-            }
-            
-            // Axios y networking
-            if (id.includes('node_modules/axios')) {
-              return 'vendor-axios';
-            }
-            
-            // Charting libraries (si existen)
-            if (id.includes('recharts') || id.includes('chart.js')) {
-              return 'vendor-charts';
-            }
-            
-            // Otros vendors node_modules
-            if (id.includes('node_modules')) {
-              return 'vendor-libs';
-            }
-            
-            // Components by feature
-            if (id.includes('/components/modals/')) {
-              return 'feature-modals';
-            }
-            if (id.includes('medical-devices') || id.includes('IndustrialDevices')) {
-              return 'feature-equipment';
-            }
-            if (id.includes('tickets') || id.includes('Tickets')) {
-              return 'feature-tickets';
-            }
-          },
+          // NO usar manualChunks - dejar que Rollup resuelva automáticamente
+          // el orden de inicialización de módulos (evita "Cannot access before initialization")
 
           // Configuración de nombres de archivos
           chunkFileNames: "js/[name]-[hash].js",

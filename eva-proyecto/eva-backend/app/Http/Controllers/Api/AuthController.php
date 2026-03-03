@@ -92,7 +92,28 @@ class AuthController extends ApiController
                 ->orWhere('email', $request->username)
                 ->first();
 
-            if (!$usuario || !Hash::check($request->password, $usuario->password)) {
+            // Verificar contraseña - soporta Bcrypt, MD5 y texto plano (NO modifica la BD)
+            $passwordValid = false;
+            if ($usuario) {
+                // Intentar Bcrypt (formato Laravel)
+                try {
+                    $passwordValid = Hash::check($request->password, $usuario->password);
+                } catch (\Exception $e) {
+                    $passwordValid = false;
+                }
+
+                // Si no es Bcrypt, verificar MD5
+                if (!$passwordValid && $usuario->password === md5($request->password)) {
+                    $passwordValid = true;
+                }
+
+                // Si no es MD5, verificar texto plano
+                if (!$passwordValid && $usuario->password === $request->password) {
+                    $passwordValid = true;
+                }
+            }
+
+            if (!$usuario || !$passwordValid) {
                 RateLimiter::hit($key, 300); // 5 minutes lockout
 
                 Log::channel('security')->warning('Failed login attempt', [
