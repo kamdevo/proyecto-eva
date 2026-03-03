@@ -9810,10 +9810,10 @@ Route::post('/auth/login', function (Request $request) {
         $cacheKey = "login_attempts_{$clientIp}";
         $attempts = Cache::get($cacheKey, 0);
 
-        if ($attempts >= 5) {
+        if ($attempts >= 10) {
             return response()->json([
                 'success' => false,
-                'message' => 'Demasiados intentos fallidos. Intente nuevamente en 15 minutos.'
+                'message' => 'Demasiados intentos fallidos. Intente nuevamente en 30 minutos.'
             ], 429);
         }
         
@@ -9839,13 +9839,20 @@ Route::post('/auth/login', function (Request $request) {
         if (!$passwordValid && $usuario->password === md5($password)) {
             $passwordValid = true;
         }
+        if (!$passwordValid && $usuario->password === sha1($password)) {
+            $passwordValid = true;
+        }
+        // SHA1(MD5) - doble encriptación legacy
+        if (!$passwordValid && $usuario->password === sha1(md5($password))) {
+            $passwordValid = true;
+        }
         if (!$passwordValid && $usuario->password === $password) {
             $passwordValid = true;
         }
 
         if (!$passwordValid) {
             // Increment failed attempts
-            Cache::put($cacheKey, $attempts + 1, 900); // 15 minutes
+            Cache::put($cacheKey, $attempts + 1, 1800); // 30 minutes
 
             return response()->json([
                 'success' => false,

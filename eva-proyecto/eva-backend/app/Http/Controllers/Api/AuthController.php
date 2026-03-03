@@ -107,7 +107,17 @@ class AuthController extends ApiController
                     $passwordValid = true;
                 }
 
-                // Si no es MD5, verificar texto plano
+                // Si no es MD5, verificar SHA1 (usuarios legacy)
+                if (!$passwordValid && $usuario->password === sha1($request->password)) {
+                    $passwordValid = true;
+                }
+
+                // Si no es SHA1, verificar SHA1(MD5) - doble encriptación legacy
+                if (!$passwordValid && $usuario->password === sha1(md5($request->password))) {
+                    $passwordValid = true;
+                }
+
+                // Si no es SHA1(MD5), verificar texto plano
                 if (!$passwordValid && $usuario->password === $request->password) {
                     $passwordValid = true;
                 }
@@ -271,17 +281,21 @@ class AuthController extends ApiController
             
             // Enviar email de confirmación
             $emailSent = false;
+            $emailDebugError = null; // TEMPORAL DEBUG
             try {
                 Mail::to($usuario->email)->send(new ConfirmacionCuentaEmail($usuario, $verificationToken));
                 Log::info('Email de confirmación enviado a: ' . $usuario->email);
                 $emailSent = true;
             } catch (\Exception $mailError) {
-                Log::error('Error enviando email de confirmación: ' . $mailError->getMessage(), [
+                $mailErrorMsg = $mailError->getMessage();
+                Log::error('Error enviando email de confirmación: ' . $mailErrorMsg, [
                     'usuario_id' => $usuario->id,
                     'email' => $usuario->email,
-                    'error' => $mailError->getMessage()
+                    'error' => $mailErrorMsg
                 ]);
-                // No fallar el registro si falla el email, solo loguearlo
+                // TEMPORAL DEBUG: exponer error en respuesta
+                \Illuminate\Support\Facades\Log::error('MAIL_DEBUG: ' . $mailErrorMsg);
+                $emailDebugError = $mailErrorMsg; // TEMPORAL - eliminar después
             }
 
             // Respuesta sin token de sesión (debe verificar email primero)
@@ -297,7 +311,8 @@ class AuthController extends ApiController
                     ? 'Cuenta creada exitosamente. Por favor, revisa tu correo electrónico para confirmar tu cuenta.'
                     : 'Cuenta creada exitosamente. El email de confirmación no pudo ser enviado. Contacta al administrador para activar tu cuenta.',
                 'email_sent' => $emailSent,
-                'verification_required' => true
+                'verification_required' => true,
+                'email_error' => $emailDebugError ?? null, // TEMPORAL DEBUG - eliminar después
             ];
 
             return ResponseFormatter::success($response, 'Usuario registrado. Verifica tu email para activar la cuenta.', 201);
