@@ -555,7 +555,21 @@ class AuthController extends ApiController
         try {
             $usuario = $request->user();
 
-            if (!Hash::check($request->current_password, $usuario->password)) {
+            // Verificar contraseña actual - soporta Bcrypt, MD5 y texto plano
+            $currentPasswordValid = false;
+            try {
+                $currentPasswordValid = Hash::check($request->current_password, $usuario->password);
+            } catch (\Exception $e) {
+                $currentPasswordValid = false;
+            }
+            if (!$currentPasswordValid && $usuario->password === md5($request->current_password)) {
+                $currentPasswordValid = true;
+            }
+            if (!$currentPasswordValid && $usuario->password === $request->current_password) {
+                $currentPasswordValid = true;
+            }
+
+            if (!$currentPasswordValid) {
                 return ResponseFormatter::error('Contraseña actual incorrecta', 400);
             }
 
@@ -852,8 +866,21 @@ class AuthController extends ApiController
 
             $user = Auth::user();
 
-            // Verificar contraseña actual
-            if (!Hash::check($request->current_password, $user->password)) {
+            // Verificar contraseña actual - soporta Bcrypt, MD5 y texto plano
+            $currentPasswordValid = false;
+            try {
+                $currentPasswordValid = Hash::check($request->current_password, $user->password);
+            } catch (\Exception $e) {
+                $currentPasswordValid = false;
+            }
+            if (!$currentPasswordValid && $user->password === md5($request->current_password)) {
+                $currentPasswordValid = true;
+            }
+            if (!$currentPasswordValid && $user->password === $request->current_password) {
+                $currentPasswordValid = true;
+            }
+
+            if (!$currentPasswordValid) {
                 return response()->json([
                     'success' => false,
                     'message' => 'La contraseña actual es incorrecta'
