@@ -1102,10 +1102,10 @@ class EquipmentController extends ApiController
 
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => $equipo->registro_sanitario ?: ($equipo->numero_invima ?: null),
-                        'numeroInvima' => $equipo->numero_invima,
-                        'fechaVencimientoInvima' => $equipo->fecha_vencimiento_invima,
-                        'estadoInvima' => $equipo->estado_invima,
+                        'registroSanitario' => $equipo->registro_sanitario ?? null,
+                        'numeroInvima' => null,
+                        'fechaVencimientoInvima' => null,
+                        'estadoInvima' => null,
                         'archivoInvima' => $equipo->archivo_invima,
                         'clasificacion' => $equipo->clasificacion,
                         'riesgo' => $equipo->riesgo,
@@ -1516,10 +1516,10 @@ class EquipmentController extends ApiController
                     ],
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => $equipo->registro_sanitario ?: ($equipo->numero_invima ?: null),
-                        'numeroInvima' => $equipo->numero_invima,
-                        'fechaVencimientoInvima' => $equipo->fecha_vencimiento_invima,
-                        'estadoInvima' => $equipo->estado_invima,
+                        'registroSanitario' => $equipo->registro_sanitario_invima ?? null,
+                        'numeroInvima' => null,
+                        'fechaVencimientoInvima' => null,
+                        'estadoInvima' => null,
                         'archivoInvima' => $equipo->archivo_invima,
                         'clasificacion' => $equipo->clasificacion,
                         'riesgo' => $equipo->riesgo,
@@ -1589,7 +1589,7 @@ class EquipmentController extends ApiController
                     ] : null,
                     'registros_invima' => $equipo->invima_id ? [[
                         'id' => $equipo->invima_id,
-                        'numero_registro' => $equipo->numero_invima,
+                        'numero_registro' => null,
                         'archivo_registro_sanitario' => $equipo->archivo_invima,
                     ]] : null,
                 ];
@@ -2660,7 +2660,7 @@ class EquipmentController extends ApiController
                 $sheet->setCellValue('F' . $row, $equipo->serial);
                 $sheet->setCellValue('G' . $row, $equipo->code);
                 $sheet->setCellValue('H' . $row, $equipo->codigo_antiguo);
-                $sheet->setCellValue('I' . $row, $equipo->registro_sanitario);
+                $sheet->setCellValue('I' . $row, null);
                 $sheet->setCellValue('J' . $row, $equipo->estado_equipo);
                 $sheet->setCellValue('K' . $row, $equipo->fecha_ad);
                 $sheet->setCellValue('L' . $row, $equipo->fecha_instalacion);
