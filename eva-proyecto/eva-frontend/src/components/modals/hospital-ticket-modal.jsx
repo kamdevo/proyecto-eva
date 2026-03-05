@@ -45,6 +45,7 @@ export default function HospitalTicketModal({
   isOpen,
   onClose,
   ticketType = "biomedico",
+  onSuccess,
 }) {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
@@ -487,7 +488,7 @@ export default function HospitalTicketModal({
         throw new Error(result.message || "Error desconocido al crear el ticket");
       }
 
-      const ticketId = result.data?.ticket_id || result.data?.id;
+      const ticketId = result.data?.data?.ticket_id || result.data?.data?.id || result.data?.ticket_id || result.data?.id;
 
       // Guardar firma si existe
       if (formData.firmaCierre && ticketId) {
@@ -513,6 +514,7 @@ export default function HospitalTicketModal({
       loading: 'Creando orden de trabajo...',
       success: (data) => {
         onClose();
+        if (onSuccess) onSuccess();
         return `¡Orden de Trabajo #${data.ticketId} creada exitosamente! Tipo: ${data.ticketType.toUpperCase()}`;
       },
       error: (err) => {

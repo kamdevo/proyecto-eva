@@ -838,6 +838,7 @@ export default function MyTickets() {
         isOpen={isHospitalTicketModalOpen}
         onClose={() => setIsHospitalTicketModalOpen(false)}
         ticketType={ticketType}
+        onSuccess={fetchTickets}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_CONFIG } from "./api";
 
-// Configuración base de la API
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api";
+// Usar la misma configuración centralizada que httpService
+// Así ambas instancias de Axios apuntan siempre al mismo backend
+const API_BASE_URL = API_CONFIG.API_URL;
 
 // Crear instancia de axios
 const api = axios.create({
