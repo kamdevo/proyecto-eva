@@ -1007,8 +1007,8 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT description FROM observaciones
                              WHERE equipo_id = equipos.id
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
-                    'invimas.invima as registro_sanitario',
-                    'invimas.file as archivo_registro_sanitario',
+                    // 'invimas.invima as registro_sanitario',
+                    // 'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
@@ -1102,7 +1102,7 @@ class EquipmentController extends ApiController
 
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => $equipo->registro_sanitario ?? null,
+                        'registroSanitario' => null,
                         'numeroInvima' => null,
                         'fechaVencimientoInvima' => null,
                         'estadoInvima' => null,
@@ -1313,8 +1313,8 @@ class EquipmentController extends ApiController
                              AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
                              LIMIT 1) AS responsable_plan'),
                     DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) AS anio_vigente'),
-                    'invimas.invima as registro_sanitario_invima',
-                    'invimas.file as archivo_registro_sanitario',
+                    // 'invimas.invima as registro_sanitario_invima',
+                    // 'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
@@ -1516,7 +1516,7 @@ class EquipmentController extends ApiController
                     ],
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => $equipo->registro_sanitario_invima ?? null,
+                        'registroSanitario' => null,
                         'numeroInvima' => null,
                         'fechaVencimientoInvima' => null,
                         'estadoInvima' => null,
@@ -1590,7 +1590,7 @@ class EquipmentController extends ApiController
                     'registros_invima' => $equipo->invima_id ? [[
                         'id' => $equipo->invima_id,
                         'numero_registro' => null,
-                        'archivo_registro_sanitario' => $equipo->archivo_invima,
+                        // 'archivo_registro_sanitario' => $equipo->archivo_invima,
                     ]] : null,
                 ];
             });
@@ -1733,8 +1733,8 @@ class EquipmentController extends ApiController
                 // Query the correct invimas table
                 $registroInvima = DB::table('invimas')->where('id', $equipo->invima_id)->first();
                 if ($registroInvima) {
-                    $equipoData['registro_sanitario'] = $registroInvima->invima;
-                    $equipoData['archivo_registro_sanitario'] = $registroInvima->file;
+                    // $equipoData['registro_sanitario'] = $registroInvima->invima;
+                    // $equipoData['archivo_registro_sanitario'] = $registroInvima->file;
 
                     // Additional INVIMA data for completeness
                     $equipoData['invima_nombre_equipo'] = $registroInvima->titulo;
@@ -1759,8 +1759,8 @@ class EquipmentController extends ApiController
                     'invima_id' => $equipo->invima_id,
                     'error' => $e->getMessage()
                 ]);
-                $equipoData['registro_sanitario'] = null;
-                $equipoData['archivo_registro_sanitario'] = null;
+                // $equipoData['registro_sanitario'] = null;
+                // $equipoData['archivo_registro_sanitario'] = null;
             }
 
             // Calcular campos derivados básicos
