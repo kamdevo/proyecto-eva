@@ -981,7 +981,7 @@ export function ViewEquipmentModal({
                   <tbody>
                     <tr>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Reg. INVIMA</td>
-                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.registro_sanitario)}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.registro_sanitario_invima)}</td>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Estado INVIMA</td>
                       <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.estado_invima)}</td>
                     </tr>

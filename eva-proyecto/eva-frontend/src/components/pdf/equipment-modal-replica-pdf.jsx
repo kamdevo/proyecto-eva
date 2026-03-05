@@ -407,7 +407,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
         <View style={styles.table}>
           <View style={styles.tableRow}>
             <Text style={styles.tableCellHeader}>Reg. INVIMA</Text>
-            <Text style={styles.tableCellData}>{safeValue(data?.registro_sanitario)}</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.registro_sanitario_invima)}</Text>
             <Text style={styles.tableCellHeader}>Estado INVIMA</Text>
             <Text style={styles.tableCellData}>{safeValue(data?.estado_invima)}</Text>
           </View>

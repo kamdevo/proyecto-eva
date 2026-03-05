@@ -85,7 +85,7 @@ export const useEquipment = (equipmentType = "biomedical") => {
     filtro_estado_invima: "",
     filtro_fecha_vencimiento_invima_inicio: "",
     filtro_fecha_vencimiento_invima_fin: "",
-    filtro_registro_sanitario: "",
+    filtro_registro_sanitario_invima: "",
     filtro_tiene_imagen: "",
     filtro_tiene_archivo: "",
     filtro_tiene_archivo_invima: "",

@@ -540,7 +540,7 @@ function IndustrialDevices() {
                             Registro Sanitario:
                           </span>
                           <div className="text-xs bg-slate-100 px-2 py-1 rounded mt-1 border">
-                            {equipment.registro?.registro_sanitario ||
+                            {equipment.registro?.registro_sanitario_invima ||
                               "Sin registro"}
                           </div>
                         </div>

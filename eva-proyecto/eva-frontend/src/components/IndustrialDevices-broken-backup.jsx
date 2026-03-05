@@ -651,7 +651,7 @@ function IndustrialDevicesView() {
                             Registro Sanitario:
                           </span>
                           <div className="text-xs bg-slate-100 px-2 py-1 rounded mt-1 border">
-                            {safeRenderText(equipment.registro?.registro_sanitario, "Sin registro")}
+                            {safeRenderText(equipment.registro?.registro_sanitario_invima, "Sin registro")}
                           </div>
                         </div>
                         <div className="mt-4 xs:mt-2">

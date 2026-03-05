@@ -292,7 +292,7 @@ export const EquipmentLifecyclePDF = ({ equipment }) => {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Registro INVIMA:</Text>
-            <Text style={styles.value}>{safeValue(equipment?.registro_sanitario)}</Text>
+            <Text style={styles.value}>{safeValue(equipment?.registro_sanitario_invima)}</Text>
           </View>
         </View>
 

@@ -445,7 +445,7 @@ export const EquipmentLifecyclePDFCompact = ({ equipment }) => {
             <View style={styles.column}>
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>Reg. INVIMA:</Text>
-                <Text style={styles.fieldValue}>{getSafeValue(safeEquipment.registro_sanitario)}</Text>
+                <Text style={styles.fieldValue}>{getSafeValue(safeEquipment.registro_sanitario_invima)}</Text>
               </View>
               <View style={styles.fieldRow}>
                 <Text style={styles.fieldLabel}>Estado INVIMA:</Text>

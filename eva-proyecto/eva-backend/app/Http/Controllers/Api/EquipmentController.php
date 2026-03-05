@@ -1102,7 +1102,7 @@ class EquipmentController extends ApiController
 
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => null,
+                        'registroSanitario' => $equipo->invima_id && isset($equipo->registro_sanitario_invima) ? $equipo->registro_sanitario_invima : null,
                         'numeroInvima' => null,
                         'fechaVencimientoInvima' => null,
                         'estadoInvima' => null,
