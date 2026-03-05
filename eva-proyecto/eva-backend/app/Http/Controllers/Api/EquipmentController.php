@@ -1007,7 +1007,7 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT description FROM observaciones
                              WHERE equipo_id = equipos.id
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
-                    // 'invimas.invima as registro_sanitario',
+                    'invimas.invima as registro_sanitario_invima',
                     // 'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
@@ -1313,7 +1313,7 @@ class EquipmentController extends ApiController
                              AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
                              LIMIT 1) AS responsable_plan'),
                     DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) AS anio_vigente'),
-                    // 'invimas.invima as registro_sanitario_invima',
+                    'invimas.invima as registro_sanitario_invima',
                     // 'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
@@ -1516,7 +1516,8 @@ class EquipmentController extends ApiController
                     ],
                     'data' => [
                         'status' => $equipo->estadoequipo,
-                        'registroSanitario' => null,
+                        // Mostrar el registro INVIMA desde la relación invimas
+                        'registroSanitario' => $equipo->invima_id && isset($equipo->registro_sanitario_invima) ? $equipo->registro_sanitario_invima : null,
                         'numeroInvima' => null,
                         'fechaVencimientoInvima' => null,
                         'estadoInvima' => null,
