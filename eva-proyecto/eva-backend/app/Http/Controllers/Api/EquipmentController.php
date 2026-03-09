@@ -2406,6 +2406,10 @@ class EquipmentController extends ApiController
      */
     public function exportFilteredEquipment(Request $request)
     {
+        // Aumentar límites para grandes exportaciones
+        set_time_limit(300); // 5 minutos
+        ini_set('memory_limit', '512M');
+
         try {
             // Query con TODOS los JOINs necesarios para las 54 columnas
             $query = DB::table('equipos')

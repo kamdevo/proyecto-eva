@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../hooks/useAuth";
 import useBajas from "../hooks/useBajas";
+import { API_CONFIG } from "../config/api";
 import ModalAgregarBaja from "@/components/modals/agregar-baja-modal";
 import ModalEditarDocumento from "@/components/modals/editar-baja-modal";
 import ModalTablaEquipos from "@/components/modals/tabla-equipos-asociar";
@@ -87,7 +88,7 @@ export default function EquiposBajas() {
         });
       }
     };
-    
+
     loadBajas();
   }, [currentPage, searchTerm]);
 
@@ -127,11 +128,11 @@ export default function EquiposBajas() {
 
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
-    
-    // Construct the URL for the document in Laravel storage
-    const documentUrl = `/storage/bajas/${fileName}`;
-    
-    // Open document in new window with print functionality
+
+    // Usar la URL absoluta del backend para servir el archivo
+    const documentUrl = `${API_CONFIG.BASE_URL}/storage/equipos/bajas/${fileName}`;
+
+    // Abrir documento en nueva ventana
     const newWindow = window.open(documentUrl, "_blank");
     if (newWindow) {
       newWindow.focus();
@@ -316,7 +317,7 @@ export default function EquiposBajas() {
                           >
                             <Eye className="h-5 w-5 text-blue-600" />
                           </Button>
-                          
+
                           {baja.documento && (
                             <Button
                               variant="ghost"
@@ -328,7 +329,7 @@ export default function EquiposBajas() {
                               <Download className="h-5 w-5 text-green-600" />
                             </Button>
                           )}
-                          
+
                           {canEdit('bajas') && (
                             <Button
                               variant="ghost"
@@ -343,7 +344,7 @@ export default function EquiposBajas() {
                               <Edit className="h-5 w-5 text-yellow-600" />
                             </Button>
                           )}
-                          
+
                           <Button
                             variant="ghost"
                             size="sm"
@@ -356,7 +357,7 @@ export default function EquiposBajas() {
                           >
                             <Link className="h-5 w-5 text-purple-600" />
                           </Button>
-                          
+
                           {canDelete('bajas') && (
                             <Button
                               variant="ghost"
@@ -406,7 +407,7 @@ export default function EquiposBajas() {
                     >
                       <Eye className="h-4 w-4 text-blue-600" />
                     </Button>
-                    
+
                     {baja.documento && (
                       <Button
                         variant="ghost"
@@ -418,7 +419,7 @@ export default function EquiposBajas() {
                         <Download className="h-4 w-4 text-green-600" />
                       </Button>
                     )}
-                    
+
                     {canEdit('bajas') && (
                       <Button
                         variant="ghost"
@@ -433,7 +434,7 @@ export default function EquiposBajas() {
                         <Edit className="h-4 w-4 text-yellow-600" />
                       </Button>
                     )}
-                    
+
                     <Button
                       variant="ghost"
                       size="sm"
@@ -448,18 +449,18 @@ export default function EquiposBajas() {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="mb-2">
                   <span className="text-xs text-gray-500">Fecha:</span>
                   <span className="text-sm text-gray-700 ml-1">
                     {baja.fecha_baja ? new Date(baja.fecha_baja).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
-                
+
                 <p className="text-sm text-gray-700 mb-3 line-clamp-3">
                   {baja.descripcion || baja.motivo || 'Sin descripción'}
                 </p>
-                
+
                 <div className="flex items-center justify-between">
                   <Button
                     variant="outline"
@@ -470,7 +471,7 @@ export default function EquiposBajas() {
                     <Eye className="h-4 w-4 mr-1" />
                     Equipos ({baja.equipos_count || 0})
                   </Button>
-                  
+
                   {canDelete('bajas') && (
                     <Button
                       variant="ghost"
@@ -522,11 +523,10 @@ export default function EquiposBajas() {
                   variant={currentPage === page ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 p-0 ${
-                    currentPage === page
+                  className={`w-8 h-8 p-0 ${currentPage === page
                       ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "hover:bg-gray-100"
-                  }`}
+                    }`}
                 >
                   {page}
                 </Button>
@@ -631,7 +631,7 @@ export default function EquiposBajas() {
                   Cerrar
                 </Button>
                 {selectedBaja.documento && (
-                  <Button 
+                  <Button
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                     onClick={() => handleDownloadDocument(selectedBaja)}
                   >

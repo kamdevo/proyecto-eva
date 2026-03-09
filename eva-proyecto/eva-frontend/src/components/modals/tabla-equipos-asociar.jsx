@@ -18,24 +18,26 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, ChevronLeft, ChevronRight, List, AlertCircle } from "lucide-react";
+import { Edit, List, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import Pagination from "../common/Pagination";
 import useBajas from "../../hooks/useBajas";
 import { useEquipment } from "../../hooks/useEquipment";
 
 function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
   const { associateEquipment, loading: bajasLoading, error: bajasError } = useBajas();
-  const { 
-    devices: equipos, 
-    loading: equiposLoading, 
-    refresh: fetchEquipos 
+  const {
+    devices: equipos,
+    loading: equiposLoading,
+    pagination: equiposPagination,
+    search: searchEquipos,
+    changePage: changeEquiposPage,
+    refresh: fetchEquipos
   } = useEquipment("biomedical");
   
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEquipos, setSelectedEquipos] = useState([]);
   const [submitError, setSubmitError] = useState(null);
-  const itemsPerPage = 10;
 
   // Cargar equipos cuando se abre el modal
   useEffect(() => {
@@ -46,18 +48,12 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
     }
   }, [open]);
 
-  // Filtrar equipos según término de búsqueda
-  const filteredEquipos = equipos.filter((equipo) =>
-    equipo.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipo.marca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipo.modelo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipo.serie?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const totalPages = Math.ceil(filteredEquipos.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredEquipos.slice(startIndex, endIndex);
+  // Usar equipos y paginación del backend
+  const currentItems = equipos;
+  const currentPage = equiposPagination.current_page || 1;
+  const totalPages = equiposPagination.last_page || 1;
+  const totalItems = equiposPagination.total || 0;
+  const itemsPerPage = equiposPagination.per_page || 10;
 
   const handleSelectEquipo = (equipoId, checked) => {
     if (checked) {
@@ -135,7 +131,7 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
+                searchEquipos(e.target.value);
               }}
               className="max-w-sm"
             />
@@ -205,57 +201,16 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
               </TableBody>
             </Table>
 
-            {/* Paginación */}
-            <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
-              <div className="text-sm text-gray-600">
-                {equiposLoading ? (
-                  "Cargando..."
-                ) : (
-                  `Mostrando ${startIndex + 1} a ${Math.min(endIndex, filteredEquipos.length)} de ${filteredEquipos.length} equipos`
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-
-                <div className="flex gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {page}
-                      </Button>
-                    )
-                  )}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            {/* Paginación global */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={changeEquiposPage}
+              loading={equiposLoading}
+              showInfo={true}
+            />
           </div>
         </div>
 

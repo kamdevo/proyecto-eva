@@ -194,14 +194,31 @@ export const useEquipment = (equipmentType = "biomedical") => {
         // Usar servicio para equipos biomédicos
         const response = await medicalDevicesService.getAllMedicalDevices(filters);
 
+        // LOG ROBUSTO para depuración de estructura
+        console.log("[EVA DEBUG] Respuesta equipos biomédicos:", response);
+        let equiposData = [];
+        let paginacion = {};
         if (response && response.success !== false) {
           const data = response.data || response;
-          setDevices(data.data || data || []);
+          // Intentar detectar la estructura correcta
+          if (Array.isArray(data.data)) {
+            equiposData = data.data;
+            paginacion = data;
+          } else if (data.data && Array.isArray(data.data.data)) {
+            equiposData = data.data.data;
+            paginacion = data.data;
+          } else if (Array.isArray(data)) {
+            equiposData = data;
+            paginacion = {};
+          } else {
+            console.error("[EVA ERROR] Estructura inesperada en equipos biomédicos:", data);
+          }
+          setDevices(equiposData);
           setPagination({
-            current_page: data.current_page || filters.page || 1,
-            per_page: data.per_page || filters.per_page || 15,
-            total: data.total || 0,
-            last_page: data.last_page || 1,
+            current_page: paginacion.current_page || filters.page || 1,
+            per_page: paginacion.per_page || filters.per_page || 15,
+            total: paginacion.total || 0,
+            last_page: paginacion.last_page || 1,
           });
         } else {
           throw new Error(response?.message || "Error al cargar equipos biomédicos");
