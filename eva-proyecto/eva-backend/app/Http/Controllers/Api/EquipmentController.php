@@ -2720,10 +2720,16 @@ class EquipmentController extends ApiController
             $tempFile = tempnam(sys_get_temp_dir(), $filename);
             $writer->save($tempFile);
 
-            // Retornar el archivo
-            return response()->download($tempFile, $filename, [
+            // Retornar el archivo con headers CORS
+            $response = response()->download($tempFile, $filename, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             ])->deleteFileAfterSend(true);
+
+            // Agregar headers CORS para permitir descarga desde el frontend
+            $response->headers->set('Access-Control-Allow-Origin', '*');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            return $response;
 
         } catch (\Exception $e) {
             return response()->json([
