@@ -2714,21 +2714,24 @@ class EquipmentController extends ApiController
                 $sheet->getColumnDimension('A' . $letter)->setAutoSize(true);
             }
 
-            // Crear el archivo
+            // Crear el writer
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
             $filename = 'EquiposHUV.xlsx';
-            $tempFile = tempnam(sys_get_temp_dir(), $filename);
-            $writer->save($tempFile);
 
-            // Retornar el archivo con headers CORS
-            $response = response()->download($tempFile, $filename, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            ])->deleteFileAfterSend(true);
+            // Configurar headers para descarga usando un StreamedResponse
+            // Esto permite que el middleware global de CORS maneje correctamente la respuesta
+            $response = response()->stream(
+                function () use ($writer) {
+                    $writer->save('php://output');
+                },
+                200,
+                [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                    'Cache-Control' => 'max-age=0',
+                ]
+            );
 
-            // Agregar headers CORS para permitir descarga desde el frontend
-            $response->headers->set('Access-Control-Allow-Origin', '*');
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
             return $response;
 
         } catch (\Exception $e) {
