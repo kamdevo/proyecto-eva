@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Edit, List, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import Pagination from "../common/Pagination";
 import useBajas from "../../hooks/useBajas";
@@ -75,16 +76,20 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
     setSubmitError(null);
 
     if (!baja?.id) {
-      setSubmitError('No se puede asociar: ID de baja no encontrado');
+      const errorMsg = 'No se puede asociar: ID de baja no encontrado';
+      setSubmitError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     if (selectedEquipos.length === 0) {
-      setSubmitError('Debe seleccionar al menos un equipo');
+      const errorMsg = 'Debe seleccionar al menos un equipo';
+      setSubmitError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
-    try {
+    const promise = async () => {
       await associateEquipment(baja.id, selectedEquipos);
 
       setSelectedEquipos([]);
@@ -93,9 +98,13 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
       if (onSuccess) {
         onSuccess();
       }
-    } catch (err) {
-      setSubmitError(err.message || 'Error al asociar equipos');
-    }
+    };
+
+    toast.promise(promise(), {
+      loading: 'Asociando equipos...',
+      success: 'Equipos asociados exitosamente',
+      error: (err) => err.message || 'Error al asociar equipos'
+    });
   };
 
   const handleClose = () => {

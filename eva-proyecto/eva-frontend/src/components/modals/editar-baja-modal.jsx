@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload, X, Edit, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import useBajas from "../../hooks/useBajas";
 
 function ModalEditarDocumento({ open, onOpenChange, baja, onSuccess }) {
@@ -70,7 +71,7 @@ function ModalEditarDocumento({ open, onOpenChange, baja, onSuccess }) {
       return;
     }
 
-    try {
+    const promise = async () => {
       const bajaData = {
         fecha_baja: fechaBaja,
         descripcion: descripcion.trim(),
@@ -85,9 +86,13 @@ function ModalEditarDocumento({ open, onOpenChange, baja, onSuccess }) {
       if (onSuccess) {
         onSuccess();
       }
-    } catch (err) {
-      setSubmitError(err.message || 'Error al actualizar la baja');
-    }
+    };
+
+    toast.promise(promise(), {
+      loading: 'Actualizando baja...',
+      success: 'Baja actualizada exitosamente',
+      error: (err) => err.message || 'Error al actualizar la baja'
+    });
   };
 
   const handleClose = () => {

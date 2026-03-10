@@ -864,7 +864,7 @@ Route::prefix('v1')->group(function () {
                 $file = $request->file('archivo');
                 // Use a secure unique filename to avoid overwrites
                 $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
-                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+                $archivoPath = $file->storeAs('equipos/bajas', $filename, 'public');
             }
             
             $bajaId = DB::table('bajas')->insertGetId([
@@ -921,7 +921,7 @@ Route::prefix('v1')->group(function () {
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
                 $filename = time() . '_' . $file->getClientOriginalName();
-                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+                $archivoPath = $file->storeAs('equipos/bajas', $filename, 'public');
                 $updateData['archivo'] = $archivoPath;
             }
             
@@ -1166,7 +1166,7 @@ Route::prefix('v1')->group(function () {
                 $file = $request->file('archivo');
                 // Use a secure unique filename to avoid overwrites
                 $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
-                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+                $archivoPath = $file->storeAs('equipos/bajas', $filename, 'public');
             }
             
             // Create baja
@@ -2327,7 +2327,7 @@ Route::prefix('v1')->group(function () {
                 $file = $request->file('archivo');
                 // Use a secure unique filename to avoid overwrites
                 $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
-                $archivoPath = $file->storeAs('bajas', $filename, 'public');
+                $archivoPath = $file->storeAs('equipos/bajas', $filename, 'public');
             }
             
             // Create baja

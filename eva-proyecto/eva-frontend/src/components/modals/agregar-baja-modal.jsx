@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload, X, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import useBajas from "../../hooks/useBajas";
 
 function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
@@ -46,16 +47,20 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
 
     // Validaciones básicas
     if (!fechaBaja) {
-      setSubmitError('La fecha de baja es requerida');
+      const errorMsg = 'La fecha de baja es requerida';
+      setSubmitError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
     if (!descripcion.trim()) {
-      setSubmitError('La descripción es requerida');
+      const errorMsg = 'La descripción es requerida';
+      setSubmitError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
-    try {
+    const promise = async () => {
       const bajaData = {
         fecha_baja: fechaBaja,
         descripcion: descripcion.trim(),
@@ -70,13 +75,17 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
       setArchivo(null);
       setSubmitError(null);
 
-      // Notificar éxito
+      // Notificar éxito al padre
       if (onSuccess) {
         onSuccess();
       }
-    } catch (err) {
-      setSubmitError(err.message || 'Error al crear la baja');
-    }
+    };
+
+    toast.promise(promise(), {
+      loading: 'Creando baja...',
+      success: 'Baja creada exitosamente',
+      error: (err) => err.message || 'Error al crear la baja'
+    });
   };
 
   const handleClose = () => {

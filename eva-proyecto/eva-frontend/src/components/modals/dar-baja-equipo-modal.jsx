@@ -24,12 +24,10 @@ import useBajas from "../../hooks/useBajas";
 
 function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
   const { decommissionEquipment, loading, error } = useBajas();
-  
+
   const [formData, setFormData] = useState({
     fecha_baja: new Date().toISOString().split('T')[0],
-    descripcion: '',
-    motivo: '',
-    observaciones: ''
+    descripcion: ''
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [submitError, setSubmitError] = useState(null);
@@ -40,9 +38,7 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
     if (open) {
       setFormData({
         fecha_baja: new Date().toISOString().split('T')[0],
-        descripcion: '',
-        motivo: '',
-        observaciones: ''
+        descripcion: ''
       });
       setSelectedFile(null);
       setSubmitError(null);
@@ -97,16 +93,12 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
       setSubmitError('La descripción es requerida');
       return false;
     }
-    if (!formData.motivo.trim()) {
-      setSubmitError('El motivo es requerido');
-      return false;
-    }
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -116,29 +108,36 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
 
     try {
       toast.loading('Procesando baja del equipo...', { id: toastId });
-      
+
       await decommissionEquipment(equipo.id, formData, selectedFile);
-      
+
       toast.success('Equipo dado de baja exitosamente', { id: toastId });
-      
+
       if (onSuccess) {
         onSuccess();
       }
-      
+
       onOpenChange(false);
     } catch (err) {
-      setSubmitError(err.message || 'Error al dar de baja el equipo');
-      toast.error(err.message || 'Error al dar de baja el equipo', { id: toastId });
+      const errorMsg = err.response?.data?.message || err.message || 'Error al dar de baja el equipo';
+      setSubmitError(errorMsg);
+      toast.error(errorMsg, { id: toastId });
     }
   };
 
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
-    
-    // Construct the URL for the document in Laravel storage
-    const documentUrl = `/storage/bajas/${fileName}`;
-    
-    // Open document in new window with print functionality
+
+    // Obtener la URL base del backend desde la configuración
+    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
+
+    // Extraer solo el nombre del archivo
+    const pureFileName = fileName.split('/').pop();
+
+    // Construir URL absoluta forzando la ruta requerida
+    const documentUrl = `${backendUrl}/storage/equipos/bajas/${pureFileName}`;
+
+    // Abrir documento en nueva ventana
     const newWindow = window.open(documentUrl, "_blank");
     if (newWindow) {
       newWindow.focus();
@@ -194,66 +193,26 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
             <Label htmlFor="descripcion" className="text-sm font-medium">
               Descripción <span className="text-red-500">*</span>
             </Label>
-            <Input
+            <Textarea
               id="descripcion"
               value={formData.descripcion}
               onChange={(e) => handleInputChange('descripcion', e.target.value)}
               placeholder="Descripción de la baja"
-              className="w-full"
+              className="w-full min-h-[100px]"
               required
-            />
-          </div>
-
-          {/* Motivo */}
-          <div className="space-y-2">
-            <Label htmlFor="motivo" className="text-sm font-medium">
-              Motivo <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={formData.motivo}
-              onValueChange={(value) => handleInputChange('motivo', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccione el motivo de la baja" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Obsolescencia">Obsolescencia</SelectItem>
-                <SelectItem value="Daño irreparable">Daño irreparable</SelectItem>
-                <SelectItem value="Fin de vida útil">Fin de vida útil</SelectItem>
-                <SelectItem value="Reemplazo por tecnología nueva">Reemplazo por tecnología nueva</SelectItem>
-                <SelectItem value="Costo de reparación elevado">Costo de reparación elevado</SelectItem>
-                <SelectItem value="Falta de repuestos">Falta de repuestos</SelectItem>
-                <SelectItem value="Normativa/Regulación">Normativa/Regulación</SelectItem>
-                <SelectItem value="Otro">Otro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Observaciones */}
-          <div className="space-y-2">
-            <Label htmlFor="observaciones" className="text-sm font-medium">
-              Observaciones
-            </Label>
-            <Textarea
-              id="observaciones"
-              value={formData.observaciones}
-              onChange={(e) => handleInputChange('observaciones', e.target.value)}
-              placeholder="Observaciones adicionales sobre la baja"
-              className="w-full min-h-[80px]"
             />
           </div>
 
           {/* Upload de archivo */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Documento de Respaldo</Label>
-            
+
             {!selectedFile ? (
               <div
-                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                  isDragOver
-                    ? 'border-blue-400 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragOver
+                  ? 'border-blue-400 bg-blue-50'
+                  : 'border-gray-300 hover:border-gray-400'
+                  }`}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -308,16 +267,16 @@ function DarBajaEquipoModal({ open, onOpenChange, equipo, onSuccess }) {
 
           {/* Botones de acción */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={handleClose}
               disabled={loading}
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="bg-red-600 hover:bg-red-700 text-white"
               disabled={loading}
             >

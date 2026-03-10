@@ -18,17 +18,18 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, ChevronLeft, ChevronRight, AlertCircle, Eye, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import useBajas from "../../hooks/useBajas";
 
 function ModalEquiposAsociados({ open, onOpenChange, baja, onSuccess }) {
-  const { 
-    getAssociatedEquipment, 
-    removeEquipmentAssociation, 
-    loading, 
-    error 
+  const {
+    getAssociatedEquipment,
+    removeEquipmentAssociation,
+    loading,
+    error
   } = useBajas();
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [equiposAsociados, setEquiposAsociados] = useState([]);
@@ -37,11 +38,17 @@ function ModalEquiposAsociados({ open, onOpenChange, baja, onSuccess }) {
 
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
-    
-    // Construct the URL for the document in Laravel storage
-    const documentUrl = `/storage/bajas/${fileName}`;
-    
-    // Open document in new window with print functionality
+
+    // Obtener la URL base del backend desde la configuración
+    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
+
+    // Extraer solo el nombre del archivo
+    const pureFileName = fileName.split('/').pop();
+
+    // Construir URL absoluta forzando la ruta requerida
+    const documentUrl = `${backendUrl}/storage/equipos/bajas/${pureFileName}`;
+
+    // Abrir documento en nueva ventana
     const newWindow = window.open(documentUrl, "_blank");
     if (newWindow) {
       newWindow.focus();
@@ -87,24 +94,30 @@ function ModalEquiposAsociados({ open, onOpenChange, baja, onSuccess }) {
     }
 
     setSubmitError(null);
-    
+
     if (!baja?.id) {
-      setSubmitError('No se puede remover: ID de baja no encontrado');
+      const errorMsg = 'No se puede remover: ID de baja no encontrado';
+      setSubmitError(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
-    try {
+    const promise = async () => {
       await removeEquipmentAssociation(baja.id, equipoId);
-      
+
       // Actualizar lista local
       setEquiposAsociados(prev => prev.filter(equipo => equipo.id !== equipoId));
-      
+
       if (onSuccess) {
         onSuccess();
       }
-    } catch (err) {
-      setSubmitError(err.message || 'Error al remover asociación');
-    }
+    };
+
+    toast.promise(promise(), {
+      loading: 'Removiendo equipo de la baja...',
+      success: 'Asociación removida exitosamente',
+      error: (err) => err.message || 'Error al remover asociación'
+    });
   };
 
   const handleClose = () => {
@@ -181,13 +194,12 @@ function ModalEquiposAsociados({ open, onOpenChange, baja, onSuccess }) {
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={`${
-                            equipo.estado === 'ACTIVO' 
-                              ? 'bg-green-100 text-green-800' 
-                              : equipo.estado === 'BAJA'
+                          className={`${equipo.estado === 'ACTIVO'
+                            ? 'bg-green-100 text-green-800'
+                            : equipo.estado === 'BAJA'
                               ? 'bg-red-100 text-red-800'
                               : 'bg-gray-100 text-gray-800'
-                          } hover:bg-current`}
+                            } hover:bg-current`}
                         >
                           {equipo.estado || 'N/A'}
                         </Badge>
@@ -278,8 +290,8 @@ function ModalEquiposAsociados({ open, onOpenChange, baja, onSuccess }) {
 
         {/* Botones de acción */}
         <div className="flex justify-end pt-4 border-t">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleClose}
             disabled={loading}
           >

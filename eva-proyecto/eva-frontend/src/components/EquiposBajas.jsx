@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "../hooks/useAuth";
 import useBajas from "../hooks/useBajas";
 import { API_CONFIG } from "../config/api";
+import { toast } from "sonner";
 import ModalAgregarBaja from "@/components/modals/agregar-baja-modal";
 import ModalEditarDocumento from "@/components/modals/editar-baja-modal";
 import ModalTablaEquipos from "@/components/modals/tabla-equipos-asociar";
@@ -112,12 +113,22 @@ export default function EquiposBajas() {
   };
 
   const handleDeleteBaja = async (bajaId) => {
-    if (window.confirm('¿Está seguro de que desea eliminar esta baja?')) {
-      try {
-        await deleteBaja(bajaId);
-      } catch (error) {
-        console.error('Error deleting baja:', error);
-      }
+    if (!window.confirm('¿Está seguro de que desea eliminar esta baja?')) {
+      return;
+    }
+
+    const toastId = `delete-baja-${bajaId}`;
+    try {
+      toast.loading('Eliminando baja...', { id: toastId });
+      await deleteBaja(bajaId);
+      toast.success('Baja eliminada exitosamente', { id: toastId });
+      // El hook useBajas.js debería actualizar la lista o el componente padre debería refrescar
+      fetchBajas(currentPage, itemsPerPage, searchTerm).then(result => {
+        setBajas(result?.data || []);
+        setPagination(result?.pagination || pagination);
+      });
+    } catch (error) {
+      toast.error(error.message || 'Error al eliminar la baja', { id: toastId });
     }
   };
 
@@ -129,14 +140,14 @@ export default function EquiposBajas() {
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
 
-    // Obtener la URL base del backend desde la configuración (evita strings vacíos que llevan a rutas relativas)
-    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "http://api.eva2.huv.gov.co";
+    // Obtener la URL base del backend desde la configuración
+    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
 
-    // Limpiar el nombre del archivo para asegurar que no se dupliquen carpetas
-    const cleanFileName = fileName.replace(/^equipos\/bajas\//, '').replace(/^bajas\//, '');
+    // Extraer solo el nombre del archivo (quitar cualquier ruta que venga de la base de datos)
+    const pureFileName = fileName.split('/').pop();
 
-    // Usar la URL absoluta del backend para servir el archivo
-    const documentUrl = `${backendUrl}/storage/equipos/bajas/${cleanFileName}`;
+    // Construir URL absoluta forzando la ruta requerida
+    const documentUrl = `${backendUrl}/storage/equipos/bajas/${pureFileName}`;
 
     // Abrir documento en nueva ventana
     const newWindow = window.open(documentUrl, "_blank");
