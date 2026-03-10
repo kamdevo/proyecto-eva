@@ -140,8 +140,8 @@ export default function EquiposBajas() {
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
 
-    // Obtener la URL base del backend desde la configuración
-    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
+    // Usar la configuración centralizada de la API
+    const backendUrl = API_CONFIG.BASE_URL || "";
 
     // Extraer solo el nombre del archivo (quitar cualquier ruta que venga de la base de datos)
     const pureFileName = fileName.split('/').pop();

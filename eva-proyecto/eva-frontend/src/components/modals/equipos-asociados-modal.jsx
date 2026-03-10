@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Trash2, ChevronLeft, ChevronRight, AlertCircle, Eye, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { API_CONFIG } from "@/config/api";
 import { Input } from "@/components/ui/input";
 import useBajas from "../../hooks/useBajas";
 
@@ -39,8 +40,8 @@ function ModalEquiposAsociados({ open, onOpenChange, baja, onSuccess }) {
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
 
-    // Obtener la URL base del backend desde la configuración
-    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
+    // Usar la configuración centralizada de la API
+    const backendUrl = API_CONFIG.BASE_URL || "";
 
     // Extraer solo el nombre del archivo
     const pureFileName = fileName.split('/').pop();
