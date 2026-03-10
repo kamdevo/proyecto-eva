@@ -35,7 +35,7 @@ Route::get('export/calibraciones', [ExportController::class, 'calibraciones']);
 
 // Agrupación optimizada de rutas con middleware empresarial
 Route::middleware(['auth:sanctum', 'throttle:60,1', 'cors', 'api.version'])->group(function () {
-        Route::get('export/equipos-consolidado', [ExportController::class, 'equiposConsolidado']);
+        Route::get('export/equipos-consolidado', [ExportController::class, 'exportEquiposConsolidado']);
         Route::get('export/equipos-criticos', [ExportController::class, 'equiposCriticos']);
         Route::get('export/equipos-por-area', [ExportController::class, 'equiposPorArea']);
         Route::get('export/equipos-por-estado', [ExportController::class, 'equiposPorEstado']);

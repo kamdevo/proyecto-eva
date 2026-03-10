@@ -45,7 +45,9 @@ class EquiposReportService extends ExportServiceBase
                 'mantenimientos' => function ($query) {
                     $query->whereYear('fecha_programada', date('Y'));
                 }
-            ])->whereIn('id', $request->equipos_ids)->get();
+            ])->whereIn('id', $request->equipos_ids)
+              ->where('tipo_id', 1) // Solo equipos biomédicos
+              ->get();
 
             $data = $this->prepareConsolidatedData($equipos, $request->incluir);
             $titulo = 'Reporte Consolidado de Equipos';

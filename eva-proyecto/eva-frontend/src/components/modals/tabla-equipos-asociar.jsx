@@ -34,7 +34,7 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
     changePage: changeEquiposPage,
     refresh: fetchEquipos
   } = useEquipment("biomedical");
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEquipos, setSelectedEquipos] = useState([]);
   const [submitError, setSubmitError] = useState(null);
@@ -73,12 +73,12 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
 
   const handleSubmit = async () => {
     setSubmitError(null);
-    
+
     if (!baja?.id) {
       setSubmitError('No se puede asociar: ID de baja no encontrado');
       return;
     }
-    
+
     if (selectedEquipos.length === 0) {
       setSubmitError('Debe seleccionar al menos un equipo');
       return;
@@ -86,10 +86,10 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
 
     try {
       await associateEquipment(baja.id, selectedEquipos);
-      
+
       setSelectedEquipos([]);
       setSubmitError(null);
-      
+
       if (onSuccess) {
         onSuccess();
       }
@@ -178,21 +178,20 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
                         />
                       </TableCell>
                       <TableCell className="font-medium text-sm">
-                        {equipo.nombre || 'Sin nombre'}
+                        {equipo.equipo?.name || equipo.name || equipo.nombre || 'Sin nombre'}
                       </TableCell>
-                      <TableCell className="text-sm">{equipo.marca || 'N/A'}</TableCell>
-                      <TableCell className="text-sm">{equipo.modelo || 'N/A'}</TableCell>
-                      <TableCell className="text-sm">{equipo.serie || 'N/A'}</TableCell>
+                      <TableCell className="text-sm">{equipo.equipo?.brand || equipo.brand || equipo.marca || 'N/A'}</TableCell>
+                      <TableCell className="text-sm">{equipo.equipo?.model || equipo.model || equipo.modelo || 'N/A'}</TableCell>
+                      <TableCell className="text-sm">{equipo.equipo?.series || equipo.serial_number || equipo.serie || 'N/A'}</TableCell>
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={`${
-                            equipo.estado === 'ACTIVO' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          } hover:bg-current`}
+                          className={`${(equipo.data?.status || equipo.status?.name || equipo.estado_equipo?.name || equipo.estado || '').toUpperCase() === 'ACTIVO'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                            } hover:bg-current`}
                         >
-                          {equipo.estado || 'N/A'}
+                          {equipo.data?.status || equipo.status?.name || equipo.estado_equipo?.name || equipo.estado || 'N/A'}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -224,15 +223,15 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
 
         {/* Botones de acción */}
         <div className="flex justify-between pt-4 border-t">
-          <Button 
+          <Button
             className="bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleSubmit}
             disabled={bajasLoading || selectedEquipos.length === 0}
           >
             {bajasLoading ? 'Asociando...' : `Asociar ${selectedEquipos.length} Equipo(s)`}
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleClose}
             disabled={bajasLoading}
           >

@@ -19,8 +19,6 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
   const { createBaja, loading, error } = useBajas();
   const [fechaBaja, setFechaBaja] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [motivo, setMotivo] = useState("");
-  const [observaciones, setObservaciones] = useState("");
   const [archivo, setArchivo] = useState(null);
   const [submitError, setSubmitError] = useState(null);
 
@@ -45,13 +43,13 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
 
   const handleSubmit = async () => {
     setSubmitError(null);
-    
+
     // Validaciones básicas
     if (!fechaBaja) {
       setSubmitError('La fecha de baja es requerida');
       return;
     }
-    
+
     if (!descripcion.trim()) {
       setSubmitError('La descripción es requerida');
       return;
@@ -61,21 +59,17 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
       const bajaData = {
         fecha_baja: fechaBaja,
         descripcion: descripcion.trim(),
-        motivo: motivo.trim(),
-        observaciones: observaciones.trim(),
         documento: archivo
       };
 
       await createBaja(bajaData);
-      
+
       // Limpiar formulario
       setFechaBaja("");
       setDescripcion("");
-      setMotivo("");
-      setObservaciones("");
       setArchivo(null);
       setSubmitError(null);
-      
+
       // Notificar éxito
       if (onSuccess) {
         onSuccess();
@@ -90,8 +84,6 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
       // Limpiar formulario al cerrar
       setFechaBaja("");
       setDescripcion("");
-      setMotivo("");
-      setObservaciones("");
       setArchivo(null);
       setSubmitError(null);
       onOpenChange(false);
@@ -140,34 +132,6 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
             />
           </div>
 
-          {/* Motivo */}
-          <div className="space-y-2">
-            <Label htmlFor="motivo" className="text-sm font-medium">
-              Motivo
-            </Label>
-            <Textarea
-              id="motivo"
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Motivo de la baja (opcional)"
-              className="min-h-[60px] resize-none"
-            />
-          </div>
-
-          {/* Observaciones */}
-          <div className="space-y-2">
-            <Label htmlFor="observaciones" className="text-sm font-medium">
-              Observaciones
-            </Label>
-            <Textarea
-              id="observaciones"
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Observaciones adicionales (opcional)"
-              className="min-h-[60px] resize-none"
-            />
-          </div>
-
           {/* Archivos */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Archivos</Label>
@@ -209,8 +173,8 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
               onChange={handleFileSelect}
             />
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => document.getElementById("file-input")?.click()}
                 type="button"
@@ -218,8 +182,8 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
                 SELECCIONAR ARCHIVO
               </Button>
               {archivo && (
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   size="sm"
                   onClick={() => setArchivo(null)}
                   type="button"
@@ -241,15 +205,15 @@ function ModalAgregarBaja({ open, onOpenChange, onSuccess }) {
 
         {/* Botones de acción */}
         <div className="flex justify-between pt-3 border-t">
-          <Button 
+          <Button
             className="bg-blue-600 hover:bg-blue-700"
             onClick={handleSubmit}
             disabled={loading}
           >
             {loading ? 'Creando...' : 'Crear Baja'}
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleClose}
             disabled={loading}
           >

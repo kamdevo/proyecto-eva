@@ -25,7 +25,7 @@ export function MainActionButtons({
           filter: "Filtrar",
           add: "Registrar",
           clean: "Depurar",
-          export: "Exportar listado",
+          export: "Exportar cantidades",
         };
       case "biomedical":
       default:

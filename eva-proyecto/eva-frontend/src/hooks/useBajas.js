@@ -9,7 +9,7 @@ const useBajas = () => {
   const fetchBajas = async (page = 1, perPage = 10, search = '') => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -18,7 +18,7 @@ const useBajas = () => {
       });
 
       const response = await apiClient.get(`/v1/bajas?${params}`);
-      
+
       if (response.data.success) {
         return {
           data: response.data.data,
@@ -44,13 +44,11 @@ const useBajas = () => {
     setError(null);
     try {
       const formData = new FormData();
-      
+
       // Agregar campos de texto
       formData.append('fecha_baja', bajaData.fecha_baja);
       formData.append('descripcion', bajaData.descripcion);
-      formData.append('motivo', bajaData.motivo || '');
-      formData.append('observaciones', bajaData.observaciones || '');
-      
+
       // Agregar archivo si existe
       if (bajaData.documento) {
         formData.append('archivo', bajaData.documento);
@@ -61,7 +59,7 @@ const useBajas = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       // Actualizar lista local
       await fetchBajas();
       return response.data;
@@ -79,14 +77,12 @@ const useBajas = () => {
     setError(null);
     try {
       const formData = new FormData();
-      
+
       // Agregar campos de texto
       formData.append('fecha_baja', bajaData.fecha_baja);
       formData.append('descripcion', bajaData.descripcion);
-      formData.append('motivo', bajaData.motivo || '');
-      formData.append('observaciones', bajaData.observaciones || '');
       formData.append('_method', 'PUT');
-      
+
       // Agregar archivo si existe
       if (bajaData.documento) {
         formData.append('archivo', bajaData.documento);
@@ -97,7 +93,7 @@ const useBajas = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       // Actualizar lista local
       await fetchBajas();
       return response.data;
@@ -115,7 +111,7 @@ const useBajas = () => {
     setError(null);
     try {
       const response = await apiClient.delete(`/v1/bajas/${id}`);
-      
+
       // Note: List will be refreshed by parent component
       return response.data;
     } catch (err) {
@@ -194,13 +190,13 @@ const useBajas = () => {
     setError(null);
     try {
       const formData = new FormData();
-      
+
       // Agregar campos de texto
       formData.append('fecha_baja', bajaData.fecha_baja);
       formData.append('descripcion', bajaData.descripcion);
       formData.append('motivo', bajaData.motivo || '');
       formData.append('observaciones', bajaData.observaciones || '');
-      
+
       // Agregar archivo si existe
       if (file) {
         formData.append('archivo', file);
@@ -242,12 +238,12 @@ const useBajas = () => {
       const response = await apiClient.get(`/v1/bajas/${bajaId}/documento`, {
         responseType: 'blob'
       });
-      
+
       // Crear URL para descarga
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Obtener nombre del archivo del header o usar nombre por defecto
       const contentDisposition = response.headers['content-disposition'];
       let filename = `baja_${bajaId}_documento.pdf`;
@@ -257,13 +253,13 @@ const useBajas = () => {
           filename = filenameMatch[1];
         }
       }
-      
+
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
       return true;
     } catch (err) {
       setError(err.response?.data?.message || 'Error al descargar documento');

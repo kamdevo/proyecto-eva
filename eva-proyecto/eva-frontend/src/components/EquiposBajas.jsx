@@ -129,8 +129,14 @@ export default function EquiposBajas() {
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
 
+    // Obtener la URL base del backend desde la configuración (evita strings vacíos que llevan a rutas relativas)
+    const backendUrl = window.APP_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "http://api.eva2.huv.gov.co";
+
+    // Limpiar el nombre del archivo para asegurar que no se dupliquen carpetas
+    const cleanFileName = fileName.replace(/^equipos\/bajas\//, '').replace(/^bajas\//, '');
+
     // Usar la URL absoluta del backend para servir el archivo
-    const documentUrl = `${API_CONFIG.BASE_URL}/storage/equipos/bajas/${fileName}`;
+    const documentUrl = `${backendUrl}/storage/equipos/bajas/${cleanFileName}`;
 
     // Abrir documento en nueva ventana
     const newWindow = window.open(documentUrl, "_blank");
@@ -524,8 +530,8 @@ export default function EquiposBajas() {
                   size="sm"
                   onClick={() => setCurrentPage(page)}
                   className={`w-8 h-8 p-0 ${currentPage === page
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "hover:bg-gray-100"
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "hover:bg-gray-100"
                     }`}
                 >
                   {page}

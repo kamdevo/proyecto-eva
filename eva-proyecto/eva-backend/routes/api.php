@@ -848,8 +848,6 @@ Route::prefix('v1')->group(function () {
             $validator = Validator::make($request->all(), [
                 'fecha_baja' => 'required|date',
                 'descripcion' => 'required|string|max:500',
-                'motivo' => 'required|string|max:255',
-                'observaciones' => 'nullable|string',
                 'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
             ]);
             
@@ -864,13 +862,14 @@ Route::prefix('v1')->group(function () {
             $archivoPath = null;
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
-                $filename = time() . '_' . $file->getClientOriginalName();
+                // Use a secure unique filename to avoid overwrites
+                $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
                 $archivoPath = $file->storeAs('bajas', $filename, 'public');
             }
             
             $bajaId = DB::table('bajas')->insertGetId([
                 'fecha_baja' => $request->fecha_baja,
-                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'descripcion' => $request->descripcion,
                 'archivo' => $archivoPath
             ]);
             
@@ -895,8 +894,6 @@ Route::prefix('v1')->group(function () {
             $validator = Validator::make($request->all(), [
                 'fecha_baja' => 'required|date',
                 'descripcion' => 'required|string|max:500',
-                'motivo' => 'required|string|max:255',
-                'observaciones' => 'nullable|string',
                 'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
             ]);
             
@@ -918,8 +915,7 @@ Route::prefix('v1')->group(function () {
             
             $updateData = [
                 'fecha_baja' => $request->fecha_baja,
-                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
-                'updated_at' => now()
+                'descripcion' => $request->descripcion
             ];
             
             if ($request->hasFile('archivo')) {
@@ -956,6 +952,18 @@ Route::prefix('v1')->group(function () {
                     'message' => 'Baja no encontrada'
                 ], 404);
             }
+            
+            // Update equipment status back to ACTIVO before removing associations
+            DB::table('equipos')
+                ->whereIn('id', function($query) use ($id) {
+                    $query->select('equipo_id')
+                          ->from('equipos_bajas')
+                          ->where('baja_id', $id);
+                })
+                ->update([
+                    'baja_id' => 1,
+                    'estado' => 'ACTIVO'
+                ]);
             
             // Remove equipment associations
             DB::table('equipos_bajas')->where('baja_id', $id)->delete();
@@ -1142,8 +1150,6 @@ Route::prefix('v1')->group(function () {
             $validator = Validator::make($request->all(), [
                 'fecha_baja' => 'required|date',
                 'descripcion' => 'required|string|max:500',
-                'motivo' => 'required|string|max:255',
-                'observaciones' => 'nullable|string',
                 'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
             ]);
             
@@ -1158,14 +1164,15 @@ Route::prefix('v1')->group(function () {
             $archivoPath = null;
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
-                $filename = time() . '_' . $file->getClientOriginalName();
+                // Use a secure unique filename to avoid overwrites
+                $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
                 $archivoPath = $file->storeAs('bajas', $filename, 'public');
             }
             
             // Create baja
             $bajaId = DB::table('bajas')->insertGetId([
                 'fecha_baja' => $request->fecha_baja,
-                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'descripcion' => $request->descripcion,
                 'archivo' => $archivoPath
             ]);
             
@@ -2293,8 +2300,6 @@ Route::prefix('v1')->group(function () {
             $validator = Validator::make($request->all(), [
                 'fecha_baja' => 'required|date',
                 'descripcion' => 'required|string|max:500',
-                'motivo' => 'required|string|max:255',
-                'observaciones' => 'nullable|string',
                 'archivo' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
             ]);
             
@@ -2320,14 +2325,15 @@ Route::prefix('v1')->group(function () {
             $archivoPath = null;
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
-                $filename = time() . '_' . $file->getClientOriginalName();
+                // Use a secure unique filename to avoid overwrites
+                $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
                 $archivoPath = $file->storeAs('bajas', $filename, 'public');
             }
             
             // Create baja
             $bajaId = DB::table('bajas')->insertGetId([
                 'fecha_baja' => $request->fecha_baja,
-                'descripcion' => $request->descripcion . ' - Motivo: ' . $request->motivo,
+                'descripcion' => $request->descripcion,
                 'archivo' => $archivoPath
             ]);
             

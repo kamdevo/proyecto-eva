@@ -2503,7 +2503,8 @@ class EquipmentController extends ApiController
                 ->leftJoin('criesgo', 'equipos.criesgo_id', '=', 'criesgo.id')
                 ->leftJoin('tadquisicion', 'equipos.tadquisicion_id', '=', 'tadquisicion.id')
                 ->leftJoin('propietarios', 'equipos.propietario_id', '=', 'propietarios.id')
-                ->where('equipos.status', '!=', 0);
+                ->where('equipos.status', '!=', 0)
+                ->where('equipos.tipo_id', 1); // Solo equipos biomédicos
 
             // Aplicar filtros solo si tienen valores válidos (ignorar "all", "", null)
             // Sección 1: Identificación del Equipo
