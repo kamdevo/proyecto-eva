@@ -451,15 +451,15 @@ class ReactEmailService
             <meta charset="utf-8">
             <title>Confirmación de Cuenta - Sistema EVA</title>
             <style>
-                body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
-                .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
-                .header { background-color: #70bbd9; padding: 30px 20px; text-align: center; }
+                body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f0f4; }
+                .container { max-width: 600px; margin: 0 auto; background-color: #f0f0f4; }
+                .header { background-color: #112851; padding: 30px 20px; text-align: center; }
                 .header img { display: block; margin: 0 auto 15px auto; border-radius: 10px; }
                 .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; }
-                .subtitle { background-color: #5aa9c9; padding: 15px 20px; text-align: center; }
+                .subtitle { background-color: #23375aff; padding: 15px 20px; text-align: center; }
                 .subtitle p { color: #ffffff; font-size: 16px; font-style: italic; margin: 0; }
                 .content { padding: 30px 20px; background-color: #ffffff; }
-                .welcome-box { background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; margin: 20px 0; text-align: center; }
+                .welcome-box { background-color: #e8f5e9; border: 2px solid #4caf50; padding: 20px; margin: 20px 0; text-align: center; }
                 .welcome-box h2 { color: #2e7d32; margin: 0 0 10px 0; font-size: 20px; }
                 .welcome-box p { color: #388e3c; margin: 5px 0; font-size: 14px; }
                 .info-section { margin: 20px 0; }
@@ -470,15 +470,16 @@ class ReactEmailService
                 .confirm-button { 
                     display: inline-block; 
                     background-color: #2196F3; 
-                    color: #ffffff; 
+                    color: #fff; 
                     padding: 15px 40px; 
                     text-decoration: none; 
                     border-radius: 5px; 
                     font-weight: bold; 
                     font-size: 16px;
                 }
-                .confirm-button:hover { background-color: #1976D2; }
-                .footer { background-color: #ee4c50; padding: 20px; text-align: center; color: #ffffff; }
+                
+                
+                .footer { background-color: #303a46; padding: 20px; text-align: center; color: #ffffff; }
                 .footer p { margin: 5px 0; font-size: 12px; }
                 .note { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; font-size: 13px; color: #856404; }
             </style>
@@ -503,7 +504,6 @@ class ReactEmailService
                     <!-- Mensaje de Bienvenida -->
                     <div class="welcome-box">
                         <h2>¡Bienvenido al Sistema EVA!</h2>
-                        <p>Gracias por registrarte en nuestro sistema de gestión tecnológica</p>
                     </div>
 
                     <p style="color: #333; font-size: 15px; line-height: 1.6;">
@@ -533,7 +533,7 @@ class ReactEmailService
 
                     <!-- Botón de Confirmación -->
                     <div class="button-container">
-                        <a href="' . htmlspecialchars($urlConfirmacion) . '" class="confirm-button">
+                        <a href="' . htmlspecialchars($urlConfirmacion) . '" class="confirm-button" style="text-decoration: none; color: #fff;">
                             ✓ CONFIRMAR MI CUENTA
                         </a>
                     </div>

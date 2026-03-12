@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use App\Http\Controllers\Api\ArchivosController;
 // use App\Models\Equipo; // COMENTADO: No usar modelo, usar consultas directas
 
 // Helper function for default permissions based on roles.md
@@ -11275,25 +11276,12 @@ Route::post('v1/equipos/{id}/upload-document', function (Request $request, $id) 
 ]);
 
 // Obtener tipos de documentos disponibles
-Route::get('v1/document-types', function () {
-    try {
-        $tipos = DB::table('archivos')
-            ->where('status', 1)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $tipos
-        ])->header('Access-Control-Allow-Origin', '*');
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al obtener tipos de documento'
-        ], 500);
-    }
-});
+Route::get('v1/document-types', [ArchivosController::class, 'tiposArchivo'])->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
 
 // Obtener documentos de un equipo
 Route::get('v1/equipos/{id}/documents', function ($id) {
@@ -13689,6 +13677,12 @@ Route::get('v1/planes-mantenimientos', function (Request $request) {
         if ($status && $status !== 'all') {
             $query->where($tabla . '.status', $status);
         }
+
+        // Filtro por año (anio)
+        $anio = $request->get('anio');
+        if ($anio && $anio !== 'all') {
+            $query->whereYear($tabla . '.fecha_mantenimiento', $anio);
+        }
         
         $total = $query->count();
         
@@ -14197,6 +14191,12 @@ Route::post('/planes-mantenimientos/enviar-alertas-criticas', function (Request 
             // Filtro por estado
             if ($estado !== 'all') {
                 $query->where('ordenes.estado_id', $estado);
+            }
+
+            // Filtro por año (anio)
+            $anio = $request->get('anio');
+            if ($anio && $anio !== 'all') {
+                $query->whereYear('ordenes.fecha_inicio', $anio);
             }
 
             // Filtro por sede

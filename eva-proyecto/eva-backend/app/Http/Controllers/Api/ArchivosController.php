@@ -755,29 +755,27 @@ class ArchivosController extends ApiController
      * tiposArchivo
      * Método generado automáticamente para corregir referencias de rutas
      */
-    public function tiposArchivo(Request $request): JsonResponse
+    public function tiposArchivo(Request $request)
     {
         try {
-            // Validación básica
-            $request->validate([]);
-            
-            // TODO: Implementar lógica específica para tiposArchivo
+            $tipos = DB::table('archivos')
+                ->where('status', 1)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
             
             return ResponseFormatter::success(
-                [],
-                'Método tiposArchivo ejecutado correctamente (pendiente implementación)',
+                $tipos,
+                'Tipos de documento obtenidos correctamente',
                 200
             );
             
-        } catch (Exception $e) {
-            Log::error('Error en ArchivosController::tiposArchivo', [
-                'error' => $e->getMessage(),
-                'request' => $request->all()
-            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en ArchivosController::tiposArchivo: ' . $e->getMessage());
             
             return ResponseFormatter::error(
                 null,
-                'Error ejecutando tiposArchivo: ' . $e->getMessage(),
+                'Error al obtener tipos de documento: ' . $e->getMessage(),
                 500
             );
         }
