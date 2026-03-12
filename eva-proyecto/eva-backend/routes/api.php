@@ -1261,6 +1261,12 @@ Route::prefix('v1')->group(function () {
                 // status es numérico en la BD: 1, 2, 3, etc.
                 $query->where('mantenimiento.status', $status);
             }
+
+            // Filtro por año (anio)
+            $anio = $request->get('anio');
+            if ($anio && $anio !== 'all') {
+                $query->whereYear('mantenimiento.fecha_mantenimiento', $anio);
+            }
             
             $total = $query->count();
             
@@ -13158,6 +13164,12 @@ Route::get('v1/mantenimientos-ejecutados', function (Request $request) {
         if ($status && $status !== 'all') {
             // status es numérico en la BD: 1, 2, 3, etc.
             $query->where('mantenimiento.status', $status);
+        }
+
+        // Filtro por año (anio)
+        $anio = $request->get('anio');
+        if ($anio && $anio !== 'all') {
+            $query->whereYear('mantenimiento.fecha_mantenimiento', $anio);
         }
         
         $total = $query->count();

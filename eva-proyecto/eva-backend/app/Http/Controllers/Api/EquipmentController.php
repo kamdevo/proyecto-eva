@@ -1427,6 +1427,33 @@ class EquipmentController extends ApiController
                 $query->where('equipos.propietario_id', $request->estado_id_cg);
             }
 
+            // Filtro por tipo de adquisición (Comodato)
+            if ($request->has('tadquisicion_id') && !empty($request->tadquisicion_id)) {
+                $query->where('equipos.tadquisicion_id', $request->tadquisicion_id);
+            }
+
+            // Filtro por inclusión en plan de mantenimiento
+            if ($request->has('incluido_en_plan_anio')) {
+                $anioPlan = $request->get('incluido_en_plan_anio');
+                $query->whereExists(function ($subQuery) use ($anioPlan) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('planes_mantenimientos')
+                        ->whereColumn('planes_mantenimientos.equipo_id', 'equipos.id')
+                        ->where('planes_mantenimientos.anio', $anioPlan);
+                });
+            }
+
+            // Filtro por NO inclusión en plan de mantenimiento
+            if ($request->has('no_incluido_en_plan_anio')) {
+                $anioPlan = $request->get('no_incluido_en_plan_anio');
+                $query->whereNotExists(function ($subQuery) use ($anioPlan) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('planes_mantenimientos')
+                        ->whereColumn('planes_mantenimientos.equipo_id', 'equipos.id')
+                        ->where('planes_mantenimientos.anio', $anioPlan);
+                });
+            }
+
             // Sección 5: Parámetros Temporales
             if ($request->has('anio_plan') && !empty($request->anio_plan)) {
                 // Filtrar por fecha específica o año

@@ -145,6 +145,11 @@ class CorrectivoGeneralController extends Controller
                 $query->whereDate('cg.created_at', '<=', $request->fecha_hasta);
             }
 
+            // Filtro por año
+            if ($request->filled('anio') && $request->anio !== 'all') {
+                $query->whereYear('cg.created_at', $request->anio);
+            }
+
             // Ordenamiento usando campos reales
             $sortBy = $request->get('sort_by', 'fecha_inicio');
             $sortDirection = $request->get('sort_direction', 'desc');
