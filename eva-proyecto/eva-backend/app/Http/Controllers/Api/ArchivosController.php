@@ -774,7 +774,6 @@ class ArchivosController extends ApiController
             \Log::error('Error en ArchivosController::tiposArchivo: ' . $e->getMessage());
             
             return ResponseFormatter::error(
-                null,
                 'Error al obtener tipos de documento: ' . $e->getMessage(),
                 500
             );
