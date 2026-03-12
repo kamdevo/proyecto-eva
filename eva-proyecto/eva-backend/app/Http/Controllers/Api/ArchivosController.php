@@ -765,7 +765,7 @@ class ArchivosController extends ApiController
             
             return ResponseFormatter::success(
                 $tipos,
-                'Tipos de documento obtenidos (sin filtro status)',
+                'Tipos de documento obtenidos correctamente',
                 200
             );
             
