@@ -758,15 +758,12 @@ class ArchivosController extends ApiController
     public function tiposArchivo(Request $request)
     {
         try {
-            $tipos = DB::table('archivos')
-                ->where('status', 1)
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get();
-            
             return ResponseFormatter::success(
-                $tipos,
-                'Tipos de documento obtenidos correctamente',
+                [
+                    'database' => DB::getDatabaseName(),
+                    'php_version' => phpversion()
+                ],
+                'Información de ambiente web obtenida',
                 200
             );
             
