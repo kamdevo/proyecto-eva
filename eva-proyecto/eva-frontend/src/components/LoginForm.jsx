@@ -238,15 +238,27 @@ const LoginForm = () => {
         // Extraer el primer error específico de campo si existe (422 validation)
         const errors = result.errors || {};
         const firstErrorKey = Object.keys(errors)[0];
-        const firstErrorMsg = firstErrorKey
-          ? (Array.isArray(errors[firstErrorKey]) ? errors[firstErrorKey][0] : errors[firstErrorKey])
-          : null;
+        let firstErrorMsg = null;
+
+        if (firstErrorKey && errors[firstErrorKey]) {
+          const errorValue = errors[firstErrorKey];
+          if (typeof errorValue === 'string') {
+            firstErrorMsg = errorValue;
+          } else if (Array.isArray(errorValue)) {
+            firstErrorMsg = errorValue[0];
+          } else if (typeof errorValue === 'object' && errorValue.message) {
+            firstErrorMsg = errorValue.message;
+          } else if (typeof errorValue === 'object' && Array.isArray(errorValue.all_messages)) {
+            firstErrorMsg = errorValue.all_messages[0];
+          }
+        }
+
         const errorMessage = firstErrorMsg || result.message || result.error || "Error al registrar usuario";
         console.error("❌ [LOGIN] Error en registro:", result);
-        toast.error(errorMessage);
+        toast.error(typeof errorMessage === 'string' ? errorMessage : "Error de validación en el formulario");
         setRegisterAlert({
           type: "error",
-          message: errorMessage,
+          message: typeof errorMessage === 'string' ? errorMessage : "Error de validación en el formulario",
         });
       }
     } catch (error) {
@@ -313,8 +325,8 @@ const LoginForm = () => {
                     <div className="relative">
                       <Input
                         className={`peer ps-9 ${loginValidation.hasError("username")
-                            ? "border-red-500"
-                            : ""
+                          ? "border-red-500"
+                          : ""
                           }`}
                         placeholder="Usuario"
                         type="text"
@@ -343,8 +355,8 @@ const LoginForm = () => {
                     <div className="relative">
                       <Input
                         className={`pe-9 ${loginValidation.hasError("password")
-                            ? "border-red-500"
-                            : ""
+                          ? "border-red-500"
+                          : ""
                           }`}
                         placeholder="Contraseña"
                         type={isVisible ? "text" : "password"}
@@ -463,8 +475,8 @@ const LoginForm = () => {
                       <div className="relative">
                         <Input
                           className={`peer ps-9 ${registerValidation.hasError("nombre")
-                              ? "border-red-500"
-                              : ""
+                            ? "border-red-500"
+                            : ""
                             }`}
                           placeholder="Nombre"
                           type="text"
@@ -491,8 +503,8 @@ const LoginForm = () => {
                       <div className="relative">
                         <Input
                           className={`peer ps-9 ${registerValidation.hasError("apellido")
-                              ? "border-red-500"
-                              : ""
+                            ? "border-red-500"
+                            : ""
                             }`}
                           placeholder="Apellidos"
                           type="text"
@@ -519,8 +531,8 @@ const LoginForm = () => {
                       <div className="relative">
                         <Input
                           className={`peer ps-9 ${registerValidation.hasError("telefono")
-                              ? "border-red-500"
-                              : ""
+                            ? "border-red-500"
+                            : ""
                             }`}
                           placeholder="Teléfono"
                           type="text"
@@ -547,8 +559,8 @@ const LoginForm = () => {
                       <div className="relative">
                         <Input
                           className={`peer ps-9 ${registerValidation.hasError("email")
-                              ? "border-red-500"
-                              : ""
+                            ? "border-red-500"
+                            : ""
                             }`}
                           placeholder="Correo"
                           type="email"
@@ -575,8 +587,8 @@ const LoginForm = () => {
                       <div className="relative">
                         <Input
                           className={`peer ps-9 ${registerValidation.hasError("username")
-                              ? "border-red-500"
-                              : ""
+                            ? "border-red-500"
+                            : ""
                             }`}
                           placeholder="Usuario"
                           type="text"
@@ -604,8 +616,8 @@ const LoginForm = () => {
                         <div className="relative">
                           <Input
                             className={`pe-9 ${registerValidation.hasError("password")
-                                ? "border-red-500"
-                                : ""
+                              ? "border-red-500"
+                              : ""
                               }`}
                             placeholder="Contraseña"
                             type={isVisible ? "text" : "password"}
@@ -649,8 +661,8 @@ const LoginForm = () => {
                             className={`pe-9 ${registerValidation.hasError(
                               "password_confirmation"
                             )
-                                ? "border-red-500"
-                                : ""
+                              ? "border-red-500"
+                              : ""
                               }`}
                             placeholder="Confirma la contraseña"
                             type={isConfirmVisible ? "text" : "password"}

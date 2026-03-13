@@ -1047,7 +1047,6 @@ Route::prefix('v1')->group(function () {
                 ], 422);
             }
             
-            $user = $request->user();
             $equipoIds = $request->equipo_ids;
             
             foreach ($equipoIds as $equipoId) {
@@ -1061,7 +1060,6 @@ Route::prefix('v1')->group(function () {
                     DB::table('equipos_bajas')->insert([
                         'baja_id' => $bajaId,
                         'equipo_id' => $equipoId,
-                        'usuario_id' => $user->id,
                         'created_at' => now()
                     ]);
                     
