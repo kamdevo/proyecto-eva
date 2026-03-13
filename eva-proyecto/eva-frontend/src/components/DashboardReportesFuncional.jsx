@@ -65,13 +65,13 @@ function DashboardReportesFuncional() {
       const equiposResponse = await httpService.get('/v1/equipos/medical-devices-complete', {
         params: { per_page: 1 }
       });
-      const totalEquipos = equiposResponse.data.data?.total || 0;
+      const totalEquipos = equiposResponse.data.data?.total || equiposResponse.data.total || 0;
 
       // 2. Incluidos en el plan (registros en planes_mantenimientos por año)
       const enPlanResponse = await httpService.get('/v1/equipos/medical-devices-complete', {
         params: { per_page: 1, incluido_en_plan_anio: currentYear }
       });
-      const enPlan = enPlanResponse.data.data?.total || 0;
+      const enPlan = enPlanResponse.data.data?.total || enPlanResponse.data.total || 0;
 
       // 3. Total equipos en comodato (tadquisicion_id = 4)
       let comodato = 0;
@@ -79,7 +79,7 @@ function DashboardReportesFuncional() {
         const comodatoResponse = await httpService.get('/v1/equipos/medical-devices-complete', {
           params: { per_page: 1, tadquisicion_id: 4 }
         });
-        comodato = comodatoResponse.data.data?.total || 0;
+        comodato = comodatoResponse.data.data?.total || comodatoResponse.data.total || 0;
       } catch (err) {
         console.warn('Error obteniendo comodatos:', err);
       }
@@ -88,7 +88,7 @@ function DashboardReportesFuncional() {
       const sinPlanResponse = await httpService.get('/v1/equipos/medical-devices-complete', {
         params: { per_page: 1, no_incluido_en_plan_anio: currentYear }
       });
-      const sinPlan = sinPlanResponse.data.data?.total || 0;
+      const sinPlan = sinPlanResponse.data.data?.total || sinPlanResponse.data.total || 0;
 
       setData(prev => ({
         ...prev,
@@ -113,14 +113,14 @@ function DashboardReportesFuncional() {
         params: { anio: currentYear, per_page: 1 }
       });
 
-      const programados = planesResponse.data.data?.total || 0;
+      const programados = planesResponse.data.data?.total || planesResponse.data.total || 0;
 
       // Obtener mantenimientos ejecutados
       const ejecutadosResponse = await httpService.get('/v1/mantenimientos-ejecutados', {
         params: { anio: currentYear, per_page: 1 }
       });
 
-      const ejecutados = ejecutadosResponse.data.data?.total || 0;
+      const ejecutados = ejecutadosResponse.data.data?.total || ejecutadosResponse.data.total || 0;
 
       // Calcular porcentaje
       const porcentaje = programados > 0 ? (ejecutados / programados) * 100 : 0;
@@ -146,19 +146,19 @@ function DashboardReportesFuncional() {
       const totalResponse = await httpService.get('/v1/correctivos-generales', {
         params: { anio: currentYear, per_page: 1 }
       });
-      const total = totalResponse.data.data?.total || 0;
+      const total = totalResponse.data.data?.total || totalResponse.data.total || 0;
 
       // Obtener abiertos (estado_id = 1)
       const abiertosResponse = await httpService.get('/v1/correctivos-generales', {
         params: { anio: currentYear, per_page: 1, estado: 1 }
       });
-      const abiertos = abiertosResponse.data.data?.total || 0;
+      const abiertos = abiertosResponse.data.data?.total || abiertosResponse.data.total || 0;
 
       // Obtener cerrados (estado_id = 4)
       const cerradosResponse = await httpService.get('/v1/correctivos-generales', {
         params: { anio: currentYear, per_page: 1, estado: 4 }
       });
-      const cerrados = cerradosResponse.data.data?.total || 0;
+      const cerrados = cerradosResponse.data.data?.total || cerradosResponse.data.total || 0;
 
       setData(prev => ({
         ...prev,
@@ -181,25 +181,25 @@ function DashboardReportesFuncional() {
       const totalResponse = await httpService.get('/v1/gestion-tickets', {
         params: { anio: currentYear, per_page: 1 }
       });
-      const total = totalResponse.data.data?.total || 0;
+      const total = totalResponse.data.data?.total || totalResponse.data.total || 0;
 
       // Obtener abiertos (estado_id = 1)
       const abiertosResponse = await httpService.get('/v1/gestion-tickets', {
         params: { anio: currentYear, per_page: 1, estado: 1 }
       });
-      const abiertos = abiertosResponse.data.data?.total || 0;
+      const abiertos = abiertosResponse.data.data?.total || abiertosResponse.data.total || 0;
 
       // Obtener asignados (estado_id = 2)
       const asignadosResponse = await httpService.get('/v1/gestion-tickets', {
         params: { anio: currentYear, per_page: 1, estado: 2 }
       });
-      const asignados = asignadosResponse.data.data?.total || 0;
+      const asignados = asignadosResponse.data.data?.total || asignadosResponse.data.total || 0;
 
       // Obtener cerrados (estado_id = 4)
       const cerradosResponse = await httpService.get('/v1/gestion-tickets', {
         params: { anio: currentYear, per_page: 1, estado: 4 }
       });
-      const cerrados = cerradosResponse.data.data?.total || 0;
+      const cerrados = cerradosResponse.data.data?.total || cerradosResponse.data.total || 0;
 
       setData(prev => ({
         ...prev,

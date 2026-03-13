@@ -13,14 +13,14 @@ const getBaseURL = () => {
   if (typeof window !== 'undefined' && window.APP_CONFIG?.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL;
   }
-  return import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
+  return import.meta.env.VITE_API_BASE_URL || "http://api.eva2.huv.gov.co";
 };
 
 const getApiURL = () => {
   if (typeof window !== 'undefined' && window.APP_CONFIG?.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL + '/api';
   }
-  return import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api";
+  return import.meta.env.VITE_API_URL || "http://api.eva2.huv.gov.co/api";
 };
 
 // Configuración base de la API

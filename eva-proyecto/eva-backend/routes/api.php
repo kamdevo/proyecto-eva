@@ -11196,13 +11196,22 @@ Route::post('v1/equipos/{id}/upload-document', function (Request $request, $id) 
         }
 
         // Validaciones del archivo y datos
-        $request->validate([
-            'archivo_id' => 'required|integer|exists:archivos,id',
-            'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,txt,jpg,jpeg,png|max:10240', // 10MB
+        $validator = Validator::make($request->all(), [
+            'archivo_id' => 'required|integer',
+            'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,txt,jpg,jpeg,png,JPG,JPEG,PNG,PDF|max:10240', // 10MB
             'fecha_capacitacion' => 'nullable|date',
             'hora_capacitacion' => 'nullable',
             'otro' => 'nullable|string|max:255'
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors' => $validator->errors(),
+                'debug_input' => $request->except('document')
+            ], 422)->header('Access-Control-Allow-Origin', '*');
+        }
 
         $file = $request->file('document');
         
@@ -11915,9 +11924,9 @@ Route::post('v1/equipos/{id}/documents/{documentId}/share', function (Request $r
 
         if ($documentoExistente) {
             return response()->json([
-                'success' => false,
+                'success' => true,
                 'message' => 'El documento ya existe en el equipo destino'
-            ], 409);
+            ], 200)->header('Access-Control-Allow-Origin', '*');
         }
 
         // Crear copia del documento para el equipo destino
