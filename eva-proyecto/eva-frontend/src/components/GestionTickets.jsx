@@ -42,7 +42,7 @@ import { useSedes } from "@/hooks/useRoles";
 export default function GestionTickets() {
   // Hook para obtener sedes de la BD
   const { sedes, loading: sedesLoading } = useSedes();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,7 +63,7 @@ export default function GestionTickets() {
   const [estadoFilter, setEstadoFilter] = useState("all");
   const [sedeFilter, setSedeFilter] = useState("all");
   const [reportanteFilter, setReportanteFilter] = useState("all");
-  
+
   // Estados para ordenamiento
   const [sortField, setSortField] = useState("id");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -71,7 +71,7 @@ export default function GestionTickets() {
   const getStatusBadge = (status, color) => {
     const colorClasses = {
       red: "bg-red-100 text-red-800 border-red-200",
-      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200", 
+      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
       blue: "bg-blue-100 text-blue-800 border-blue-200",
       green: "bg-green-100 text-green-800 border-green-200",
       gray: "bg-gray-100 text-gray-800 border-gray-200"
@@ -105,7 +105,7 @@ export default function GestionTickets() {
     try {
       console.log('🔄 Recargando detalles del ticket:', ticketId);
       const response = await httpService.get(`/v1/gestion-tickets/${ticketId}`);
-      
+
       if (response.data.success) {
         const updatedTicket = response.data.data;
         console.log('📊 Datos del ticket recibidos:', {
@@ -117,7 +117,7 @@ export default function GestionTickets() {
         // Actualizar el ticket seleccionado
         setSelectedTicket(updatedTicket);
         // También actualizar en la lista de tickets
-        setTickets(prevTickets => 
+        setTickets(prevTickets =>
           prevTickets.map(t => t.id === ticketId ? updatedTicket : t)
         );
         console.log('✅ Ticket actualizado exitosamente');
@@ -131,7 +131,7 @@ export default function GestionTickets() {
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      
+
       // Preparar parámetros para el endpoint
       const params = {
         page: currentPage,
@@ -170,11 +170,11 @@ export default function GestionTickets() {
 
       // Usar httpService que maneja autenticación automáticamente
       const response = await httpService.get('/v1/gestion-tickets', { params });
-      
+
       if (response.data.success) {
         const ticketsData = response.data.data.data || [];
         console.log('✅ Tickets obtenidos:', ticketsData.length);
-        
+
         setTickets(ticketsData);
         setTotalPages(response.data.data.total_pages || 1);
         setTotalItems(response.data.data.total || 0);
@@ -188,7 +188,7 @@ export default function GestionTickets() {
       console.error('❌ Error obteniendo tickets:', error);
       const errorMsg = error.response?.data?.message || error.message;
       console.error('Detalles del error:', errorMsg);
-      
+
       setTickets([]);
       setTotalPages(1);
       setTotalItems(0);
@@ -272,7 +272,7 @@ export default function GestionTickets() {
               >
                 <FolderOpen className="h-3 w-3" />
               </Button>
-              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>VER</span>
+              <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{ fontSize: '9px' }}>VER</span>
             </div>
             {/* <div className="flex flex-col items-center min-h-[4rem] justify-start">
               <Button
@@ -285,10 +285,10 @@ export default function GestionTickets() {
               </Button>
               <span className="text-gray-700 font-medium text-center leading-none mt-1" style={{fontSize: '9px'}}>EDIT</span>
             </div> */}
-            
-            
-            
-            
+
+
+
+
           </div>
         </div>
 
@@ -321,7 +321,10 @@ export default function GestionTickets() {
         </div>
 
         <div className="flex flex-wrap gap-1">
-          {getPriorityBadge(ticket.prioridad_texto, ticket.prioridad_color)}
+          <span className="text-xs text-gray-500">
+            <Calendar className="h-3 w-3 inline mr-1" />
+            {new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -346,7 +349,7 @@ export default function GestionTickets() {
             {/* Estado */}
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Estado</Label>
-              <select 
+              <select
                 value={estadoFilter}
                 onChange={(e) => setEstadoFilter(e.target.value)}
                 className="w-full appearance-none bg-white border border-gray-300 rounded-md px-3 py-2.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -363,7 +366,7 @@ export default function GestionTickets() {
             {/* Sede */}
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Sede</Label>
-              <select 
+              <select
                 value={sedeFilter}
                 onChange={(e) => setSedeFilter(e.target.value)}
                 className="w-full appearance-none bg-white border border-gray-300 rounded-md px-3 py-2.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -410,7 +413,7 @@ export default function GestionTickets() {
             {/* Tipo de Equipo */}
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Tipo de Equipo</Label>
-              <select 
+              <select
                 value={selectedOrigin}
                 onChange={(e) => setSelectedOrigin(e.target.value)}
                 className="w-full appearance-none bg-white border border-gray-300 rounded-md px-3 py-2.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -425,7 +428,7 @@ export default function GestionTickets() {
 
           {/* Botones de Acción */}
           <div className="flex gap-3 mt-4 pt-4 border-t border-gray-200">
-            <Button 
+            <Button
               onClick={handleClearFilters}
               variant="outline"
               className="bg-red-50 border-red-200 hover:bg-red-100 text-red-700 px-4"
@@ -479,7 +482,7 @@ export default function GestionTickets() {
             <table className="w-full table-fixed">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th 
+                  <th
                     className="w-24 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('id')}
                   >
@@ -492,7 +495,7 @@ export default function GestionTickets() {
                       )}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="w-64 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('descripcion')}
                   >
@@ -506,7 +509,7 @@ export default function GestionTickets() {
                     </div>
                   </th>
                   <th className="w-40 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asignación</th>
-                  <th 
+                  <th
                     className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('estado_id')}
                   >
@@ -519,13 +522,13 @@ export default function GestionTickets() {
                       )}
                     </div>
                   </th>
-                  <th 
-                    className="w-20 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('prioridad')}
+                  <th
+                    className="w-28 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('created_at')}
                   >
                     <div className="flex items-center gap-1">
-                      Prioridad
-                      {sortField === 'prioridad' ? (
+                      Fecha Creación
+                      {sortField === 'created_at' ? (
                         sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
                       ) : (
                         <ArrowUpDown className="w-3 h-3 opacity-30" />
@@ -581,7 +584,7 @@ export default function GestionTickets() {
                         <div className="text-xs text-gray-600 mt-2">
                           <div className="font-medium text-gray-700">Asignado por:</div>
                           <div className="text-gray-900 truncate">
-                            {ticket.usuario_asigno_nombre 
+                            {ticket.usuario_asigno_nombre
                               ? `${ticket.usuario_asigno_nombre} ${ticket.usuario_asigno_apellido || ''}`.trim()
                               : 'N/A'}
                           </div>
@@ -598,7 +601,10 @@ export default function GestionTickets() {
                       {getStatusBadge(ticket.estado, ticket.estado_color)}
                     </td>
                     <td className="px-2 py-3 align-top">
-                      {getPriorityBadge(ticket.prioridad_texto, ticket.prioridad_color)}
+                      <div className="text-xs text-gray-700">
+                        <Calendar className="h-3 w-3 inline mr-1 text-gray-400" />
+                        {new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}
+                      </div>
                     </td>
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-center">

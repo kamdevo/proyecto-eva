@@ -88,7 +88,7 @@ const GlobalEquipmentSearch = () => {
         )}
       </div>
       {resultCount > 0 && (
-        <span className="text-xs text-slate-600 whitespace-nowrap">
+        <span className="text-xs text-white whitespace-nowrap">
           {resultCount} resultados
         </span>
       )}

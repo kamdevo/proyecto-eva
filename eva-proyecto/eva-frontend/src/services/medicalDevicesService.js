@@ -97,6 +97,38 @@ class MedicalDevicesService {
   }
 
   /**
+   * Obtiene todos los IDs de equipos que coinciden con los filtros actuales
+   * @param {Object} params - Parámetros de filtrado
+   * @returns {Promise} Array de IDs
+   */
+  async getAllFilteredIds(params = {}) {
+    try {
+      const queryParams = new URLSearchParams();
+
+      // Agregar todos los parámetros de filtro
+      Object.entries(params).forEach(([key, value]) => {
+        if (value && value !== "" && value !== "all") {
+          queryParams.append(key, value);
+        }
+      });
+
+      queryParams.append("get_all_ids", "1");
+
+      const response = await api.get(
+        `/v1/equipos/medical-devices-complete?${queryParams}`
+      );
+
+      if (response.data.success) {
+        return response.data.ids || [];
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching all filtered IDs:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtiene un equipo médico específico por ID
    * @param {number} id - ID del equipo
    * @returns {Promise} Datos del equipo

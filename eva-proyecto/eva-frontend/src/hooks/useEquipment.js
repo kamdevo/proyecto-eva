@@ -158,7 +158,7 @@ export const useEquipment = (equipmentType = "biomedical") => {
         // Usar API directa para equipos industriales
         const endpoints = getEndpoints();
         const queryParams = new URLSearchParams();
-        
+
         Object.entries(filters).forEach(([key, value]) => {
           if (value !== "" && value !== null && value !== undefined) {
             queryParams.append(key, value);
@@ -347,6 +347,27 @@ export const useEquipment = (equipmentType = "biomedical") => {
   }, [equipmentType]);
 
   /**
+   * Obtiene todos los IDs de equipos que coinciden con los filtros actuales (sin paginación)
+   */
+  const getFilteredIds = useCallback(async () => {
+    try {
+      if (equipmentType === "biomedical") {
+        return await medicalDevicesService.getAllFilteredIds(filters);
+      } else {
+        // Para industriales, implementar similar si es necesario
+        const endpoints = getEndpoints();
+        const queryParams = new URLSearchParams({ ...filters, get_all_ids: "1" });
+        const response = await fetch(`${endpoints.devices}?${queryParams}`);
+        const data = await response.json();
+        return data.success ? data.ids : [];
+      }
+    } catch (err) {
+      console.error("Error getting filtered IDs:", err);
+      return [];
+    }
+  }, [filters, equipmentType]);
+
+  /**
    * Refrescar datos
    */
   const refresh = useCallback(() => {
@@ -407,6 +428,7 @@ export const useEquipment = (equipmentType = "biomedical") => {
     fetchDevices,
     fetchFilterOptions,
     fetchStats,
+    getFilteredIds,
 
     // Equipment type
     equipmentType,

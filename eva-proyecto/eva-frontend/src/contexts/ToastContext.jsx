@@ -50,7 +50,7 @@ export const ToastProvider = ({ children }) => {
     <ToastContext.Provider value={{ toast: toastMethods }}>
       {children}
       <Toaster
-        position="top-center"
+        position="bottom-right"
         richColors
         closeButton
         expand={true}

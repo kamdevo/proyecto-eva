@@ -208,7 +208,7 @@ const LoginForm = () => {
       console.log("🔄 [LOGIN] Iniciando registro con datos:", registerForm);
       const result = await register(registerForm);
       console.log("✅ [LOGIN] Resultado del registro:", result);
-      
+
       if (result.success) {
         // ⚠️ NUEVO FLUJO: Si requiere verificación, redirigir a página de verificación
         if (result.verification_required) {
@@ -220,11 +220,11 @@ const LoginForm = () => {
           }
           setModalRegisterOpen(false);
           // Redirigir a página de verificación pendiente con datos del usuario
-          navigate('/verificacion-pendiente', { 
-            state: { 
+          navigate('/verificacion-pendiente', {
+            state: {
               userData: result.user,
-              emailSent: result.email_sent 
-            } 
+              emailSent: result.email_sent
+            }
           });
         } else {
           // FLUJO ANTIGUO: Login automático exitoso
@@ -235,7 +235,13 @@ const LoginForm = () => {
           }, 1000);
         }
       } else {
-        const errorMessage = result.message || result.error || "Error al registrar usuario";
+        // Extraer el primer error específico de campo si existe (422 validation)
+        const errors = result.errors || {};
+        const firstErrorKey = Object.keys(errors)[0];
+        const firstErrorMsg = firstErrorKey
+          ? (Array.isArray(errors[firstErrorKey]) ? errors[firstErrorKey][0] : errors[firstErrorKey])
+          : null;
+        const errorMessage = firstErrorMsg || result.message || result.error || "Error al registrar usuario";
         console.error("❌ [LOGIN] Error en registro:", result);
         toast.error(errorMessage);
         setRegisterAlert({
@@ -282,7 +288,7 @@ const LoginForm = () => {
           <dialog className="modal" open>
             <div className="modal-box login">
               <Button
-              type="submit"
+                type="submit"
                 className="modal-close-btn"
                 onClick={() => setModalLoginOpen(false)}
                 variant="ghost"
@@ -306,11 +312,10 @@ const LoginForm = () => {
                     <Label>Nombre de usuario</Label>
                     <div className="relative">
                       <Input
-                        className={`peer ps-9 ${
-                          loginValidation.hasError("username")
+                        className={`peer ps-9 ${loginValidation.hasError("username")
                             ? "border-red-500"
                             : ""
-                        }`}
+                          }`}
                         placeholder="Usuario"
                         type="text"
                         value={loginForm.username}
@@ -337,11 +342,10 @@ const LoginForm = () => {
                     <Label>Contraseña</Label>
                     <div className="relative">
                       <Input
-                        className={`pe-9 ${
-                          loginValidation.hasError("password")
+                        className={`pe-9 ${loginValidation.hasError("password")
                             ? "border-red-500"
                             : ""
-                        }`}
+                          }`}
                         placeholder="Contraseña"
                         type={isVisible ? "text" : "password"}
                         value={loginForm.password}
@@ -400,7 +404,7 @@ const LoginForm = () => {
                   onClick={() => setModalRegisterOpen(true)}
                   disabled={isLoading}
                 >
-                  <UserRoundPlus size={17} strokeWidth={3}  />
+                  <UserRoundPlus size={17} strokeWidth={3} />
                   Crear una cuenta
                 </button>
               </div>
@@ -458,11 +462,10 @@ const LoginForm = () => {
                       <Label>Nombre</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${
-                            registerValidation.hasError("nombre")
+                          className={`peer ps-9 ${registerValidation.hasError("nombre")
                               ? "border-red-500"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Nombre"
                           type="text"
                           value={registerForm.nombre}
@@ -487,11 +490,10 @@ const LoginForm = () => {
                       <Label>Apellidos</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${
-                            registerValidation.hasError("apellido")
+                          className={`peer ps-9 ${registerValidation.hasError("apellido")
                               ? "border-red-500"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Apellidos"
                           type="text"
                           value={registerForm.apellido}
@@ -516,11 +518,10 @@ const LoginForm = () => {
                       <Label>Teléfono</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${
-                            registerValidation.hasError("telefono")
+                          className={`peer ps-9 ${registerValidation.hasError("telefono")
                               ? "border-red-500"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Teléfono"
                           type="text"
                           value={registerForm.telefono}
@@ -545,11 +546,10 @@ const LoginForm = () => {
                       <Label>Correo electrónico</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${
-                            registerValidation.hasError("email")
+                          className={`peer ps-9 ${registerValidation.hasError("email")
                               ? "border-red-500"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Correo"
                           type="email"
                           value={registerForm.email}
@@ -574,11 +574,10 @@ const LoginForm = () => {
                       <Label>Nombre de usuario</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${
-                            registerValidation.hasError("username")
+                          className={`peer ps-9 ${registerValidation.hasError("username")
                               ? "border-red-500"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Usuario"
                           type="text"
                           value={registerForm.username}
@@ -604,11 +603,10 @@ const LoginForm = () => {
                         <Label>Contraseña</Label>
                         <div className="relative">
                           <Input
-                            className={`pe-9 ${
-                              registerValidation.hasError("password")
+                            className={`pe-9 ${registerValidation.hasError("password")
                                 ? "border-red-500"
                                 : ""
-                            }`}
+                              }`}
                             placeholder="Contraseña"
                             type={isVisible ? "text" : "password"}
                             value={registerForm.password}
@@ -648,13 +646,12 @@ const LoginForm = () => {
                         <Label>Confirmar contraseña</Label>
                         <div className="relative">
                           <Input
-                            className={`pe-9 ${
-                              registerValidation.hasError(
-                                "password_confirmation"
-                              )
+                            className={`pe-9 ${registerValidation.hasError(
+                              "password_confirmation"
+                            )
                                 ? "border-red-500"
                                 : ""
-                            }`}
+                              }`}
                             placeholder="Confirma la contraseña"
                             type={isConfirmVisible ? "text" : "password"}
                             value={registerForm.password_confirmation}
@@ -691,12 +688,12 @@ const LoginForm = () => {
                         {registerValidation.hasError(
                           "password_confirmation"
                         ) && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {registerValidation.getError(
-                              "password_confirmation"
-                            )}
-                          </p>
-                        )}
+                            <p className="text-red-500 text-xs mt-1">
+                              {registerValidation.getError(
+                                "password_confirmation"
+                              )}
+                            </p>
+                          )}
                       </div>
                     </div>
                   </div>

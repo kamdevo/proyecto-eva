@@ -1512,6 +1512,19 @@ class EquipmentController extends ApiController
             // Obtener total de registros para paginación
             $total = $query->count();
 
+            // Si se solicita obtener todos los IDs (para selección global)
+            if ($request->has('get_all_ids') && $request->get_all_ids == 1) {
+                $allIds = $query->pluck('equipos.id')->toArray();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'IDs de equipos obtenidos exitosamente',
+                    'ids' => $allIds,
+                    'total' => count($allIds)
+                ])->header('Access-Control-Allow-Origin', '*')
+                  ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                  ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            }
+
             // Debug: Log resultados de la consulta
             if ($request->has('consulta_id')) {
                 \Log::info('📊 Backend: Resultados de búsqueda por ID', [

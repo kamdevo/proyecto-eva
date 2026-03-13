@@ -63,10 +63,10 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-50">
+    <header className="fixed top-0 left-0 w-full bg-[#1D293D] text-white px-4 py-3 flex items-center justify-between z-50">
       <div className="flex items-center gap-2 sm:gap-4">
         <SidebarTrigger className="p-2" />
-        <h1 className="text-base sm:text-lg font-bold text-gray-800">
+        <h1 className="text-base sm:text-lg font-bold text-white">
           EVA APLICATIVO
         </h1>
       </div>
@@ -79,7 +79,7 @@ const Header = () => {
       <NavLink>
         <DropdownMenu>
           <DropdownMenuTrigger>
-            <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-gray-600 cursor-pointer">
+            <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-white cursor-pointer">
               <User className="h-5 w-5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline text-lg ">
                 {user?.nombre || "Usuario"}
@@ -112,7 +112,7 @@ const AppSidebar = () => {
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const { permissionService, isAdmin, user } = useAuth();
   const { hasModuleAccess, isAdmin: isPermissionAdmin } = usePermissions();
-  
+
   // Verificar si los permisos están cargados
   useEffect(() => {
     if (user && permissionService) {
@@ -121,7 +121,7 @@ const AppSidebar = () => {
         const readableModules = permissionService.getReadableModules();
         setPermissionsLoaded(true);
       }, 500);
-      
+
       return () => clearTimeout(timer);
     }
   }, [user, permissionService]);
@@ -136,11 +136,11 @@ const AppSidebar = () => {
 
   const navigationItems = [
     // ✅ PÁGINA DE INICIO - SIEMPRE VISIBLE PARA TODOS LOS USUARIOS
-    { 
-      icon: Home, 
-      label: "INICIO", 
-      active: true, 
-      submenu: [], 
+    {
+      icon: Home,
+      label: "INICIO",
+      active: true,
+      submenu: [],
       href: "/home",
       alwaysVisible: true // Marcador especial para asegurar visibilidad
     },
@@ -241,12 +241,12 @@ const AppSidebar = () => {
               {(() => {
                 // Si los permisos no están cargados, usar fallback basado en rol
                 if (!permissionsLoaded) {
-                  
+
                   // Admins ven todo
                   if (user && user.rol_id <= 2) {
                     return navigationItems;
                   }
-                  
+
                   // Usuarios normales ven módulos básicos
                   return navigationItems.filter(item => {
                     if (item.alwaysVisible) return true; // INICIO
@@ -259,16 +259,16 @@ const AppSidebar = () => {
                     return false;
                   });
                 }
-                
+
                 // Una vez cargados, usar el filtro normal de permisos
                 const filteredItems = permissionService.filterMenuItems(navigationItems);
-                
+
                 // Si no hay items filtrados, mostrar solo INICIO
                 if (filteredItems.length === 0) {
                   const inicioItem = navigationItems.find(item => item.alwaysVisible);
                   return inicioItem ? [inicioItem] : [];
                 }
-                
+
                 return filteredItems;
               })().map((item, index) => (
                 <SidebarMenuItem key={index}>
@@ -278,7 +278,7 @@ const AppSidebar = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
-                      whileHover={{ 
+                      whileHover={{
                         scale: 1.03,
                         x: 6,
                         transition: { duration: 0.2, ease: "easeOut" }
@@ -289,8 +289,7 @@ const AppSidebar = () => {
                         <NavLink
                           to={item.href}
                           className={({ isActive }) =>
-                            `w-full justify-start text-left h-auto py-3 px-3 hover:bg-white hover:text-gray-900 transition-all duration-200 text-white rounded-lg group shadow-sm hover:shadow-lg ${
-                              isActive ? "bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg" : ""
+                            `w-full justify-start text-left h-auto py-3 px-3 hover:bg-white hover:text-gray-900 transition-all duration-200 text-white rounded-lg group shadow-sm hover:shadow-lg ${isActive ? "bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg" : ""
                             }`
                           }
                         >
@@ -306,7 +305,7 @@ const AppSidebar = () => {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3, delay: index * 0.05 }}
-                        whileHover={{ 
+                        whileHover={{
                           scale: 1.03,
                           x: 6,
                           transition: { duration: 0.2, ease: "easeOut" }
@@ -321,11 +320,10 @@ const AppSidebar = () => {
                           <span className="flex-1 font-semibold">{item.label}</span>
                           {item.submenu.length > 0 && (
                             <ChevronRight
-                              className={`h-4 w-4 ml-auto transition-transform duration-300 group-hover:translate-x-1 ${
-                                openSubmenus.includes(item.label)
-                                  ? "rotate-90"
-                                  : ""
-                              }`}
+                              className={`h-4 w-4 ml-auto transition-transform duration-300 group-hover:translate-x-1 ${openSubmenus.includes(item.label)
+                                ? "rotate-90"
+                                : ""
+                                }`}
                             />
                           )}
                         </SidebarMenuButton>
@@ -359,8 +357,7 @@ const AppSidebar = () => {
                                       <NavLink
                                         to={subItem.href}
                                         className={({ isActive }) =>
-                                          `w-full justify-start text-left h-auto py-2 px-3 hover:bg-white hover:text-gray-900 text-sm transition-all duration-200 text-white rounded-md group shadow-sm hover:shadow-md ${
-                                            isActive ? "bg-gradient-to-r from-blue-600/80 to-blue-700/80 font-semibold" : ""
+                                          `w-full justify-start text-left h-auto py-2 px-3 hover:bg-white hover:text-gray-900 text-sm transition-all duration-200 text-white rounded-md group shadow-sm hover:shadow-md ${isActive ? "bg-gradient-to-r from-blue-600/80 to-blue-700/80 font-semibold" : ""
                                           }`
                                         }
                                       >

@@ -72,6 +72,16 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
     }
   };
 
+  const handleSelectGlobal = async () => {
+    try {
+      const allIds = await getFilteredIds();
+      setSelectedEquipos(allIds);
+      toast.success(`Se han seleccionado los ${allIds.length} equipos de la búsqueda`);
+    } catch (error) {
+      toast.error("Error al seleccionar todos los equipos");
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
 
@@ -144,6 +154,22 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
               }}
               className="max-w-sm"
             />
+
+            {/* Banner de Selección Global */}
+            {currentItems.length > 0 &&
+              currentItems.every(item => selectedEquipos.includes(item.id)) &&
+              totalItems > currentItems.length &&
+              selectedEquipos.length < totalItems && (
+                <div className="bg-blue-50 border border-blue-100 p-2 rounded-md text-sm text-blue-800 flex justify-center items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                  <span>Has seleccionado los {currentItems.length} equipos de esta página.</span>
+                  <button
+                    onClick={handleSelectGlobal}
+                    className="font-bold underline hover:text-blue-600 transition-colors"
+                  >
+                    seleccionar los {totalItems} equipos de tu búsqueda
+                  </button>
+                </div>
+              )}
           </div>
 
           {/* Tabla */}
