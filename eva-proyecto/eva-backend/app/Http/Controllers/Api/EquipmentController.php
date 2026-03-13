@@ -1033,8 +1033,31 @@ class EquipmentController extends ApiController
                 ->where('equipos.status', '!=', 0)
                 ->where('equipos.tipo_id', 2); // Solo equipos industriales
 
-            // Apply the same filtering logic as medical devices
-            // [The filtering logic will be added in the next chunk]
+            // Sección 2: Ubicación Geográfica
+            if ($request->has('filtro_zona') && !empty($request->filtro_zona)) {
+                $query->where('sedes.id', $request->filtro_zona);
+            } elseif ($request->has('sede_id') && !empty($request->sede_id)) {
+                $query->where('sedes.id', $request->sede_id);
+            }
+
+            if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar)) {
+                $query->where('equipos.servicio_id', $request->servicio_id_auxiliar);
+            } elseif ($request->has('servicio_id') && !empty($request->servicio_id)) {
+                $query->where('equipos.servicio_id', $request->servicio_id);
+            }
+
+            if ($request->has('area_id_auxiliar') && !empty($request->area_id_auxiliar)) {
+                $query->where('equipos.area_id', $request->area_id_auxiliar);
+            } elseif ($request->has('area_id') && !empty($request->area_id)) {
+                $query->where('equipos.area_id', $request->area_id);
+            }
+
+            // Sección 3: Estado del equipo
+            if ($request->has('filtro_estadoequipo_id') && !empty($request->filtro_estadoequipo_id)) {
+                $query->where('equipos.estadoequipo_id', $request->filtro_estadoequipo_id);
+            } elseif ($request->has('estado_id') && !empty($request->estado_id)) {
+                $query->where('equipos.estadoequipo_id', $request->estado_id);
+            }
 
             // FILTRO POR ID ESPECÍFICO (consulta_id) - actúa como búsqueda exacta por ID
             if ($request->has('consulta_id') && !empty($request->consulta_id)) {
@@ -1389,19 +1412,27 @@ class EquipmentController extends ApiController
             // Sección 2: Ubicación Geográfica
             if ($request->has('filtro_zona') && !empty($request->filtro_zona)) {
                 $query->where('sedes.id', $request->filtro_zona);
+            } elseif ($request->has('sede_id') && !empty($request->sede_id)) {
+                $query->where('sedes.id', $request->sede_id);
             }
 
             if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar)) {
                 $query->where('equipos.servicio_id', $request->servicio_id_auxiliar);
+            } elseif ($request->has('servicio_id') && !empty($request->servicio_id)) {
+                $query->where('equipos.servicio_id', $request->servicio_id);
             }
 
             if ($request->has('area_id_auxiliar') && !empty($request->area_id_auxiliar)) {
                 $query->where('equipos.area_id', $request->area_id_auxiliar);
+            } elseif ($request->has('area_id') && !empty($request->area_id)) {
+                $query->where('equipos.area_id', $request->area_id);
             }
 
-            // Sección 3: Estado y Operación
+            // Sección 3: Estado del equipo
             if ($request->has('filtro_estadoequipo_id') && !empty($request->filtro_estadoequipo_id)) {
                 $query->where('equipos.estadoequipo_id', $request->filtro_estadoequipo_id);
+            } elseif ($request->has('estado_id') && !empty($request->estado_id)) {
+                $query->where('equipos.estadoequipo_id', $request->estado_id);
             }
 
             if ($request->has('filtro_estadom') && !empty($request->filtro_estadom)) {
@@ -1458,31 +1489,8 @@ class EquipmentController extends ApiController
                 });
             }
 
-            // Sección 5: Parámetros Temporales
-            if ($request->has('anio_plan') && !empty($request->anio_plan)) {
-                // Filtrar por fecha específica o año
-                $dateValue = $request->anio_plan;
-                if (strlen($dateValue) === 4) {
-                    // Si es solo año (4 dígitos)
-                    $query->whereYear('equipos.created_at', $dateValue);
-                } else {
-                    // Si es fecha completa
-                    $query->whereDate('equipos.created_at', $dateValue);
-                }
-            }
-
-            // Filtros adicionales de compatibilidad
-            if ($request->has('servicio_id') && !empty($request->servicio_id)) {
-                $query->where('equipos.servicio_id', $request->servicio_id);
-            }
-
-            if ($request->has('area_id') && !empty($request->area_id)) {
-                $query->where('equipos.area_id', $request->area_id);
-            }
-
-            if ($request->has('sede_id') && !empty($request->sede_id)) {
-                $query->where('sedes.id', $request->sede_id);
-            }
+            // anio_plan: filtro de plan de mantenimiento (NO filtrar por created_at)
+            // Se omite intencionalmente para no filtrar por año de creación del equipo
 
             if ($request->has('clasificacion_id') && !empty($request->clasificacion_id)) {
                 $query->where('equipos.cbiomedica_id', $request->clasificacion_id);

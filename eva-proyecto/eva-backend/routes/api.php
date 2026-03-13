@@ -4220,48 +4220,39 @@ Route::put('v1/planes-mantenimientos/{id}', function (Request $request, $id) {
 })->withoutMiddleware(['auth:sanctum']);
 
 Route::get('v1/equipos/filter-options', function () {
-    return response()->json([
-        'success' => true,
-        'data' => [
-            'servicios' => [
-                ['id' => 1, 'name' => 'UCI'],
-                ['id' => 2, 'name' => 'Urgencias'],
-                ['id' => 3, 'name' => 'Cirugía']
+    try {
+        $sedes = DB::table('sedes')->select('id', 'name')->orderBy('name')->get();
+        $servicios = DB::table('servicios')->select('id', 'name', 'sede_id')->orderBy('name')->get();
+        $areas = DB::table('areas')->select('id', 'name', 'servicio_id')->orderBy('name')->get();
+        $estados = DB::table('estadoequipos')->select('id', 'name')->orderBy('name')->get();
+        $clasificaciones = DB::table('cbiomedica')->select('id', 'name')->orderBy('name')->get();
+        $riesgos = DB::table('criesgo')->select('id', 'name')->orderBy('name')->get();
+        $propietarios = DB::table('propietarios')->select('id', 'nombre as name')->orderBy('nombre')->get();
+        $tipos = DB::table('tipos')->select('id', 'name')->orderBy('name')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'sedes' => $sedes,
+                'servicios' => $servicios,
+                'areas' => $areas,
+                'estados' => $estados,
+                'clasificaciones' => $clasificaciones,
+                'riesgos' => $riesgos,
+                'propietarios' => $propietarios,
+                'tipos_equipos' => $tipos,
+                'proveedores' => [],
             ],
-            'areas' => [
-                ['id' => 1, 'name' => 'Cuidados Intensivos'],
-                ['id' => 2, 'name' => 'Emergencias'],
-                ['id' => 3, 'name' => 'Quirófano']
-            ],
-            'sedes' => [
-                ['id' => 1, 'name' => 'Hospital Principal'],
-                ['id' => 2, 'name' => 'Hospital Auxiliar']
-            ],
-            'estados' => [
-                ['id' => 1, 'name' => 'Operativo'],
-                ['id' => 2, 'name' => 'En Mantenimiento'],
-                ['id' => 3, 'name' => 'Fuera de Servicio']
-            ],
-            'clasificaciones' => [
-                ['id' => 1, 'name' => 'I'],
-                ['id' => 2, 'name' => 'IIa'],
-                ['id' => 3, 'name' => 'IIb'],
-                ['id' => 4, 'name' => 'III']
-            ],
-            'riesgos' => [
-                ['id' => 1, 'name' => 'Bajo'],
-                ['id' => 2, 'name' => 'Medio'],
-                ['id' => 3, 'name' => 'Alto']
-            ],
-            'propietarios' => [
-                ['id' => 1, 'name' => 'Hospital'],
-                ['id' => 2, 'name' => 'Arrendado'],
-                ['id' => 3, 'name' => 'Comodato']
-            ],
-        ],
-        'message' => 'Opciones de filtros obtenidas exitosamente'
-    ]);
+            'message' => 'Opciones de filtros obtenidas exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al cargar opciones de filtros: ' . $e->getMessage()
+        ], 500);
+    }
 });
+
 
 Route::get('v1/equipos/estadisticas/medical-devices', function () {
     return response()->json([

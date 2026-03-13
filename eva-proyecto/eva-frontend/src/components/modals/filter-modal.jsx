@@ -42,20 +42,6 @@ export function FilterModal({
     filtro_zona: "",
     servicio_id_auxiliar: "",
     area_id_auxiliar: "",
-
-    // Sección 3: Estado y Operación
-    filtro_estadoequipo_id: "",
-    filtro_estadom: "",
-    proveedor_mantenimiento: "",
-
-    // Sección 4: Clasificación Técnica
-    tipo_id: "",
-    estado_id: "",
-    estado_id_cg: "",
-
-    // Sección 5: Parámetros Temporales
-    anio_plan: new Date().getFullYear(),
-    consulta_id: "",
   });
 
   // Estados para opciones de filtros
@@ -168,19 +154,10 @@ export function FilterModal({
       filtro_zona: "all",
       servicio_id_auxiliar: "all",
       area_id_auxiliar: "all",
-      filtro_estadoequipo_id: "all",
-      filtro_estadom: "all",
-      proveedor_mantenimiento: "all",
-      tipo_id: "all",
-      estado_id: "all",
-      estado_id_cg: "all",
-      anio_plan: new Date().getFullYear(),
-      consulta_id: "",
     };
 
     setFilters(clearedFilters);
 
-    // Llamar al callback del componente padre si existe
     if (onFiltersClear) {
       onFiltersClear();
     }
@@ -441,9 +418,6 @@ export function FilterModal({
                       handleFilterChange("servicio_id_auxiliar", value === "all" ? "" : value)
                     }
                     placeholder="Buscar servicio..."
-                    disabled={
-                      !filters.filtro_zona || filters.filtro_zona === "all"
-                    }
                   />
                 </div>
               </div>
@@ -457,7 +431,7 @@ export function FilterModal({
                 <div className="mt-1">
                   <SearchableSelect
                     options={[
-                      { id: "all", label: "Todas las áreas" },
+                      { id: "all", label: "Todas las \u00e1reas" },
                       ...filteredAreas.map((area) => ({
                         id: area.id.toString(),
                         label: area.name,
@@ -467,188 +441,9 @@ export function FilterModal({
                     onValueChange={(value) =>
                       handleFilterChange("area_id_auxiliar", value === "all" ? "" : value)
                     }
-                    placeholder="Buscar área..."
-                    disabled={
-                      !filters.servicio_id_auxiliar ||
-                      filters.servicio_id_auxiliar === "all"
-                    }
+                    placeholder="Buscar \u00e1rea..."
                   />
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECCIÓN 3: ESTADO Y OPERACIÓN */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-800 mb-4 border-b pb-2">
-              ⚙️ Estado y Operación
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <Label
-                  htmlFor="filtro_estadoequipo_id"
-                  className="text-sm font-medium"
-                >
-                  Estado del Equipo:
-                </Label>
-                <div className="mt-1">
-                  <SearchableSelect
-                    options={[
-                      { id: "all", label: "Todos los estados" },
-                      ...filterOptions.estados.map((estado) => ({
-                        id: estado.id.toString(),
-                        label: estado.name,
-                      }))
-                    ]}
-                    value={filters.filtro_estadoequipo_id || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("filtro_estadoequipo_id", value === "all" ? "" : value)
-                    }
-                    placeholder="Buscar estado..."
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="filtro_estadom" className="text-sm font-medium">
-                  Estado de Mantenimiento:
-                </Label>
-                <div className="mt-1">
-                  <SearchableSelect
-                    options={[
-                      { id: "all", label: "Todos los estados" },
-                      ...filterOptions.estados_mantenimiento.map((estado) => ({
-                        id: estado.id.toString(),
-                        label: estado.name,
-                      }))
-                    ]}
-                    value={filters.filtro_estadom || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("filtro_estadom", value === "all" ? "" : value)
-                    }
-                    placeholder="Buscar estado..."
-                  />
-                </div>
-              </div>
-              <div>
-                <Label
-                  htmlFor="proveedor_mantenimiento"
-                  className="text-sm font-medium"
-                >
-                  Proveedor de Mantenimiento:
-                </Label>
-                <div className="mt-1">
-                  <SearchableSelect
-                    options={[
-                      { id: "all", label: "Todos los proveedores" },
-                      ...filterOptions.proveedores.map((proveedor) => ({
-                        id: proveedor.id.toString(),
-                        label: proveedor.name,
-                      }))
-                    ]}
-                    value={filters.proveedor_mantenimiento || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("proveedor_mantenimiento", value === "all" ? "" : value)
-                    }
-                    placeholder="Buscar proveedor..."
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SECCIÓN 4: CLASIFICACIÓN TÉCNICA */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-800 mb-4 border-b pb-2">
-              🔧 Clasificación Técnica
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="tipo_id" className="text-sm font-medium">
-                  Tipo de Equipo:
-                </Label>
-                <div className="mt-1">
-                  <SearchableSelect
-                    options={[
-                      { id: "all", label: "Todos los tipos" },
-                      ...filterOptions.tipos_equipos.map((tipo) => ({
-                        id: tipo.id.toString(),
-                        label: tipo.name,
-                      }))
-                    ]}
-                    value={filters.tipo_id || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("tipo_id", value === "all" ? "" : value)
-                    }
-                    placeholder="Buscar tipo..."
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="estado_id" className="text-sm font-medium">
-                  Clasificación de Riesgo:
-                </Label>
-                <div className="mt-1">
-                  <SearchableSelect
-                    options={[
-                      { id: "all", label: "Todas las clasificaciones" },
-                      ...filterOptions.riesgos.map((riesgo) => ({
-                        id: riesgo.id.toString(),
-                        label: riesgo.name,
-                      }))
-                    ]}
-                    value={filters.estado_id || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("estado_id", value === "all" ? "" : value)
-                    }
-                    placeholder="Buscar clasificación..."
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="estado_id_cg" className="text-sm font-medium">
-                  Propietario:
-                </Label>
-                <div className="mt-1">
-                  <SearchableSelect
-                    options={[
-                      { id: "all", label: "Todos los propietarios" },
-                      ...filterOptions.propietarios.map((propietario) => ({
-                        id: propietario.id.toString(),
-                        label: propietario.name,
-                      }))
-                    ]}
-                    value={filters.estado_id_cg || "all"}
-                    onValueChange={(value) =>
-                      handleFilterChange("estado_id_cg", value === "all" ? "" : value)
-                    }
-                    placeholder="Buscar propietario..."
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="anio_plan" className="text-sm font-medium">
-                  Año del Plan:
-                </Label>
-                <Select
-                  value={filters.anio_plan.toString()}
-                  onValueChange={(value) =>
-                    handleFilterChange("anio_plan", parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar año..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from(
-                      { length: 10 },
-                      (_, i) => new Date().getFullYear() - i
-                    ).map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
