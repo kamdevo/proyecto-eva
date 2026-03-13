@@ -1351,7 +1351,8 @@ class EquipmentController extends ApiController
                 // Aplicar filtros de búsqueda solo si no se está buscando por ID específico
                 if (!empty($search)) {
                     $query->where(function ($q) use ($search) {
-                        $q->where('equipos.name', 'like', "%{$search}%")
+                        $q->where('equipos.id', 'like', "%{$search}%")
+                            ->orWhere('equipos.name', 'like', "%{$search}%")
                             ->orWhere('equipos.code', 'like', "%{$search}%")
                             ->orWhere('equipos.marca', 'like', "%{$search}%")
                             ->orWhere('equipos.modelo', 'like', "%{$search}%")

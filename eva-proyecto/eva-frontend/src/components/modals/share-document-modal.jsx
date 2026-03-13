@@ -33,11 +33,10 @@ export function ShareDocumentModal({
   // Estados del modal
   const [loading, setLoading] = useState(false);
   const [equipments, setEquipments] = useState([]);
-  const [searchId, setSearchId] = useState("");
-  const [searchSerie, setSearchSerie] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [sharing, setSharing] = useState(false);
   const [selectedEquipments, setSelectedEquipments] = useState(new Set());
-  
+
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -55,34 +54,30 @@ export function ShareDocumentModal({
       setTotalItems(0);
       setTotalPages(1);
       setCurrentPage(1);
-      setSearchId("");
-      setSearchSerie("");
+      setSearchTerm("");
     }
-  }, [open, currentPage, pageSize, searchId, searchSerie]);
+  }, [open, currentPage, pageSize, searchTerm]);
 
   const loadEquipments = async () => {
     try {
       setLoading(true);
-      
+
       const params = {
         page: currentPage,
         per_page: pageSize,
       };
 
       // Agregar filtros de búsqueda si existen
-      if (searchId.trim()) {
-        params.consulta_id = searchId.trim();
-      }
-      if (searchSerie.trim()) {
-        params.search = searchSerie.trim();
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
       }
 
       const response = await httpService.get('/v1/equipos/medical-devices-complete', { params });
-      
+
       if (response.data.success) {
         // Los equipos están en response.data.data.data
         const equipmentData = Array.isArray(response.data.data?.data) ? response.data.data.data : [];
-        
+
         // La paginación está en response.data.data
         const paginationData = response.data.data || {};
         const pagination = {
@@ -93,7 +88,7 @@ export function ShareDocumentModal({
           from: paginationData.from || 0,
           to: paginationData.to || 0
         };
-        
+
         // Usar equipmentData encontrado
         setEquipments(equipmentData);
         setTotalPages(pagination.last_page || 1);
@@ -119,8 +114,7 @@ export function ShareDocumentModal({
   };
 
   const handleClearSearch = () => {
-    setSearchId("");
-    setSearchSerie("");
+    setSearchTerm("");
     setCurrentPage(1);
   };
 
@@ -136,7 +130,7 @@ export function ShareDocumentModal({
 
   const handleSelectAll = () => {
     if (!Array.isArray(equipments)) return;
-    
+
     if (selectedEquipments.size === equipments.length) {
       setSelectedEquipments(new Set());
     } else {
@@ -160,14 +154,14 @@ export function ShareDocumentModal({
       );
 
       const results = await Promise.allSettled(promises);
-      
+
       const successful = results.filter(result => result.status === 'fulfilled').length;
       const failed = results.filter(result => result.status === 'rejected').length;
 
       if (successful > 0) {
         toast.success(`Documento compartido exitosamente con ${successful} equipo(s)`);
       }
-      
+
       if (failed > 0) {
         toast.error(`Error al compartir con ${failed} equipo(s)`);
       }
@@ -195,7 +189,7 @@ export function ShareDocumentModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[98vw] max-w-[1400px] max-h-[95vh] overflow-auto"
-      style={{width: "98vw", maxWidth: "1400px", maxHeight: "95vh", overflow: "auto"}}>
+        style={{ width: "98vw", maxWidth: "1400px", maxHeight: "95vh", overflow: "auto" }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-blue-700">
             <Share2 className="h-5 w-5" />
@@ -213,7 +207,7 @@ export function ShareDocumentModal({
                   {selectedDocument?.archivo || "Documento"}
                 </h3>
                 <p className="text-sm text-blue-700">
-                  Equipo origen: {sourceEquipment?.name || "Sin nombre"} 
+                  Equipo origen: {sourceEquipment?.name || "Sin nombre"}
                   {sourceEquipment?.code && ` (${sourceEquipment.code})`}
                 </p>
               </div>
@@ -222,35 +216,28 @@ export function ShareDocumentModal({
 
           {/* Filtros de búsqueda */}
           <div className="bg-gray-50 p-4 rounded-lg mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1">
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Buscar por ID:
+                  Buscador General (Nombre, Serie o ID):
                 </label>
-                <Input
-                  placeholder="Ingrese ID del equipo"
-                  value={searchId}
-                  onChange={(e) => setSearchId(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por nombre, serie, código de equipo o ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Buscar por Serie:
-                </label>
-                <Input
-                  placeholder="Ingrese serie del equipo"
-                  value={searchSerie}
-                  onChange={(e) => setSearchSerie(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button onClick={handleSearch} className="flex-1">
+              <div className="flex gap-2">
+                <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
                   <Search className="h-4 w-4 mr-2" />
-                  Buscar
+                  Buscar Equipos
                 </Button>
-                <Button variant="outline" onClick={handleClearSearch}>
+                <Button variant="outline" onClick={handleClearSearch} title="Limpiar búsqueda">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -345,9 +332,8 @@ export function ShareDocumentModal({
                       {Array.isArray(equipments) && equipments.map((equipment) => (
                         <tr
                           key={equipment.id}
-                          className={`hover:bg-gray-50 transition-colors ${
-                            selectedEquipments.has(equipment.id) ? 'bg-blue-50' : ''
-                          }`}
+                          className={`hover:bg-gray-50 transition-colors ${selectedEquipments.has(equipment.id) ? 'bg-blue-50' : ''
+                            }`}
                         >
                           <td className="px-4 py-3">
                             <Checkbox
