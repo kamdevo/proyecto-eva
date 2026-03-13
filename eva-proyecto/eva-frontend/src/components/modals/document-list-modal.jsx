@@ -139,61 +139,18 @@ export function DocumentListModal({
 
   // Manejar acciones de documentos
   const handleViewDocument = (doc) => {
-    // Crear un iframe temporal oculto para cargar el PDF y luego imprimir
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = doc.url_acceso;
-
-    document.body.appendChild(iframe);
-
-    iframe.onload = () => {
-      try {
-        // Intentar imprimir el contenido del iframe
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      } catch (error) {
-        // Si falla la impresión del iframe, abrir en nueva pestaña e imprimir
-        const printWindow = window.open(doc.url_acceso, "_blank");
-        if (printWindow) {
-          printWindow.onload = () => {
-            setTimeout(() => {
-              printWindow.print();
-            }, 500);
-          };
-        } else {
-          toast.error(
-            "No se pudo abrir el documento para imprimir. Verifique que no esté bloqueando ventanas emergentes."
-          );
-        }
-      }
-
-      // Limpiar el iframe después de un momento
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 2000);
-    };
-
-    iframe.onerror = () => {
-      // Si hay error cargando el iframe, intentar con ventana nueva
-      const printWindow = window.open(doc.url_acceso, "_blank");
-      if (printWindow) {
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-          }, 500);
-        };
-      } else {
-        toast.error("No se pudo abrir el documento para imprimir.");
-      }
-
-      // Limpiar el iframe
-      document.body.removeChild(iframe);
-    };
+    // Abrir el documento en una nueva pestaña para visualización directa
+    window.open(doc.url_acceso, "_blank", "noopener,noreferrer");
   };
 
   const handleDownloadDocument = (doc) => {
+    // Forzar la descarga agregando el parámetro download=1
+    const downloadUrl = doc.url_acceso.includes('?')
+      ? `${doc.url_acceso}&download=1`
+      : `${doc.url_acceso}?download=1`;
+
     const link = document.createElement("a");
-    link.href = doc.url_acceso;
+    link.href = downloadUrl;
     link.download = doc.archivo;
     document.body.appendChild(link);
     link.click();

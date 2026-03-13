@@ -11343,6 +11343,10 @@ Route::get('storage/equipos/archivos/{filename}', function($filename) {
             ], 404);
         }
 
+        if (request()->has('download') && request()->get('download') == '1') {
+            return response()->download($filePath, $filename);
+        }
+
         return response()->file($filePath);
     } catch (\Exception $e) {
         return response()->json([
@@ -15143,6 +15147,11 @@ Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id
         // Procesar archivo
         $fileName = null;
         if ($request->hasFile('file_cierre')) {
+            // Eliminar archivo anterior si existe
+            if ($ticket->file_cierre) {
+                Storage::disk('public')->delete('correctivos_generales/' . $ticket->file_cierre);
+            }
+
             $file = $request->file('file_cierre');
             $fileName = time() . '_cierre_' . $file->getClientOriginalName();
             // Guardar en disco 'public' explícitamente
