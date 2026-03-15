@@ -145,6 +145,11 @@ class CorrectivoGeneralController extends Controller
                 $query->whereDate('cg.created_at', '<=', $request->fecha_hasta);
             }
 
+            // Filtro por equipo_id (específico para Hoja de Vida/Consultas)
+            if ($request->filled('equipo_id')) {
+                $query->where('cg.equipo_id', $request->equipo_id);
+            }
+
             // Filtro por año
             if ($request->filled('anio') && $request->anio !== 'all') {
                 $query->whereYear('cg.created_at', $request->anio);
@@ -209,6 +214,20 @@ class CorrectivoGeneralController extends Controller
                         $total->whereNull('cg.fecha_diagnostico');
                         break;
                 }
+            }
+
+            // Filtros por rango de fechas para el total (NUEVO)
+            if ($request->filled('fecha_desde')) {
+                $total->whereDate('cg.created_at', '>=', $request->fecha_desde);
+            }
+            
+            if ($request->filled('fecha_hasta')) {
+                $total->whereDate('cg.created_at', '<=', $request->fecha_hasta);
+            }
+
+            // Filtro por equipo_id para el total (NUEVO)
+            if ($request->filled('equipo_id')) {
+                $total->where('cg.equipo_id', $request->equipo_id);
             }
 
             $totalCount = $total->count();

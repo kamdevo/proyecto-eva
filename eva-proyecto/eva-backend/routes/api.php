@@ -5388,10 +5388,16 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             $query->where('ordenes.reportante_id', $reportanteId);
         }
 
-        // Filtro por nombre de reportante (para "Gestión de Tickets")
+        // Filtro por reportante nombre (para "Gestión de Tickets")
         $reportanteNombre = $request->get('reportante_nombre');
         if (!empty($reportanteNombre)) {
             $query->where('reportante.nombre', 'like', "%{$reportanteNombre}%");
+        }
+
+        // Filtro por equipo_id (específico para Hoja de Vida/Consultas)
+        $equipoId = $request->get('equipo_id');
+        if (!empty($equipoId)) {
+            $query->where('ordenes.equipo_id', $equipoId);
         }
 
         // Mapear campos de ordenamiento del frontend al backend
