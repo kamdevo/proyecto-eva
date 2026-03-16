@@ -386,21 +386,7 @@ export default function ProfilePage() {
       </main>
       {/* END: MainContent */}
 
-      {/* BEGIN: FooterActions */}
-      <footer className="max-w-5xl mx-auto px-4 mt-4 mb-12">
-        <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-xl profile-card border border-gray-100">
-          <p className="text-sm text-gray-500 mb-4 sm:mb-0">Gestione sus datos de acceso y perfil institucional.</p>
-          <div className="flex gap-3">
-            <Button variant="ghost" className="px-6 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all border-none">
-              Cancelar
-            </Button>
-            <Button className="px-6 py-2 rounded-lg text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 transition-all">
-              Volver al Inicio
-            </Button>
-          </div>
-        </div>
-      </footer>
-      {/* END: FooterActions */}
+      
     </div>
   );
 }
