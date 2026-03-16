@@ -72,9 +72,24 @@ export function FilterModal({
   useEffect(() => {
     if (open) {
       loadFilterOptions();
-      // Inicializar con filtros actuales si existen
-      if (Object.keys(currentFilters).length > 0) {
-        setFilters((prev) => ({ ...prev, ...currentFilters }));
+      // Sincronizar con filtros actuales
+      const defaultFilters = {
+        filtro_code: "",
+        filtro_name: "",
+        filtro_serial: "",
+        filtro_marca: "",
+        filtro_modelo: "",
+        filtro_zona: "",
+        servicio_id_auxiliar: "",
+        area_id_auxiliar: "",
+      };
+      
+      // Si hay filtros aplicados, sobreescribir los valores por defecto
+      if (currentFilters && Object.keys(currentFilters).length > 0) {
+        setFilters({ ...defaultFilters, ...currentFilters });
+      } else {
+        // Si no hay filtros (limpiados), resetear a valores por defecto
+        setFilters(defaultFilters);
       }
     }
   }, [open, currentFilters]);

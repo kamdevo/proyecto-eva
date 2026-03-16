@@ -108,6 +108,7 @@ function IndustrialDevices() {
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
 
   // Estados para filtros avanzados
+  const [appliedFilters, setAppliedFilters] = useState({});
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
 
   // Function to export Parada de Equipo Industrial
@@ -174,9 +175,12 @@ function IndustrialDevices() {
     if (filters.search && filters.search.trim()) count++;
     if (filters.consulta_id && filters.consulta_id.trim()) count++;
     if (filters.anio_plan && filters.anio_plan.trim()) count++;
+    
+    // Contar filtros aplicados desde el modal
+    count += Object.keys(appliedFilters).length;
 
     setActiveFiltersCount(count);
-  }, [filters.search, filters.consulta_id, filters.anio_plan]);
+  }, [filters.search, filters.consulta_id, filters.anio_plan, appliedFilters]);
 
   // Debug filters changes
   useEffect(() => {
@@ -185,7 +189,26 @@ function IndustrialDevices() {
 
   // Función para limpiar todos los filtros
   const handleClearAllFilters = () => {
+    setAppliedFilters({});
     setActiveFiltersCount(0);
+    clearFilters();
+  };
+
+  // Función para aplicar filtros desde el modal
+  const handleFiltersApply = (newFilters) => {
+    setAppliedFilters(newFilters);
+    
+    // Actualizar filtros en el hook
+    updateFilters({
+      ...filters,
+      ...newFilters,
+      page: 1, // Resetear a primera página
+    });
+  };
+
+  // Función para limpiar filtros del modal
+  const handleFiltersClear = () => {
+    setAppliedFilters({});
     clearFilters();
   };
 
@@ -1061,6 +1084,9 @@ function IndustrialDevices() {
       <FilterModal
         open={filterModalOpen}
         onOpenChange={setFilterModalOpen}
+        onFiltersApply={handleFiltersApply}
+        onFiltersClear={handleFiltersClear}
+        currentFilters={appliedFilters}
         equipmentType="industrial"
       />
       <AddEquipmentModal

@@ -540,6 +540,8 @@ export function MedicalDevicesView() {
   const handleClearAllFilters = () => {
     setEquipmentId("");
     setDateFilter("");
+    setAppliedFilters({});
+    setActiveFiltersCount(0);
     clearFilters();
   };
 

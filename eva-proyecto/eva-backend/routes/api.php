@@ -1066,7 +1066,7 @@ Route::prefix('v1')->group(function () {
                     // Update equipment status to BAJA
                     DB::table('equipos')->where('id', $equipoId)->update([
                         'baja_id' => $bajaId,
-                        'estado' => 'BAJA'
+                        'status' => 0
                     ]);
                 }
             }
