@@ -33,7 +33,8 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
     pagination: equiposPagination,
     search: searchEquipos,
     changePage: changeEquiposPage,
-    refresh: fetchEquipos
+    refresh: fetchEquipos,
+    getFilteredIds
   } = useEquipment("biomedical");
 
   const [searchTerm, setSearchTerm] = useState("");

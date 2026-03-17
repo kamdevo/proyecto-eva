@@ -14676,6 +14676,9 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function
     Route::put('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'update']);
     Route::post('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'update']); // Para FormData con _method=PUT
     Route::delete('propietarios/{id}', [App\Http\Controllers\Api\PropietarioController::class, 'destroy']);
+    
+    // Ruta para Pisos
+    Route::get('piso', [App\Http\Controllers\Api\PisoController::class, 'index']);
 });
 
 // 4.2 CRUD Áreas - Sin autenticación (público)

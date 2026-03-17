@@ -23,80 +23,33 @@ export default function VistaAreasPrincipal() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [searchTerm, setSearchTerm] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
+  // Estados para datos reales
+  const [areasData, setAreasData] = useState([])
+  const [servicios, setServicios] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  // Datos de ejemplo para áreas
-  const areasData = [
-    {
-      id: 1,
-      nombre: "500KVA",
-      servicio: "ACONDICIONAMIENTO FISICO",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 2,
-      nombre: "600KVA",
-      servicio: "SUBESTACION",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 3,
-      nombre: "ACELERADOR LINEAL",
-      servicio: "RADIOTERAPIA",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 4,
-      nombre: "ALMACEN",
-      servicio: "LABORATORIO",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 5,
-      nombre: "AMBULANCIA 642",
-      servicio: "AMBULANCIA CARTAGO",
-      sede: "CARTAGO",
-      piso: "N/R",
-    },
-    {
-      id: 6,
-      nombre: "AMBULANCIA 643",
-      servicio: "AMBULANCIA CARTAGO",
-      sede: "CARTAGO",
-      piso: "N/R",
-    },
-    {
-      id: 7,
-      nombre: "ANFITEATRO",
-      servicio: "MORGUE",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 8,
-      nombre: "ANGIOGRAFIA",
-      servicio: "HEMODINAMIA",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 9,
-      nombre: "AUDITORIOS",
-      servicio: "COMUNICACIONES",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-    {
-      id: 10,
-      nombre: "BIENESTAR ESTUDIANTIL",
-      servicio: "COORDINACION ACADEMICA",
-      sede: "SEDE PRINCIPAL",
-      piso: "PISO1",
-    },
-  ]
+  // Cargar datos desde la API
+  const fetchAreas = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/areas`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setAreasData(data.data || [])
+        setServicios(data.servicios || [])
+      }
+    } catch (error) {
+      console.error('Error cargando áreas:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAreas()
+  }, [])
 
   const handleEdit = (area) => {
     setSelectedArea(area)
@@ -108,11 +61,11 @@ export default function VistaAreasPrincipal() {
     setIsDeleteModalOpen(true)
   }
 
-  const filteredData = areasData.filter(
+  const filteredData = (areasData || []).filter(
     (area) =>
-      area.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      area.servicio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      area.sede.toLowerCase().includes(searchTerm.toLowerCase()),
+      (area.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (area.servicio_nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (area.sede_nombre || "").toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const totalItems = filteredData.length
@@ -245,30 +198,30 @@ export default function VistaAreasPrincipal() {
                     >
                       <TableCell className="font-medium text-sm px-2 lg:px-4">
                         <div className="flex flex-col">
-                          <span className="font-semibold">{area.nombre}</span>
+                          <span className="font-semibold">{area.name}</span>
                           {/* Información adicional en móvil */}
                           <div className="sm:hidden text-xs text-gray-500 mt-1 space-y-1">
-                            <div>Servicio: {area.servicio}</div>
+                            <div>Servicio: {area.servicio_nombre}</div>
                             <div className="flex items-center space-x-2">
                               <Badge variant="outline" className="text-xs">
-                                {area.sede}
+                                {area.sede_nombre}
                               </Badge>
-                              <span>• {area.piso}</span>
+                              <span>• {area.piso_nombre}</span>
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm px-2 lg:px-4 hidden sm:table-cell">
-                        <div className="max-w-[200px] truncate" title={area.servicio}>
-                          {area.servicio}
+                        <div className="max-w-[200px] truncate" title={area.servicio_nombre}>
+                          {area.servicio_nombre}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm px-2 lg:px-4 hidden md:table-cell">
                         <Badge variant="outline" className="text-xs">
-                          {area.sede}
+                          {area.sede_nombre}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm px-2 lg:px-4 hidden lg:table-cell">{area.piso}</TableCell>
+                      <TableCell className="text-sm px-2 lg:px-4 hidden lg:table-cell">{area.piso_nombre}</TableCell>
                       <TableCell className="text-center px-2 lg:px-4">
                         <div className="flex justify-center space-x-1">
                           <Button
@@ -365,11 +318,27 @@ export default function VistaAreasPrincipal() {
       </div>
 
       {/* Modales */}
-      <UIModalAgregarArea isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <UIModalAgregarArea 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        servicios={servicios}
+        onSuccess={fetchAreas}
+      />
 
-      <UIModalEditarArea isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} area={selectedArea} />
+      <UIModalEditarArea 
+        isOpen={isEditModalOpen} 
+        onClose={() => setIsEditModalOpen(false)} 
+        area={selectedArea} 
+        servicios={servicios}
+        onSuccess={fetchAreas}
+      />
 
-      <UIModalEliminarArea isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} area={selectedArea} />
+      <UIModalEliminarArea 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+        area={selectedArea} 
+        onSuccess={fetchAreas}
+      />
     </div>
   )
 }

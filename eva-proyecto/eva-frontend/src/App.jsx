@@ -32,6 +32,7 @@ const ControlPanel = lazy(() => import("./components/control-panel"));
 const VistaAreasPrincipal = lazy(() => import("./components/vista-areas-principal"));
 const VistaPropietariosPrincipal = lazy(() => import("./components/vista-propietarios-principal"));
 const VistaServiciosPrincipal = lazy(() => import("./components/vista-servicios-principal"));
+const VistaTiposMantenimiento = lazy(() => import("./components/vista-tipos-mantenimiento"));
 const Usuarios = lazy(() => import("./components/Usuarios"));
 const IndustrialDevicesView = lazy(() => import("./components/IndustrialDevices"));
 const GestionTickets = lazy(() => import("./components/GestionTickets"));
@@ -312,6 +313,14 @@ function AppContent() {
                   <AdminRoute>
                     <Usuarios />
                   </AdminRoute>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path={"/config/tipos-mantenimiento"}
+              element={
+                <ProtectedRoute>
+                  <VistaTiposMantenimiento />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { Button } from "../ui/button"
@@ -8,6 +6,7 @@ import { Label } from "../ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Edit } from "lucide-react"
 import { toast } from "sonner"
+import SearchableSelect from "../ui/searchable-select"
 
 export default function UIModalEditarArea({ isOpen, onClose, area, servicios = [], onSuccess }) {
   const [formData, setFormData] = useState({
@@ -18,6 +17,31 @@ export default function UIModalEditarArea({ isOpen, onClose, area, servicios = [
   })
   
   const [loading, setLoading] = useState(false)
+  const [pisos, setPisos] = useState([])
+  const [loadingPisos, setLoadingPisos] = useState(false)
+
+  // Cargar pisos desde la API
+  useEffect(() => {
+    if (isOpen) {
+      fetchPisos()
+    }
+  }, [isOpen])
+
+  const fetchPisos = async () => {
+    try {
+      setLoadingPisos(true)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/piso`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setPisos(data.data.data || data.data || [])
+      }
+    } catch (error) {
+      console.error('Error cargando pisos:', error)
+    } finally {
+      setLoadingPisos(false)
+    }
+  }
 
   useEffect(() => {
     if (area && isOpen) {
@@ -35,7 +59,7 @@ export default function UIModalEditarArea({ isOpen, onClose, area, servicios = [
     setLoading(true)
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://api.eva2.huv.gov.co/api'}/v1/areas/${area.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/areas/${area.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -66,6 +90,12 @@ export default function UIModalEditarArea({ isOpen, onClose, area, servicios = [
       [field]: value,
     }))
   }
+
+  // Transformar servicios para SearchableSelect - USAR id NO value
+  const serviciosOptions = (servicios || []).map(s => ({
+    id: s.id?.toString() || '',
+    name: s.name || ''
+  }))
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -98,22 +128,12 @@ export default function UIModalEditarArea({ isOpen, onClose, area, servicios = [
               <Label htmlFor="servicio_id" className="text-sm font-medium text-gray-700">
                 Servicio al que pertenece *
               </Label>
-              <Select 
-                value={formData.servicio_id} 
-                onValueChange={(value) => handleInputChange("servicio_id", value)}
-                required
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccionar servicio..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {servicios.map((servicio) => (
-                    <SelectItem key={servicio.id} value={servicio.id.toString()}>
-                      {servicio.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={serviciosOptions}
+                placeholder="Seleccionar servicio..."
+                value={formData.servicio_id}
+                onChange={(value) => handleInputChange("servicio_id", value)}
+              />
             </div>
 
             <div className="space-y-2">
@@ -125,14 +145,14 @@ export default function UIModalEditarArea({ isOpen, onClose, area, servicios = [
                 onValueChange={(value) => handleInputChange("piso_id", value)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccionar piso" />
+                  <SelectValue placeholder={loadingPisos ? "Cargando pisos..." : "Seleccionar piso"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">PISO 1</SelectItem>
-                  <SelectItem value="2">PISO 2</SelectItem>
-                  <SelectItem value="3">PISO 3</SelectItem>
-                  <SelectItem value="4">PISO 4</SelectItem>
-                  <SelectItem value="5">PISO 5</SelectItem>
+                  {pisos.map((piso) => (
+                    <SelectItem key={piso.id} value={piso.id.toString()}>
+                      {piso.name || piso.nombre}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

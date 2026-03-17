@@ -199,6 +199,7 @@ const AppSidebar = () => {
         { label: "SERVICIOS", href: "/config/servicios" },
         { label: "CONTACTOS", href: "/config/contactos" },
         { label: "AREAS", href: "/config/areas" },
+        { label: "T. MANTENIMIENTOS", href: "/config/tipos-mantenimiento" },
       ],
     }] : []),
     // Only show admin module for users with admin permissions (superadmin + admin)
