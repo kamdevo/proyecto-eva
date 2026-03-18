@@ -3526,6 +3526,14 @@ Route::post('v1/crear-ticket', function (Request $request) {
         if (!empty($request->serie_equipo) && $request->serie_equipo !== null) {
             $ticketData['serie_equipo'] = $request->serie_equipo;
         }
+
+        // ✅ NUEVOS CAMPOS - Relación con Tipos de Mantenimiento (Industrial)
+        if (!empty($request->tipo_mantenimiento_id)) {
+            $ticketData['tipo_mantenimiento_id'] = $request->tipo_mantenimiento_id;
+        }
+        if (!empty($request->subcategoria_mantenimiento_id)) {
+            $ticketData['subcategoria_mantenimiento_id'] = $request->subcategoria_mantenimiento_id;
+        }
         
         // ✅ CAMPOS reportante_email y reportante_nombre NO EXISTEN en tabla ordenes - OMITIR
         
@@ -5765,6 +5773,8 @@ Route::get('v1/gestion-tickets/{id}', function($id) {
             ->leftJoin('usuarios as tecnico_diagnostico', 'ordenes.tecnico_diagnostico', '=', 'tecnico_diagnostico.id')
             ->leftJoin('usuarios as tecnico_cierre', 'ordenes.tecnico_cierre', '=', 'tecnico_cierre.id')
             ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
+            ->leftJoin('tipos_mantenimientos as tm_tipo', 'ordenes.tipo_mantenimiento_id', '=', 'tm_tipo.id')
+            ->leftJoin('tipos_mantenimientos as tm_sub', 'ordenes.subcategoria_mantenimiento_id', '=', 'tm_sub.id')
             ->select(
                 'ordenes.*',
                 'subprocesos.nombre as origen',
@@ -5791,7 +5801,9 @@ Route::get('v1/gestion-tickets/{id}', function($id) {
                 'tecnico_diagnostico.apellido as apellido_tecnico_diagnostico',
                 'tecnico_cierre.nombre as nombre_tecnico_cierre',
                 'tecnico_cierre.apellido as apellido_tecnico_cierre',
-                'estadoequipos.name as estado_equipo_nombre'
+                'estadoequipos.name as estado_equipo_nombre',
+                'tm_tipo.nombre as tipo_mantenimiento_nombre',
+                'tm_sub.nombre as subcategoria_mantenimiento_nombre'
             )
             ->where('ordenes.id', $id)
             ->first();
@@ -15534,6 +15546,12 @@ Route::put('v1/contingencias/{id}/cerrar', function($id) {
 // NOTA: Los datos de capacitaciones y movimientos ahora se incluyen
 // en el endpoint v1/equipos/{id}/complete-info del EquipmentController
 // No se necesitan endpoints separados
+
+// TIPOS DE MANTENIMIENTO
+Route::get('v1/tipos-mantenimiento', [App\Http\Controllers\Api\TipoMantenimientoController::class, 'index']);
+Route::post('v1/tipos-mantenimiento', [App\Http\Controllers\Api\TipoMantenimientoController::class, 'store']);
+Route::put('v1/tipos-mantenimiento/{id}', [App\Http\Controllers\Api\TipoMantenimientoController::class, 'update']);
+Route::delete('v1/tipos-mantenimiento/{id}', [App\Http\Controllers\Api\TipoMantenimientoController::class, 'destroy']);
 
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');

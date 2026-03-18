@@ -505,6 +505,18 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 block">TIPO DE ARREGLO *</label>
                   <p className="text-sm text-gray-900 mt-2 uppercase">{ticket.tipo || ticket.origen || 'Datos no disponibles'}</p>
                 </div>
+                {ticket.tipo_mantenimiento_nombre && (
+                  <div className="border-l-2 border-orange-400 pl-3 rounded-lg">
+                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wide border-b border-orange-300 pb-1 mb-2 block">Categoría Mantenimiento</label>
+                    <p className="text-sm text-gray-900 mt-2 font-medium">{ticket.tipo_mantenimiento_nombre}</p>
+                  </div>
+                )}
+                {ticket.subcategoria_mantenimiento_nombre && (
+                  <div className="border-l-2 border-orange-400 pl-3 rounded-lg">
+                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wide border-b border-orange-300 pb-1 mb-2 block">Subcategoría</label>
+                    <p className="text-sm text-gray-900 mt-2 font-medium">{ticket.subcategoria_mantenimiento_nombre}</p>
+                  </div>
+                )}
                 <div className="border-l-2 border-gray-400 pl-3 rounded-lg">
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 block">Última Localización *</label>
                   <p className="text-sm text-gray-900 mt-2">{ticket.localizacion_actual || 'N/A'}</p>

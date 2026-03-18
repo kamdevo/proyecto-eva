@@ -389,6 +389,26 @@ const TicketPDF = ({ ticket }) => {
               <Text style={styles.fieldLabel}>Estado Actual del Equipo *</Text>
               <Text style={styles.fieldValue}>{safeValue(ticket.estado_equipo_nombre)}</Text>
             </View>
+            {ticket.tipo_mantenimiento_nombre && (
+              <View style={[styles.field, { borderLeftColor: '#F97316' }]}>
+                <Text style={[styles.fieldLabel, { color: '#EA580C', borderBottomColor: '#FFEDD5' }]}>
+                  Categoría Mantenimiento
+                </Text>
+                <Text style={[styles.fieldValue, { fontWeight: 'bold' }]}>
+                  {ticket.tipo_mantenimiento_nombre}
+                </Text>
+              </View>
+            )}
+            {ticket.subcategoria_mantenimiento_nombre && (
+              <View style={[styles.field, { borderLeftColor: '#F97316' }]}>
+                <Text style={[styles.fieldLabel, { color: '#EA580C', borderBottomColor: '#FFEDD5' }]}>
+                  Subcategoría
+                </Text>
+                <Text style={[styles.fieldValue, { fontWeight: 'bold' }]}>
+                  {ticket.subcategoria_mantenimiento_nombre}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 

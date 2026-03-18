@@ -70,6 +70,11 @@ export default function HospitalTicketModal({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
 
+  // Estados para tipos de mantenimiento (Industrial)
+  const [tiposMantenimiento, setTiposMantenimiento] = useState([]);
+  const [loadingMantenimiento, setLoadingMantenimiento] = useState(false);
+  const [subcategoriasDisponibles, setSubcategoriasDisponibles] = useState([]);
+
   const [formData, setFormData] = useState({
     // Campos obligatorios exactos - ahora usando IDs para los searchables
     sede: "",
@@ -88,139 +93,36 @@ export default function HospitalTicketModal({
     descripcionProblema: "",
     reportanteNombre: "", // Nombre del reportante si es "otro"
     evidencias: [],
+    // Nuevos campos para Industrial
+    tipoMantenimientoId: "",
+    subcategoriaMantenimientoId: "",
   });
 
   // Funciones para cargar datos de APIs
-  const fetchSedes = async () => {
+  const loadFilterOptions = async () => {
     setLoadingSedes(true);
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/sedes`
-      );
-      if (response.data?.success && response.data?.data) {
-        setSedes(
-          response.data.data.map((sede) => ({
-            id: sede.id,
-            nombre: sede.name || sede.nombre,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Error al cargar sedes:", error);
-      // Fallback con datos por defecto
-      setSedes([
-        { id: 1, nombre: "SEDE PRINCIPAL" },
-        { id: 2, nombre: "SEDE NORTE" },
-      ]);
-    } finally {
-      setLoadingSedes(false);
-    }
-  };
-
-  const fetchCentrosCosto = async () => {
-    setLoadingCentros(true);
-    try {
-      // Usar el mismo endpoint que LoginForm
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/centros`
-      );
-      if (response.data?.success && response.data?.data) {
-        // Formatear igual que LoginForm
-        setCentrosCosto(
-          response.data.data.map((centro) => ({
-            id: centro.id.toString(),
-            nombre: centro.code
-              ? `${centro.code} - ${centro.name}`
-              : centro.name,
-            codigo: centro.code || "",
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Error al cargar centros de costo:", error);
-      // Fallback con datos igual que LoginForm
-      setCentrosCosto([
-        { id: "1", nombre: "Centro de Costo 1 - Administración" },
-        { id: "2", nombre: "Centro de Costo 2 - Quirófanos" },
-        { id: "3", nombre: "Centro de Costo 3 - UCI" },
-        { id: "4", nombre: "Centro de Costo 4 - Emergencias" },
-        { id: "5", nombre: "Centro de Costo 5 - Laboratorio" },
-        { id: "6", nombre: "Centro de Costo 6 - Imagenología" },
-        { id: "7", nombre: "Centro de Costo 7 - Farmacia" },
-        { id: "8", nombre: "Centro de Costo 8 - Nutrición" },
-        { id: "9", nombre: "Centro de Costo 9 - Fisioterapia" },
-        { id: "10", nombre: "Centro de Costo 10 - Trabajo Social" },
-      ]);
-    } finally {
-      setLoadingCentros(false);
-    }
-  };
-
-  const fetchServicios = async () => {
     setLoadingServicios(true);
-    try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/servicios`
-      );
-      if (response.data?.success && response.data?.data) {
-        setServicios(
-          response.data.data.map((servicio) => ({
-            id: servicio.id,
-            nombre: servicio.name || servicio.nombre,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Error al cargar servicios:", error);
-      // Fallback con datos por defecto
-      setServicios([
-        { id: 1, nombre: "ACONDICIONAMIENTO FISICO" },
-        { id: 2, nombre: "RADIOTERAPIA" },
-        { id: 3, nombre: "MEDICINA INTERNA" },
-        { id: 4, nombre: "PEDIATRIA" },
-        { id: 5, nombre: "GINECOBSTETRICIA" },
-        { id: 6, nombre: "RADIOLOGIA" },
-        { id: 7, nombre: "CIRUGIA" },
-        { id: 8, nombre: "URGENCIAS" },
-        { id: 9, nombre: "UCI ADULTOS" },
-        { id: 10, nombre: "LABORATORIO CLINICO" },
-      ]);
-    } finally {
-      setLoadingServicios(false);
-    }
-  };
-
-  const fetchAreas = async () => {
     setLoadingAreas(true);
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/areas`
-      );
+      const response = await httpService.get("/v1/equipos/filter-options");
       if (response.data?.success && response.data?.data) {
-        setAreas(
-          response.data.data.map((area) => ({
-            id: area.id,
-            nombre: area.name || area.nombre,
-            servicio_id: area.servicio_id, // ✅ Agregar servicio_id para filtrar
-          }))
-        );
+        const data = response.data.data;
+        // Transformar los datos al formato que usa SearchableSelect (con 'nombre')
+        setSedes((data.sedes || []).map(s => ({ ...s, nombre: s.name })));
+        setServicios((data.servicios || []).map(s => ({ ...s, nombre: s.name })));
+        setAreas((data.areas || []).map(a => ({ ...a, nombre: a.name })));
+        
+        // Si hay empresas en 'filter-options', también las cargamos
+        if (data.proveedores) {
+          setEmpresas(data.proveedores.map(p => ({ ...p, id: p.id.toString(), nombre: p.name })));
+        }
       }
     } catch (error) {
-      console.error("Error al cargar áreas:", error);
-      // Fallback con datos por defecto
-      setAreas([
-        { id: 1, nombre: "CONSULTA EXTERNA" },
-        { id: 2, nombre: "HOSPITALIZACION" },
-        { id: 3, nombre: "URGENCIAS" },
-        { id: 4, nombre: "UCI" },
-        { id: 5, nombre: "QUIROFANOS" },
-        { id: 6, nombre: "DIAGNOSTICO" },
-        { id: 7, nombre: "LABORATORIO" },
-        { id: 8, nombre: "FARMACIA" },
-        { id: 9, nombre: "ADMINISTRACION" },
-        { id: 10, nombre: "MANTENIMIENTO" },
-      ]);
+      console.error("Error al cargar opciones de filtros:", error);
+      toast.error("Error al cargar ubicaciones y servicios");
     } finally {
+      setLoadingSedes(false);
+      setLoadingServicios(false);
       setLoadingAreas(false);
     }
   };
@@ -228,9 +130,7 @@ export default function HospitalTicketModal({
   const fetchEmpresas = async () => {
     setLoadingEmpresas(true);
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/empresas`
-      );
+      const response = await httpService.get("/v1/empresas");
       if (response.data?.success && response.data?.data) {
         setEmpresas(
           response.data.data.map((empresa) => ({
@@ -257,16 +157,44 @@ export default function HospitalTicketModal({
     }
   };
 
+  const fetchTiposMantenimiento = async () => {
+    setLoadingMantenimiento(true);
+    try {
+      console.log("🌐 [TICKETS] Cargando tipos de mantenimiento...");
+      const response = await httpService.get("/v1/tipos-mantenimiento");
+      if (response.data?.success && response.data?.data) {
+        console.log("✅ [TICKETS] Tipos de mantenimiento cargados:", response.data.data.length);
+        setTiposMantenimiento(response.data.data);
+      } else {
+        console.warn("⚠️ [TICKETS] Respuesta inesperada del servidor:", response.data);
+      }
+    } catch (error) {
+      console.error("❌ [TICKETS] Error al cargar tipos de mantenimiento:", error);
+    } finally {
+      setLoadingMantenimiento(false);
+    }
+  };
+
   // useEffect para cargar datos al abrir el modal
   useEffect(() => {
     if (isOpen) {
-      fetchSedes();
-      fetchServicios();
-      fetchAreas();
+      loadFilterOptions();
+      // Solo cargamos empresas si no vinieron en filter-options
+      if (empresas.length === 0) {
+        fetchEmpresas();
+      }
       
-      // Autocompletar fecha actual
+      if (ticketType === "industrial") {
+        fetchTiposMantenimiento();
+      }
+      
+      // Autocompletar fecha actual y tipo de arreglo
       const today = new Date().toISOString().split('T')[0];
-      setFormData(prev => ({ ...prev, fecha: today }));
+      setFormData(prev => ({ 
+        ...prev, 
+        fecha: today,
+        ...(ticketType === "biomedico" ? { tipoArreglo: "BIOMEDICO" } : {})
+      }));
       
       // Autocompletar datos del usuario actual
       const user = authService.getStoredUser();
@@ -362,6 +290,19 @@ export default function HospitalTicketModal({
     }));
   };
 
+  // Manejar cambio de tipo de mantenimiento para cargar subcategorías
+  const handleTipoMantenimientoChange = (value) => {
+    handleInputChange("tipoMantenimientoId", value);
+    handleInputChange("subcategoriaMantenimientoId", ""); // Reset subcategoria
+    
+    const selected = tiposMantenimiento.find(t => t.id.toString() === value.toString());
+    if (selected && selected.subcategories) {
+      setSubcategoriasDisponibles(selected.subcategories);
+    } else {
+      setSubcategoriasDisponibles([]);
+    }
+  };
+
   const handleSubmit = async () => {
     // Detectar campos completados
     const filledFields = [];
@@ -378,6 +319,13 @@ export default function HospitalTicketModal({
     if (filledFields.length === 0) {
       toast.error("Creación cancelada", {
         description: "No se completó ningún campo"
+      });
+      return;
+    }
+
+    if (!formData.descripcionProblema || formData.descripcionProblema.trim().length < 30) {
+      toast.error("Descripción muy corta", {
+        description: "La descripción del problema debe tener un mínimo de 30 caracteres."
       });
       return;
     }
@@ -475,6 +423,8 @@ export default function HospitalTicketModal({
         usuario_final_id: currentUser?.id || currentUser?.user_id || 1,
         trabajo_id: 1,
         listado_industrial_id: 1,
+        tipo_mantenimiento_id: formData.tipoMantenimientoId || null,
+        subcategoria_mantenimiento_id: formData.subcategoriaMantenimientoId || null,
       };
 
       console.log("📤 Enviando ticket al backend:", ticketData);
@@ -687,7 +637,12 @@ export default function HospitalTicketModal({
                   placeholder="Seleccionar sede..."
                   options={sedes}
                   value={formData.sede}
-                  onValueChange={(value) => handleInputChange("sede", value)}
+                  onValueChange={(value) => {
+                    handleInputChange("sede", value);
+                    // ✅ Limpiar servicio y área cuando cambie la sede
+                    handleInputChange("servicio", "");
+                    handleInputChange("area", "");
+                  }}
                   loading={loadingSedes}
                   className="h-9 text-sm"
                 />
@@ -698,7 +653,14 @@ export default function HospitalTicketModal({
                 </Label>
                 <SearchableSelect
                   placeholder="Seleccionar servicio..."
-                  options={servicios}
+                  options={
+                    formData.sede
+                      ? servicios.filter(
+                          (servicio) =>
+                            servicio.sede_id?.toString() === formData.sede.toString()
+                        )
+                      : servicios
+                  }
                   value={formData.servicio}
                   onValueChange={(value) => {
                     handleInputChange("servicio", value);
@@ -706,6 +668,7 @@ export default function HospitalTicketModal({
                     handleInputChange("area", "");
                   }}
                   loading={loadingServicios}
+                  disabled={!formData.sede}
                   className="h-9 text-sm"
                 />
               </div>
@@ -718,7 +681,7 @@ export default function HospitalTicketModal({
                   options={
                     formData.servicio
                       ? areas.filter(
-                          (area) => area.servicio_id?.toString() === formData.servicio
+                          (area) => area.servicio_id?.toString() === formData.servicio.toString()
                         )
                       : areas
                   }
@@ -886,6 +849,7 @@ export default function HospitalTicketModal({
                     <Select
                       value={formData.tipoArreglo}
                       onValueChange={(value) => handleInputChange("tipoArreglo", value)}
+                      disabled={ticketType === "biomedico"}
                     >
                       <SelectTrigger className="h-9 text-sm">
                         <SelectValue placeholder="Seleccionar tipo" />
@@ -902,6 +866,46 @@ export default function HospitalTicketModal({
               </div>
             )}
           </div>
+
+            {/* Campos de Tipo de Mantenimiento para Industrial */}
+            {ticketType === "industrial" && (
+              <div className="mt-6 border-t pt-4">
+                <h3 className="text-sm font-semibold text-orange-700 mb-4 flex items-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                  Categorización de Mantenimiento (Industrial)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Categoría de Mantenimiento
+                    </Label>
+                    <SearchableSelect
+                      placeholder="Seleccionar tipo..."
+                      options={tiposMantenimiento.map(t => ({ id: t.id, nombre: t.nombre }))}
+                      value={formData.tipoMantenimientoId}
+                      onValueChange={handleTipoMantenimientoChange}
+                      loading={loadingMantenimiento}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  
+                  {subcategoriasDisponibles.length > 0 && (
+                    <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Subcategoría
+                      </Label>
+                      <SearchableSelect
+                        placeholder="Seleccionar subcategoría..."
+                        options={subcategoriasDisponibles.map(s => ({ id: s.id, nombre: s.nombre }))}
+                        value={formData.subcategoriaMantenimientoId}
+                        onValueChange={(value) => handleInputChange("subcategoriaMantenimientoId", value)}
+                        className="h-9 text-sm border-orange-200 focus:border-orange-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
           {/* Descripción del Problema */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
@@ -922,8 +926,8 @@ export default function HospitalTicketModal({
                 placeholder="Describa el problema del equipo de manera detallada..."
                 className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full resize-none"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.descripcionProblema.length} caracteres
+              <p className={`text-xs mt-1 ${formData.descripcionProblema.trim().length < 30 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                {formData.descripcionProblema.length} caracteres (mínimo 30)
               </p>
             </div>
           </div>

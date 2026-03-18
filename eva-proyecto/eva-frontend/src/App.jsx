@@ -320,7 +320,9 @@ function AppContent() {
               path={"/config/tipos-mantenimiento"}
               element={
                 <ProtectedRoute>
-                  <VistaTiposMantenimiento />
+                  <AdminRoute allowAdvanced={true}>
+                    <VistaTiposMantenimiento />
+                  </AdminRoute>
                 </ProtectedRoute>
               }
             />

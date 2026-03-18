@@ -184,12 +184,12 @@ export function MedicalDevicesView() {
     const toastId = 'export-equipment-list';
     try {
       toast.loading('Exportando listado de equipos biomédicos...', { id: toastId });
-      
+
       const response = await httpService.get('/v1/export/equipment-list', {
         responseType: 'blob',
         params: { type: 'biomedical' }
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -198,7 +198,7 @@ export function MedicalDevicesView() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
       toast.success('Listado de equipos exportado exitosamente', { id: toastId });
     } catch (err) {
       console.error('❌ Error exportando listado de equipos:', err);
@@ -209,20 +209,20 @@ export function MedicalDevicesView() {
   // Handle opening maintenance documents - PREVENTIVO
   const handleOpenMaintenanceDocument = async (equipmentId) => {
     try {
-      
+
       // Casos específicos conocidos con archivos preventivos
       const equiposConocidos = {
         5119: 'SK00602904-PM.pdf', // BOMBA DE INFUSION
         // Agregar más equipos según se encuentren
       };
-      
+
       if (equiposConocidos[equipmentId]) {
         const knownFile = equiposConocidos[equipmentId];
         const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${knownFile}`;
         window.open(fileUrl, "_blank");
         return;
       }
-      
+
       // Usar endpoint de mantenimientos ejecutados (no planes)
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/mantenimientos-ejecutados?equipo_id=${equipmentId}&per_page=100`,
@@ -242,7 +242,7 @@ export function MedicalDevicesView() {
 
       // Buscar mantenimientos ejecutados con archivos
       let maintenanceRecords = [];
-      
+
       if (data.success && data.data) {
         if (Array.isArray(data.data.data)) {
           maintenanceRecords = data.data.data;
@@ -262,21 +262,21 @@ export function MedicalDevicesView() {
             const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
             return dateB.getTime() - dateA.getTime();
           });
-        
+
         if (recordsWithFiles.length > 0) {
           const latestMaintenance = recordsWithFiles[0];
 
           // Abrir el documento directamente
           const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${latestMaintenance.file}`;
-          
+
           window.open(fileUrl, "_blank");
           return;
         }
       }
-      
+
       // Si no se encontró ningún archivo
       toast.warning("No se encontraron documentos de mantenimiento preventivo para este equipo");
-      
+
     } catch (error) {
       console.error("❌ Error al abrir documento de mantenimiento preventivo:", error);
       toast.error(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
@@ -309,18 +309,17 @@ export function MedicalDevicesView() {
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;
-      a.download = `Parada_Equipo_Biomedico_${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
+      a.download = `Parada_Equipo_Biomedico_${new Date().toISOString().split("T")[0]
+        }.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('Parada de Equipo Biomédico exportada exitosamente', { id: toastId });
     } catch (error) {
       console.error("❌ [EXPORT] Error exportando parada de equipo:", error);
-      
+
       if (error.code === 'ECONNABORTED') {
         toast.error('La exportación está tardando demasiado. Intenta más tarde.', { id: toastId });
       } else {
@@ -332,11 +331,11 @@ export function MedicalDevicesView() {
   // Function to handle calibration document opening
   const handleOpenCalibrationDocument = async (equipmentId) => {
     try {
-      
+
       // Try to get calibration data for this equipment
       let response;
       const authToken = localStorage.getItem("eva_auth_token") || localStorage.getItem("auth_token");
-      
+
       if (authToken) {
         response = await httpService.get(`/v1/equipos/${equipmentId}/calibraciones`);
       } else {
@@ -347,11 +346,11 @@ export function MedicalDevicesView() {
             "Content-Type": "application/json",
           },
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        
+
         const publicData = await response.json();
         if (publicData && publicData.length > 0) {
           const calibration = publicData[0];
@@ -387,11 +386,11 @@ export function MedicalDevicesView() {
   // Function to handle corrective document opening
   const handleOpenCorrectiveDocument = async (equipmentId) => {
     try {
-      
+
       // Try to get corrective data for this equipment
       let response;
       const authToken = localStorage.getItem("eva_auth_token") || localStorage.getItem("auth_token");
-      
+
       if (authToken) {
         response = await httpService.get(`/v1/equipos/${equipmentId}/correctivos`);
       } else {
@@ -402,11 +401,11 @@ export function MedicalDevicesView() {
             "Content-Type": "application/json",
           },
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        
+
         const publicData = await response.json();
         if (publicData && publicData.length > 0) {
           const corrective = publicData[0];
@@ -701,11 +700,10 @@ export function MedicalDevicesView() {
               {loading
                 ? "Cargando equipos médicos..."
                 : filters.consulta_id
-                ? devices.length > 0
-                  ? `✅ Equipo encontrado con ID: ${filters.consulta_id}`
-                  : `❌ No se encontró equipo con ID: ${filters.consulta_id}`
-                : `Mostrando ${devices.length} de ${
-                    pagination.total || 0
+                  ? devices.length > 0
+                    ? `✅ Equipo encontrado con ID: ${filters.consulta_id}`
+                    : `❌ No se encontró equipo con ID: ${filters.consulta_id}`
+                  : `Mostrando ${devices.length} de ${pagination.total || 0
                   } equipos médicos`}
               {activeFiltersCount > 0 && !filters.consulta_id && (
                 <span className="ml-2 text-teal-600 font-medium">
@@ -740,7 +738,7 @@ export function MedicalDevicesView() {
         {/* Items per page selector */}
         <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 flex items-center gap-2 border-b bg-slate-50">
           <span className="text-xs sm:text-sm text-slate-700">Mostrar</span>
-          <Select 
+          <Select
             value={pagination.per_page.toString()}
             onValueChange={(value) => changePageSize(parseInt(value))}
           >
@@ -837,7 +835,7 @@ export function MedicalDevicesView() {
                       <div className="space-y-2 sm:space-y-3">
                         {/* ID del equipo prominente */}
                         <div className="flex items-center justify-between mb-2">
-                          <EquipmentIdBadge 
+                          <EquipmentIdBadge
                             equipmentId={device.id}
                             variant="primary"
                             size="sm"
@@ -854,7 +852,7 @@ export function MedicalDevicesView() {
                         <div className="text-[9px] xs:text-[10px] sm:text-xs text-slate-600 mt-1">
                           <span className="font-bold text-slate-700">Año Adquisición: </span>
                           <span className="text-slate-900">
-                            {device.fecha_ad 
+                            {device.fecha_ad
                               ? new Date(device.fecha_ad).getFullYear()
                               : "N/A"}
                           </span>
@@ -1121,11 +1119,10 @@ export function MedicalDevicesView() {
                                     setSelectedEquipment(device);
                                     setAddObservacionModalOpen(true);
                                   }}
-                                  title={`Agregar observación${
-                                    device.observaciones?.ultima 
-                                      ? `\n\nÚltima observación: ${device.observaciones.ultima}`
-                                      : '\n\nSin observaciones previas'
-                                  }`}
+                                  title={`Agregar observación${device.observaciones?.ultima
+                                    ? `\n\nÚltima observación: ${device.observaciones.ultima}`
+                                    : '\n\nSin observaciones previas'
+                                    }`}
                                 >
                                   <Plus className="w-3 h-3 xs:w-4 xs:h-4" />
                                 </Button>
@@ -1190,7 +1187,7 @@ export function MedicalDevicesView() {
                             {safeRenderText(device.localizacion_actual, "Sin localización")}
                           </span>
                         </div>
-                        
+
                         {/* Botón de Movimientos */}
                         <div className="mt-2 flex justify-center">
                           <Button
@@ -1205,20 +1202,23 @@ export function MedicalDevicesView() {
                             Movimientos
                           </Button>
                         </div>
-                        
+
                         <div>
                           <span className="font-medium text-slate-700">
                             Estado:
                           </span>
                           <span className="ml-1 text-slate-900">
                             <Badge
-                              className={`text-[8px] xs:text-[9px] sm:text-xs ${
-                                device.data?.status === "Operativo"
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : device.data?.status === "Fuera de Servicio"
+                              className={`text-xs sm:text-sm font-medium ${device.data?.status === "Operativo"
+                                ? "bg-green-100 text-green-800 border-green-200"
+                                : device.data?.status === "Fuera de Servicio"
                                   ? "bg-red-100 text-red-800 border-red-200"
-                                  : "bg-yellow-100 text-yellow-800 border-yellow-200"
-                              }`}
+                                  : device.data?.status === "Equipo dado de baja"
+                                    ? "bg-red-100 text-red-800 border-red-200"
+                                    : device.data?.status === "Activo"
+                                      ? "bg-green-100 text-green-800 border-green-200"
+                                      : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                }`}
                             >
                               {safeRenderText(
                                 device.data?.status,
@@ -1244,19 +1244,18 @@ export function MedicalDevicesView() {
                           </span>
                           <span className="ml-1 text-slate-900">
                             <Badge
-                              className={`text-[8px] xs:text-[9px] sm:text-xs ${
-                                device.data?.riesgo &&
+                              className={`text-xs sm:text-sm font-medium px-2 py-0.5 ${device.data?.riesgo &&
                                 typeof device.data.riesgo === "string" &&
                                 (device.data.riesgo.includes("Alto") ||
                                   device.data.riesgo.includes("III"))
-                                  ? "bg-red-100 text-red-800 border-red-200"
-                                  : device.data?.riesgo &&
-                                    typeof device.data.riesgo === "string" &&
-                                    (device.data.riesgo.includes("Medio") ||
-                                      device.data.riesgo.includes("II"))
+                                ? "bg-red-100 text-red-800 border-red-200"
+                                : device.data?.riesgo &&
+                                  typeof device.data.riesgo === "string" &&
+                                  (device.data.riesgo.includes("Medio") ||
+                                    device.data.riesgo.includes("II"))
                                   ? "bg-yellow-100 text-yellow-800 border-yellow-200"
                                   : "bg-green-100 text-green-800 border-green-200"
-                              }`}
+                                }`}
                             >
                               {safeRenderText(
                                 device.data?.riesgo,
@@ -1275,11 +1274,11 @@ export function MedicalDevicesView() {
                               "Sin propietario"
                             )}
                           </div>
-                          
+
                           {/* Logo del propietario */}
                           {device.propietario?.logo_url && (
                             <div className="mt-2 flex justify-center">
-                              <img 
+                              <img
                                 src={device.propietario.logo_url}
                                 alt={device.propietario?.nombre || device.propietario}
                                 className="h-16 xs:h-20 sm:h-24 md:h-28 object-contain"
@@ -1302,8 +1301,8 @@ export function MedicalDevicesView() {
                         <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
                           {device.mantenimiento?.ultimoMantenimiento
                             ? new Date(
-                                device.mantenimiento.ultimoMantenimiento
-                              ).toLocaleDateString()
+                              device.mantenimiento.ultimoMantenimiento
+                            ).toLocaleDateString()
                             : "Sin registros"}
                           <Link
                             size={15}
@@ -1322,8 +1321,8 @@ export function MedicalDevicesView() {
                         <div className="text-slate-600 bg-[#1d293d]/5 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30 flex justify-between items-center">
                           {device.mantenimiento?.ultimaCalibración
                             ? new Date(
-                                device.mantenimiento.ultimaCalibración
-                              ).toLocaleDateString()
+                              device.mantenimiento.ultimaCalibración
+                            ).toLocaleDateString()
                             : "Sin registros"}
                           <Link
                             size={15}
@@ -1395,9 +1394,9 @@ export function MedicalDevicesView() {
                                 Último correctivo general generado:
                                 {/* CORRECTIVOS GENERALES: Mostrar ícono basado en si existe correctivo */}
                                 {device.mantenimiento?.ultimoCorrectivoGeneral && (
-                                  <CheckCircle2 
-                                    size={14} 
-                                    className="text-[#72a836]" 
+                                  <CheckCircle2
+                                    size={14}
+                                    className="text-[#72a836]"
                                     title="Correctivo general completado"
                                   />
                                 )}
@@ -1411,17 +1410,17 @@ export function MedicalDevicesView() {
                                 Último procedimiento correctivo realizado:
                                 {/* ✓ Verde: Tiene fecha de cierre (correctivo general cerrado exitosamente) */}
                                 {device.mantenimiento?.ultimoProcedimientoCorrectivo && (
-                                  <CheckCircle2 
-                                    size={14} 
-                                    className="text-green-600" 
+                                  <CheckCircle2
+                                    size={14}
+                                    className="text-green-600"
                                     title="Correctivo general cerrado exitosamente"
                                   />
                                 )}
                                 {/* ⏰ Rojo: Tiene fecha de inicio pero NO fecha de cierre (correctivo abierto) */}
                                 {device.mantenimiento?.ultimoCorrectivoGeneral && !device.mantenimiento?.ultimoProcedimientoCorrectivo && (
-                                  <Clock 
-                                    size={14} 
-                                    className="text-red-600" 
+                                  <Clock
+                                    size={14}
+                                    className="text-red-600"
                                     title="Hay un correctivo general abierto sin resolver"
                                   />
                                 )}
@@ -1435,16 +1434,16 @@ export function MedicalDevicesView() {
                                 Fecha de creación del último ticket:
                                 {/* TICKETS: Mostrar reloj si no está cerrado, chulo si está cerrado */}
                                 {device.tickets?.fechaCreacionUltimoTicket && !device.tickets?.ultimoTicketCerrado && (
-                                  <Clock 
-                                    size={14} 
-                                    className="text-[#c33a31]" 
+                                  <Clock
+                                    size={14}
+                                    className="text-[#c33a31]"
                                     title="Ticket creado pero no cerrado"
                                   />
                                 )}
                                 {device.tickets?.ultimoTicketCerrado && (
-                                  <CheckCircle2 
-                                    size={14} 
-                                    className="text-[#72a836]" 
+                                  <CheckCircle2
+                                    size={14}
+                                    className="text-[#72a836]"
                                     title="Ticket cerrado/completado"
                                   />
                                 )}
@@ -1460,17 +1459,17 @@ export function MedicalDevicesView() {
                                 Fecha de último cierre de tickets:
                                 {/* ✓ Verde: Tiene fecha de cierre (ticket cerrado exitosamente) */}
                                 {device.tickets?.fechaUltimoCierre && (
-                                  <CheckCircle2 
-                                    size={14} 
-                                    className="text-green-600" 
+                                  <CheckCircle2
+                                    size={14}
+                                    className="text-green-600"
                                     title="Último ticket cerrado exitosamente"
                                   />
                                 )}
                                 {/* ⏰ Rojo: Tiene fecha de inicio pero NO fecha de cierre (ticket abierto) */}
                                 {device.tickets?.fechaCreacionUltimoTicket && !device.tickets?.fechaUltimoCierre && (
-                                  <Clock 
-                                    size={14} 
-                                    className="text-red-600" 
+                                  <Clock
+                                    size={14}
+                                    className="text-red-600"
                                     title="Hay un ticket abierto sin resolver"
                                   />
                                 )}
@@ -1615,7 +1614,7 @@ export function MedicalDevicesView() {
                   <CardContent className="p-4 space-y-3">
                     {/* ID y Nombre */}
                     <div className="space-y-2">
-                      <EquipmentIdBadge 
+                      <EquipmentIdBadge
                         equipmentId={device.id}
                         variant="primary"
                         size="sm"
@@ -1626,7 +1625,7 @@ export function MedicalDevicesView() {
                       </h3>
                       <p className="text-xs text-slate-600">
                         <span className="font-semibold">Año: </span>
-                        {device.fecha_ad 
+                        {device.fecha_ad
                           ? new Date(device.fecha_ad).getFullYear()
                           : "N/A"}
                       </p>
@@ -1788,12 +1787,10 @@ export function MedicalDevicesView() {
               {loading ? (
                 <Skeleton className="h-4 w-48" />
               ) : filters.search && filters.search.trim() ? (
-                `Mostrando ${devices.length} de ${
-                  pagination.total || 0
+                `Mostrando ${devices.length} de ${pagination.total || 0
                 } equipos`
               ) : (
-                `Total de equipos médicos registrados: ${
-                  pagination.total || 0
+                `Total de equipos médicos registrados: ${pagination.total || 0
                 } equipos`
               )}
             </span>
