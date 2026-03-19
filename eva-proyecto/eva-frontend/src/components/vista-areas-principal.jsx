@@ -15,6 +15,7 @@ import UIModalAgregarArea from "@/components/modals/ui-modal-agregar-area"
 import UIModalEditarArea from "@/components/modals/ui-modal-editar-area"
 import UIModalEliminarArea from "@/components/modals/ui-modal-eliminar-area"
 import Pagination from "@/components/common/Pagination"
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function VistaAreasPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -110,6 +111,31 @@ export default function VistaAreasPrincipal() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentData = filteredData.slice(startIndex, endIndex)
+
+  if (loading && areasData.length === 0) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-6 w-96" />
+        <Card className="mt-8">
+          <div className="p-6">
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between">
+              <Skeleton className="h-10 w-96" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

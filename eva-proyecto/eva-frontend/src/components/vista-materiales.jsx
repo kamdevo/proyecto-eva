@@ -21,50 +21,57 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Search, Settings, Wrench, Eye, ArrowUpDown, ArrowUp, ArrowDown, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Package, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
-import UIModalMantenimiento from "@/components/modals/ui-modal-mantenimiento";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
+import UIModalMateriales from "@/components/modals/ui-modal-materiales";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 
-export default function VistaTiposMantenimiento() {
+export default function VistaMateriales() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Estados de ordenamiento
-  const [sortField, setSortField] = useState('nombre');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortField, setSortField] = useState('id');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Estados del Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // "add", "edit", "view"
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const [mantenimientosData, setMantenimientosData] = useState([]);
+  const [materialesData, setMaterialesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Cargar datos
   useEffect(() => {
     fetchData();
-  }, [searchTerm]);
+  }, [searchTerm, currentPage, itemsPerPage, sortField, sortDirection]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await httpService.get("/v1/tipos-mantenimiento", {
-        params: { search: searchTerm }
+      const response = await httpService.get("/v1/materiales", {
+        params: { 
+          search: searchTerm,
+          page: currentPage,
+          per_page: itemsPerPage,
+          sort_by: sortField,
+          sort_order: sortDirection
+        }
       });
       if (response.data.success) {
-        setMantenimientosData(response.data.data);
+        setMaterialesData(response.data.data.data);
+        setTotalItems(response.data.data.total);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
-      toast.error("Error al cargar los tipos de mantenimiento");
+      toast.error("Error al cargar los materiales");
     } finally {
       setLoading(false);
     }
@@ -95,16 +102,9 @@ export default function VistaTiposMantenimiento() {
 
       let response;
       if (selectedItem) {
-        response = await httpService.put(`/v1/tipos-mantenimiento/${selectedItem.id}`, {
-          nombre: newData.nombre,
-          subcategories: newData.subcategories
-        });
+        response = await httpService.put(`/v1/materiales/${selectedItem.id}`, newData);
       } else {
-        response = await httpService.post("/v1/tipos-mantenimiento", {
-          codigo: newData.codigo,
-          nombre: newData.nombre,
-          subcategories: newData.subcategories
-        });
+        response = await httpService.post("/v1/materiales", newData);
       }
 
       if (response.data.success) {
@@ -119,17 +119,17 @@ export default function VistaTiposMantenimiento() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm("¿Estás seguro de eliminar este registro?")) {
+    if (confirm("¿Estás seguro de eliminar este material?")) {
       try {
         const loadingToast = toast.loading("Eliminando...");
-        const response = await httpService.delete(`/v1/tipos-mantenimiento/${id}`);
+        const response = await httpService.delete(`/v1/materiales/${id}`);
         if (response.data.success) {
-          toast.success("Registro eliminado correctamente", { id: loadingToast });
+          toast.success("Material eliminado correctamente", { id: loadingToast });
           fetchData();
         }
       } catch (error) {
         console.error("Error al eliminar:", error);
-        toast.error("Error al eliminar el registro");
+        toast.error("Error al eliminar el material");
       }
     }
   };
@@ -154,39 +154,24 @@ export default function VistaTiposMantenimiento() {
       : <ArrowDown className="w-4 h-4 text-blue-600" />;
   };
 
-  // Aplicar búsqueda funcional
-  const filteredData = mantenimientosData.filter(item => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      item.nombre?.toLowerCase().includes(search) ||
-      item.codigo?.toLowerCase().includes(search) ||
-      item.descripcion?.toLowerCase().includes(search)
-    );
-  });
-
-  // Ordenamiento
-  const sortedData = [...filteredData].sort((a, b) => {
-    let aValue = a[sortField] || "";
-    let bValue = b[sortField] || "";
-    if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-    if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const totalItems = filteredData.length; // Assuming totalItems is based on filtered data
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const currentItems = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading && mantenimientosData.length === 0) {
+  // Helper para formatear moneda
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
+
+  if (loading && materialesData.length === 0) {
     return (
       <div className="p-8 space-y-4">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-6 w-96" />
         <Card className="mt-8">
+          {/* CardHeader is not imported, so I'll just use a div for the skeleton */}
           <div className="p-6">
             <Skeleton className="h-8 w-64" />
           </div>
@@ -207,18 +192,18 @@ export default function VistaTiposMantenimiento() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 uppercase">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       {/* Centered Title */}
       <div className="max-w-7xl mx-auto mb-8 text-center bg-[#3c4c63] rounded-lg p-4">
         <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-3">
-          <Wrench className="w-6 h-6 sm:w-8 h-8 text-white" />
-          Categorías de Mantenimiento
+          <Package className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          Gestión de Materiales
         </h1>
-        <p className="text-sm text-white mt-2">Administración de categorías de mantenimiento</p>
+        <p className="text-sm text-white mt-2">Administración de inventario de materiales</p>
       </div>
 
       {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto uppercase">
         <Card className="shadow-sm border-0">
           <CardContent className="p-0">
             {/* Controles superiores */}
@@ -230,7 +215,7 @@ export default function VistaTiposMantenimiento() {
                     onClick={handleOpenAdd}
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Agregar Tipo</span>
+                    <span>Agregar Material</span>
                   </Button>
 
                   {/* Search bar inside toolbar */}
@@ -238,9 +223,12 @@ export default function VistaTiposMantenimiento() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
                       type="text"
-                      placeholder="Buscar por nombre o código..."
+                      placeholder="Buscar material..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
                       className="pl-10 h-10 w-full bg-white border-gray-200"
                     />
                   </div>
@@ -274,7 +262,7 @@ export default function VistaTiposMantenimiento() {
               <Table>
                 <TableHeader className="bg-gray-50">
                   <TableRow>
-                    <TableHead className="w-[120px] font-semibold text-gray-900">
+                    <TableHead className="w-[150px] font-semibold text-gray-900">
                       <button
                         onClick={() => handleSort('codigo')}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
@@ -283,46 +271,66 @@ export default function VistaTiposMantenimiento() {
                         {getSortIcon('codigo')}
                       </button>
                     </TableHead>
-                    <TableHead className="min-w-[250px] font-semibold text-gray-900">
+                    <TableHead className="min-w-[200px] font-semibold text-gray-900">
                       <button
                         onClick={() => handleSort('nombre')}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
                       >
-                        Tipo de Mantenimiento
+                        Nombre
                         {getSortIcon('nombre')}
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">Subcategorías</TableHead>
+                    <TableHead className="font-semibold text-gray-900">Descripción</TableHead>
+                    <TableHead className="w-[120px] font-semibold text-gray-900 text-right">
+                      <button
+                        onClick={() => handleSort('precio_unitario')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2 ml-auto"
+                      >
+                        Precio Unit.
+                        {getSortIcon('precio_unitario')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="w-[100px] font-semibold text-gray-900 text-center">
+                      <button
+                        onClick={() => handleSort('cantidad')}
+                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2 mx-auto"
+                      >
+                        Stock
+                        {getSortIcon('cantidad')}
+                      </button>
+                    </TableHead>
                     <TableHead className="text-center font-semibold text-gray-900 w-32">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center py-10 px-4">
+                      <TableCell colSpan={5} className="h-32 text-center py-10 px-4">
                         <div className="flex flex-col items-center gap-2">
                           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          <p className="text-gray-500 text-sm">Cargando datos...</p>
+                          <p className="text-gray-500 text-sm">Cargando materiales...</p>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : currentItems.length > 0 ? (
-                    currentItems.map((item) => (
+                  ) : materialesData.length > 0 ? (
+                    materialesData.map((item) => (
                       <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100">
                         <TableCell className="font-medium text-blue-600 text-sm px-4">{item.codigo}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-gray-900 text-sm">{item.nombre}</span>
-                          </div>
+                          <span className="font-semibold text-gray-900 text-sm">{item.nombre}</span>
                         </TableCell>
                         <TableCell>
-                          {item.subcategories?.length > 0 ? (
-                            <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-blue-100 gap-1 px-2 py-0.5 rounded-md font-medium">
-                              {item.subcategories.length}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
+                           <span className="text-xs text-gray-500 line-clamp-1" title={item.descripcion}>
+                             {item.descripcion || "Sin descripción"}
+                           </span>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {formatCurrency(item.precio_unitario || 0)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={item.cantidad > 5 ? "secondary" : "destructive"} className="px-2 py-0.5 rounded-md font-medium">
+                            {item.cantidad}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1.5 px-4">
@@ -330,7 +338,7 @@ export default function VistaTiposMantenimiento() {
                               size="sm"
                               variant="ghost"
                               className="w-8 h-8 p-0 text-blue-600 hover:bg-blue-50 bg-blue-500/30"
-                              title="Visualizar"
+                              title="Ver Detalles"
                               onClick={() => handleOpenView(item)}
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -357,8 +365,8 @@ export default function VistaTiposMantenimiento() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center text-gray-400 italic">
-                        No se encontraron registros activos.
+                      <TableCell colSpan={5} className="h-32 text-center text-gray-400 italic">
+                        No se encontraron materiales.
                       </TableCell>
                     </TableRow>
                   )}
@@ -382,7 +390,7 @@ export default function VistaTiposMantenimiento() {
       </div>
 
       {/* Modal CRUD */}
-      <UIModalMantenimiento
+      <UIModalMateriales
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         mode={modalMode}

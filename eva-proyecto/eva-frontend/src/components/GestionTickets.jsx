@@ -29,6 +29,7 @@ import {
   ArrowDown,
   Filter,
   Trash2,
+  Download,
 } from "lucide-react";
 import HospitalTicketModal from "@/components/modals/hospital-ticket-modal";
 import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleton";
@@ -212,6 +213,25 @@ export default function GestionTickets() {
     setCurrentPage(1);
   };
 
+  const handleExportIndustrialStats = async () => {
+    try {
+      const response = await httpService.get('/v1/export-industrial-tickets', {
+        responseType: 'blob' // Important for downloading files
+      });
+      // Crear URL para el blob y descargar
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const year = new Date().getFullYear();
+      link.setAttribute('download', `Consolidado_Tickets_Industriales_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+      console.error('Error al descargar el consolidado:', error);
+    }
+  };
+
   // Función para ordenar columnas (ahora ordena en el backend)
   const handleSort = (field) => {
     if (sortField === field) {
@@ -334,13 +354,22 @@ export default function GestionTickets() {
     <div className="p-1 sm:p-2 md:p-3 lg:p-4 space-y-2 sm:space-y-3 bg-gray-50 min-h-screen overflow-x-auto">
       {/* Header */}
       <div className="space-y-4">
-        <div>
-          <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
-            Gestión de Tickets
-          </h1>
-          <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1">
-            Administre y supervise todos los tickets del sistema
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
+              Gestión de Tickets
+            </h1>
+            <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1">
+              Administre y supervise todos los tickets del sistema
+            </p>
+          </div>
+          <Button 
+            onClick={handleExportIndustrialStats} 
+            className="bg-green-600 hover:bg-green-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm sm:w-auto w-full transition-colors"
+          >
+             <Download className="h-4 w-4" /> 
+             <span>Exportar Consolidado Tickets Industriales</span>
+          </Button>
         </div>
 
         {/* Search and Filter - Refactorizado */}

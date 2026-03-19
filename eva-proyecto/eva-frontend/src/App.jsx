@@ -41,6 +41,7 @@ const GuiasRapidas = lazy(() => import("./components/GuiasRapidas"));
 const RepuestosView = lazy(() => import("./components/RepuestosView"));
 const CapacitacionesView = lazy(() => import("./components/CapacitacionesView"));
 const ConsultaIndustrialView = lazy(() => import("./components/ConsultaIndustrialView"));
+const VistaMateriales = lazy(() => import("./components/vista-materiales"));
 const DebugRegistration = lazy(() => import("./components/DebugRegistration"));
 const CompleteDebugTest = lazy(() => import("./components/CompleteDebugTest"));
 const LogoutPage = lazy(() => import("./components/LogoutPage"));
@@ -331,6 +332,16 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <VistaServiciosPrincipal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/config/materiales"
+              element={
+                <ProtectedRoute>
+                  <AdminRoute allowAdvanced={true}>
+                    <VistaMateriales />
+                  </AdminRoute>
                 </ProtectedRoute>
               }
             />

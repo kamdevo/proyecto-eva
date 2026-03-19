@@ -29,6 +29,7 @@ import UIModalEditarPropietario from "@/components/modals/ui-modal-editar-propie
 import UIModalEliminarPropietario from "@/components/modals/ui-modal-eliminar-propietario";
 import UIModalExaminarPropietario from "@/components/modals/ui-modal-examinar-propietario";
 import Pagination from "@/components/common/Pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function VistaPropietariosPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -232,6 +233,31 @@ export default function VistaPropietariosPrincipal() {
   const startIndex = pagination.from || 0;
   const endIndex = pagination.to || 0;
   const currentData = propietariosData;
+
+  if (isLoading && propietariosData.length === 0) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-6 w-96" />
+        <Card className="mt-8">
+          <div className="p-6">
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between">
+              <Skeleton className="h-10 w-96" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <motion.div 

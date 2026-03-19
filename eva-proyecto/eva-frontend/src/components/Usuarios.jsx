@@ -48,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/ui/searchable-select";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Usuarios() {
   // Hooks para datos reales
@@ -1202,6 +1203,35 @@ export default function Usuarios() {
     }
   };
 
+  if (usuariosLoading && usuarios.length === 0) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-6 w-96" />
+        <Card className="mt-8">
+          <div className="p-6">
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between">
+              <Skeleton className="h-10 w-96" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-4 p-4 border rounded-lg">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -1575,25 +1605,6 @@ export default function Usuarios() {
           </CardHeader>
 
           <CardContent>
-            {/* Loading State */}
-            {usuariosLoading && (
-              <div className="space-y-2">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-                      <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse"></div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="w-8 h-8 bg-gray-100 rounded animate-pulse"></div>
-                      <div className="w-8 h-8 bg-gray-100 rounded animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Error State */}
             {usuariosError && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">

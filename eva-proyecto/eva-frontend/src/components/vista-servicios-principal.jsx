@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -44,6 +45,13 @@ export default function VistaServiciosPrincipal() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Simular carga para consistencia visual
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Estados de ordenamiento
   const [sortField, setSortField] = useState('nombre');
@@ -242,6 +250,31 @@ export default function VistaServiciosPrincipal() {
 
   const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-6 w-96" />
+        <Card className="mt-8">
+          <div className="p-6">
+            <Skeleton className="h-8 w-64" />
+          </div>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between">
+              <Skeleton className="h-10 w-96" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

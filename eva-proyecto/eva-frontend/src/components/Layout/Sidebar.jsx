@@ -195,6 +195,16 @@ const Sidebar = ({ isOpen }) => {
       hasAccess: user && [1, 2, 3].includes(parseInt(user.rol_id)),
       moduleName: "Categorías Mantenimiento"
     },
+    // Nueva sección de Materiales (Roles 1, 2, 3)
+    {
+      key: "config_materiales",
+      title: "Materiales",
+      icon: <FaBoxes />,
+      path: "/config/materiales",
+      enabled: user && [1, 2, 3].includes(parseInt(user.rol_id)),
+      hasAccess: user && [1, 2, 3].includes(parseInt(user.rol_id)),
+      moduleName: "Materiales"
+    },
     // Agregar módulos dinámicos de la BD
     ...modules.map(module => {
       console.log(`🔍 SIDEBAR: Procesando módulo "${module.name}"`);

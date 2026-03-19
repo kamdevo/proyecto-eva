@@ -41,6 +41,7 @@ import {
   ChevronRight,
   Search,
   AlignJustify,
+  Package,
 } from "lucide-react";
 import { useToast } from "../contexts/ToastContext";
 import GlobalEquipmentSearch from "./GlobalEquipmentSearch";
@@ -191,8 +192,8 @@ const AppSidebar = () => {
         { label: "GRAFICAS", href: "/dashboard/graficas" },
       ],
     }] : []),
-    // Only show CONFIGURACIÓN for superadmin (rol_id = 1) 
-    ...(user?.rol_id === 1 ? [{
+    // Only show CONFIGURACIÓN for admin and advanced users (rol_id 1, 2, 3) 
+    ...([1, 2, 3].includes(parseInt(user?.rol_id)) ? [{
       icon: Settings,
       label: "CONFIGURACIÓN",
       submenu: [
@@ -200,6 +201,7 @@ const AppSidebar = () => {
         { label: "CONTACTOS", href: "/config/contactos" },
         { label: "AREAS", href: "/config/areas" },
         { label: "T. MANTENIMIENTOS", href: "/config/tipos-mantenimiento" },
+        { label: "MATERIALES", href: "/config/materiales" },
       ],
     }] : []),
     // Only show admin module for users with admin permissions (superadmin + admin)

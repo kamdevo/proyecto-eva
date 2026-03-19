@@ -15553,5 +15553,14 @@ Route::post('v1/tipos-mantenimiento', [App\Http\Controllers\Api\TipoMantenimient
 Route::put('v1/tipos-mantenimiento/{id}', [App\Http\Controllers\Api\TipoMantenimientoController::class, 'update']);
 Route::delete('v1/tipos-mantenimiento/{id}', [App\Http\Controllers\Api\TipoMantenimientoController::class, 'destroy']);
 
+// MATERIALES
+Route::get('v1/materiales', [App\Http\Controllers\Api\MaterialController::class, 'index']);
+Route::post('v1/materiales', [App\Http\Controllers\Api\MaterialController::class, 'store']);
+Route::put('v1/materiales/{id}', [App\Http\Controllers\Api\MaterialController::class, 'update']);
+Route::delete('v1/materiales/{id}', [App\Http\Controllers\Api\MaterialController::class, 'destroy']);
+
+// EXPORTAR CONSOLIDADO INDUSTRIAL
+Route::get('v1/export-industrial-tickets', [App\Http\Controllers\Api\IndustrialTicketExportController::class, 'export']);
+
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');
