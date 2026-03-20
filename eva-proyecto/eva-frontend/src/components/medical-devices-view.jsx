@@ -154,9 +154,19 @@ export function MedicalDevicesView() {
   useEffect(() => {
     const fetchSedes = async () => {
       try {
-        const response = await httpService.get('/v1/sedes');
+        // Request a large number of sedes to ensure they all appear in the filter
+        const response = await httpService.get('/v1/sedes?per_page=100');
         if (response.data.success) {
-          setSedes(response.data.data || []);
+          // Handle both paginated and non-paginated responses for robustness
+          const sedesData = response.data.data;
+          if (sedesData && Array.isArray(sedesData.data)) {
+            setSedes(sedesData.data);
+          } else if (Array.isArray(sedesData)) {
+            setSedes(sedesData);
+          } else {
+            console.warn('Unexpected sedes data format:', sedesData);
+            setSedes([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching sedes:', error);
@@ -852,7 +862,7 @@ export function MedicalDevicesView() {
                         <div className="text-[9px] xs:text-[10px] sm:text-xs text-slate-600 mt-1">
                           <span className="font-bold text-slate-700">Año Adquisición: </span>
                           <span className="text-slate-900">
-                            {device.fecha_ad
+                            {device.fecha_ad && !isNaN(new Date(device.fecha_ad).getFullYear())
                               ? new Date(device.fecha_ad).getFullYear()
                               : "N/A"}
                           </span>
@@ -1625,7 +1635,7 @@ export function MedicalDevicesView() {
                       </h3>
                       <p className="text-xs text-slate-600">
                         <span className="font-semibold">Año: </span>
-                        {device.fecha_ad
+                        {device.fecha_ad && !isNaN(new Date(device.fecha_ad).getFullYear())
                           ? new Date(device.fecha_ad).getFullYear()
                           : "N/A"}
                       </p>

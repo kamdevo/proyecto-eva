@@ -52,25 +52,35 @@ export default function EquipmentSearchModal({
 
   const fetchFilterData = async () => {
     try {
-      // Cargar sedes
-      const sedesRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/sedes`);
+      // Cargar sedes - handle paginated response
+      const sedesRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/sedes?per_page=100`);
       if (sedesRes.ok) {
-        const sedesData = await sedesRes.json();
-        setSedes(sedesData.data || []);
+        const result = await sedesRes.json();
+        // Handle both paginated (result.data.data) and non-paginated (result.data) responses
+        if (result.success) {
+          const data = result.data;
+          setSedes(data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+        }
       }
 
-      // Cargar servicios
-      const serviciosRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/servicios`);
+      // Cargar servicios - handle potential pagination
+      const serviciosRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/servicios?per_page=200`);
       if (serviciosRes.ok) {
-        const serviciosData = await serviciosRes.json();
-        setServicios(serviciosData.data || []);
+        const result = await serviciosRes.json();
+        if (result.success) {
+          const data = result.data;
+          setServicios(data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+        }
       }
 
-      // Cargar áreas
-      const areasRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/areas`);
+      // Cargar áreas - handle potential pagination
+      const areasRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/areas?per_page=500`);
       if (areasRes.ok) {
-        const areasData = await areasRes.json();
-        setAreas(areasData.data || []);
+        const result = await areasRes.json();
+        if (result.success) {
+          const data = result.data;
+          setAreas(data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+        }
       }
     } catch (error) {
       console.error('Error cargando filtros:', error);

@@ -25,9 +25,9 @@ class RepuestoController extends Controller
 {
     /**
      * @OA\Get(
-     *     path="/api/repuesto",
+     *     path="/api/repuestos-inventory",
      *     tags={"Repuesto"},
-     *     summary="Listar repuestos",
+     *     summary="Listar repuestos del inventario",
      *     security={{"sanctum": {}}},
      *     @OA\Response(response=200, description="Lista obtenida exitosamente")
      * )
@@ -38,7 +38,8 @@ class RepuestoController extends Controller
             $request->validate([
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:100',
-                'search' => 'nullable|string|max:255'
+                'search' => 'nullable|string|max:255',
+                'grupo' => 'nullable|string|max:10'
             ]);
 
             $query = Repuesto::query();
@@ -46,15 +47,19 @@ class RepuestoController extends Controller
             if ($request->search) {
                 $query->where(function($q) use ($request) {
                     $q->where('name', 'LIKE', "%{$request->search}%")
-                      ->orWhere('nombre', 'LIKE', "%{$request->search}%")
-                      ->orWhere('descripcion', 'LIKE', "%{$request->search}%");
+                      ->orWhere('code', 'LIKE', "%{$request->search}%")
+                      ->orWhere('grupo', 'LIKE', "%{$request->search}%");
                 });
             }
 
-            $data = $query->orderBy('created_at', 'desc')
-                          ->paginate($request->per_page ?? 15);
+            if ($request->grupo && $request->grupo !== 'all') {
+                $query->where('grupo', $request->grupo);
+            }
 
-            return ResponseFormatter::success($data, 'Lista obtenida exitosamente');
+            $data = $query->orderBy('created_at', 'desc')
+                          ->paginate($request->per_page ?? 10);
+
+            return ResponseFormatter::paginated($data, 'Lista de inventario obtenida exitosamente');
 
         } catch (Exception $e) {
             Log::error('Error en RepuestoController::index', ['error' => $e->getMessage()]);
@@ -64,9 +69,9 @@ class RepuestoController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/api/repuesto",
+     *     path="/api/repuestos-inventory",
      *     tags={"Repuesto"},
-     *     summary="Crear repuesto",
+     *     summary="Crear repuesto en el inventario",
      *     security={{"sanctum": {}}},
      *     @OA\Response(response=201, description="Creado exitosamente")
      * )
@@ -76,28 +81,28 @@ class RepuestoController extends Controller
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'descripcion' => 'nullable|string|max:1000',
-                'activo' => 'nullable|boolean'
+                'cantidad' => 'nullable|integer|min:0',
+                'code' => 'required|string|max:100|unique:repuestos,code',
+                'precio' => 'nullable|numeric|min:0',
+                'grupo' => 'nullable|string|max:10',
+                'status' => 'nullable|integer'
             ]);
 
-            $data = $request->all();
-            $data['usuario_id'] = auth()->id();
+            $item = Repuesto::create($request->all());
 
-            $item = Repuesto::create($data);
-
-            return ResponseFormatter::success($item, 'Creado exitosamente', 201);
+            return ResponseFormatter::created($item, 'Repuesto creado exitosamente');
 
         } catch (Exception $e) {
             Log::error('Error en RepuestoController::store', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al crear', 500);
+            return ResponseFormatter::error(null, 'Error al crear repuesto: ' . $e->getMessage(), 500);
         }
     }
 
     /**
      * @OA\Get(
-     *     path="/api/repuesto/{id}",
+     *     path="/api/repuestos-inventory/{id}",
      *     tags={"Repuesto"},
-     *     summary="Obtener repuesto",
+     *     summary="Obtener repuesto del inventario",
      *     security={{"sanctum": {}}},
      *     @OA\Response(response=200, description="Obtenido exitosamente")
      * )
@@ -106,19 +111,19 @@ class RepuestoController extends Controller
     {
         try {
             $item = Repuesto::findOrFail($id);
-            return ResponseFormatter::success($item, 'Obtenido exitosamente');
+            return ResponseFormatter::success($item);
 
         } catch (Exception $e) {
             Log::error('Error en RepuestoController::show', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'No encontrado', 404);
+            return ResponseFormatter::notFound();
         }
     }
 
     /**
      * @OA\Put(
-     *     path="/api/repuesto/{id}",
+     *     path="/api/repuestos-inventory/{id}",
      *     tags={"Repuesto"},
-     *     summary="Actualizar repuesto",
+     *     summary="Actualizar repuesto del inventario",
      *     security={{"sanctum": {}}},
      *     @OA\Response(response=200, description="Actualizado exitosamente")
      * )
@@ -128,8 +133,11 @@ class RepuestoController extends Controller
         try {
             $request->validate([
                 'name' => 'sometimes|required|string|max:255',
-                'descripcion' => 'nullable|string|max:1000',
-                'activo' => 'nullable|boolean'
+                'cantidad' => 'nullable|integer|min:0',
+                'code' => 'sometimes|required|string|max:100|unique:repuestos,code,' . $id,
+                'precio' => 'nullable|numeric|min:0',
+                'grupo' => 'nullable|string|max:10',
+                'status' => 'nullable|integer'
             ]);
 
             $item = Repuesto::findOrFail($id);

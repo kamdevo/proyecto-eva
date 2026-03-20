@@ -106,11 +106,19 @@ export const useSedes = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.get(`${API_BASE_URL}/sedes`);
+      const response = await api.get(`${API_BASE_URL}/sedes?per_page=100`);
       const data = response.data;
       
       if (data.success) {
-        setSedes(data.data || []);
+        // Handle both paginated (data.data.data) and non-paginated (data.data) responses
+        const sedesResult = data.data;
+        if (sedesResult && Array.isArray(sedesResult.data)) {
+          setSedes(sedesResult.data);
+        } else if (Array.isArray(sedesResult)) {
+          setSedes(sedesResult);
+        } else {
+          setSedes([]);
+        }
       } else {
         throw new Error(data.message || 'Error al obtener sedes');
       }

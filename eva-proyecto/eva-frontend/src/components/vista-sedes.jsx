@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -21,50 +20,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Search, Settings, Wrench, Eye, ArrowUpDown, ArrowUp, ArrowDown, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Edit, Trash2, Plus, Search, MapPin, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
-import UIModalMantenimiento from "@/components/modals/ui-modal-mantenimiento";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
+import UIModalSedes from "@/components/modals/ui-modal-sedes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
-
-export default function VistaTiposMantenimiento() {
+export default function VistaSedes() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Estados de ordenamiento
-  const [sortField, setSortField] = useState('nombre');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortField, setSortField] = useState('id');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Estados del Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // "add", "edit", "view"
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const [mantenimientosData, setMantenimientosData] = useState([]);
+  const [sedesData, setSedesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Cargar datos
   useEffect(() => {
     fetchData();
-  }, [searchTerm]);
+  }, [searchTerm, currentPage, itemsPerPage, sortField, sortDirection]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await httpService.get("/v1/tipos-mantenimiento", {
-        params: { search: searchTerm }
+      const response = await httpService.get("/v1/sedes", {
+        params: {
+          search: searchTerm,
+          page: currentPage,
+          per_page: itemsPerPage,
+          sort_by: sortField,
+          sort_order: sortDirection
+        }
       });
       if (response.data.success) {
-        setMantenimientosData(response.data.data);
+        // La API puede devolver los datos paginados o un array simple
+        if (response.data.data.data) {
+          setSedesData(response.data.data.data);
+          setTotalItems(response.data.data.total);
+        } else {
+          setSedesData(response.data.data);
+          setTotalItems(response.data.data.length);
+        }
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
-      toast.error("Error al cargar los tipos de mantenimiento");
+      toast.error("Error al cargar las sedes");
     } finally {
       setLoading(false);
     }
@@ -95,20 +106,13 @@ export default function VistaTiposMantenimiento() {
 
       let response;
       if (selectedItem) {
-        response = await httpService.put(`/v1/tipos-mantenimiento/${selectedItem.id}`, {
-          nombre: newData.nombre,
-          subcategories: newData.subcategories
-        });
+        response = await httpService.put(`/v1/sedes/${selectedItem.id}`, newData);
       } else {
-        response = await httpService.post("/v1/tipos-mantenimiento", {
-          codigo: newData.codigo,
-          nombre: newData.nombre,
-          subcategories: newData.subcategories
-        });
+        response = await httpService.post("/v1/sedes", newData);
       }
 
       if (response.data.success) {
-        toast.success(selectedItem ? "Actualizado correctamente" : "Creado correctamente", { id: loadingToast });
+        toast.success(selectedItem ? "Sede actualizada correctamente" : "Sede creada correctamente", { id: loadingToast });
         fetchData();
         setIsModalOpen(false);
       }
@@ -119,17 +123,17 @@ export default function VistaTiposMantenimiento() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm("¿Estás seguro de eliminar este registro?")) {
+    if (confirm("¿Estás seguro de eliminar esta sede?")) {
       try {
         const loadingToast = toast.loading("Eliminando...");
-        const response = await httpService.delete(`/v1/tipos-mantenimiento/${id}`);
+        const response = await httpService.delete(`/v1/sedes/${id}`);
         if (response.data.success) {
-          toast.success("Registro eliminado correctamente", { id: loadingToast });
+          toast.success("Sede eliminada correctamente", { id: loadingToast });
           fetchData();
         }
       } catch (error) {
         console.error("Error al eliminar:", error);
-        toast.error("Error al eliminar el registro");
+        toast.error(error.response?.data?.message || "Error al eliminar la sede");
       }
     }
   };
@@ -154,34 +158,9 @@ export default function VistaTiposMantenimiento() {
       : <ArrowDown className="w-4 h-4 text-blue-600" />;
   };
 
-  // Aplicar búsqueda funcional
-  const filteredData = mantenimientosData.filter(item => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      item.nombre?.toLowerCase().includes(search) ||
-      item.codigo?.toLowerCase().includes(search) ||
-      item.descripcion?.toLowerCase().includes(search)
-    );
-  });
-
-  // Ordenamiento
-  const sortedData = [...filteredData].sort((a, b) => {
-    let aValue = a[sortField] || "";
-    let bValue = b[sortField] || "";
-    if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-    if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const totalItems = filteredData.length; // Assuming totalItems is based on filtered data
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const currentItems = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading && mantenimientosData.length === 0) {
+  if (loading && sedesData.length === 0) {
     return (
       <div className="p-8 space-y-4">
         <Skeleton className="h-10 w-48" />
@@ -207,21 +186,19 @@ export default function VistaTiposMantenimiento() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 uppercase">
-      {/* Centered Title */}
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      {/* Header Container */}
       <div className="max-w-7xl mx-auto mb-8 text-center bg-[#3c4c63] rounded-lg p-4">
         <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-3">
-          <Wrench className="w-6 h-6 sm:w-8 h-8 text-white" />
-          Categorías de Mantenimiento
+          <MapPin className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          Gestión de Sedes
         </h1>
-        <p className="text-sm text-white mt-2">Administración de categorías de mantenimiento</p>
+        <p className="text-sm text-white mt-1">Administración de ubicaciones físicas y sedes</p>
       </div>
 
-      {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto uppercase">
         <Card className="shadow-sm border-0">
           <CardContent className="p-0">
-            {/* Controles superiores */}
             <div className="p-6 border-b border-gray-100">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
@@ -230,23 +207,25 @@ export default function VistaTiposMantenimiento() {
                     onClick={handleOpenAdd}
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Agregar Tipo</span>
+                    <span>Agregar Sede</span>
                   </Button>
 
-                  {/* Search bar inside toolbar */}
                   <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
                       type="text"
-                      placeholder="Buscar por nombre o código..."
+                      placeholder="Buscar sede..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
                       className="pl-10 h-10 w-full bg-white border-gray-200"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 text-sm text-gray-500 whitespace-nowrap">
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <span>Mostrar</span>
                   <Select
                     value={itemsPerPage.toString()}
@@ -269,68 +248,46 @@ export default function VistaTiposMantenimiento() {
               </div>
             </div>
 
-            {/* Tabla */}
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-gray-50">
                   <TableRow>
-                    <TableHead className="w-[120px] font-semibold text-gray-900">
+                    <TableHead className="w-[100px] font-semibold text-gray-900">
                       <button
-                        onClick={() => handleSort('codigo')}
+                        onClick={() => handleSort('id')}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
                       >
-                        Código
-                        {getSortIcon('codigo')}
+                        ID
+                        {getSortIcon('id')}
                       </button>
                     </TableHead>
-                    <TableHead className="min-w-[250px] font-semibold text-gray-900">
+                    <TableHead className="font-semibold text-gray-900">
                       <button
-                        onClick={() => handleSort('nombre')}
+                        onClick={() => handleSort('name')}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
                       >
-                        Tipo de Mantenimiento
-                        {getSortIcon('nombre')}
+                        Nombre de la Sede
+                        {getSortIcon('name')}
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">Subcategorías</TableHead>
                     <TableHead className="text-center font-semibold text-gray-900 w-32">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center py-10 px-4">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          <p className="text-gray-500 text-sm">Cargando datos...</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : currentItems.length > 0 ? (
-                    currentItems.map((item) => (
+                  {sedesData.length > 0 ? (
+                    sedesData.map((item) => (
                       <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100">
-                        <TableCell className="font-medium text-blue-600 text-sm px-4">{item.codigo}</TableCell>
+                        <TableCell className="font-medium text-gray-400 text-sm">#{item.id}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-gray-900 text-sm">{item.nombre}</span>
-                          </div>
+                          <span className="font-semibold text-gray-900 text-sm tracking-wide">{item.name}</span>
                         </TableCell>
                         <TableCell>
-                          {item.subcategories?.length > 0 ? (
-                            <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-blue-100 gap-1 px-2 py-0.5 rounded-md font-medium">
-                              {item.subcategories.length}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1.5 px-4">
+                          <div className="flex items-center justify-center gap-1.5">
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="w-8 h-8 p-0 text-blue-600 hover:bg-blue-50 bg-blue-500/30"
-                              title="Visualizar"
+                              className="w-8 h-8 p-0 text-blue-600 hover:bg-blue-50 bg-blue-500/10"
+                              title="Ver Detalles"
                               onClick={() => handleOpenView(item)}
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -357,8 +314,8 @@ export default function VistaTiposMantenimiento() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center text-gray-400 italic">
-                        No se encontraron registros activos.
+                      <TableCell colSpan={3} className="h-32 text-center text-gray-400 italic">
+                        No se encontraron sedes.
                       </TableCell>
                     </TableRow>
                   )}
@@ -366,7 +323,6 @@ export default function VistaTiposMantenimiento() {
               </Table>
             </div>
 
-            {/* Paginación */}
             <div className="p-4 border-t border-gray-50 bg-gray-50/30">
               <Pagination
                 currentPage={currentPage}
@@ -381,8 +337,7 @@ export default function VistaTiposMantenimiento() {
         </Card>
       </div>
 
-      {/* Modal CRUD */}
-      <UIModalMantenimiento
+      <UIModalSedes
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         mode={modalMode}

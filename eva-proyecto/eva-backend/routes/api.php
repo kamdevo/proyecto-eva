@@ -8431,7 +8431,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             $sortField = $sortFieldMap[$sortBy] ?? 'contacto.name';
             $sortDir = in_array(strtolower($sortDirection), ['asc', 'desc']) ? strtolower($sortDirection) : 'asc';
 
-            $contactos = $query->orderBy($sortField, $sortDir)->get();
+            $perPage = $request->get('per_page', 10);
+            $contactos = $query->orderBy($sortField, $sortDir)->paginate($perPage);
 
             return response()->json([
                 'success' => true,
@@ -15559,8 +15560,21 @@ Route::post('v1/materiales', [App\Http\Controllers\Api\MaterialController::class
 Route::put('v1/materiales/{id}', [App\Http\Controllers\Api\MaterialController::class, 'update']);
 Route::delete('v1/materiales/{id}', [App\Http\Controllers\Api\MaterialController::class, 'destroy']);
 
+// SEDES
+Route::get('v1/sedes', [App\Http\Controllers\Api\SedeController::class, 'index']);
+Route::post('v1/sedes', [App\Http\Controllers\Api\SedeController::class, 'store']);
+Route::put('v1/sedes/{id}', [App\Http\Controllers\Api\SedeController::class, 'update']);
+Route::delete('v1/sedes/{id}', [App\Http\Controllers\Api\SedeController::class, 'destroy']);
+
 // EXPORTAR CONSOLIDADO INDUSTRIAL
 Route::get('v1/export-industrial-tickets', [App\Http\Controllers\Api\IndustrialTicketExportController::class, 'export']);
 
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');
+
+// REPUESTOS INVENTORY
+Route::get('v1/repuestos-inventory', [App\Http\Controllers\Api\RepuestoController::class, 'index']);
+Route::post('v1/repuestos-inventory', [App\Http\Controllers\Api\RepuestoController::class, 'store']);
+Route::get('v1/repuestos-inventory/{id}', [App\Http\Controllers\Api\RepuestoController::class, 'show']);
+Route::put('v1/repuestos-inventory/{id}', [App\Http\Controllers\Api\RepuestoController::class, 'update']);
+Route::delete('v1/repuestos-inventory/{id}', [App\Http\Controllers\Api\RepuestoController::class, 'destroy']);

@@ -38,21 +38,22 @@ class SedeController extends Controller
             $request->validate([
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:100',
-                'search' => 'nullable|string|max:255'
+                'search' => 'nullable|string|max:255',
+                'sort_by' => 'nullable|string|in:id,name',
+                'sort_order' => 'nullable|string|in:asc,desc'
             ]);
 
             $query = Sede::query();
 
             if ($request->search) {
-                $query->where(function($q) use ($request) {
-                    $q->where('name', 'LIKE', "%{$request->search}%")
-                      ->orWhere('nombre', 'LIKE', "%{$request->search}%")
-                      ->orWhere('descripcion', 'LIKE', "%{$request->search}%");
-                });
+                $query->where('name', 'LIKE', "%{$request->search}%");
             }
 
-            $data = $query->orderBy('created_at', 'desc')
-                          ->paginate($request->per_page ?? 15);
+            $sortBy = $request->sort_by ?? 'id';
+            $sortOrder = $request->sort_order ?? 'desc';
+
+            $data = $query->orderBy($sortBy, $sortOrder)
+                          ->paginate($request->per_page ?? 10);
 
             return ResponseFormatter::success($data, 'Lista obtenida exitosamente');
 
@@ -75,15 +76,15 @@ class SedeController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'required|string|max:255',
-                'descripcion' => 'nullable|string|max:1000',
-                'activo' => 'nullable|boolean'
+                'name' => 'required|string|max:255'
             ]);
 
-            $data = $request->all();
-            $data['usuario_id'] = auth()->id();
+            $nextId = (Sede::max('id') ?? 0) + 1;
 
-            $item = Sede::create($data);
+            $item = Sede::create([
+                'id' => $nextId,
+                'name' => $request->name
+            ]);
 
             return ResponseFormatter::success($item, 'Creado exitosamente', 201);
 
@@ -127,13 +128,13 @@ class SedeController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'sometimes|required|string|max:255',
-                'descripcion' => 'nullable|string|max:1000',
-                'activo' => 'nullable|boolean'
+                'name' => 'required|string|max:255'
             ]);
 
             $item = Sede::findOrFail($id);
-            $item->update($request->all());
+            $item->update([
+                'name' => $request->name
+            ]);
 
             return ResponseFormatter::success($item, 'Actualizado exitosamente');
 

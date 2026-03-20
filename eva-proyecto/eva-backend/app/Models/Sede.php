@@ -47,13 +47,15 @@ class Sede extends Model
     
     protected $table = 'sedes';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $incrementing = false;
+    public $timestamps = false;
 
     /**
      * Campos que pueden ser asignados masivamente
      * Configurados con máxima seguridad empresarial
      */
     protected $fillable = [
+        'id',
         'name'
     ];
 
@@ -70,12 +72,7 @@ class Sede extends Model
      * Conversión automática de tipos (Type Casting)
      */
     protected $casts = [
-        'id' => 'integer',
-        'activo' => 'boolean',
-        'estado' => 'boolean',
-        'status' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'id' => 'integer'
     ];
 
     // ==========================================
@@ -176,7 +173,7 @@ class Sede extends Model
      */
     public function scopeOrdenadosPorNombre(Builder $query): Builder
     {
-        return $query->orderBy('name')->orOrderBy('nombre')->orOrderBy('title');
+        return $query->orderBy('name');
     }
 
     // ==========================================
@@ -343,37 +340,5 @@ class Sede extends Model
     protected static function boot()
     {
         parent::boot();
-        
-        static::creating(function ($model) {
-            // Generar código automático si no existe
-            if ($model->hasAttribute('codigo') && empty($model->codigo)) {
-                $model->codigo = self::generarCodigo();
-            }
-            
-            Log::info("Creando nuevo registro en sedes", [
-                'modelo' => get_class($model),
-                'data' => $model->toArray()
-            ]);
-        });
-        
-        static::updating(function ($model) {
-            Log::info("Actualizando registro en sedes", [
-                'id' => $model->id,
-                'modelo' => get_class($model),
-                'cambios' => $model->getDirty()
-            ]);
-            
-            $model->limpiarCache();
-        });
-        
-        static::deleting(function ($model) {
-            Log::warning("Eliminando registro en sedes", [
-                'id' => $model->id,
-                'modelo' => get_class($model),
-                'data' => $model->toArray()
-            ]);
-            
-            $model->limpiarCache();
-        });
     }
 }

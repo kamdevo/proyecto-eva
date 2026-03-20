@@ -57,7 +57,7 @@ export default function VistaMateriales() {
     try {
       setLoading(true);
       const response = await httpService.get("/v1/materiales", {
-        params: { 
+        params: {
           search: searchTerm,
           page: currentPage,
           per_page: itemsPerPage,
@@ -320,9 +320,9 @@ export default function VistaMateriales() {
                           <span className="font-semibold text-gray-900 text-sm">{item.nombre}</span>
                         </TableCell>
                         <TableCell>
-                           <span className="text-xs text-gray-500 line-clamp-1" title={item.descripcion}>
-                             {item.descripcion || "Sin descripción"}
-                           </span>
+                          <span className="text-xs text-gray-500 line-clamp-1" title={item.descripcion}>
+                            {item.descripcion || "Sin descripción"}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {formatCurrency(item.precio_unitario || 0)}
@@ -354,7 +354,7 @@ export default function VistaMateriales() {
                             <Button
                               size="sm"
                               onClick={() => handleDelete(item.id)}
-                              className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-md"
+                              className="w-8 h-8 p-0 bg-red-400 hover:bg-red-600 rounded-md"
                               title="Eliminar"
                             >
                               <Trash2 className="w-3.5 h-3.5 text-white" />
