@@ -8954,10 +8954,11 @@ Route::get('v1/test/modal-equipment-data', function () {
             // CATÁLOGOS REALES DE LA BD (solo columnas que existen en equipos)
             'sedes' => DB::table('sedes')->get(['id', 'name']),
             'servicios' => DB::table('servicios')->where('status', 1)->get(['id', 'name']),
-            'areas' => DB::table('areas')->get(['id', 'name', 'servicio_id']),
+            'areas' => DB::table('areas')->get(['id', 'name', 'servicio_id', 'centro_id']),
             'propietarios' => DB::table('propietarios')->get(['id', 'nombre as name']),
             'tipos_equipo' => DB::table('tipos')->get(['id', 'name']),
             'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
+            'centros' => DB::table('centros')->get(['id', 'name', 'codigo']),
 
             // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
             'estados_equipo' => DB::table('estadoequipos')->count() > 0

@@ -183,7 +183,15 @@ class UserController extends Controller
                 ->update($updateData);
 
             if (!$updated) {
-                return ResponseFormatter::error(null, 'No se pudo actualizar el usuario', 500);
+                // Si DB::table()->update() devuelve 0, puede ser porque no hubo cambios reales
+                // No retornamos error si los datos son los mismos, continuamos para verificar rol_id
+                Log::info("No se modificaron campos para usuario ID: $id o los datos son idénticos");
+            }
+
+            // SI SE ACTUALIZÓ EL ROL, RE-ASIGNAR PERMISOS POR DEFECTO
+            if ($request->has('rol_id')) {
+                $this->assignDefaultPermissions($id, $request->rol_id);
+                Log::info("Permisos por defecto re-asignados por cambio de rol (ID: $id, Nuevo Rol: {$request->rol_id})");
             }
 
             // Actualizar permisos individuales del usuario si se proporcionan
@@ -270,5 +278,91 @@ class UserController extends Controller
             Log::error('Error en UserController::destroy', ['error' => $e->getMessage()]);
             return ResponseFormatter::error(null, 'Error al eliminar', 500);
         }
+    }
+    /**
+     * Assign default permissions to user based on role
+     */
+    private function assignDefaultPermissions($userId, $rolId)
+    {
+        try {
+            // Get all active modules
+            $modulos = DB::table('modulos')->get();
+            
+            // Delete existing permissions ONLY IF they are not custom (this is a simplified approach)
+            // For now, mirroring UsuarioController behavior of clearing and re-assigning
+            DB::table('acciones')->where('usuario_id', $userId)->delete();
+            
+            // Assign permissions based on role
+            foreach ($modulos as $modulo) {
+                $permissions = $this->getDefaultPermissionsByRole($rolId, $modulo->name);
+                
+                DB::table('acciones')->insert([
+                    'usuario_id' => $userId,
+                    'modulo_id' => $modulo->id,
+                    'leer' => $permissions['leer'],
+                    'insertar' => $permissions['insertar'],
+                    'editar' => $permissions['editar'],
+                    'eliminar' => $permissions['eliminar']
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error assigning default permissions in UserController: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get default permissions by role
+     */
+    private function getDefaultPermissionsByRole($rolId, $moduleName)
+    {
+        // Role 1 (Super Admin) - Full access to everything
+        if ($rolId == 1) {
+            return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 1];
+        }
+        
+        // Role 4 (Basic User) - Permisos MÍNIMOS para usuarios recién activados
+        if ($rolId == 4) {
+            $basicUserModules = [
+                'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'tickets propios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'home' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            ];
+            
+            return $basicUserModules[$moduleName] ?? ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+        }
+        
+        // Role 3 (Advanced User) - Extended permissions
+        if ($rolId == 3) {
+            $advancedUserModules = [
+                'usuarios' => ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+                'configuracion' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'reportes' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            ];
+            
+            if (isset($advancedUserModules[$moduleName])) {
+                return $advancedUserModules[$moduleName];
+            }
+            
+            return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0];
+        }
+        
+        // Role 2 (Administrator) - Administrative permissions
+        if ($rolId == 2) {
+            $adminModules = [
+                'usuarios' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'reportes' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+                'dashboard' => ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0],
+            ];
+            
+            if (isset($adminModules[$moduleName])) {
+                return $adminModules[$moduleName];
+            }
+            
+            return ['leer' => 1, 'insertar' => 1, 'editar' => 1, 'eliminar' => 0];
+        }
+        
+        // Default: no permissions
+        return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
     }
 }

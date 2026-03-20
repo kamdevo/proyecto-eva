@@ -35,6 +35,7 @@ import { toast } from "sonner";
 
 import apiClient from "@/config/apiClient"; // Usar cliente configurado en lugar de axios directo
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 export function AddEquipmentModal({
   open,
@@ -133,6 +134,7 @@ export function AddEquipmentModal({
     estados_equipo: [],
     disponibilidades: [],
     sedes: [],
+    centros: [],
   });
 
   // Estado para registros INVIMA
@@ -730,7 +732,7 @@ export function AddEquipmentModal({
             fecha_adquisicion: "fecha_ad",
             numero_serie: "serial",
             codigo_inventario: "codigo_antiguo", // Usar el campo que existe en BD
-            centro_costo: "otros", // Mapear a campo existente
+            centro_costo: "centro_id", // Mapear a columna centro_id
             pais_origen: "propiedad", // Mapear a campo existente temporalmente
           };
 
@@ -1366,14 +1368,17 @@ export function AddEquipmentModal({
                           Centro de costo:
                           <span className="text-destructive">*</span>
                         </Label>
-                        <Input
-                          placeholder="CENTRO DE COSTO"
+                        <SearchableSelect
+                          placeholder="SELECCIONAR CENTRO DE COSTO"
+                          options={catalogs.centros || []}
                           value={formData.centro_costo}
-                          onChange={(e) =>
-                            handleInputChange("centro_costo", e.target.value)
+                          onValueChange={(value) =>
+                            handleInputChange("centro_costo", value)
                           }
-                          className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
-                            errors.centro_costo ? "border-red-500" : ""
+                          className={`mt-1 ${
+                            errors.centro_costo
+                              ? "border-red-500 rounded-md"
+                              : ""
                           }`}
                         />
                         {errors.centro_costo && (

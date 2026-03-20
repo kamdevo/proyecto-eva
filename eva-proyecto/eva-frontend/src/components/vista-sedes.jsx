@@ -186,43 +186,66 @@ export default function VistaSedes() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      {/* Header Container */}
-      <div className="max-w-7xl mx-auto mb-8 text-center bg-[#3c4c63] rounded-lg p-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-3">
-          <MapPin className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-          Gestión de Sedes
-        </h1>
-        <p className="text-sm text-white mt-1">Administración de ubicaciones físicas y sedes</p>
+    <div className="min-h-screen bg-gray-50 uppercase">
+      {/* Header Responsivo */}
+      <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 lg:h-20">
+            {/* Logo y título */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 bg-white/20 rounded-lg">
+                <MapPin className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg lg:text-xl font-semibold uppercase">Gestión de Sedes</h1>
+                <p className="text-xs lg:text-sm text-slate-200">Administración de ubicaciones</p>
+              </div>
+              <div className="sm:hidden">
+                <h1 className="text-lg font-semibold uppercase">Sedes</h1>
+              </div>
+            </div>
+
+            {/* Barra de búsqueda - Desktop */}
+            <div className="hidden md:block relative max-w-md flex-1 mx-8">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="Buscar sede..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white/20 w-full rounded-lg"
+              />
+            </div>
+
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white/10"
+                onClick={() => {}} 
+              >
+                <Search className="w-5 h-5 text-white" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto uppercase">
-        <Card className="shadow-sm border-0">
+      {/* Contenido principal */}
+      <div className="max-w-7xl mx-auto p-4 lg:p-6">
+        <Card className="shadow-lg">
           <CardContent className="p-0">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            {/* Controles superiores */}
+            <div className="p-4 lg:p-6 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
                   <Button
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2 shadow-sm shrink-0 w-full sm:w-auto"
                     onClick={handleOpenAdd}
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2 w-full sm:w-auto justify-center"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Agregar Sede</span>
                   </Button>
-
-                  <div className="relative w-full sm:w-80">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      type="text"
-                      placeholder="Buscar sede..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="pl-10 h-10 w-full bg-white border-gray-200"
-                    />
-                  </div>
                 </div>
 
                 <div className="flex items-center space-x-2 text-sm text-gray-500">

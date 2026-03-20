@@ -707,48 +707,36 @@ class AuthController extends ApiController
                 'role_id' => $usuario ? $usuario->rol_id : null
             ]);
 
-            // Si es Super Administrador (Role ID 1), dar acceso completo a todos los módulos
-            if ($usuario && $usuario->rol_id == 1) {
-                Log::info('Super Administrator detected, granting full permissions', [
+            // Si es Super Administrador (Role ID 1) o Administrador (Role ID 2), dar acceso amplio
+            if ($usuario && property_exists($usuario, 'rol_id') && ($usuario->rol_id == 1 || $usuario->rol_id == 2)) {
+                Log::info('Privileged role detected, granting broad permissions', [
                     'user_id' => $userId,
                     'role_id' => $usuario->rol_id
                 ]);
 
-                // Crear permisos completos para módulos comunes
-                $fullPermissions = [
-                    'equipos' => [
-                        'leer' => true,
-                        'insertar' => true,
-                        'editar' => true,
-                        'eliminar' => true,
-                    ],
-                    'usuarios' => [
-                        'leer' => true,
-                        'insertar' => true,
-                        'editar' => true,
-                        'eliminar' => true,
-                    ],
-                    'mantenimiento' => [
-                        'leer' => true,
-                        'insertar' => true,
-                        'editar' => true,
-                        'eliminar' => true,
-                    ],
-                    'reportes' => [
-                        'leer' => true,
-                        'insertar' => true,
-                        'editar' => true,
-                        'eliminar' => true,
-                    ],
-                    'configuracion' => [
-                        'leer' => true,
-                        'insertar' => true,
-                        'editar' => true,
-                        'eliminar' => true,
-                    ]
+                // Definir permisos base para roles privilegiados
+                $isSuperAdmin = ($usuario->rol_id == 1);
+                
+                // Módulos que un Admin (2) y SuperAdmin (1) deben tener
+                $baseModules = [
+                    'equipos', 'usuarios', 'mantenimiento', 'reportes', 'configuracion',
+                    'servicios', 'areas', 'propietarios', 'sedes', 'contactos',
+                    'repuestos', 'capacitaciones', 'guias rapidas', 'manuales',
+                    'tickets activos', 'tickets cerrados', 'tickets propios',
+                    'equipos industriales', 'contingencias'
                 ];
 
-                Log::info('Full permissions granted', ['permissions_count' => count($fullPermissions)]);
+                $fullPermissions = [];
+                foreach ($baseModules as $mod) {
+                    $fullPermissions[$mod] = [
+                        'leer' => true,
+                        'insertar' => true,
+                        'editar' => true,
+                        'eliminar' => $isSuperAdmin, // Solo SuperAdmin puede eliminar por defecto
+                    ];
+                }
+
+                Log::info('Broad permissions granted for role ' . $usuario->rol_id, ['permissions_count' => count($fullPermissions)]);
                 return $fullPermissions;
             }
 

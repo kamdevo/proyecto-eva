@@ -73,7 +73,7 @@ class PermissionService {
    * @returns {boolean}
    */
   isAdmin() {
-    return this.userRole === 1;
+    return [1, 2].includes(parseInt(this.userRole));
   }
 
   /**
@@ -196,6 +196,9 @@ class PermissionService {
     '/config/servicios': 'servicios',
     '/config/contactos': 'contactos',
     '/config/areas': 'areas',
+    '/config/tipos-mantenimiento': 'tipos mantenimiento',
+    '/config/materiales': 'materiales',
+    '/config/sedes': 'sedes',
     '/admin/usuarios': 'usuarios',
     '/admin/propietarios': 'contactos'
   };
