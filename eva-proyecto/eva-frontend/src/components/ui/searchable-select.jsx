@@ -48,8 +48,9 @@ const SearchableSelect = ({
     return validOptions.filter(
       (option) => {
         const displayText = option.label || option.nombre || option.name || '';
+        const codeText = option.codigo || option.code || '';
         return normalizeText(displayText).includes(normalizedSearchTerm) ||
-               (option.codigo && normalizeText(option.codigo).includes(normalizedSearchTerm));
+               (codeText && normalizeText(codeText.toString()).includes(normalizedSearchTerm));
       }
     );
   }, [options, searchTerm]);

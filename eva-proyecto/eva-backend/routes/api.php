@@ -8958,7 +8958,13 @@ Route::get('v1/test/modal-equipment-data', function () {
             'propietarios' => DB::table('propietarios')->get(['id', 'nombre as name']),
             'tipos_equipo' => DB::table('tipos')->get(['id', 'name']),
             'usuarios' => DB::table('usuarios')->where('estado', 1)->get(['id', 'nombre as name', 'apellido']),
-            'centros' => DB::table('centros')->get(['id', 'name', 'codigo']),
+            'centros' => DB::table('centros')->get(['id', 'name', 'code'])->map(function($c) {
+                return [
+                    'id' => $c->id,
+                    'name' => $c->code ? "{$c->code} - {$c->name}" : $c->name,
+                    'code' => $c->code
+                ];
+            }),
 
             // CATÁLOGOS RELACIONADOS CON EQUIPOS (si existen)
             'estados_equipo' => DB::table('estadoequipos')->count() > 0

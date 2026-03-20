@@ -1253,32 +1253,19 @@ export function AddEquipmentModal({
                             Servicio ★
                             <span className="text-destructive">*</span>
                           </Label>
-                          <Select
+                          <SearchableSelect
+                            placeholder="Seleccionar servicio"
+                            options={catalogs.servicios || []}
                             value={formData.servicio_id}
                             onValueChange={(value) => {
                               handleInputChange("servicio_id", value);
                               // Limpiar área cuando cambie el servicio
                               handleInputChange("area_id", "");
                             }}
-                          >
-                            <SelectTrigger
-                              className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
-                                errors.servicio_id ? "border-red-500" : ""
-                              }`}
-                            >
-                              <SelectValue placeholder="Seleccionar servicio" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {catalogs.servicios?.map((servicio) => (
-                                <SelectItem
-                                  key={servicio.id}
-                                  value={servicio.id.toString()}
-                                >
-                                  {servicio.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            className={`mt-1 ${
+                              errors.servicio_id ? "border-red-500 rounded-md" : ""
+                            }`}
+                          />
                           {errors.servicio_id && (
                             <p className="text-red-500 text-xs mt-1">
                               {errors.servicio_id}
@@ -1292,38 +1279,26 @@ export function AddEquipmentModal({
                               (opcional)
                             </span>
                           </Label>
-                          <Select
+                          <SearchableSelect
+                            placeholder="Seleccionar área"
+                            options={[
+                              { id: "0", name: "No disponible" },
+                              ...(catalogs.areas
+                                ?.filter(
+                                  (area) =>
+                                    area.servicio_id?.toString() ===
+                                    formData.servicio_id
+                                ) || [])
+                            ]}
                             value={formData.area_id}
                             onValueChange={(value) =>
                               handleInputChange("area_id", value)
                             }
                             disabled={!formData.servicio_id}
-                          >
-                            <SelectTrigger
-                              className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
-                                errors.area_id ? "border-red-500" : ""
-                              }`}
-                            >
-                              <SelectValue placeholder="Seleccionar área" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">No disponible</SelectItem>
-                              {catalogs.areas
-                                ?.filter(
-                                  (area) =>
-                                    area.servicio_id?.toString() ===
-                                    formData.servicio_id
-                                )
-                                .map((area) => (
-                                  <SelectItem
-                                    key={area.id}
-                                    value={area.id.toString()}
-                                  >
-                                    {area.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
+                            className={`mt-1 ${
+                              errors.area_id ? "border-red-500 rounded-md" : ""
+                            }`}
+                          />
                           {errors.area_id && (
                             <p className="text-red-500 text-xs mt-1">
                               {errors.area_id}
@@ -1337,26 +1312,15 @@ export function AddEquipmentModal({
                       <Label className="text-xs sm:text-sm">
                         Sede:<span className="text-destructive">*</span>
                       </Label>
-                      <Select
+                      <SearchableSelect
+                        placeholder="SEDE HUV"
+                        options={catalogs.sedes || []}
                         value={formData.sede_id}
                         onValueChange={(value) =>
                           handleInputChange("sede_id", value)
                         }
-                      >
-                        <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
-                          <SelectValue placeholder="SEDE HUV" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {catalogs.sedes?.map((sede) => (
-                            <SelectItem
-                              key={sede.id}
-                              value={sede.id.toString()}
-                            >
-                              {sede.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        className="mt-1"
+                      />
                       <div className="text-xs text-gray-500 mt-1">
                         Seleccione la ubicación del equipo
                       </div>
