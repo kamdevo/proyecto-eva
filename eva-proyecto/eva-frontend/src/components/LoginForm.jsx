@@ -100,10 +100,8 @@ const LoginForm = () => {
     setLoginForm((prev) => {
       const newForm = { ...prev, [field]: value };
 
-      // Validar en tiempo real si el campo ya fue tocado
-      if (loginValidation.touchedFields[field]) {
-        loginValidation.validateField(field, value);
-      }
+      // ✅ CORRECCIÓN: Usar validateOnChange para que el estado de errores se actualice
+      loginValidation.validateOnChange(field, value, newForm);
 
       return newForm;
     });
@@ -142,8 +140,10 @@ const LoginForm = () => {
     loginValidation.validateOnBlur(field, loginForm[field], loginForm);
   };
 
-  const handleRegisterBlur = (field) => {
-    registerValidation.validateOnBlur(field, registerForm[field], registerForm);
+  const handleRegisterBlur = (field, customValue = null) => {
+    // Si se proporciona un valor (ej: de SearchableSelect), usarlo; si no, usar el estado actual
+    const value = customValue !== null ? customValue : registerForm[field];
+    registerValidation.validateOnBlur(field, value, { ...registerForm, [field]: value });
   };
 
   // Manejar envío de login
@@ -457,7 +457,8 @@ const LoginForm = () => {
                     value={registerForm.centro_id}
                     onValueChange={(value) => {
                       handleRegisterChange("centro_id", value);
-                      handleRegisterBlur("centro_id");
+                      // ✅ MEJORA: Pasar el valor directamente para evitar race conditions con el estado
+                      handleRegisterBlur("centro_id", value);
                     }}
                     disabled={isLoading || centrosLoading}
                     loading={centrosLoading}

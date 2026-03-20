@@ -154,8 +154,10 @@ const useFormValidation = (formType = "login") => {
   // Validar un campo en tiempo real (mientras escribe)
   const validateOnChange = useCallback(
     (name, value, formData = {}) => {
-      // Solo validar si el campo ya fue tocado
-      if (!touchedFields[name]) return null;
+      // ✅ MEJORA: Si el campo tiene un error, queremos validarlo en tiempo real 
+      // para que el mensaje desaparezca en cuanto se corrija, incluso si no ha perdido el foco.
+      // Si no ha sido tocado Y no tiene error previo, ignoramos.
+      if (!touchedFields[name] && !errors[name]) return null;
 
       const error = validateField(name, value, formData);
       setErrors((prev) => ({
