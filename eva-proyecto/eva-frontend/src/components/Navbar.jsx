@@ -110,22 +110,11 @@ const Header = () => {
 
 const AppSidebar = () => {
   const [openSubmenus, setOpenSubmenus] = useState([]);
-  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
-  const { permissionService, isAdmin, user } = useAuth();
-  const { hasModuleAccess, isAdmin: isPermissionAdmin } = usePermissions();
+  const { permissionService, user } = useAuth();
+  const { permissions, loading: permissionsLoading, isAdmin: isPermissionAdmin } = usePermissions();
 
-  // Verificar si los permisos están cargados
-  useEffect(() => {
-    if (user && permissionService) {
-      // Dar un pequeño delay para asegurar que los permisos se carguen
-      const timer = setTimeout(() => {
-        const readableModules = permissionService.getReadableModules();
-        setPermissionsLoaded(true);
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [user, permissionService]);
+  // Ya no necesitamos el setTimeout ni el estado local permissionsLoaded
+  // Usaremos permissionsLoading directamente
 
 
   // Initialize permissions when user changes
@@ -243,28 +232,26 @@ const AppSidebar = () => {
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {(() => {
-                // Si los permisos no están cargados, usar fallback basado en rol
-                if (!permissionsLoaded) {
-
-                  // Admins ven todo
+                // Si los permisos están cargando o no hay usuario todavía
+                if (permissionsLoading || !user) {
+                  // Mientras carga, mostrar un fallback optimista basado en el rol para evitar parpadeos
                   if (user && user.rol_id <= 2) {
                     return navigationItems;
                   }
-
-                  // Usuarios normales ven módulos básicos
-                  return navigationItems.filter(item => {
-                    if (item.alwaysVisible) return true; // INICIO
-                    if (item.label === 'EQUIPOS') return true; // EQUIPOS
-                    if (item.label === 'ORDENES') {
-                      // Solo mostrar "MIS TICKETS"
-                      item.submenu = item.submenu.filter(sub => sub.href === '/ordenes/mis-tickets');
-                      return item.submenu.length > 0;
-                    }
-                    return false;
-                  });
+                  
+                  if (user) {
+                    // Fallback para usuarios normales
+                    return navigationItems.filter(item => {
+                      if (item.alwaysVisible) return true;
+                      if (item.label === 'EQUIPOS') return true;
+                      return false;
+                    });
+                  }
+                  
+                  return []; // Si no hay usuario, nada
                 }
 
-                // Una vez cargados, usar el filtro normal de permisos
+                // Una vez cargados (permissionsLoading === false), usar el filtro real
                 const filteredItems = permissionService.filterMenuItems(navigationItems);
 
                 // Si no hay items filtrados, mostrar solo INICIO
