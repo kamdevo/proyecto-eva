@@ -667,7 +667,8 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
     if (!fileName) return;
 
     // Construct the URL for the document in Laravel storage
-    const documentUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_generales/${fileName}`;
+    // Use only the filename to avoid duplicate folder segments in the URL
+    const documentUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_generales/${fileName.split('/').pop()}`;
 
     // Open document in new window with print functionality
     const newWindow = window.open(documentUrl, "_blank");
@@ -733,6 +734,17 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                       <p className="text-gray-900">
                         {selectedCorrective.descripcion_orden}
                       </p>
+                      {selectedCorrective.archivo && (
+                        <div className="mt-3">
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto text-blue-600 font-bold"
+                            onClick={() => handleViewDocument(selectedCorrective.archivo)}
+                          >
+                            🔗 VER ARCHIVO DE DIAGNÓSTICO
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <span className="font-medium text-gray-600">

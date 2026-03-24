@@ -75,28 +75,39 @@ export default function HospitalTicketModal({
   const [loadingMantenimiento, setLoadingMantenimiento] = useState(false);
   const [subcategoriasDisponibles, setSubcategoriasDisponibles] = useState([]);
 
-  const [formData, setFormData] = useState({
-    // Campos obligatorios exactos - ahora usando IDs para los searchables
+  const initialFormData = {
     sede: "",
     servicio: "",
-    numeroOT: "", // Este campo NO será editable (es incremental automático)
-    fecha: "", // Autocompletado con fecha actual
+    numeroOT: "",
+    fecha: "",
     area: "",
     equipo: "",
     modelo: "",
     serie: "",
     marca: "",
     numeroInventario: "",
-    solicitadoPor: "", // Autocompletado con usuario actual o nombre manual
-    correoElectronico: "", // Autocompletado con email del usuario actual
+    solicitadoPor: "",
+    correoElectronico: "",
     tipoArreglo: "",
     descripcionProblema: "",
-    reportanteNombre: "", // Nombre del reportante si es "otro"
+    reportanteNombre: "",
     evidencias: [],
-    // Nuevos campos para Industrial
     tipoMantenimientoId: "",
     subcategoriaMantenimientoId: "",
-  });
+    file_diagnostico: null,
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
+
+  // Función para resetear el formulario completamente
+  const resetForm = () => {
+    setFormData(initialFormData);
+    setReportadoPorMi(true);
+    setEquipoSeleccionado(null);
+    setModoIngresoEquipo("inicial");
+    setSubcategoriasDisponibles([]);
+    setCurrentSigner("");
+  };
 
   // Funciones para cargar datos de APIs
   const loadFilterOptions = async () => {
@@ -178,6 +189,9 @@ export default function HospitalTicketModal({
   // useEffect para cargar datos al abrir el modal
   useEffect(() => {
     if (isOpen) {
+      // Reset inicial y luego autocompletado
+      resetForm();
+      
       loadFilterOptions();
       // Solo cargamos empresas si no vinieron en filter-options
       if (empresas.length === 0) {
@@ -316,6 +330,28 @@ export default function HospitalTicketModal({
     if (formData.avances) filledFields.push("Avances");
     if (formData.firmaCierre) filledFields.push("Firma de Cierre");
 
+    // VALIDACIONES OBLIGATORIAS SOLICITADAS POR EL USUARIO
+    if (!formData.sede) {
+      toast.error("Campo obligatorio", {
+        description: "Debe seleccionar una sede para continuar."
+      });
+      return;
+    }
+
+    if (!formData.servicio) {
+      toast.error("Campo obligatorio", {
+        description: "Debe seleccionar un servicio para continuar."
+      });
+      return;
+    }
+
+    if (!formData.equipo) {
+      toast.error("Campo obligatorio", {
+        description: "Debe especificar o seleccionar un equipo."
+      });
+      return;
+    }
+
     if (filledFields.length === 0) {
       toast.error("Creación cancelada", {
         description: "No se completó ningún campo"
@@ -429,8 +465,23 @@ export default function HospitalTicketModal({
 
       console.log("📤 Enviando ticket al backend:", ticketData);
 
+      // Usar FormData si hay un archivo para subir
+      let dataToSend = ticketData;
+      let headers = {};
+
+      if (formData.file_diagnostico) {
+        dataToSend = new FormData();
+        Object.keys(ticketData).forEach(key => {
+          if (ticketData[key] !== null) {
+            dataToSend.append(key, ticketData[key]);
+          }
+        });
+        dataToSend.append('file_diagnostico', formData.file_diagnostico);
+        headers = { 'Content-Type': 'multipart/form-data' };
+      }
+
       // Llamar al endpoint
-      const response = await httpService.post("/v1/crear-ticket", ticketData);
+      const response = await httpService.post("/v1/crear-ticket", dataToSend, { headers });
       const result = response;
 
       // Verificar si fue exitoso
@@ -463,6 +514,7 @@ export default function HospitalTicketModal({
     toast.promise(createTicketPromise(), {
       loading: 'Creando orden de trabajo...',
       success: (data) => {
+        resetForm(); // ✅ LIMPIAR FORMULARIO DESPUÉSU DEL ÉXITO
         onClose();
         if (onSuccess) onSuccess();
         return `¡Orden de Trabajo #${data.ticketId} creada exitosamente! Tipo: ${data.ticketType.toUpperCase()}`;
@@ -865,6 +917,34 @@ export default function HospitalTicketModal({
                 </div>
               </div>
             )}
+
+            {/* Adjuntar Archivo Asociado */}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                <Upload className="w-4 h-4 mr-2 text-blue-600" />
+                Archivo Asociado al Ticket
+              </h3>
+              <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <Input
+                    type="file"
+                    id="file_diagnostico"
+                    className="max-w-xs cursor-pointer"
+                    onChange={(e) => handleInputChange("file_diagnostico", e.target.files[0])}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Soporta: PDF, Word, Imágenes, ZIP (Max. 10MB)
+                  </p>
+                  {formData.file_diagnostico && (
+                    <div className="text-xs font-medium text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">
+                      <FileText className="w-3 h-3 mr-1" />
+                      {formData.file_diagnostico.name}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
             {/* Campos de Tipo de Mantenimiento para Industrial */}

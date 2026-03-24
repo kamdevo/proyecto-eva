@@ -9,6 +9,7 @@ import { Search, X, CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Pagination from "@/components/common/Pagination";
 import { toast } from "sonner";
+import SearchableSelect from "../ui/searchable-select";
 
 export default function EquipmentSearchModal({ 
   isOpen, 
@@ -52,34 +53,14 @@ export default function EquipmentSearchModal({
 
   const fetchFilterData = async () => {
     try {
-      // Cargar sedes - handle paginated response
-      const sedesRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/sedes?per_page=100`);
-      if (sedesRes.ok) {
-        const result = await sedesRes.json();
-        // Handle both paginated (result.data.data) and non-paginated (result.data) responses
-        if (result.success) {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/filter-options`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
           const data = result.data;
-          setSedes(data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
-        }
-      }
-
-      // Cargar servicios - handle potential pagination
-      const serviciosRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/servicios?per_page=200`);
-      if (serviciosRes.ok) {
-        const result = await serviciosRes.json();
-        if (result.success) {
-          const data = result.data;
-          setServicios(data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
-        }
-      }
-
-      // Cargar áreas - handle potential pagination
-      const areasRes = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/areas?per_page=500`);
-      if (areasRes.ok) {
-        const result = await areasRes.json();
-        if (result.success) {
-          const data = result.data;
-          setAreas(data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+          setSedes(data.sedes || []);
+          setServicios(data.servicios || []);
+          setAreas(data.areas || []);
         }
       }
     } catch (error) {
@@ -252,53 +233,55 @@ export default function EquipmentSearchModal({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Sede</Label>
-                <Select value={sedeFilter} onValueChange={setSedeFilter}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Todas las sedes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las sedes</SelectItem>
-                    {sedes.map((sede) => (
-                      <SelectItem key={sede.id} value={sede.id.toString()}>
-                        {sede.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  placeholder="Todas las sedes"
+                  options={[
+                    { id: "all", name: "Todas las sedes", nombre: "Todas las sedes" },
+                    ...sedes.map(s => ({ ...s, nombre: s.name, id: s.id.toString() }))
+                  ]}
+                  value={sedeFilter}
+                  onValueChange={(value) => {
+                    setSedeFilter(value === "all" ? "all" : value);
+                    setServicioFilter("all");
+                    setAreaFilter("all");
+                  }}
+                  className="h-9 text-sm"
+                />
               </div>
 
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Servicio</Label>
-                <Select value={servicioFilter} onValueChange={setServicioFilter}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Todos los servicios" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los servicios</SelectItem>
-                    {servicios.map((servicio) => (
-                      <SelectItem key={servicio.id} value={servicio.id.toString()}>
-                        {servicio.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  placeholder="Todos los servicios"
+                  options={[
+                    { id: "all", name: "Todos los servicios", nombre: "Todos los servicios" },
+                    ...servicios
+                      .filter(s => sedeFilter === "all" || s.sede_id === parseInt(sedeFilter) || s.sede_id?.toString() === sedeFilter)
+                      .map(s => ({ ...s, nombre: s.name, id: s.id.toString() }))
+                  ]}
+                  value={servicioFilter}
+                  onValueChange={(value) => {
+                    setServicioFilter(value === "all" ? "all" : value);
+                    setAreaFilter("all");
+                  }}
+                  className="h-9 text-sm"
+                />
               </div>
 
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">Área</Label>
-                <Select value={areaFilter} onValueChange={setAreaFilter}>
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Todas las áreas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las áreas</SelectItem>
-                    {areas.map((area) => (
-                      <SelectItem key={area.id} value={area.id.toString()}>
-                        {area.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  placeholder="Todas las áreas"
+                  options={[
+                    { id: "all", name: "Todas las áreas", nombre: "Todas las áreas" },
+                    ...areas
+                      .filter(a => servicioFilter === "all" || a.servicio_id === parseInt(servicioFilter) || a.servicio_id?.toString() === servicioFilter)
+                      .map(a => ({ ...a, nombre: a.name, id: a.id.toString() }))
+                  ]}
+                  value={areaFilter}
+                  onValueChange={setAreaFilter}
+                  className="h-9 text-sm"
+                />
               </div>
 
               <div>

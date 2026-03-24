@@ -41,7 +41,8 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
     descripcion_orden: "",
     codigo_orden: "",
     fecha_inicio: "",
-    prioridad: "media"
+    prioridad: "media",
+    file_diagnostico: null
   });
 
   // Estado de carga y equipos
@@ -60,7 +61,8 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
         descripcion_orden: "",
         codigo_orden: "",
         fecha_inicio: "",
-        prioridad: "media"
+        prioridad: "media",
+        file_diagnostico: null
       });
     }
   }, [open]);
@@ -140,7 +142,20 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
     try {
       toast.loading('Registrando correctivo general...', { id: toastId });
       
-      const response = await httpService.post("/v1/correctivos-generales", formData);
+      let dataToSend = formData;
+      let headers = {};
+
+      if (formData.file_diagnostico) {
+        dataToSend = new FormData();
+        Object.keys(formData).forEach(key => {
+          if (formData[key] !== null) {
+            dataToSend.append(key, formData[key]);
+          }
+        });
+        headers = { 'Content-Type': 'multipart/form-data' };
+      }
+
+      const response = await httpService.post("/v1/correctivos-generales", dataToSend, { headers });
       
       toast.success("Correctivo creado exitosamente", { id: toastId });
       
@@ -296,6 +311,37 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
                     <SelectItem value="emergencia">Emergencia</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Adjuntar Archivo */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-600" />
+                Archivo Asociado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="file_diagnostico">Documento o Evidencia (Opcional)</Label>
+                <Input
+                  id="file_diagnostico"
+                  type="file"
+                  onChange={(e) => handleInputChange('file_diagnostico', e.target.files[0])}
+                  className="cursor-pointer"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                />
+                <p className="text-xs text-gray-500">
+                  Soporta: PDF, Word, Imágenes, ZIP (Max. 10MB)
+                </p>
+                {formData.file_diagnostico && (
+                  <div className="text-sm font-medium text-blue-600 flex items-center mt-2">
+                    <Save className="h-4 w-4 mr-2" />
+                    {formData.file_diagnostico.name}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -452,26 +452,7 @@ export default function MyTickets() {
             </div>
 
             {/* Items per page selector */}
-            <div className="mb-4 flex items-center gap-2">
-              <Label htmlFor="items-per-page" className="text-sm">
-                Mostrar
-              </Label>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={(value) => setItemsPerPage(Number(value))}
-              >
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <span className="text-sm">registros por página</span>
-            </div>
+            {/* El selector de registros por página ahora está integrado en el componente Pagination */}
 
             {/* Loading State con Skeleton */}
             {loading && (
@@ -756,6 +737,7 @@ export default function MyTickets() {
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
               loading={loading}
             />
           </CardContent>

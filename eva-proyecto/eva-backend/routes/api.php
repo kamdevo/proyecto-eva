@@ -3500,9 +3500,23 @@ Route::post('v1/crear-ticket', function (Request $request) {
         if (!empty($request->reparacion)) {
             $ticketData['reparacion'] = $request->reparacion;
         }
-        if (!empty($request->file_diagnostico)) {
-            $ticketData['file_diagnostico'] = $request->file_diagnostico;
+
+        // ✅ MANEJO DE IMAGEN/EVIDENCIA INICIAL (Campo 'image' en BD)
+        if ($request->hasFile('file_diagnostico')) {
+            try {
+                $file = $request->file('file_diagnostico');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                // Guardar en: storage/app/public/correctivos_generales
+                $file->storeAs('correctivos_generales', $filename, 'public');
+                $ticketData['image'] = $filename; // Guardamos SOLO el nombre para evitar duplicidad de carpeta en URL
+                \Log::info('📁 [CREAR-TICKET] Imagen de evidencia guardada: ' . $filename);
+            } catch (\Exception $e) {
+                \Log::error('❌ [CREAR-TICKET] Error al guardar imagen: ' . $e->getMessage());
+            }
+        } elseif (!empty($request->file_diagnostico) && is_string($request->file_diagnostico)) {
+            $ticketData['image'] = basename($request->file_diagnostico);
         }
+
         if (!empty($request->file_cierre)) {
             $ticketData['file_cierre'] = $request->file_cierre;
         }
@@ -14960,8 +14974,9 @@ Route::post('v1/tickets/{id}/diagnostico', function(Request $request, $id) {
         if ($request->hasFile('file_diagnostico')) {
             $file = $request->file('file_diagnostico');
             $fileName = time() . '_diagnostico_' . $file->getClientOriginalName();
-            // Guardar en disco 'public' explícitamente
+            // Guardar en disco 'public' explícitamente en la carpeta correctivos_generales
             $file->storeAs('correctivos_generales', $fileName, 'public');
+            // Se guarda SOLO el nombre del archivo
         }
 
         // Obtener ID del usuario actual (si está autenticado)

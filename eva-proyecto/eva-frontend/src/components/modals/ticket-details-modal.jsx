@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Building, Calendar, User, FileText, Clock, AlertCircle, Plus, Wrench, UserPlus, Printer } from "lucide-react";
+import { X, Building, Calendar, User, FileText, Clock, AlertCircle, Plus, Wrench, UserPlus, Printer, Image } from "lucide-react";
 import AddProgressModal from "./add-progress-modal";
 import AssociateSparePart from "./associate-spare-part-modal";
 import AssignResponsibleModal from "./assign-responsible-modal";
@@ -162,13 +162,36 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket }) {
             </div>
           </div>
 
-          {/* Descripción del Problema */}
           <div className="mb-6">
-            <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-4">
-              <h3 className="text-lg font-semibold text-orange-900 mb-3">DESCRIPCIÓN DEL PROBLEMA</h3>
+            <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-orange-900">DESCRIPCIÓN DEL PROBLEMA</h3>
+              <div className="flex items-center gap-3">
+                {ticket.image && (
+                  <a 
+                    href={`${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_generales/${ticket.image.split('/').pop()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-bold text-orange-800 hover:text-orange-900 transition-colors"
+                  >
+                    <Image className="w-4 h-4" />
+                    Ver Evidencia
+                  </a>
+                )}
+                {ticket.file_diagnostico && (
+                  <a 
+                    href={`${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_generales/${ticket.file_diagnostico.split('/').pop()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Ver Diagnóstico
+                  </a>
+                )}
+              </div>
             </div>
             <div className="border border-gray-200 p-4 rounded bg-gray-50">
-              <p className="text-sm text-gray-900 leading-relaxed">{ticket.description}</p>
+              <p className="text-sm text-gray-900 leading-relaxed font-medium">{ticket.description}</p>
             </div>
           </div>
 

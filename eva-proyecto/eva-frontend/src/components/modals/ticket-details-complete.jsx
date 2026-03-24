@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Building, FileText, FileSignature, Plus, Wrench, UserPlus, Printer, Calendar, User, Clock, AlertCircle, ExternalLink, Upload, File, Link } from "lucide-react";
+import { X, Building, FileText, FileSignature, Plus, Wrench, UserPlus, Printer, Calendar, User, Clock, AlertCircle, ExternalLink, Upload, File, Link, Image as ImageIcon } from "lucide-react";
 import WorkOrderClosureModal from "./work-order-closure-modal";
 import AddProgressModal from "./add-progress-modal";
 import AssociateSparePart from "./associate-spare-part-modal";
@@ -532,10 +532,23 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
               </div>
             </div>
 
-            {/* Problema */}
             <div className="mb-6">
               <div className="border-l-4 p-3 mb-4" style={{ backgroundColor: '#f0f4f8', borderColor: '#1D293D' }}>
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">DESCRIPCIÓN DEL PROBLEMA</h3>
+                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center justify-between">
+                  DESCRIPCIÓN DEL PROBLEMA
+                  {ticket.image && (
+                    <a
+                      href={`${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_generales/${ticket.image.split('/').pop()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:opacity-80 flex items-center text-sm font-normal"
+                      style={{ color: '#1D293D' }}
+                    >
+                      <ImageIcon className="w-4 h-4 mr-1" />
+                      Ver evidencia
+                    </a>
+                  )}
+                </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="border-l-2 border-gray-400 pl-3 rounded-lg col-span-2">
@@ -569,7 +582,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
                   DIAGNÓSTICO
                   {ticket.file_diagnostico && (
                     <a
-                      href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/storage/correctivos_generales/${ticket.file_diagnostico}`}
+                      href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/storage/correctivos_generales/${ticket.file_diagnostico.split('/').pop()}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:opacity-80 flex items-center text-sm font-normal"

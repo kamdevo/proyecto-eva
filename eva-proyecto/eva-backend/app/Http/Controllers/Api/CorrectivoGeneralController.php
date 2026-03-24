@@ -588,14 +588,15 @@ class CorrectivoGeneralController extends Controller
                 'descripcion_orden' => 'required|string|max:1000',
                 'codigo_orden' => 'nullable|string|max:50',
                 'fecha_inicio' => 'nullable|date',
-                'prioridad' => 'nullable|in:baja,media,alta,critica,emergencia'
+                'prioridad' => 'nullable|in:baja,media,alta,critica,emergencia',
+                'file_diagnostico' => 'nullable|file|mimes:pdf,doc,docx,jpg,png,zip|max:10240'
             ]);
 
             if ($validator->fails()) {
                 return ResponseFormatter::error($validator->errors(), 'Error de validación', 422);
             }
 
-            $correctivo = CorrectivoGeneral::create([
+            $data = [
                 'fuente' => 'Correctivos generales',
                 'equipo_id' => $request->equipo_id,
                 'responsable_mantenimiento' => $request->responsable_mantenimiento,
@@ -605,7 +606,23 @@ class CorrectivoGeneralController extends Controller
                 'status' => 1,
                 'estado' => 'pendiente',
                 'prioridad' => $request->prioridad ?? 'media'
-            ]);
+            ];
+
+            // ✅ MANEJO DE ARCHIVO ADJUNTO (DIAGNÓSTICO)
+            if ($request->hasFile('file_diagnostico')) {
+                try {
+                    $file = $request->file('file_diagnostico');
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    // Guardar en: storage/app/public/correctivos_generales
+                    $file->storeAs('correctivos_generales', $filename, 'public');
+                    $data['file'] = $filename; // Guardamos SOLO el nombre para evitar duplicidad de carpeta en URL
+                    Log::info('📁 [CORRECTIVO-GENERAL] Archivo guardado: ' . $filename);
+                } catch (Exception $e) {
+                    Log::error('❌ [CORRECTIVO-GENERAL] Error al guardar archivo: ' . $e->getMessage());
+                }
+            }
+
+            $correctivo = CorrectivoGeneral::create($data);
 
             return ResponseFormatter::success($correctivo->load('equipo'), 'Correctivo creado exitosamente', 201);
 
