@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Pagination from "@/components/common/Pagination";
+import ItemsPerPage from "@/components/common/ItemsPerPage";
 import TicketDetailsModal from "@/components/modals/ticket-details-complete";
 import {
   Search,
@@ -409,6 +410,15 @@ export default function ClosedTickets() {
         </div>
       </div>
 
+      {/* Items per Page Select */}
+      <div className="flex justify-start px-4 sm:px-6 mt-4">
+        <ItemsPerPage 
+          value={itemsPerPage} 
+          onChange={setItemsPerPage} 
+          disabled={loading}
+        />
+      </div>
+
       {/* Tickets Table/Cards */}
       <div className="p-4 sm:p-6">
         {loading ? (
@@ -568,7 +578,6 @@ export default function ClosedTickets() {
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
                 itemsPerPage={itemsPerPage}
-                onItemsPerPageChange={setItemsPerPage}
                 totalItems={totalItems}
               />
             </div>

@@ -1,14 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 
 /**
  * Componente de paginación reutilizable
@@ -19,7 +11,6 @@ const Pagination = ({
   totalItems,
   itemsPerPage,
   onPageChange,
-  onItemsPerPageChange, // ✅ Nueva prop opcional
   loading = false,
   showInfo = true,
   maxVisiblePages = 5
@@ -32,36 +23,10 @@ const Pagination = ({
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t bg-gray-50 gap-4">
-      {/* Selector de registros por página (Opcional) */}
-      <div className="flex items-center gap-2">
-        {onItemsPerPageChange && (
-          <>
-            <Label className="text-sm font-medium text-gray-700">Mostrar</Label>
-            <Select
-              value={itemsPerPage.toString()}
-              onValueChange={(value) => onItemsPerPageChange(Number(value))}
-              disabled={loading}
-            >
-              <SelectTrigger className="w-[70px] h-8 bg-white border-gray-300">
-                <SelectValue placeholder={itemsPerPage} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <Label className="text-sm font-medium text-gray-700">registros por página</Label>
-          </>
-        )}
-      </div>
-
-      <div className="flex flex-col sm:flex-row items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-between">
         {showInfo && totalItems > 0 && (
           <div className="text-sm text-gray-600 font-medium order-2 sm:order-1">
-            {startItem} - {endItem} de {totalItems}
+            Mostrando {startItem} - {endItem} de {totalItems} registros
           </div>
         )}
         
@@ -91,7 +56,7 @@ const Pagination = ({
           </Button>
           
           {/* Page numbers */}
-          <div className="hidden sm:flex items-center space-x-1">
+          <div className="hidden sm:flex items-center space-x-2">
             {(() => {
               const pages = [];
               let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));

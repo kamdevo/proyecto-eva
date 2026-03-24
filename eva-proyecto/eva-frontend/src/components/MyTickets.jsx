@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import TicketsImg from "@/assets/Img/imagenes/mis-tickets-img.jpg";
 import Pagination from "@/components/common/Pagination";
-
+import ItemsPerPage from "@/components/common/ItemsPerPage";
 import {
   Select,
   SelectContent,
@@ -451,8 +451,14 @@ export default function MyTickets() {
               </div>
             </div>
 
-            {/* Items per page selector */}
-            {/* El selector de registros por página ahora está integrado en el componente Pagination */}
+            {/* Items per page selector ARRIBA */}
+            <div className="flex justify-start py-2">
+              <ItemsPerPage 
+                value={itemsPerPage} 
+                onChange={setItemsPerPage} 
+                disabled={loading}
+              />
+            </div>
 
             {/* Loading State con Skeleton */}
             {loading && (
@@ -737,7 +743,6 @@ export default function MyTickets() {
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              onItemsPerPageChange={setItemsPerPage}
               loading={loading}
             />
           </CardContent>

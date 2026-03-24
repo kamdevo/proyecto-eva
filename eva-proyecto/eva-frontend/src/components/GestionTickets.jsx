@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Pagination from "@/components/common/Pagination";
+import ItemsPerPage from "@/components/common/ItemsPerPage";
 import TicketDetailsModal from "@/components/modals/ticket-details-complete";
 import TicketEditModal from "@/components/modals/ticket-edit-full";
 import {
@@ -469,6 +470,15 @@ export default function GestionTickets() {
           </div>
         </div>
 
+        {/* Items per Page Select */}
+        <div className="flex justify-start mt-4 px-1">
+          <ItemsPerPage 
+            value={itemsPerPage} 
+            onChange={setItemsPerPage} 
+            disabled={loading}
+          />
+        </div>
+
         {/* Records Count */}
         <div className="text-xs sm:text-sm text-gray-600">
           {loading ? (
@@ -656,16 +666,14 @@ export default function GestionTickets() {
       )}
 
       {/* Pagination */}
-      <div className="mt-6">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          onItemsPerPageChange={setItemsPerPage}
-          totalItems={totalItems}
-        />
-      </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        loading={loading}
+      />
 
       {/* Ticket Details Modal */}
       <TicketDetailsModal
