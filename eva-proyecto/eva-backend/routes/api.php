@@ -1064,10 +1064,10 @@ Route::prefix('v1')->group(function () {
                         'created_at' => now()
                     ]);
                     
-                    // Update equipment status to BAJA
+                    // Update equipment status to BAJA (estadoequipo_id = 6)
                     DB::table('equipos')->where('id', $equipoId)->update([
                         'baja_id' => $bajaId,
-                        'status' => 0
+                        'estadoequipo_id' => 6
                     ]);
                 }
             }
@@ -1126,10 +1126,10 @@ Route::prefix('v1')->group(function () {
                 ->where('equipo_id', $equipoId)
                 ->delete();
             
-            // Update equipment status back to ACTIVO
+            // Update equipment status back to ACTIVO (estadoequipo_id = 1)
             DB::table('equipos')->where('id', $equipoId)->update([
                 'baja_id' => 1,
-                'estado' => 'ACTIVO'
+                'estadoequipo_id' => 1
             ]);
             
             return response()->json([
@@ -2350,9 +2350,10 @@ Route::prefix('v1')->group(function () {
                 'created_at' => now()
             ]);
             
-            // Update equipment status
+            // Update equipment status to BAJA (estadoequipo_id = 6)
             DB::table('equipos')->where('id', $equipoId)->update([
-                'baja_id' => $bajaId
+                'baja_id' => $bajaId,
+                'estadoequipo_id' => 6
             ]);
             
             return response()->json([
@@ -15032,12 +15033,12 @@ Route::post('v1/tickets/{id}/enviar-cierre', function(Request $request, $id) {
             'hora_asignacion_cierre' => 'nullable|string',
             'tecnico_cierre_text' => 'nullable|string',
             'file_cierre' => 'nullable|file|max:10240', // 10MB
-            'firma_tecnico' => 'nullable|string', // Firma digital del técnico (base64)
-            'firma_recibido' => 'nullable|string', // Firma digital de quien recibe (base64)
-            'firma_tecnico_nombre' => 'nullable|string', // Nombre del técnico que firma
-            'firma_tecnico_fecha' => 'nullable|string', // Fecha de firma del técnico
-            'firma_recibido_nombre' => 'nullable|string', // Nombre de quien recibe
-            'firma_recibido_fecha' => 'nullable|string' // Fecha de firma de quien recibe
+            'firma_tecnico' => 'required|string', // Firma digital del técnico (base64) - OBLIGATORIA
+            'firma_recibido' => 'required|string', // Firma digital de quien recibe (base64) - OBLIGATORIA
+            'firma_tecnico_nombre' => 'required|string', // Nombre del técnico que firma - OBLIGATORIO
+            'firma_tecnico_fecha' => 'nullable|string',
+            'firma_recibido_nombre' => 'required|string', // Nombre de quien recibe - OBLIGATORIO
+            'firma_recibido_fecha' => 'nullable|string'
         ]);
 
         // Procesar fecha y hora

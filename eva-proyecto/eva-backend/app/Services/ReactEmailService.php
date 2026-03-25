@@ -414,7 +414,6 @@ class ReactEmailService
                     <div class="equipment-info">• <strong>Modelo del equipo:</strong> ' . ($ticket['equipo_modelo'] ?? 'N/A') . '</div>
                     <div class="equipment-info">• <strong>Código del equipo:</strong> ' . ($ticket['equipo_codigo'] ?? 'N/A') . '</div>
                     <div class="equipment-info">• <strong>Serie del equipo:</strong> ' . ($ticket['equipo_serie'] ?? 'N/A') . '</div>
-                    <div class="equipment-info">• <strong>Prioridad:</strong> <span class="priority-badge">' . $prioridadTexto . '</span></div>
 
                     <!-- Información del Solicitante -->
                     <h3 class="info-title">Información del Solicitante:</h3>

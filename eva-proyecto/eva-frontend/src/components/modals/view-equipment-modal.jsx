@@ -1224,6 +1224,83 @@ export function ViewEquipmentModal({
               </div>
             </div>
 
+            {/* CORRECTIVOS GENERALES - NUEVA SECCIÓN */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>
+                CORRECTIVOS GENERALES
+              </h3>
+              <div className="border border-gray-300">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left w-[20%]">Código / Orden</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left w-[20%]">F. Inicio</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left w-[50%]">Descripción Cierre</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center w-[10%]">Archivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayData.correctivos_generales && displayData.correctivos_generales.length > 0 ? (
+                      displayData.correctivos_generales.map((correctivo, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">
+                            {correctivo.code_orden || `-`} / {correctivo.orden || `-`}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            {formatDate(correctivo.fecha_inicio)}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            <div className="flex flex-col gap-1 items-start">
+                              {correctivo.descripcion_codigo ? (
+                                <Badge className="bg-blue-100 text-blue-800 text-xs text-left whitespace-normal mb-1">
+                                  {correctivo.codigo_cierre} - {correctivo.descripcion_codigo}
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-400">Pendiente</span>
+                              )}
+                              
+                              {correctivo.description && (
+                                <p className="text-xs text-gray-700 leading-tight mb-1 font-medium italic bg-gray-50 p-1 rounded border border-gray-100 w-full">
+                                  {correctivo.description}
+                                </p>
+                              )}
+
+                              <span className="text-xs text-gray-600 mt-1">
+                                <strong>F. Cierre:</strong> {formatDate(correctivo.fecha_mantenimiento)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-center">
+                            {correctivo.file ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${correctivo.file.split('/').pop()}`, '_blank')}
+                                className="text-gray-800 hover:bg-gray-100 h-7 px-2"
+                                title="Ver archivo adjunto"
+                              >
+                                <ExternalLink className="w-4 h-4 mr-1" />
+                                Ver
+                              </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Sin archivo</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
+                          No hay correctivos generales registrados para este equipo
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {/* OBSERVACIONES DEL EQUIPO - NUEVA SECCIÓN */}
             <div className="p-6">
               <h3 className="text-lg font-bold text-white px-4 py-2 mb-0" style={{backgroundColor: '#1d293d'}}>

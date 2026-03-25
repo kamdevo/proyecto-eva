@@ -604,6 +604,48 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           )}
         </View>
 
+        {/* CORRECTIVOS GENERALES */}
+        <Text style={styles.sectionTitle}>CORRECTIVOS GENERALES</Text>
+        <View style={styles.dataTable}>
+          <View style={styles.dataTableHeader}>
+            <Text style={[styles.dataTableHeaderCell, { flex: 1.5 }]}>Código / Orden</Text>
+            <Text style={[styles.dataTableHeaderCell, { flex: 1.5 }]}>F. Inicio</Text>
+            <Text style={[styles.dataTableHeaderCell, { flex: 4 }]}>Descripción Cierre</Text>
+            <Text style={[styles.dataTableHeaderCell, { flex: 1 }]}>Archivo</Text>
+          </View>
+          {data?.correctivos_generales && data.correctivos_generales.length > 0 ? (
+            data.correctivos_generales.map((correctivo, index) => (
+              <View key={index} style={styles.dataTableRow}>
+                <Text style={[styles.dataTableCell, { flex: 1.5 }]}>{correctivo.code_orden || `-`} / {correctivo.orden || `-`}</Text>
+                <Text style={[styles.dataTableCell, { flex: 1.5 }]}>{formatDate(correctivo.fecha_inicio)}</Text>
+                <Text style={[styles.dataTableCell, { flex: 4, fontSize: 7 }]}>
+                  {correctivo.descripcion_codigo ? `${correctivo.codigo_cierre} - ${correctivo.descripcion_codigo}` : 'Pendiente'}
+                  {correctivo.description ? `\nDescripción: ${correctivo.description}` : ''}
+                  {`\nF. Cierre: ${formatDate(correctivo.fecha_mantenimiento)}`}
+                </Text>
+                <Text style={[styles.dataTableCell, { flex: 1 }]}>
+                  {correctivo.file ? (
+                    <Link 
+                      src={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${correctivo.file.split('/').pop()}`}
+                      style={styles.link}
+                    >
+                      Ver
+                    </Link>
+                  ) : (
+                    'Sin archivo'
+                  )}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.dataTableRow}>
+              <Text style={[styles.dataTableCell, { textAlign: 'center', fontStyle: 'italic', color: '#6b7280' }]}>
+                No hay correctivos generales registrados para este equipo
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* OBSERVACIONES DEL EQUIPO */}
         <Text style={styles.sectionTitle}>OBSERVACIONES DEL EQUIPO</Text>
         <View style={styles.dataTable}>

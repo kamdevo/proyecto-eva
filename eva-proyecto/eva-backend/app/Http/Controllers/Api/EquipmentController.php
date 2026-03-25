@@ -2062,6 +2062,26 @@ class EquipmentController extends ApiController
                 $equipoData['movimientos'] = [];
             }
 
+            // 9. Correctivos Generales
+            try {
+                $correctivos = DB::table('correctivos_generales')
+                    ->leftJoin('codificacion_cierres', 'codificacion_cierres.id', '=', 'correctivos_generales.cierre_id')
+                    ->where('correctivos_generales.equipo_id', $id)
+                    ->select([
+                        'correctivos_generales.*',
+                        'codificacion_cierres.name as descripcion_codigo',
+                        'codificacion_cierres.code as codigo_cierre',
+                        DB::raw('(SELECT COUNT(*) FROM avances_correctivos WHERE correctivo_general_id = correctivos_generales.id) AS conteo_avances')
+                    ])
+                    ->orderBy('correctivos_generales.fecha_inicio', 'desc')
+                    ->get();
+                
+                $equipoData['correctivos_generales'] = $correctivos;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo correctivos generales: ' . $e->getMessage());
+                $equipoData['correctivos_generales'] = [];
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Información completa del equipo obtenida exitosamente',
