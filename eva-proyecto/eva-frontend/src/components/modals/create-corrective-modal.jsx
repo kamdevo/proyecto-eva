@@ -334,7 +334,7 @@ export function CreateCorrectiveModal({ open, onOpenChange, onCorrectiveCreated 
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
                 />
                 <p className="text-xs text-gray-500">
-                  Soporta: PDF, Word, Imágenes, ZIP (Max. 10MB)
+                  Soporta: PDF, Word, Imágenes, ZIP (Límite amplio: 50MB+)
                 </p>
                 {formData.file_diagnostico && (
                   <div className="text-sm font-medium text-blue-600 flex items-center mt-2">

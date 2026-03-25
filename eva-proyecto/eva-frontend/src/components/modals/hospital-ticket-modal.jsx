@@ -934,7 +934,7 @@ export default function HospitalTicketModal({
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
                   />
                   <p className="text-xs text-gray-500">
-                    Soporta: PDF, Word, Imágenes, ZIP (Max. 10MB)
+                    Soporta: PDF, Word, Imágenes, ZIP (Límite amplio: 50MB+)
                   </p>
                   {formData.file_diagnostico && (
                     <div className="text-xs font-medium text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">

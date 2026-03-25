@@ -7429,8 +7429,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     'usuarios.fecha_registro',
                     'roles.nombre as rol',
                     'centros.name as centro'
-                ])
-                ->where('usuarios.estado', '!=', 0);
+                ]);
 
             if ($search) {
                 $query->where(function($q) use ($search) {

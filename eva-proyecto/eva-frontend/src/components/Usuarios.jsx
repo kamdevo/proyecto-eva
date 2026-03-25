@@ -205,23 +205,11 @@ export default function Usuarios() {
   
   // Funciones para manejar usuarios
   const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
+    setSearchTerm(e.target.value);
+  };
 
-    // Debounce search to avoid too many API calls
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-
-    const timeout = setTimeout(() => {
-      if (value.trim()) {
-        fetchUsuarios(1, pagination.per_page, value.trim(), usersSortField, usersSortDirection);
-      } else {
-        fetchUsuarios(1, pagination.per_page, '', usersSortField, usersSortDirection);
-      }
-    }, 300); // Wait 300ms after user stops typing
-
-    setSearchTimeout(timeout);
+  const triggerSearch = () => {
+    fetchUsuarios(1, pagination.per_page, searchTerm.trim(), usersSortField, usersSortDirection);
   };
 
   // Clear search
@@ -944,48 +932,32 @@ export default function Usuarios() {
         username: addUserForm.username,
         password: addUserForm.password,
         rol_id: parseInt(addUserForm.rol) || 4, // Default Usuario Básico (rol 4)
-        centro_id: addUserForm.centroCosto || null, // Centro de costo correcto
-        id_empresa: addUserForm.empresa || null, // Empresa correcta
-        servicio_id: null, // Campo separado
-        zona_id: null, // Campo separado
-        estado: 0, // DESACTIVADO por defecto como se implementó
-        active: 'false' // Usuarios INACTIVOS por defecto
+        centro_id: addUserForm.centroCosto || null,
+        id_empresa: addUserForm.empresa || null,
+        estado: 0,
+        active: 'false'
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/usuarios`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(userData)
+      await createUsuario(userData);
+      
+      toast.success('Usuario creado exitosamente');
+      setIsAddUserModalOpen(false);
+      setAddUserForm({
+        nombre: "",
+        apellidos: "",
+        telefono: "",
+        email: "",
+        username: "",
+        password: "",
+        rol: "",
+        centroCosto: "",
+        empresa: "",
       });
       
-      const result = await response.json();
-      
-      if (result.success || response.ok) {
-        toast.success('Usuario creado exitosamente');
-        setIsAddUserModalOpen(false);
-        setAddUserForm({
-          nombre: "",
-          apellidos: "",
-          telefono: "",
-          email: "",
-          username: "",
-          password: "",
-          rol: "",
-          centroCosto: "",
-          empresa: "",
-        });
-        
-        // Recargar lista de usuarios
-        fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection);
-      } else {
-        toast.error(`Error: ${result.message || 'Error creando usuario'}`);
-      }
+      // La lista se refresca automáticamente por el hook createUsuario
     } catch (error) {
       console.error("Error creando usuario:", error);
-      toast.error("Error al crear usuario: " + error.message);
+      toast.error("Error al crear usuario: " + (error.message || "Error desconocido"));
     }
   };
 
@@ -1249,9 +1221,6 @@ export default function Usuarios() {
                 <CardTitle className="text-xl font-semibold text-gray-900">
                   Usuarios
                 </CardTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  Gestiona todos los usuarios del sistema
-                </p>
               </div>
               <div className="flex gap-2">
                 <Dialog
@@ -1514,12 +1483,12 @@ export default function Usuarios() {
               {/* Primera fila: Búsqueda principal */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                 <div className="flex items-center gap-3 flex-1">
-                  <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   <div className="relative flex-1 max-w-md">
                     <Input
                       placeholder="Buscar por nombre, email, username, teléfono, rol..."
                       value={searchTerm}
                       onChange={handleSearch}
+                      onKeyDown={(e) => e.key === 'Enter' && triggerSearch()}
                       className="w-full pr-8"
                     />
                     {searchTerm && (
@@ -1534,6 +1503,13 @@ export default function Usuarios() {
                       </Button>
                     )}
                   </div>
+                  <Button
+                    onClick={triggerSearch}
+                    className="bg-blue-600 hover:bg-blue-700 text-white gap-2 h-10 px-4"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span>Buscar</span>
+                  </Button>
                 </div>
                 
                 {/* Botón actualizar */}
