@@ -101,8 +101,16 @@ export const AuthProvider = ({ children }) => {
     if (!permissions.length) {
       if (userRoleId <= 2) return true; // Admins siempre
       
-      // Para usuarios normales, permitir módulos básicos
-      const basicModules = ['dashboard', 'equipos', 'tickets-propios', 'correctivos'];
+      // Para usuarios normales, permitir módulos básicos (fallback si no hay permisos en BD)
+      const basicModules = [
+        'dashboard', 
+        'equipos', 
+        'equipos industriales', 
+        'guias rapidas', 
+        'tickets propios', 
+        'tickets activos', 
+        'tickets cerrados'
+      ];
       if (basicModules.includes(moduleName.toLowerCase()) && action === 'leer') {
         return true;
       }

@@ -61,9 +61,9 @@ class RepuestoController extends Controller
 
             return ResponseFormatter::paginated($data, 'Lista de inventario obtenida exitosamente');
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error en RepuestoController::index', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al obtener lista', 500);
+            return ResponseFormatter::error(null, 'Error al obtener lista: ' . $e->getMessage(), 500);
         }
     }
 
@@ -79,7 +79,7 @@ class RepuestoController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
-            $request->validate([
+            $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'cantidad' => 'nullable|integer|min:0',
                 'code' => 'required|string|max:100|unique:repuestos,code',
@@ -88,11 +88,15 @@ class RepuestoController extends Controller
                 'status' => 'nullable|integer'
             ]);
 
-            $item = Repuesto::create($request->all());
+            if ($validator->fails()) {
+                return ResponseFormatter::validation($validator->errors()->toArray());
+            }
+
+            $item = Repuesto::create($request->except(['id']));
 
             return ResponseFormatter::created($item, 'Repuesto creado exitosamente');
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error en RepuestoController::store', ['error' => $e->getMessage()]);
             return ResponseFormatter::error(null, 'Error al crear repuesto: ' . $e->getMessage(), 500);
         }
@@ -113,7 +117,7 @@ class RepuestoController extends Controller
             $item = Repuesto::findOrFail($id);
             return ResponseFormatter::success($item);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error en RepuestoController::show', ['error' => $e->getMessage()]);
             return ResponseFormatter::notFound();
         }
@@ -131,23 +135,28 @@ class RepuestoController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         try {
-            $request->validate([
-                'name' => 'sometimes|required|string|max:255',
+            $item = Repuesto::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'name' => 'nullable|string|max:255',
                 'cantidad' => 'nullable|integer|min:0',
-                'code' => 'sometimes|required|string|max:100|unique:repuestos,code,' . $id,
+                'code' => 'sometimes|string|max:100|unique:repuestos,code,' . $id,
                 'precio' => 'nullable|numeric|min:0',
                 'grupo' => 'nullable|string|max:10',
                 'status' => 'nullable|integer'
             ]);
 
-            $item = Repuesto::findOrFail($id);
-            $item->update($request->all());
+            if ($validator->fails()) {
+                return ResponseFormatter::validation($validator->errors()->toArray());
+            }
+
+            $item->update($request->except(['id']));
 
             return ResponseFormatter::success($item, 'Actualizado exitosamente');
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error en RepuestoController::update', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al actualizar', 500);
+            return ResponseFormatter::error(null, 'Error al actualizar: ' . $e->getMessage(), 500);
         }
     }
 
@@ -168,9 +177,9 @@ class RepuestoController extends Controller
 
             return ResponseFormatter::success(null, 'Eliminado exitosamente');
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Error en RepuestoController::destroy', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al eliminar', 500);
+            return ResponseFormatter::error(null, 'Error al eliminar: ' . $e->getMessage(), 500);
         }
     }
 }

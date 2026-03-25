@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from '../../hooks/useAuth';
 import apiClient from '../../config/apiClient';
+import { toast } from "sonner";
 import {
   FaHome,
   FaTools,
@@ -38,7 +39,7 @@ const Sidebar = ({ isOpen }) => {
   const [expandedMenus, setExpandedMenus] = useState({});
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user, hasModuleAccess, permissions } = useAuth();
+  const { user, hasModuleAccess, permissions, loading: authLoading } = useAuth();
 
   // Cargar módulos desde la BD
   useEffect(() => {
@@ -69,6 +70,19 @@ const Sidebar = ({ isOpen }) => {
     console.log('🚀 SIDEBAR: useEffect ejecutado');
     loadModules();
   }, []);
+
+  // Efecto para mostrar toast de cargando permisos
+  useEffect(() => {
+    if (authLoading) {
+      toast.loading("Cargando permisos del sistema...", {
+        id: "loading-permissions",
+        description: "Esto tomará solo un momento",
+      });
+    } else {
+      toast.dismiss("loading-permissions");
+      // Opcional: Mostrar éxito brevemente si se desea
+    }
+  }, [authLoading]);
 
   const toggleMenu = (menuKey) => {
     setExpandedMenus((prev) => ({
@@ -157,7 +171,7 @@ const Sidebar = ({ isOpen }) => {
     return result;
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <aside className={`sidebar ${isOpen ? "open" : "closed"}`}>
         <nav className="sidebar-nav">

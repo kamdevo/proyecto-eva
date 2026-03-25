@@ -20,31 +20,33 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Plus, 
-  Search, 
-  Package, 
-  Trash2, 
-  Edit, 
-  Save, 
+import {
+  Plus,
+  Search,
+  Package,
+  Trash2,
+  Edit,
+  Save,
   RotateCcw,
   AlertTriangle,
   Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const RepuestosView = () => {
   // Estados principales
   const [repuestos, setRepuestos] = useState([]);
+  const { getToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [grupoFilter, setGrupoFilter] = useState("all");
-  
+
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  
+
   // Formulario
   const [formData, setFormData] = useState({
     id: null,
@@ -72,10 +74,15 @@ const RepuestosView = () => {
         search: searchTerm,
         grupo: grupoFilter
       });
-      
-      const response = await fetch(`/api/v1/repuestos-inventory?${queryParams}`);
+
+      const response = await fetch(`/api/v1/repuestos-inventory?${queryParams}`, {
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${getToken()}`
+        }
+      });
       const result = await response.json();
-      
+
       if (result.success) {
         // Estructura de ResponseFormatter::paginated
         setRepuestos(result.data || []);
@@ -101,22 +108,34 @@ const RepuestosView = () => {
       return;
     }
 
+    // Limpiar datos para el backend
+    const dataToSend = {
+      ...formData,
+      cantidad: formData.cantidad === "" ? null : parseInt(formData.cantidad),
+      precio: formData.precio === "" ? null : parseFloat(formData.precio),
+      status: parseInt(formData.status)
+    };
+
     setSaving(true);
     try {
-      const url = isEditMode 
+      const url = isEditMode
         ? `/api/v1/repuestos-inventory/${formData.id}`
         : `/api/v1/repuestos-inventory`;
-      
+
       const method = isEditMode ? "PUT" : "POST";
-      
+
       const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(dataToSend)
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success(isEditMode ? "Repuesto actualizado" : "Repuesto agregado");
         resetForm();
@@ -137,10 +156,14 @@ const RepuestosView = () => {
 
     try {
       const response = await fetch(`/api/v1/repuestos-inventory/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json",
+          "Authorization": `Bearer ${getToken()}`
+        }
       });
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success("Repuesto eliminado");
         fetchRepuestos();
@@ -181,7 +204,7 @@ const RepuestosView = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Encabezado Premium */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
@@ -207,7 +230,7 @@ const RepuestosView = () => {
             <div className="flex flex-col md:flex-row gap-4 items-end">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input 
+                <Input
                   placeholder="Buscar por nombre, código o grupo..."
                   value={searchTerm}
                   onChange={(e) => {
@@ -238,13 +261,13 @@ const RepuestosView = () => {
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
+
           {/* Tabla de Inventario */}
           <div className="lg:col-span-8 space-y-4">
             <Card className="border-none shadow-md bg-white rounded-2xl overflow-hidden">
               <CardHeader className="border-b border-slate-100 bg-slate-50/50">
                 <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  Existencias en Almacén
+                  Repuestos
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -294,17 +317,17 @@ const RepuestosView = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleEdit(item)}
                                 className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleDelete(item.id)}
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
@@ -345,19 +368,19 @@ const RepuestosView = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-slate-600">Nombre del repuesto</Label>
-                    <Input 
+                    <Input
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="Ej: Filtro de Aire"
                       className="border-slate-200 focus:border-[#1d293d]"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="text-slate-600">Código Único</Label>
-                    <Input 
+                    <Input
                       value={formData.code}
-                      onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                       placeholder="REP-001"
                       className="border-slate-200 focus:border-[#1d293d] font-mono"
                     />
@@ -366,10 +389,10 @@ const RepuestosView = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-slate-600">Stock Inicial</Label>
-                      <Input 
+                      <Input
                         type="number"
                         value={formData.cantidad}
-                        onChange={(e) => setFormData({...formData, cantidad: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
                         placeholder="0"
                         className="border-slate-200 focus:border-[#1d293d]"
                       />
@@ -378,11 +401,11 @@ const RepuestosView = () => {
                       <Label className="text-slate-600">Precio Unitario</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
-                        <Input 
+                        <Input
                           type="number"
                           step="0.01"
                           value={formData.precio}
-                          onChange={(e) => setFormData({...formData, precio: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
                           placeholder="0.00"
                           className="pl-7 border-slate-200 focus:border-[#1d293d]"
                         />
@@ -392,31 +415,27 @@ const RepuestosView = () => {
 
                   <div className="space-y-2">
                     <Label className="text-slate-600">Grupo de Clasificación</Label>
-                    <Select value={formData.grupo} onValueChange={(val) => setFormData({...formData, grupo: val})}>
-                      <SelectTrigger className="border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MT1">MT1 - Mantenimiento</SelectItem>
-                        <SelectItem value="DM1">DM1 - Diagnóstico</SelectItem>
-                        <SelectItem value="ET1">ET1 - Electrónica</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      value={formData.grupo}
+                      onChange={(e) => setFormData({ ...formData, grupo: e.target.value.toUpperCase() })}
+                      placeholder="Ej: MT1, DM1, etc."
+                      className="border-slate-200 focus:border-[#1d293d]"
+                    />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 pt-4">
-                  <Button 
-                    onClick={handleSave} 
+                  <Button
+                    onClick={handleSave}
                     className="w-full bg-[#1d293d] hover:bg-[#2a3b52] text-white shadow-md active:scale-95 transition-transform"
                     disabled={saving}
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     {isEditMode ? "Actualizar Repuesto" : "Guardar Repuesto"}
                   </Button>
-                  
-                  <Button 
-                    variant="ghost" 
+
+                  <Button
+                    variant="ghost"
                     onClick={resetForm}
                     className="w-full text-slate-500 hover:bg-slate-100"
                   >

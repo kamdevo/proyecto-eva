@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
 import { toast } from "sonner";
+import Pagination from "@/components/common/Pagination";
 import {
   Plus,
   Pencil,
@@ -69,24 +70,35 @@ export default function ContactsView() {
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Cargar datos al montar el componente y cuando cambie el ordenamiento
   useEffect(() => {
-    fetchContactos(searchTerm);
+    fetchContactos(searchTerm, currentPage);
     fetchTiposContacto();
-  }, [sortField, sortDirection]);
+  }, [sortField, sortDirection, currentPage]);
 
-  const fetchContactos = async (search = "") => {
+  const fetchContactos = async (search = "", page = 1) => {
     try {
       setLoading(true);
       const params = { 
         ...(search ? { search } : {}),
         sort_by: sortField,
-        sort_direction: sortDirection
+        sort_direction: sortDirection,
+        page: page,
+        per_page: 10
       };
       const response = await httpService.get("/v1/contactos/list", { params });
       if (response.data.success) {
         setContactsData(response.data.data);
+        if (response.data.pagination) {
+          setTotalPages(response.data.pagination.last_page);
+          setTotalItems(response.data.pagination.total);
+        }
       }
     } catch (error) {
       console.error("Error cargando contactos:", error);
@@ -214,8 +226,9 @@ export default function ContactsView() {
 
   const handleSearch = (value) => {
     setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page on search
     if (value.length >= 3 || value.length === 0) {
-      fetchContactos(value);
+      fetchContactos(value, 1);
     }
   };
 
@@ -516,14 +529,15 @@ export default function ContactsView() {
             </div>
 
             {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-              <div className="text-sm text-gray-500 order-2 sm:order-1">
-                {loading ? (
-                  "Cargando..."
-                ) : (
-                  `Mostrando ${contactsData.length} contacto${contactsData.length !== 1 ? 's' : ''}`
-                )}
-              </div>
+            <div className="mt-6">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={10}
+                onPageChange={(page) => setCurrentPage(page)}
+                showInfo={true}
+              />
             </div>
           </CardContent>
         </Card>

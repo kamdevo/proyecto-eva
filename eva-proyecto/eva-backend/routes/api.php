@@ -8450,7 +8450,13 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
             return response()->json([
                 'success' => true,
-                'data' => $contactos
+                'data' => $contactos->items(),
+                'pagination' => [
+                    'current_page' => $contactos->currentPage(),
+                    'last_page' => $contactos->lastPage(),
+                    'per_page' => $contactos->perPage(),
+                    'total' => $contactos->total()
+                ]
             ]);
         } catch (Exception $e) {
             return response()->json([

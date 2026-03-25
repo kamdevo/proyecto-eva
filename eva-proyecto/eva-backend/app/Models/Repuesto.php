@@ -47,7 +47,7 @@ class Repuesto extends Model
     
     protected $table = 'repuestos';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false;
 
     /**
      * Campos que pueden ser asignados masivamente
@@ -161,10 +161,8 @@ class Repuesto extends Model
     {
         return $query->where(function($q) use ($termino) {
             $q->where('name', 'LIKE', "%{$termino}%")
-              ->orWhere('nombre', 'LIKE', "%{$termino}%")
-              ->orWhere('descripcion', 'LIKE', "%{$termino}%")
-              ->orWhere('codigo', 'LIKE', "%{$termino}%")
-              ->orWhere('title', 'LIKE', "%{$termino}%");
+              ->orWhere('code', 'LIKE', "%{$termino}%")
+              ->orWhere('descripcion', 'LIKE', "%{$termino}%");
         });
     }
 
@@ -297,11 +295,11 @@ class Repuesto extends Model
     public static function generarCodigo(string $prefijo = null): string
     {
         $prefijo = $prefijo ?? strtoupper(substr('Repuesto', 0, 3));
-        $ultimo = static::where('codigo', 'LIKE', $prefijo . '%')
-                        ->orderBy('codigo', 'desc')
+        $ultimo = static::where('code', 'LIKE', $prefijo . '%')
+                        ->orderBy('code', 'desc')
                         ->first();
         
-        if ($ultimo && preg_match('/(\d+)$/', $ultimo->codigo, $matches)) {
+        if ($ultimo && preg_match('/(\d+)$/', $ultimo->code, $matches)) {
             $numero = intval($matches[1]) + 1;
         } else {
             $numero = 1;
@@ -319,7 +317,7 @@ class Repuesto extends Model
             'identificacion' => [
                 'id' => $this->id,
                 'nombre' => $this->name ?? $this->nombre ?? $this->title ?? 'Sin nombre',
-                'codigo' => $this->codigo ?? null,
+                'codigo' => $this->code ?? null,
                 'descripcion' => $this->descripcion ?? $this->description ?? null
             ],
             'estado' => [
@@ -351,8 +349,8 @@ class Repuesto extends Model
         
         static::creating(function ($model) {
             // Generar código automático si no existe
-            if ($model->hasAttribute('codigo') && empty($model->codigo)) {
-                $model->codigo = self::generarCodigo();
+            if ($model->hasAttribute('code') && empty($model->code)) {
+                $model->code = self::generarCodigo();
             }
             
             Log::info("Creando nuevo registro en repuestos", [

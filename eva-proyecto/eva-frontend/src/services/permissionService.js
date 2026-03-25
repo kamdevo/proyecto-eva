@@ -184,7 +184,7 @@ class PermissionService {
     '/equipos/contingencias': 'contingencias',
     '/equipos/guias-rapidas': 'guias rapidas',
     '/equipos/manuales': 'manuales',
-    '/equipos/consultas': 'equipos',
+    '/equipos/consultas': 'consultas',
     '/planes/preventivo': 'planes mantenimiento',
     '/ordenes/mis-tickets': 'tickets propios',
     '/ordenes/gestion-tickets': 'tickets activos',
