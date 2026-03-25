@@ -91,20 +91,9 @@ export const AuthProvider = ({ children }) => {
       return true;
     }
 
-    // Restricción ESTRICTA para Usuario Básico (role 4)
-    // Solo permitimos Dashboard y Órdenes de Trabajo
-    if (userRoleId === 4) {
-      const allowedForBasic = [
-        'dashboard', 
-        'tickets propios', 
-        'tickets cerrados',
-        'ordenes'
-      ];
-      if (allowedForBasic.includes(moduleName.toLowerCase()) && action === 'leer') {
-        return true;
-      }
-      return false; // Bloquear todo lo demás para el rol 4
-    }
+    // El bloqueo para Rol 4 se ha eliminado para permitir que el sistema use 
+    // los permisos configurados dinámicamente en la base de datos.
+    // Esto asegura sincronización entre la interfaz de admin y el acceso real.
     
     // SIEMPRE usar permisos de la base de datos para otros roles
     if (!permissions.length) {
@@ -114,8 +103,8 @@ export const AuthProvider = ({ children }) => {
       const basicModules = [
         'dashboard', 
         'tickets propios', 
-        'tickets activos', 
-        'tickets cerrados'
+        'tickets cerrados',
+        'ordenes'
       ];
       if (basicModules.includes(moduleName.toLowerCase()) && action === 'leer') {
         return true;

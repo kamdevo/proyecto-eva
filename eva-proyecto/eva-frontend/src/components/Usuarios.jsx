@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useFormSubmit } from "../hooks/useFormSubmit";
-import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, User, Lock, CheckCircle, XCircle, Power } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, User, Lock, CheckCircle, XCircle, Power, LayoutDashboard, Settings, ShieldCheck, Activity, FileText, Database, Users, HardDrive, Ticket, ClipboardList, Layers } from "lucide-react";
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from "@/components/ui/accordion";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
 import { useCentrosCosto } from "../hooks/useCentrosCosto";
@@ -91,6 +97,7 @@ export default function Usuarios() {
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
   const [isAddRelationModalOpen, setIsAddRelationModalOpen] = useState(false);
+  const [permissionSearch, setPermissionSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPermissions, setUserPermissions] = useState([]);
   const [moduleStats, setModuleStats] = useState([]);
@@ -266,7 +273,72 @@ export default function Usuarios() {
   const [zonasSortField, setZonasSortField] = useState('id');
   const [zonasSortDirection, setZonasSortDirection] = useState('asc');
   
-  // Los hooks de accesibilidad se definirán después de las funciones
+  // Categorización de módulos para la UI de permisos
+  const moduleCategories = [
+    {
+      id: "equipos",
+      name: "Gestión de Equipos",
+      icon: <HardDrive className="h-4 w-4 text-blue-500" />,
+      // Nombres exactos de la BD
+      modules: ["equipos", "equipos industriales", "contingencias", "manuales", "bajas biomedicos", "bajas equipos biomedicos", "guias rapidas", "consultas", "soportes compra", "equipo archivos", "equipos contactos", "equipos especificaciones", "estado equipos", "invimas", "propietarios"]
+    },
+    {
+      id: "tickets",
+      name: "Órdenes y Tickets",
+      icon: <Ticket className="h-4 w-4 text-orange-500" />,
+      modules: ["tickets propios", "tickets activos", "tickets cerrados", "ordenes"]
+    },
+    {
+      id: "mantenimiento",
+      name: "Mantenimiento",
+      icon: <Activity className="h-4 w-4 text-green-500" />,
+      modules: ["planes mantenimiento", "repuestos", "repuestos instalados", "capacitaciones", "tipos mantenimiento", "preventivos", "calibraciones", "correctivos", "observaciones"]
+    },
+    {
+      id: "dashboard",
+      name: "Dashboard y Reportes",
+      icon: <LayoutDashboard className="h-4 w-4 text-purple-500" />,
+      modules: ["dashboard", "reportes"]
+    },
+    {
+      id: "configuracion",
+      name: "Configuración y Catálogos",
+      icon: <Settings className="h-4 w-4 text-slate-500" />,
+      modules: ["areas", "contactos", "servicios", "materiales", "sedes"]
+    },
+    {
+      id: "administracion",
+      name: "Administración de Usuarios",
+      icon: <ShieldCheck className="h-4 w-4 text-red-500" />,
+      modules: ["usuarios"]
+    }
+  ];
+
+  const getGroupedPermissions = () => {
+    if (!userPermissions) return {};
+    
+    // Filtrar primero por el término de búsqueda si existe
+    const filteredPermissions = permissionSearch 
+      ? userPermissions.filter(p => p.modulo_name.toLowerCase().includes(permissionSearch.toLowerCase()))
+      : userPermissions;
+    
+    const grouped = {};
+    const categorizedModuleIds = [];
+    
+    moduleCategories.forEach(cat => {
+      grouped[cat.id] = filteredPermissions.filter(p => {
+        const matches = cat.modules.some(m => p.modulo_name.toLowerCase().includes(m.toLowerCase()));
+        if (matches) categorizedModuleIds.push(p.modulo_id);
+        return matches;
+      });
+    });
+    
+    // Catch-all for modules not in any category
+    grouped['otros'] = filteredPermissions.filter(p => !categorizedModuleIds.includes(p.modulo_id));
+    
+    return grouped;
+  };
+   // Los hooks de accesibilidad se definirán después de las funciones
   
   // Funciones para cargar datos reales de usuarios-zonas
   const fetchZoneRelations = async () => {
@@ -887,9 +959,38 @@ export default function Usuarios() {
       
       setSelectedUser(fullUser);
 
-      // Cargar permisos del usuario
+      // Cargar permisos del usuario desde la base de datos
       const permissions = await fetchUserPermissions(user.id);
-      setUserPermissions(permissions);
+      
+      // SINCRONIZACIÓN: Combinar todos los módulos del sistema con los permisos existentes.
+      // Esto asegura que el administrador pueda ver y asignar permisos para CUALQUIER módulo,
+      // incluso si el usuario aún no tiene un registro de permisos para él.
+      const allPermissions = modulos.map(modulo => {
+        const existingPermission = (permissions || []).find(p => p.modulo_id === modulo.id);
+        
+        if (existingPermission) {
+          return {
+            ...existingPermission,
+            // Asegurar que sean booleanos para los checkboxes
+            leer: !!existingPermission.leer,
+            insertar: !!existingPermission.insertar,
+            editar: !!existingPermission.editar,
+            eliminar: !!existingPermission.eliminar
+          };
+        }
+        
+        // Si no existe el permiso, crear uno por defecto (todo desactivado)
+        return {
+          modulo_id: modulo.id,
+          modulo_name: modulo.name,
+          leer: false,
+          insertar: false,
+          editar: false,
+          eliminar: false
+        };
+      });
+
+      setUserPermissions(allPermissions);
 
       const formData = {
         nombre: fullUser.nombre || "",
@@ -1147,6 +1248,46 @@ export default function Usuarios() {
           : permission
       )
     );
+  };
+
+  const handleResetToDefaultPermissions = async () => {
+    if (!selectedUser) return;
+    
+    if (!window.confirm("¿Seguro que quieres restablecer los permisos por defecto para este rol? Se perderán los cambios manuales.")) {
+      return;
+    }
+    
+    try {
+      await assignDefaultPermissions(selectedUser.id);
+      toast.success("Permisos restablecidos exitosamente");
+      
+      // Recargar permisos
+      const updatedPermissions = await fetchUserPermissions(selectedUser.id);
+      
+      // Sincronizar con todos los módulos para el estado local
+      const syncedPermissions = modulos.map(modulo => {
+        const existing = (updatedPermissions || []).find(p => p.modulo_id === modulo.id);
+        return existing ? {
+          ...existing,
+          leer: !!existing.leer,
+          insertar: !!existing.insertar,
+          editar: !!existing.editar,
+          eliminar: !!existing.eliminar
+        } : {
+          modulo_id: modulo.id,
+          modulo_name: modulo.name,
+          leer: false,
+          insertar: false,
+          editar: false,
+          eliminar: false
+        };
+      });
+      
+      setUserPermissions(syncedPermissions);
+    } catch (error) {
+      console.error("Error resetting permissions:", error);
+      toast.error("Error al restablecer permisos: " + error.message);
+    }
   };
 
   const handleSaveUserPermissions = async () => {
@@ -2641,136 +2782,266 @@ export default function Usuarios() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Gestión de Permisos</h3>
-              {selectedUser && selectedUser.rol_id === 1 && (
-                <Badge className="bg-yellow-100 text-yellow-800">
-                  Super Administrador - Acceso Completo
-                </Badge>
-              )}
+              <div className="flex gap-2">
+                {selectedUser && selectedUser.rol_id !== 1 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResetToDefaultPermissions}
+                    className="text-xs h-8 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                    type="button"
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    Valores por Defecto (Raíz)
+                  </Button>
+                )}
+                {selectedUser && selectedUser.rol_id === 1 && (
+                  <Badge className="bg-yellow-100 text-yellow-800">
+                    Super Administrador - Acceso Completo
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {selectedUser && selectedUser.rol_id === 1 ? (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+                <ShieldCheck className="h-6 w-6 text-yellow-600" />
                 <p className="text-yellow-800">
                   Los super administradores tienen acceso completo a todos los módulos del sistema.
                   No es necesario configurar permisos individuales.
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <Table>
-                  <TableHeader className="bg-gray-50">
-                    <TableRow>
-                      <TableHead className="font-semibold text-gray-900">
-                        Módulo
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        Leer
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        Insertar
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        Editar
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        Eliminar
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        Acciones
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                <TableBody>
-                  {userPermissions && userPermissions.length > 0 ? (
-                    userPermissions.map((permission) => (
-                      <TableRow key={permission.modulo_id}>
-                        <TableCell className="font-medium capitalize">
-                          {permission.modulo_name}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={permission.leer}
-                            onCheckedChange={(checked) =>
-                              handleUserPermissionChange(permission.modulo_id, "leer", checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={permission.insertar}
-                            onCheckedChange={(checked) =>
-                              handleUserPermissionChange(permission.modulo_id, "insertar", checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={permission.editar}
-                            onCheckedChange={(checked) =>
-                              handleUserPermissionChange(permission.modulo_id, "editar", checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={permission.eliminar}
-                            onCheckedChange={(checked) =>
-                              handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button
-                              size="sm"
-                              onClick={() => handleGrantAllPermissions(permission.modulo_id)}
-                              className="w-6 h-6 p-0 bg-green-500 hover:bg-green-600 text-xs"
-                              title="Conceder todos los permisos"
-                            >
-                              ✓
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleRevokeAllPermissions(permission.modulo_id)}
-                              className="w-6 h-6 p-0 bg-red-500 hover:bg-red-600 text-xs"
-                              title="Revocar todos los permisos"
-                            >
-                              ✗
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        No hay permisos configurados para este usuario
-                      </TableCell>
-                    </TableRow>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 bg-gray-100 p-3 rounded-lg border border-gray-200">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Input
+                      placeholder="Buscar módulo o página..."
+                      value={permissionSearch}
+                      onChange={(e) => setPermissionSearch(e.target.value)}
+                      className="pl-9 bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  {permissionSearch && (
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setPermissionSearch("")}
+                      className="text-xs text-gray-500 hover:text-blue-600"
+                    >
+                      Limpiar
+                    </Button>
                   )}
-                </TableBody>
-              </Table>
-              <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  {userPermissions ? userPermissions.length : 0} módulos configurados
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setIsEditUserModalOpen(false)}
-                    variant="outline"
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleSaveUserPermissions}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Guardar Permisos
-                  </Button>
+
+                <Accordion type="multiple" defaultValue={["equipos"]} className="w-full">
+                  {(() => {
+                    const grouped = getGroupedPermissions();
+                    
+                    return moduleCategories.map((category) => {
+                      const permissions = grouped[category.id] || [];
+                      if (permissions.length === 0) return null;
+
+                      return (
+                        <AccordionItem value={category.id} key={category.id} className="border rounded-lg mb-2 overflow-hidden">
+                          <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 bg-gray-50/50">
+                            <div className="flex items-center gap-3">
+                              {category.icon}
+                              <span className="font-semibold text-gray-900">{category.name}</span>
+                              <Badge variant="outline" className="ml-2 font-normal">
+                                {permissions.length} módulos
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="p-0">
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader className="bg-gray-50/50">
+                                  <TableRow>
+                                    <TableHead className="w-[200px] text-xs uppercase font-bold text-gray-500">Página / Módulo</TableHead>
+                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Leer</TableHead>
+                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Crear</TableHead>
+                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Editar</TableHead>
+                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Eliminar</TableHead>
+                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Acciones</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {permissions.map((permission) => (
+                                    <TableRow key={permission.modulo_id} className="hover:bg-blue-50/30 transition-colors">
+                                      <TableCell className="font-medium">
+                                        <div className="flex flex-col">
+                                          <span className="capitalize">{permission.modulo_name}</span>
+                                          <span className="text-[10px] text-gray-400">ID: {permission.modulo_id}</span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Checkbox
+                                          checked={permission.leer}
+                                          onCheckedChange={(checked) =>
+                                            handleUserPermissionChange(permission.modulo_id, "leer", checked)
+                                          }
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Checkbox
+                                          checked={permission.insertar}
+                                          onCheckedChange={(checked) =>
+                                            handleUserPermissionChange(permission.modulo_id, "insertar", checked)
+                                          }
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Checkbox
+                                          checked={permission.editar}
+                                          onCheckedChange={(checked) =>
+                                            handleUserPermissionChange(permission.modulo_id, "editar", checked)
+                                          }
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Checkbox
+                                          checked={permission.eliminar}
+                                          onCheckedChange={(checked) =>
+                                            handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
+                                          }
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <div className="flex gap-1 justify-center">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleGrantAllPermissions(permission.modulo_id)}
+                                            className="w-8 h-8 p-0 text-green-600 hover:bg-green-50"
+                                            title="Conceder todo"
+                                          >
+                                            <CheckCircle className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleRevokeAllPermissions(permission.modulo_id)}
+                                            className="w-8 h-8 p-0 text-red-600 hover:bg-red-50"
+                                            title="Revocar todo"
+                                          >
+                                            <XCircle className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    });
+                  })()}
+
+                  {/* Otros módulos (Catch-all) */}
+                  {(() => {
+                    const grouped = getGroupedPermissions();
+                    const others = grouped['otros'] || [];
+                    if (others.length === 0) return null;
+
+                    return (
+                      <AccordionItem value="otros" className="border rounded-lg mb-2 overflow-hidden">
+                        <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 bg-gray-50/50">
+                          <div className="flex items-center gap-3">
+                            <Layers className="h-4 w-4 text-gray-500" />
+                            <span className="font-semibold text-gray-900">Otros Módulos</span>
+                            <Badge variant="outline" className="ml-2 font-normal">
+                              {others.length} módulos
+                            </Badge>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-0">
+                          <Table>
+                            <TableHeader className="bg-gray-50/50">
+                              <TableRow>
+                                <TableHead>Módulo</TableHead>
+                                <TableHead className="text-center">Leer</TableHead>
+                                <TableHead className="text-center">Crear</TableHead>
+                                <TableHead className="text-center">Editar</TableHead>
+                                <TableHead className="text-center">Eliminar</TableHead>
+                                <TableHead className="text-center">Acciones</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {others.map((permission) => (
+                                <TableRow key={permission.modulo_id} className="hover:bg-gray-50">
+                                  <TableCell className="font-medium capitalize">{permission.modulo_name}</TableCell>
+                                  <TableCell className="text-center">
+                                    <Checkbox
+                                      checked={permission.leer}
+                                      onCheckedChange={(checked) =>
+                                        handleUserPermissionChange(permission.modulo_id, "leer", checked)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Checkbox
+                                      checked={permission.insertar}
+                                      onCheckedChange={(checked) =>
+                                        handleUserPermissionChange(permission.modulo_id, "insertar", checked)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Checkbox
+                                      checked={permission.editar}
+                                      onCheckedChange={(checked) =>
+                                        handleUserPermissionChange(permission.modulo_id, "editar", checked)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Checkbox
+                                      checked={permission.eliminar}
+                                      onCheckedChange={(checked) =>
+                                        handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex gap-1 justify-center">
+                                      <Button size="sm" variant="ghost" onClick={() => handleGrantAllPermissions(permission.modulo_id)} className="text-green-600"><CheckCircle className="h-4 w-4" /></Button>
+                                      <Button size="sm" variant="ghost" onClick={() => handleRevokeAllPermissions(permission.modulo_id)} className="text-red-600"><XCircle className="h-4 w-4" /></Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })()}
+                </Accordion>
+
+                <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center rounded-b-lg shadow-inner">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-bold text-blue-600">{userPermissions ? userPermissions.length : 0}</span> módulos configurados para este usuario
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setIsEditUserModalOpen(false)}
+                      variant="outline"
+                      className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleSaveUserPermissions}
+                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                    >
+                      Guardar Permisos Individuales
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
             )}
           </div>
 

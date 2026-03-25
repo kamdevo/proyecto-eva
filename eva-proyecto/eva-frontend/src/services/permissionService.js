@@ -84,11 +84,9 @@ class PermissionService {
   canRead(module) {
     if (this.isAdmin()) return true;
     
-    // Restricción estricta para rol 4 (Usuario Básico)
-    if (parseInt(this.userRole) === 4) {
-      const allowed = ['dashboard', 'tickets propios', 'tickets cerrados', 'ordenes'];
-      return allowed.includes(module.toLowerCase());
-    }
+    // El bloqueo para Rol 4 se ha eliminado para que el servicio use 
+    // los permisos configurados en la base de datos.
+    // Esto sincroniza lo que el admin ve en el panel con el acceso real.
     
     const modulePermissions = this.permissions[module];
     return modulePermissions ? modulePermissions.leer : false;

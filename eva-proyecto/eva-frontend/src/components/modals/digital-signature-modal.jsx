@@ -34,6 +34,7 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
   };
 
   const startDrawing = (e) => {
+    e.target.setPointerCapture(e.pointerId);
     setIsDrawing(true);
     const canvas = canvasRef.current;
     const { x, y } = getCanvasCoordinates(e, canvas);
@@ -50,17 +51,21 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
     const { x, y } = getCanvasCoordinates(e, canvas);
     
     const ctx = canvas.getContext('2d');
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#000';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000000';
     ctx.lineTo(x, y);
     ctx.stroke();
     
-    setHasSignature(true); // Mark that user has drawn something
+    setHasSignature(true);
   };
 
-  const stopDrawing = () => {
-    setIsDrawing(false);
+  const stopDrawing = (e) => {
+    if (isDrawing) {
+      e.target.releasePointerCapture(e.pointerId);
+      setIsDrawing(false);
+    }
   };
 
   const clearSignature = () => {
@@ -320,10 +325,26 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
         document.head.appendChild(link);
       }
     };
-    
+
     if (isOpen) {
       loadGoogleFonts();
       setHasSignature(false);
+      
+      // Asegurar que el canvas tenga el tamaño correcto después de abrir
+      setTimeout(() => {
+        if (canvasRef.current) {
+          const canvas = canvasRef.current;
+          const rect = canvas.getBoundingClientRect();
+          // Solo inicializamos si el canvas tiene dimensiones reales
+          if (rect.width > 0) {
+            // No cambiamos width/height internos para no borrar lo dibujado,
+            // pero nos aseguramos de que el contexto esté limpio al inicio
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+          }
+        }
+      }, 100);
     }
   }, [isOpen]);
 
@@ -379,44 +400,37 @@ export default function DigitalSignatureModal({ isOpen, onClose, onSave, signerN
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="draw" className="mt-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 md:p-4 lg:p-6">
-                  <canvas
-                    ref={canvasRef}
-                    width={800}
-                    height={250}
-                    className="w-full border border-gray-200 rounded cursor-crosshair bg-white touch-none aspect-[8/2.5] md:aspect-[16/5]"
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    onTouchStart={(e) => {
-                      e.preventDefault();
-                      const touch = e.touches[0];
-                      const mouseEvent = new MouseEvent('mousedown', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                      });
-                      canvasRef.current.dispatchEvent(mouseEvent);
-                    }}
-                    onTouchMove={(e) => {
-                      e.preventDefault();
-                      const touch = e.touches[0];
-                      const mouseEvent = new MouseEvent('mousemove', {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                      });
-                      canvasRef.current.dispatchEvent(mouseEvent);
-                    }}
-                    onTouchEnd={(e) => {
-                      e.preventDefault();
-                      const mouseEvent = new MouseEvent('mouseup', {});
-                      canvasRef.current.dispatchEvent(mouseEvent);
-                    }}
-                  />
-                  <p className="text-xs text-gray-500 mt-2 text-center">
-                    Dibuje su firma con el mouse o dedo (en tablet/móvil)
-                  </p>
+              <TabsContent value="draw" className="mt-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <div className="bg-slate-50 border-2 border-dashed border-gray-300 rounded-xl p-2 md:p-4 lg:p-6 transition-all duration-200">
+                  <div className="relative group overflow-hidden rounded-lg bg-white shadow-inner">
+                    <canvas
+                      ref={canvasRef}
+                      width={800}
+                      height={300}
+                      className="w-full border border-gray-200 cursor-crosshair touch-none aspect-[8/3] md:aspect-[16/6] lg:aspect-[16/4]"
+                      onPointerDown={startDrawing}
+                      onPointerMove={draw}
+                      onPointerUp={stopDrawing}
+                      onPointerLeave={stopDrawing}
+                      onPointerCancel={stopDrawing}
+                    />
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-8 w-8 p-0 bg-white/80 hover:bg-white text-red-500 rounded-full shadow-sm"
+                        onClick={clearSignature}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 mt-3 text-gray-400">
+                    <Tablet className="w-4 h-4" />
+                    <p className="text-[10px] md:text-xs">
+                      Firme aquí usando su dedo, lápiz táctil o mouse
+                    </p>
+                  </div>
                 </div>
               </TabsContent>
               

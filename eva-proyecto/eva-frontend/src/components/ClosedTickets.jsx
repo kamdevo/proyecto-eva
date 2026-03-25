@@ -30,10 +30,15 @@ import {
 import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleton";
 import httpService from "@/services/httpService";
 import { useSedes } from "@/hooks/useRoles";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ClosedTickets() {
   // Hook para obtener sedes de la BD
   const { sedes, loading: sedesLoading } = useSedes();
+  // Hook para obtener el usuario actual y su rol
+  const { user, isAdmin } = useAuth();
+  // Un usuario es admin si tiene rol 1 o 2
+  const userIsAdmin = isAdmin ? isAdmin() : false;
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState("all");
@@ -119,6 +124,11 @@ export default function ClosedTickets() {
         sort_order: sortOrder,
         estado: '4' // SIEMPRE filtrar por estado Cerrado (ID: 4)
       };
+
+      // Si el usuario NO es admin, filtrar solo sus propios tickets (como reportante)
+      if (!userIsAdmin && user?.id) {
+        params.reportante_id = user.id;
+      }
 
       if (searchTerm) {
         if (filterField === 'id' && /^\d+$/.test(searchTerm)) {
@@ -295,10 +305,13 @@ export default function ClosedTickets() {
       <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Tickets Cerrados
+            {userIsAdmin ? "Tickets Cerrados" : "Mis Tickets Cerrados"}
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Visualización de tickets finalizados
+            {userIsAdmin 
+              ? "Visualización de todos los tickets finalizados del sistema"
+              : "Visualización de tus tickets propios finalizados"
+            }
           </p>
         </div>
       </header>

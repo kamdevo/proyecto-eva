@@ -87,6 +87,17 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
       return;
     }
 
+    // Validar que AMBAS firmas estén completadas
+    if (!firmaTecnicoData) {
+      toast.error("⚠️ La firma del Técnico es obligatoria para cerrar el ticket");
+      return;
+    }
+
+    if (!firmaRecibidoData) {
+      toast.error("⚠️ La firma de Recibido es obligatoria para cerrar el ticket");
+      return;
+    }
+
     // Mostrar diálogo de confirmación
     setShowConfirmDialog(true);
   };
@@ -290,9 +301,22 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
               <PenTool className="w-5 h-5 text-blue-600" />
               <h3 className="text-lg font-bold text-gray-900">Firmas Digitales</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Las firmas digitales se guardan junto con el ticket. Después podrá anexar documentos adicionales desde el modal de detalles.
+            <p className="text-sm text-gray-600 mb-3">
+              Las firmas digitales son <strong className="text-red-600">obligatorias</strong> para enviar el ticket a cierre.
             </p>
+
+            {/* Indicador de progreso de firmas */}
+            <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-sm font-medium ${
+              firmaTecnicoData && firmaRecibidoData 
+                ? 'bg-green-50 border border-green-200 text-green-800' 
+                : 'bg-amber-50 border border-amber-200 text-amber-800'
+            }`}>
+              {firmaTecnicoData && firmaRecibidoData ? (
+                <><CheckCircle className="w-4 h-4 text-green-600" /> Ambas firmas completadas ✓</>
+              ) : (
+                <><AlertCircle className="w-4 h-4 text-amber-500" /> {[firmaTecnicoData ? 1 : 0, firmaRecibidoData ? 1 : 0].filter(Boolean).length}/2 firmas completadas — Faltan: {[!firmaTecnicoData && 'Técnico', !firmaRecibidoData && 'Recibido'].filter(Boolean).join(' y ')}</>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* FIRMA TÉCNICO */}
@@ -435,8 +459,9 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
             </Button>
             <Button 
               type="submit" 
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={isSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || !firmaTecnicoData || !firmaRecibidoData}
+              title={!firmaTecnicoData || !firmaRecibidoData ? 'Debe completar ambas firmas digitales para continuar' : ''}
             >
               <Send className="w-4 h-4 mr-2" />
               {isSubmitting ? "Enviando..." : "Enviar a Cierre"}

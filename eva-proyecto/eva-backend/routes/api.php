@@ -43,11 +43,12 @@ function getDefaultPermissionsByRole($rolId, $moduleName) {
     // Role 4 (Usuario Normal) - Permisos MÍNIMOS para usuarios recién activados
     // Solo lectura de equipos biomédicos, industriales y mis tickets
     if ($rolId == 4) {
-        // Módulos con acceso MÍNIMO (solo estos 3)
+        // Módulos con acceso MÍNIMO (Basado en requerimientos raíz)
         $allowedModules = [
-            'equipos' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
-            'equipos industriales' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'dashboard' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
             'tickets propios' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'tickets cerrados' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
+            'ordenes' => ['leer' => 1, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0],
         ];
         
         // Si el módulo está en la lista permitida, retornar sus permisos
@@ -7580,8 +7581,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         Route::get('modulos', function() {
             try {
                 $modulos = DB::table('modulos')
-                    ->where('estado', 1)
-                    ->select('id', 'name', 'descripcion')
+                    ->whereNotNull('name')
+                    ->select('id', 'name')
                     ->orderBy('name')
                     ->get();
 
@@ -7609,8 +7610,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     ], 404);
                 }
 
-                // Get all modules
-                $modulos = DB::table('modulos')->where('estado', 1)->get();
+                // Get all modules (la tabla modulos solo tiene id y name, sin columna estado)
+                $modulos = DB::table('modulos')->whereNotNull('name')->get();
                 
                 // Delete existing permissions
                 DB::table('acciones')->where('usuario_id', $id)->delete();
@@ -7676,10 +7677,10 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             DB::beginTransaction();
             
             try {
-                // Activate user
+                // Activate user - set both active AND estado
                 DB::table('usuarios')
                     ->where('id', $id)
-                    ->update(['active' => 'true']);
+                    ->update(['active' => 'true', 'estado' => 1]);
                 
                 // Assign default role 4 (Usuario normal) if user doesn't have a role
                 if (is_null($targetUser->rol_id) || $targetUser->rol_id == 0) {
@@ -7690,35 +7691,28 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     \Log::info("Usuario $id activado con rol por defecto (Usuario normal - ID 4)");
                 }
                 
-                // SIEMPRE asignar permisos por defecto para usuarios con rol 4 que no tengan permisos
+                // Obtener el rol actual (puede haber cambiado arriba si se asignó por defecto)
                 $userRole = DB::table('usuarios')->where('id', $id)->value('rol_id');
-                $existingPermissions = DB::table('acciones')->where('usuario_id', $id)->count();
                 
-                \Log::info("Usuario $id: rol=$userRole, permisos_existentes=$existingPermissions");
-                
-                if ($userRole == 4 && $existingPermissions == 0) {
-                    \Log::info("Asignando permisos automáticos para usuario rol 4 sin permisos");
+                // Para Rol 4: SIEMPRE borrar y reasignar permisos raíz al activar.
+                // Esto garantiza que la configuración del sistema siempre sea la base.
+                // Si el admin necesita permisos personalizados, los edita manualmente después.
+                if ($userRole == 4) {
+                    DB::table('acciones')->where('usuario_id', $id)->delete();
                     
-                    // Get all modules
                     $modulos = DB::table('modulos')->whereNotNull('name')->get();
                     
-                    // Assign permissions based on role 4 (Usuario normal)
                     foreach ($modulos as $modulo) {
                         $permissions = getDefaultPermissionsByRole(4, $modulo->name);
-                        
                         DB::table('acciones')->insert([
                             'usuario_id' => $id,
-                            'modulo_id' => $modulo->id,
-                            'leer' => $permissions['leer'],
-                            'insertar' => $permissions['insertar'],
-                            'editar' => $permissions['editar'],
-                            'eliminar' => $permissions['eliminar']
+                            'modulo_id'  => $modulo->id,
+                            'leer'       => $permissions['leer'],
+                            'insertar'   => $permissions['insertar'],
+                            'editar'     => $permissions['editar'],
+                            'eliminar'   => $permissions['eliminar']
                         ]);
                     }
-                    
-                    \Log::info("✅ Permisos automáticos asignados al usuario $id (rol 4): equipos=leer, tickets_propios=leer+insertar");
-                } else if ($userRole == 4 && $existingPermissions > 0) {
-                    \Log::info("Usuario $id ya tiene $existingPermissions permisos configurados");
                 }
                 
                 DB::commit();
