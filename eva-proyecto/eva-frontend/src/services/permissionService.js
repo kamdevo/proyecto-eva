@@ -84,6 +84,12 @@ class PermissionService {
   canRead(module) {
     if (this.isAdmin()) return true;
     
+    // Restricción estricta para rol 4 (Usuario Básico)
+    if (parseInt(this.userRole) === 4) {
+      const allowed = ['dashboard', 'tickets propios', 'tickets cerrados', 'ordenes'];
+      return allowed.includes(module.toLowerCase());
+    }
+    
     const modulePermissions = this.permissions[module];
     return modulePermissions ? modulePermissions.leer : false;
   }

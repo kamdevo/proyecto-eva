@@ -79,34 +79,40 @@ export const AuthProvider = ({ children }) => {
     // Convert rol_id to number to ensure proper comparison
     const userRoleId = parseInt(originalUser.rol_id);
     
-    // Super admin (role 1) has ALL permissions - no restrictions
-    if (userRoleId === 1) {
-      return true;
-    }
+    // Super admin (role 1) has ALL permissions
+    if (userRoleId === 1) return true;
     
     // Admin (role 2) has most permissions
-    if (userRoleId === 2) {
-      return true;
-    }
+    if (userRoleId === 2) return true;
     
     // Advanced user (role 3) - limited delete permissions
     if (userRoleId === 3) {
       if (action === 'eliminar') return false;
       return true;
     }
+
+    // Restricción ESTRICTA para Usuario Básico (role 4)
+    // Solo permitimos Dashboard y Órdenes de Trabajo
+    if (userRoleId === 4) {
+      const allowedForBasic = [
+        'dashboard', 
+        'tickets propios', 
+        'tickets cerrados',
+        'ordenes'
+      ];
+      if (allowedForBasic.includes(moduleName.toLowerCase()) && action === 'leer') {
+        return true;
+      }
+      return false; // Bloquear todo lo demás para el rol 4
+    }
     
-    // SIEMPRE usar permisos de la base de datos para todos los roles (excepto super admin)
-    
-    // Si no hay permisos cargados, permitir para admins y algunos módulos básicos para usuarios
+    // SIEMPRE usar permisos de la base de datos para otros roles
     if (!permissions.length) {
       if (userRoleId <= 2) return true; // Admins siempre
       
       // Para usuarios normales, permitir módulos básicos (fallback si no hay permisos en BD)
       const basicModules = [
         'dashboard', 
-        'equipos', 
-        'equipos industriales', 
-        'guias rapidas', 
         'tickets propios', 
         'tickets activos', 
         'tickets cerrados'

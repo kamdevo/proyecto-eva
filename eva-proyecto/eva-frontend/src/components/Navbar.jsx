@@ -243,7 +243,7 @@ const AppSidebar = () => {
                     // Fallback para usuarios normales
                     return navigationItems.filter(item => {
                       if (item.alwaysVisible) return true;
-                      if (item.label === 'EQUIPOS') return true;
+                      if (item.label === 'ORDENES') return true;
                       return false;
                     });
                   }
