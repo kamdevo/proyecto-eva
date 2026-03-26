@@ -55,9 +55,12 @@ export function RowActionButtons({
   };
 
   const tooltips = getTooltips();
-  const { canEdit, canDelete } = useAuth();
+  const { canEdit, canDelete, user } = useAuth();
   
   const moduleName = equipmentType === "industrial" ? "equipos industriales" : "equipos";
+  
+  // Validar si es Usuario Básico (por lo general rol_id 4)
+  const isBasicUser = user && parseInt(user.rol_id) === 4;
 
   return (
     <div className="flex flex-col gap-0.5 xs:gap-1">
@@ -87,7 +90,10 @@ export function RowActionButtons({
       {/* Documents Button */}
       <Button
         size="sm"
-        className="bg-purple-500 hover:bg-purple-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+        disabled={isBasicUser}
+        className={`bg-purple-500 hover:bg-purple-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
+          isBasicUser ? 'opacity-50 cursor-not-allowed hidden' : ''
+        }`}
         title={tooltips.documents}
         onClick={() => onDocumentsClick(equipment)}
       >
@@ -97,9 +103,9 @@ export function RowActionButtons({
       {/* Upload Button */}
       <Button
         size="sm"
-        disabled={!canEdit(moduleName)}
+        disabled={!canEdit(moduleName) || isBasicUser}
         className={`bg-orange-500 hover:bg-orange-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
-          !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+          (!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
         }`}
         title={tooltips.upload}
         onClick={() => onUploadClick(equipment)}

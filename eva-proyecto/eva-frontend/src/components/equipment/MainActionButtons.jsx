@@ -39,9 +39,12 @@ export function MainActionButtons({
   };
 
   const labels = getLabels();
-  const { canCreate, canEdit, canDelete } = useAuth();
+  const { canCreate, canEdit, canDelete, user } = useAuth();
   
   const moduleName = equipmentType === "industrial" ? "equipos industriales" : "equipos";
+  
+  // Validar si es Usuario Básico (rol_id === 4)
+  const isBasicUser = user && parseInt(user.rol_id) === 4;
 
   return (
     <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
@@ -51,9 +54,10 @@ export function MainActionButtons({
             onClick={onFilterClick}
             variant="ghost"
             size="sm"
+            disabled={isBasicUser}
             className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 relative ${
               activeFiltersCount > 0 ? "bg-teal-600 hover:bg-teal-700" : ""
-            }`}
+            } ${isBasicUser ? "opacity-50 cursor-not-allowed hidden" : ""}`}
           >
             <Filter className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
             <span className="truncate">{labels.filter}</span>
@@ -73,7 +77,10 @@ export function MainActionButtons({
               onClick={onClearFiltersClick}
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-red-600 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0"
+              disabled={isBasicUser}
+              className={`text-white hover:bg-red-600 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
+                isBasicUser ? "opacity-50 cursor-not-allowed hidden" : ""
+              }`}
             >
               <X className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
               <span className="truncate">Limpiar</span>
@@ -84,9 +91,9 @@ export function MainActionButtons({
             onClick={onAddClick}
             variant="ghost"
             size="sm"
-            disabled={!canCreate(moduleName)}
+            disabled={!canCreate(moduleName) || isBasicUser}
             className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
-              !canCreate(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+              (!canCreate(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
             }`}
           >
             <Plus className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
@@ -97,9 +104,9 @@ export function MainActionButtons({
             onClick={onCleanNamesClick}
             variant="ghost"
             size="sm"
-            disabled={!canEdit(moduleName)}
+            disabled={!canEdit(moduleName) || isBasicUser}
             className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
-              !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+              (!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
             }`}
           >
             <FileSpreadsheet className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
@@ -110,9 +117,9 @@ export function MainActionButtons({
             onClick={onExportClick}
             variant="ghost"
             size="sm"
-            disabled={!canEdit(moduleName)}
+            disabled={!canEdit(moduleName) || isBasicUser}
             className={`text-white hover:bg-slate-700 hover:text-white text-[10px] xs:text-xs sm:text-sm h-6 xs:h-7 sm:h-8 md:h-9 px-1 xs:px-1.5 sm:px-2 md:px-3 flex-1 min-w-0 ${
-              !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+              (!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
             }`}
           >
             <Download className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 mr-0.5 xs:mr-1 flex-shrink-0" />
