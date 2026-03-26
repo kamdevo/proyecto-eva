@@ -37,7 +37,7 @@ class RepuestoController extends Controller
         try {
             $request->validate([
                 'page' => 'nullable|integer|min:1',
-                'per_page' => 'nullable|integer|min:1|max:100',
+                'per_page' => 'nullable|integer|min:1|max:5000',
                 'search' => 'nullable|string|max:255',
                 'grupo' => 'nullable|string|max:10'
             ]);
@@ -56,8 +56,8 @@ class RepuestoController extends Controller
                 $query->where('grupo', $request->grupo);
             }
 
-            $data = $query->orderBy('created_at', 'desc')
-                          ->paginate($request->per_page ?? 10);
+            $data = $query->orderBy('name', 'asc')
+                          ->paginate($request->per_page ?? 500);
 
             return ResponseFormatter::paginated($data, 'Lista de inventario obtenida exitosamente');
 

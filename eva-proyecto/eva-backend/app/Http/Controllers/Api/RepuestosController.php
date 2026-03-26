@@ -45,10 +45,9 @@ class RepuestosController extends ApiController
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
-                    $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%")
-                      ->orWhere('numero_parte', 'like', "%{$search}%");
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('code', 'like', "%{$search}%")
+                      ->orWhere('grupo', 'like', "%{$search}%");
                 });
             }
 
@@ -77,7 +76,7 @@ class RepuestosController extends ApiController
             }
 
             // Ordenamiento
-            $orderBy = $request->get('order_by', 'nombre');
+            $orderBy = $request->get('order_by', 'name');
             $orderDirection = $request->get('order_direction', 'asc');
             $query->orderBy($orderBy, $orderDirection);
 

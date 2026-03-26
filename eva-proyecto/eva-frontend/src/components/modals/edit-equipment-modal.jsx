@@ -39,6 +39,7 @@ import { OrderSearchModal } from "./order-search-modal";
 import AddPreventivoModal from "./add-preventivo-modal";
 import AddCalibracionModal from "./add-calibracion-modal";
 import AddRepuestoModal from "./add-repuesto-modal";
+import AddCorrectivoModal from "./add-correctivo-modal";
 
 export function EditEquipmentModal({
   open = false,
@@ -57,7 +58,7 @@ export function EditEquipmentModal({
   const [formReady, setFormReady] = useState(false);
   const [completeEquipmentData, setCompleteEquipmentData] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
-    otrosCorrectivos: false,
+    otrosCorrectivos: true,
     preventivos: false,
     calibraciones: false,
     repuestos: false,
@@ -96,6 +97,7 @@ export function EditEquipmentModal({
   const [showAddPreventivoModal, setShowAddPreventivoModal] = useState(false);
   const [showAddCalibracionModal, setShowAddCalibracionModal] = useState(false);
   const [showAddRepuestoModal, setShowAddRepuestoModal] = useState(false);
+  const [showAddCorrectivoModal, setShowAddCorrectivoModal] = useState(false);
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
   const [showOrderSearchModal, setShowOrderSearchModal] = useState(false);
   
@@ -1350,7 +1352,8 @@ export function EditEquipmentModal({
     }
 
     // Construir URL del archivo de correctivo
-    const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/storage/correctivos_generales/${filename}`;
+    const filenameOnly = filename.split('/').pop();
+    const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/correctivos_generales/${filenameOnly}`;
     
     // Abrir directamente en nueva pestaña
     window.open(fileUrl, "_blank", "noopener,noreferrer");
@@ -4017,105 +4020,7 @@ export function EditEquipmentModal({
               </CardContent>
             </Card>
 
-            {/* CORRECTIVOS TICKETS */}
-            <Card>
-              <CardHeader className="bg-red-50 py-3">
-                <CardTitle className="text-sm font-medium text-center text-red-700">
-                  CORRECTIVOS TICKETS
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-4 md:p-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border border-gray-300 p-2 text-xs">
-                          Id Orden
-                        </th>
-                        <th className="border border-gray-300 p-2 text-xs">
-                          Fecha de creación
-                        </th>
-                        <th className="border border-gray-300 p-2 text-xs">
-                          Descripción
-                        </th>
-                        <th className="border border-gray-300 p-2 text-xs">
-                          Estado
-                        </th>
-                        <th className="border border-gray-300 p-2 text-xs">
-                          ARCHIVO RELACIONADO
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Datos dinámicos de correctivos_generales */}
-                      {equipmentHistory.correctivos &&
-                      equipmentHistory.correctivos.length > 0 ? (
-                        equipmentHistory.correctivos.map(
-                          (correctivo, index) => (
-                            <tr key={correctivo.id || index}>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                {correctivo.id || correctivo.code_orden || "-"}
-                              </td>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                {correctivo.created_at
-                                  ? new Date(
-                                      correctivo.created_at
-                                    ).toLocaleDateString()
-                                  : "-"}
-                              </td>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                {correctivo.description ||
-                                  correctivo.diagnostico ||
-                                  "-"}
-                              </td>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                <span
-                                  className={`px-2 py-1 rounded text-xs ${
-                                    correctivo.status === 1
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-gray-100 text-gray-800"
-                                  }`}
-                                >
-                                  {correctivo.status === 1
-                                    ? "Activo"
-                                    : "Inactivo"}
-                                </span>
-                              </td>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                {correctivo.file ? (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs"
-                                    onClick={() =>
-                                      viewCorrectivoDocument(correctivo.file)
-                                    }
-                                  >
-                                    Ver archivo
-                                  </Button>
-                                ) : (
-                                  "-"
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        )
-                      ) : (
-                        <tr>
-                          <td
-                            className="border border-gray-300 p-2 text-xs text-center text-gray-500"
-                            colSpan="5"
-                          >
-                            No hay tickets correctivos registrados
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+
 
             {/* OTROS CORRECTIVOS */}
             <Card>
@@ -4127,6 +4032,19 @@ export function EditEquipmentModal({
                       {equipmentHistory.correctivos.length}
                     </Badge>
                   )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto bg-white hover:bg-yellow-100 text-yellow-700 border-yellow-200 flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAddCorrectivoModal(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Agregar</span>
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -4220,10 +4138,17 @@ export function EditEquipmentModal({
                               {/* Cierre */}
                               <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
                                 <div className="font-medium text-gray-700">CIERRE:</div>
-                                <div className="text-gray-600">
-                                  Código: {correctivo.codigo_cierre || "NO REGISTRA"}
+                                <div className="text-gray-600 font-semibold italic">
+                                  "{correctivo.description || "SIN DESCRIPCIÓN DE CIERRE"}"
                                 </div>
-                                <div className="text-gray-600">{correctivo.descripcion_codigo || "NO REGISTRA"}</div>
+                                <div className="text-gray-500 text-[10px] mt-1">
+                                  Cod: {correctivo.codigo_cierre || "N/A"} - {correctivo.descripcion_codigo || "N/A"}
+                                </div>
+                                <div className="text-gray-400 text-[10px]">
+                                  {correctivo.fecha_cierre && correctivo.fecha_cierre !== "0000-00-00 00:00:00"
+                                    ? correctivo.fecha_cierre
+                                    : ""}
+                                </div>
                               </div>
 
                               {/* Notas de Avance */}
@@ -4250,54 +4175,19 @@ export function EditEquipmentModal({
                           {/* Botones de Acción */}
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => {
-                                  // TODO: Implementar ver detalle del correctivo
-                                  console.log("Ver detalle correctivo:", correctivo.id);
-                                }}
-                              >
-                                Ver detalle
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => {
-                                  // TODO: Implementar editar correctivo
-                                  console.log("Editar correctivo:", correctivo.id);
-                                }}
-                              >
-                                Editar
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs text-red-600 hover:text-red-700"
-                                onClick={() => {
-                                  // TODO: Implementar eliminar correctivo
-                                  console.log("Eliminar correctivo:", correctivo.id);
-                                }}
-                              >
-                                Eliminar
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs text-blue-600 hover:text-blue-700"
-                                onClick={() => {
-                                  // TODO: Implementar agregar nota de avance
-                                  console.log("Agregar nota a correctivo:", correctivo.id);
-                                }}
-                              >
-                                Agregar nota
-                              </Button>
+
+                              {(correctivo.file_cierre || correctivo.image || correctivo.file) && (
+                                <Button
+                                  type="button"
+                                  variant="default"
+                                  size="sm"
+                                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
+                                  onClick={() => viewCorrectivoDocument(correctivo.file_cierre || correctivo.image || correctivo.file)}
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  Ver Archivo
+                                </Button>
+                              )}
                             </div>
                           </div>
 
@@ -4758,6 +4648,20 @@ export function EditEquipmentModal({
         onOpenChange={setShowOrderSearchModal}
         onSelectOrder={handleOrderSelection}
         currentOrderId={formData.orden_compra_id}
+      />
+
+      {/* Modal para agregar Correctivo General */}
+      <AddCorrectivoModal
+        isOpen={showAddCorrectivoModal}
+        onClose={() => setShowAddCorrectivoModal(false)}
+        equipmentId={equipment?.id}
+        equipmentName={equipment?.name || equipment?.equipo?.name}
+        onCorrectivoAdded={() => {
+          // Recargar historial del equipo
+          if (equipment?.id) {
+            loadEquipmentHistory(equipment.id);
+          }
+        }}
       />
 
       {/* Modal para agregar preventivo */}

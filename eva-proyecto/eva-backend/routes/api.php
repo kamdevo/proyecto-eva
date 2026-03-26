@@ -1034,24 +1034,28 @@ Route::prefix('v1')->group(function () {
 
     // Associate equipment to baja
     Route::post('bajas/{bajaId}/equipos', function (Request $request, $bajaId) {
+        $validator = Validator::make($request->all(), [
+            'equipo_ids' => 'required|array',
+            'equipo_ids.*' => 'integer|exists:equipos,id'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
         try {
-            $validator = Validator::make($request->all(), [
-                'equipo_ids' => 'required|array',
-                'equipo_ids.*' => 'integer|exists:equipos,id'
-            ]);
-            
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Errores de validación',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-            
             $equipoIds = $request->equipo_ids;
+            $processedCount = 0;
+            
+            \Log::info("Asociando " . count($equipoIds) . " equipos a baja ID: $bajaId");
             
             foreach ($equipoIds as $equipoId) {
-                // Check if already associated
+                // Check if already associated with THIS specific baja
                 $exists = DB::table('equipos_bajas')
                     ->where('baja_id', $bajaId)
                     ->where('equipo_id', $equipoId)
@@ -1063,20 +1067,28 @@ Route::prefix('v1')->group(function () {
                         'equipo_id' => $equipoId,
                         'created_at' => now()
                     ]);
-                    
-                    // Update equipment status to BAJA (estadoequipo_id = 6)
-                    DB::table('equipos')->where('id', $equipoId)->update([
-                        'baja_id' => $bajaId,
-                        'estadoequipo_id' => 6
-                    ]);
                 }
+                
+                // Update equipment status ALWAYS (even if association existed)
+                // This ensures that all selected equipments get the status "BAJA" (6)
+                DB::table('equipos')->where('id', $equipoId)->update([
+                    'baja_id' => $bajaId,
+                    'estadoequipo_id' => 6
+                ]);
+                
+                $processedCount++;
             }
+            
+            DB::commit();
+            \Log::info("Asociación completada: $processedCount equipos procesados.");
             
             return response()->json([
                 'success' => true,
-                'message' => 'Equipos asociados exitosamente'
+                'message' => "Se han procesado $processedCount equipos correctamente"
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Error asociando equipos a baja $bajaId: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al asociar equipos: ' . $e->getMessage()
@@ -15594,9 +15606,45 @@ Route::get('v1/export-industrial-tickets', [App\Http\Controllers\Api\IndustrialT
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');
 
+
 // REPUESTOS INVENTORY
 Route::get('v1/repuestos-inventory', [App\Http\Controllers\Api\RepuestoController::class, 'index']);
 Route::post('v1/repuestos-inventory', [App\Http\Controllers\Api\RepuestoController::class, 'store']);
 Route::get('v1/repuestos-inventory/{id}', [App\Http\Controllers\Api\RepuestoController::class, 'show']);
 Route::put('v1/repuestos-inventory/{id}', [App\Http\Controllers\Api\RepuestoController::class, 'update']);
 Route::delete('v1/repuestos-inventory/{id}', [App\Http\Controllers\Api\RepuestoController::class, 'destroy']);
+
+// CATALOGOS PARA CORRECTIVOS GENERALES (rutas directas sin middleware adicional)
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Tipos de Falla
+    Route::get('v1/tipofalla', function (Request $request) {
+        $query = DB::table('tipos_fallas')->where('status', 1);
+        if ($request->search) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+        $items = $query->orderBy('name')->get(['id', 'name', 'status']);
+        return response()->json(['success' => true, 'data' => $items]);
+    });
+
+    // Codificacion Cierres
+    Route::get('v1/codificacioncierre', function (Request $request) {
+        $query = DB::table('codificacion_cierres');
+        if ($request->status !== null) {
+            $query->where('status', $request->status);
+        }
+        $items = $query->orderBy('name')->get(['id', 'name', 'code', 'status']);
+        return response()->json(['success' => true, 'data' => $items]);
+    });
+
+    // Equipo por ID (para obtener tipo_id)
+    Route::get('v1/equipos/{id}', function ($id) {
+        $equipo = DB::table('equipos')->where('id', $id)
+            ->first(['id', 'name', 'code', 'tipo_id', 'servicio_id']);
+        if (!$equipo) {
+            return response()->json(['success' => false, 'message' => 'Equipo no encontrado'], 404);
+        }
+        return response()->json(['success' => true, 'data' => $equipo]);
+    });
+});
+

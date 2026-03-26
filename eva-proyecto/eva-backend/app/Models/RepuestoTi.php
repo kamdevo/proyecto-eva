@@ -47,7 +47,7 @@ class RepuestoTi extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'repuesto_tis';
+    protected $table = 'repuestos_ti';
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -197,13 +197,7 @@ class RepuestoTi extends Model
      */
     public function scopeActivos(Builder $query): Builder
     {
-        return $query->where(function($q) {
-            $q->where('activo', true)
-              ->orWhere('estado', 'activo')
-              ->orWhere('status', 'activo')
-              ->orWhere('estado', 1)
-              ->orWhere('activo', 1);
-        });
+        return $query->where('status', 1);
     }
 
     /**
@@ -211,13 +205,7 @@ class RepuestoTi extends Model
      */
     public function scopeInactivos(Builder $query): Builder
     {
-        return $query->where(function($q) {
-            $q->where('activo', false)
-              ->orWhere('estado', 'inactivo')
-              ->orWhere('status', 'inactivo')
-              ->orWhere('estado', 0)
-              ->orWhere('activo', 0);
-        });
+        return $query->where('status', 0);
     }
 
     /**

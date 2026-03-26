@@ -34,7 +34,8 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
     search: searchEquipos,
     changePage: changeEquiposPage,
     refresh: fetchEquipos,
-    getFilteredIds
+    getFilteredIds,
+    updateFilters // Agregado para poder filtrar por estado
   } = useEquipment("biomedical");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,11 +45,16 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
   // Cargar equipos cuando se abre el modal
   useEffect(() => {
     if (open) {
-      fetchEquipos();
+      // Filtrar solo equipos activos (estado_id = 1)
+      updateFilters({ 
+        estado_id: 1,
+        page: 1,
+        per_page: 15
+      });
       setSelectedEquipos([]);
       setSubmitError(null);
     }
-  }, [open]);
+  }, [open, updateFilters]);
 
   // Usar equipos y paginación del backend
   const currentItems = equipos;
@@ -66,10 +72,21 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
   };
 
   const handleSelectAll = (checked) => {
+    const currentPageIds = currentItems.map(equipo => equipo.id);
     if (checked) {
-      setSelectedEquipos(currentItems.map(equipo => equipo.id));
+      // Agregar solo los que no estén ya
+      setSelectedEquipos(prev => {
+        const newSelection = [...prev];
+        currentPageIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      });
     } else {
-      setSelectedEquipos([]);
+      // Quitar solo los de la página actual
+      setSelectedEquipos(prev => prev.filter(id => !currentPageIds.includes(id)));
     }
   };
 

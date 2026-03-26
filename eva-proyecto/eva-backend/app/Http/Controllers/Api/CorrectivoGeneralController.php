@@ -581,55 +581,147 @@ class CorrectivoGeneralController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'equipo_id' => 'required|exists:equipos,id',
-                'responsable_mantenimiento' => 'required|string|max:255',
-                'descripcion_orden' => 'required|string|max:1000',
-                'codigo_orden' => 'nullable|string|max:50',
-                'fecha_inicio' => 'nullable|date',
-                'prioridad' => 'nullable|in:baja,media,alta,critica,emergencia',
-                'file_diagnostico' => 'nullable|file|mimes:pdf,doc,docx,jpg,png,zip|max:10240'
+                'code_orden' => 'required|string|max:50',
+                'orden' => 'required|string|max:1000',
+                'fecha_inicio' => 'required|string', // Se recibe concatenada "YYYY-MM-DD HH:MM"
+                
+                // Avance
+                'diagnostico' => 'nullable|string',
+                'fecha_diagnostico' => 'nullable|date',
+                'code_diagnostico' => 'nullable|string',
+
+                // Cierre
+                'code' => 'nullable|string',
+                'description' => 'nullable|string',
+                'fecha_mantenimiento' => 'nullable|string', // Se recibe concatenada "YYYY-MM-DD HH:MM"
+                'tipo_falla_id' => 'nullable|integer',
+                'cierre_id' => 'nullable|integer',
+
+                // Archivo Correctivo
+                'file_correctivo' => 'nullable|file|max:20480',
+                'titulo_archivo' => 'nullable|string',
+
+                // Repuesto Instalado
+                'repuesto_id' => 'nullable|integer',
+                'cantidad_entregada' => 'nullable|numeric',
+                'fecha_repuesto' => 'nullable|date',
+                'observacion_repuesto' => 'nullable|string',
+                'file_repuesto' => 'nullable|file|max:20480',
+
+                // Repuestos Pendientes
+                'repuestos_pendientes' => 'nullable|array'
             ]);
 
             if ($validator->fails()) {
                 return ResponseFormatter::error($validator->errors(), 'Error de validación', 422);
             }
 
-            $data = [
-                'fuente' => 'Correctivos generales',
+            // 1. Crear el Correctivo General (Cabecera)
+            $correctivoData = [
                 'equipo_id' => $request->equipo_id,
-                'responsable_mantenimiento' => $request->responsable_mantenimiento,
-                'description' => $request->descripcion_orden,
-                'code_orden' => $request->codigo_orden ?? 'COR' . date('YmdHis'),
-                'fecha_inicio' => $request->fecha_inicio ?? now(),
+                'code_orden' => $request->code_orden,
+                'orden' => $request->orden,
+                'fecha_inicio' => $request->fecha_inicio,
+                'diagnostico' => $request->diagnostico,
+                'fecha_diagnostico' => $request->fecha_diagnostico,
+                'code_diagnostico' => $request->code_diagnostico,
+                'code' => $request->code,
+                'description' => $request->description,
+                'fecha_mantenimiento' => $request->fecha_mantenimiento,
+                'tipo_falla_id' => $request->tipo_falla_id,
+                'cierre_id' => $request->cierre_id,
                 'status' => 1,
-                'estado' => 'pendiente',
-                'prioridad' => $request->prioridad ?? 'media'
+                'created_at' => now()
             ];
 
-            // ✅ MANEJO DE ARCHIVO ADJUNTO (DIAGNÓSTICO)
-            if ($request->hasFile('file_diagnostico')) {
-                try {
-                    $file = $request->file('file_diagnostico');
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    // Guardar en: storage/app/public/correctivos_generales
-                    $file->storeAs('correctivos_generales', $filename, 'public');
-                    $data['file'] = $filename; // Guardamos SOLO el nombre para evitar duplicidad de carpeta en URL
-                    Log::info('📁 [CORRECTIVO-GENERAL] Archivo guardado: ' . $filename);
-                } catch (Exception $e) {
-                    Log::error('❌ [CORRECTIVO-GENERAL] Error al guardar archivo: ' . $e->getMessage());
-                }
+            // Si hay repuestos instalados o pendientes, marcar el correctivo
+            if ($request->filled('repuesto_id') || $request->filled('repuestos_pendientes')) {
+                $correctivoData['repuesto_pendiente'] = $request->filled('repuestos_pendientes') ? 'si' : 'no';
+                $correctivoData['repuesto_id'] = $request->repuesto_id;
             }
 
-            $correctivo = CorrectivoGeneral::create($data);
+            $correctivoId = DB::table('correctivos_generales')->insertGetId($correctivoData);
+            Log::info("✅ [CORRECTIVO-GENERAL] Creado con ID: $correctivoId");
 
-            return ResponseFormatter::success($correctivo->load('equipo'), 'Correctivo creado exitosamente', 201);
+            // 2. Manejo de Archivo Asociado (correctivos_generales_archivos)
+            if ($request->hasFile('file_correctivo')) {
+                $file = $request->file('file_correctivo');
+                $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
+                // Guardar en: storage/app/public/correctivos_generales (Mapeado a /assets/upload_correctivos_generales/ en servidor si se requiere)
+                $file->storeAs('correctivos_generales', $filename, 'public');
+                
+                DB::table('correctivos_generales_archivos')->insert([
+                    'correctivo_general_id' => $correctivoId,
+                    'file' => $filename,
+                    'titulo' => $request->titulo_archivo ?? 'Documento de Correctivo',
+                    'created_at' => now()
+                ]);
+                
+                // También actualizar el campo 'file' en la tabla principal para compatibilidad con vistas viejas
+                DB::table('correctivos_generales')->where('id', $correctivoId)->update(['file' => $filename]);
+            }
+
+            // 3. Manejo de Repuesto Instalado (equipo_repuestos)
+            if ($request->filled('repuesto_id')) {
+                $repuestoData = [
+                    'equipo_id' => $request->equipo_id,
+                    'repuesto_id' => $request->repuesto_id,
+                    'correctivo_general_id' => $correctivoId,
+                    'cantidad_entregada' => $request->cantidad_entregada ?? 1,
+                    'fecha' => $request->fecha_repuesto ?? now()->format('Y-m-d'),
+                    'observacion' => $request->observacion_repuesto,
+                    'usuario_id' => $request->user() ? $request->user()->id : 1
+                ];
+
+                if ($request->hasFile('file_repuesto')) {
+                    $fileR = $request->file('file_repuesto');
+                    $filenameR = md5(time() . '_rep_' . $fileR->getClientOriginalName()) . '.' . $fileR->getClientOriginalExtension();
+                    $fileR->storeAs('equipos/repuestos', $filenameR, 'public');
+                    $repuestoData['file'] = $filenameR;
+                }
+
+                DB::table('equipo_repuestos')->insert($repuestoData);
+                Log::info("⚙️ [CORRECTIVO-GENERAL] Repuesto instalado registrado.");
+            }
+
+            // 4. Manejo de Repuestos Pendientes (repuestos_pendientes)
+            if ($request->filled('repuestos_pendientes')) {
+                $pendientes = $request->repuestos_pendientes;
+                foreach ($pendientes as $pName) {
+                    if ($pName) {
+                        DB::table('repuestos_pendientes')->insert([
+                            'name' => $pName,
+                            'correctivo_general_id' => $correctivoId,
+                            'created_at' => now(),
+                            'status' => 1
+                        ]);
+                    }
+                }
+                // Actualizar tabla equipos
+                DB::table('equipos')->where('id', $request->equipo_id)->update(['repuesto_pendiente' => 'si']);
+                Log::info("⏳ [CORRECTIVO-GENERAL] Repuestos pendientes registrados.");
+            }
+
+            // 5. Historial de Hoja de Vida (cambios_hdv)
+            DB::table('cambios_hdv')->insert([
+                'equipo_id' => $request->equipo_id,
+                'descripcion' => "Se agregó un correctivo general con ID: $correctivoId. Orden: {$request->code_orden}",
+                'usuario_id' => $request->user() ? $request->user()->id : 1,
+                'created_at' => now()
+            ]);
+
+            DB::commit();
+            return ResponseFormatter::success(['id' => $correctivoId], 'Correctivo y datos relacionados guardados exitosamente', 201);
 
         } catch (Exception $e) {
+            DB::rollBack();
             Log::error('Error en CorrectivoGeneralController::store', [
                 'error' => $e->getMessage(),
-                'data' => $request->all()
+                'trace' => $e->getTraceAsString()
             ]);
             return ResponseFormatter::error(null, 'Error al crear correctivo: ' . $e->getMessage(), 500);
         }
