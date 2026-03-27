@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Upload, X, FileText, AlertCircle } from "lucide-react";
 import httpService from "@/services/httpService";
 import { toast } from "sonner";
+import SearchableSelect from "@/components/ui/searchable-select";
+import { useEffect } from "react";
 
 export function AddContingencyModal({ open, onOpenChange, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -27,6 +29,36 @@ export function AddContingencyModal({ open, onOpenChange, onSuccess }) {
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [equipments, setEquipments] = useState([]);
+  const [loadingEquipments, setLoadingEquipments] = useState(false);
+
+  useEffect(() => {
+    fetchEquipments();
+  }, [open]);
+
+  const fetchEquipments = async () => {
+    if (!open) return;
+    setLoadingEquipments(true);
+    try {
+      const response = await httpService.get('/v1/equipos-list');
+      if (response.data.success) {
+        // Adaptar datos para SearchableSelect
+        const data = response.data.data;
+        const options = data.map(eq => ({
+          id: eq.id,
+          nombre: `${eq.name} - ${eq.code || 'S/C'}`,
+          name: eq.name,
+          codigo: eq.code
+        }));
+        setEquipments(options);
+      }
+    } catch (error) {
+      console.error("Error fetching equipments:", error);
+      toast.error("No se pudo cargar la lista de equipos");
+    } finally {
+      setLoadingEquipments(false);
+    }
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -214,10 +246,33 @@ export function AddContingencyModal({ open, onOpenChange, onSuccess }) {
 
             <div className="space-y-2">
               <Label
+                htmlFor="equipo_id"
+                className="text-xs sm:text-sm font-medium text-slate-700"
+              >
+                Información del equipo<span className="text-destructive">*</span>
+              </Label>
+              <SearchableSelect
+                placeholder="Busque un equipo por nombre o código..."
+                options={equipments}
+                value={formData.equipo_id?.toString()}
+                onValueChange={(val) => setFormData({...formData, equipo_id: val})}
+                loading={loadingEquipments}
+                className={errors.equipo_id ? 'border-red-500' : ''}
+              />
+              {errors.equipo_id && (
+                <div className="flex items-center gap-1 text-xs text-red-500">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.equipo_id}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label
                 htmlFor="descripcion"
                 className="text-xs sm:text-sm font-medium text-slate-700"
               >
-                Descripción<span className="text-destructive">*</span>
+                Observaciones<span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="descripcion"

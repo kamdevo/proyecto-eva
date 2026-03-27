@@ -52,16 +52,15 @@ class ContingenciaController extends ApiController
                 'equipo:id,name,code,servicio_id,area_id',
                 'equipo.servicio:id,name',
                 'equipo.area:id,name',
-                'usuarioReporta:id,nombre,apellido',
-                'usuarioAsignado:id,nombre,apellido'
+                'usuario:id,nombre,apellido',
+                'estado:id,descripcion'
             ]);
 
             // Aplicar filtros
             if ($request->has('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
-                    $q->where('descripcion', 'like', "%{$search}%")
-                      ->orWhere('observaciones', 'like', "%{$search}%")
+                    $q->where('observacion', 'like', "%{$search}%")
                       ->orWhereHas('equipo', function($eq) use ($search) {
                           $eq->where('name', 'like', "%{$search}%")
                              ->orWhere('code', 'like', "%{$search}%");
@@ -77,16 +76,12 @@ class ContingenciaController extends ApiController
                 $query->where('estado_id', $request->estado_id);
             }
 
-            if ($request->has('severidad')) {
-                $query->where('severidad', $request->severidad);
-            }
-
             if ($request->has('tipo')) {
-                $query->where('tipo', $request->tipo);
+                $query->where('observacion', 'like', "%Tipo: {$request->tipo}%");
             }
 
-            if ($request->has('usuario_reporta')) {
-                $query->where('usuario_reporta', $request->usuario_reporta);
+            if ($request->has('usuario_id')) {
+                $query->where('usuario_id', $request->usuario_id);
             }
 
             if ($request->has('fecha_desde')) {
@@ -108,21 +103,11 @@ class ContingenciaController extends ApiController
             $query->orderBy($orderBy, $orderDirection);
 
             // Paginación
-            $perPage = $request->get('per_page', 15);
-            $contingencias = $query->paginate($perPage);
+            $contingencias = $query->orderBy('fecha', 'desc')->get();
 
-            // Calcular tiempo transcurrido para contingencias abiertas
-            $contingencias->getCollection()->transform(function ($contingencia) {
-                if ($contingencia->estado !== 'Cerrado') {
-                    $contingencia->tiempo_transcurrido = Carbon::parse($contingencia->fecha)->diffForHumans();
-                    $contingencia->horas_transcurridas = Carbon::parse($contingencia->fecha)->diffInHours(now());
-                }
-
-                if ($contingencia->archivo) {
-                    $contingencia->archivo_url = Storage::disk('public')->url($contingencia->archivo);
-                }
-
-                return $contingencia;
+            // Calcular tiempo transcurrido
+            $contingencias->transform(function ($contingencia) {
+                return $this->formatContingencia($contingencia);
             });
 
             return ResponseFormatter::success($contingencias, 'Contingencias obtenidas exitosamente');
@@ -181,30 +166,38 @@ class ContingenciaController extends ApiController
         try {
             DB::beginTransaction();
 
-            $contingenciaData = $request->except(['archivo']);
-            $contingenciaData['estado'] = $contingenciaData['estado'] ?? 'Abierto';
-            $contingenciaData['created_at'] = now();
+            $observacionCompleta = "Tipo: " . ($request->tipo ?? 'N/A') . "\n";
+            $observacionCompleta .= "Severidad: " . ($request->severidad ?? 'N/A') . "\n";
+            $observacionCompleta .= "Descripción: " . $request->descripcion . "\n";
+            if ($request->observaciones) {
+                $observacionCompleta .= "\nObservaciones: " . $request->observaciones;
+            }
+
+            $contingenciaData = [
+                'equipo_id' => $request->equipo_id,
+                'observacion' => $observacionCompleta,
+                'fecha' => $request->fecha,
+                'usuario_id' => $request->usuario_reporta,
+                'estado_id' => $request->estado === 'Cerrado' ? 2 : 1,
+            ];
 
             // Manejar archivo adjunto
             if ($request->hasFile('archivo')) {
                 $file = $request->file('archivo');
-                $fileName = 'contingencias/' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $extension = $file->getClientOriginalExtension() ?: 'pdf';
+                $fileName = uniqid() . '.' . $extension;
                 $filePath = $file->storeAs('contingencias', $fileName, 'public');
-                $contingenciaData['archivo'] = $filePath;
+                $contingenciaData['file'] = $fileName; // Guardar solo el nombre del archivo en la columna 'file'
             }
 
             $contingencia = Contingencia::create($contingenciaData);
 
-            // Cargar relaciones para la respuesta
-            $contingencia->load([
-                'equipo:id,name,code',
-                'usuarioReporta:id,nombre,apellido',
-                'usuarioAsignado:id,nombre,apellido'
-            ]);
-
             DB::commit();
 
-            return ResponseFormatter::success($contingencia, 'Contingencia creada exitosamente', 201);
+            return ResponseFormatter::success(
+                $this->formatContingencia($contingencia), 
+                'Contingencia creada exitosamente', 201
+            );
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -256,25 +249,14 @@ class ContingenciaController extends ApiController
                 'equipo:id,name,code,servicio_id,area_id,marca,modelo,serial',
                 'equipo.servicio:id,name',
                 'equipo.area:id,name',
-                'usuarioReporta:id,nombre,apellido,telefono,email',
-                'usuarioAsignado:id,nombre,apellido,telefono,email',
-                'seguimientos.usuario:id,nombre,apellido'
+                'usuario:id,nombre,apellido,telefono,email',
+                'estado:id,descripcion'
             ])->findOrFail($id);
 
-            // Agregar URL del archivo si existe
-            if ($contingencia->archivo) {
-                $contingencia->archivo_url = Storage::disk('public')->url($contingencia->archivo);
-            }
-
-            // Calcular tiempo de resolución si está cerrada
-            if ($contingencia->estado === 'Cerrado' && $contingencia->fecha_cierre) {
-                $contingencia->tiempo_resolucion = Carbon::parse($contingencia->fecha)
-                    ->diffForHumans(Carbon::parse($contingencia->fecha_cierre), true);
-                $contingencia->horas_resolucion = Carbon::parse($contingencia->fecha)
-                    ->diffInHours(Carbon::parse($contingencia->fecha_cierre));
-            }
-
-            return ResponseFormatter::success($contingencia, 'Contingencia obtenida exitosamente');
+            return ResponseFormatter::success(
+                $this->formatContingencia($contingencia), 
+                'Contingencia obtenida exitosamente'
+            );
 
         } catch (\Exception $e) {
             return ResponseFormatter::error('Error al obtener contingencia: ' . $e->getMessage(), 500);
@@ -343,7 +325,21 @@ class ContingenciaController extends ApiController
             DB::beginTransaction();
 
             $contingencia = Contingencia::findOrFail($id);
-            $contingenciaData = $request->except(['archivo']);
+            
+            $observacionCompleta = "Tipo: " . ($request->tipo ?? 'N/A') . "\n";
+            $observacionCompleta .= "Severidad: " . ($request->severidad ?? 'N/A') . "\n";
+            $observacionCompleta .= "Descripción: " . $request->descripcion . "\n";
+            if ($request->observaciones) {
+                $observacionCompleta .= "\nObservaciones: " . $request->observaciones;
+            }
+
+            $contingenciaData = [
+                'equipo_id' => $request->equipo_id,
+                'observacion' => $observacionCompleta,
+                'fecha' => $request->fecha,
+                'usuario_id' => $request->usuario_reporta,
+                'estado_id' => $request->estado === 'Cerrado' ? 2 : 1,
+            ];
 
             // Manejar actualización de archivo
             if ($request->hasFile('archivo')) {
@@ -725,5 +721,38 @@ class ContingenciaController extends ApiController
             ->orderBy('total_contingencias', 'desc')
             ->limit(10)
             ->get();
+    }
+
+    /**
+     * Formatear contingencia para compatibilidad con el frontend
+     */
+    public function formatContingencia($contingencia)
+    {
+        $equipo = $contingencia->equipo;
+        
+        return [
+            'id' => $contingencia->id,
+            'equipo_id' => $contingencia->equipo_id,
+            'descripcion' => $contingencia->observacion,
+            'fecha' => $contingencia->fecha ? Carbon::parse($contingencia->fecha)->format('Y-m-d') : null,
+            'fechaCierre' => $contingencia->fecha_cierre ? Carbon::parse($contingencia->fecha_cierre)->format('Y-m-d') : null,
+            'archivo' => $contingencia->file ?? 'contingencia_' . $contingencia->id . '.pdf',
+            'usuarioReporta' => $contingencia->usuario ? 
+                ($contingencia->usuario->nombre . ' ' . $contingencia->usuario->apellido) : 'N/A',
+            'informacionEquipo' => [
+                'nombre' => $equipo ? ($equipo->name ?? 'Equipo') : 'Equipo no encontrado',
+                'codigo' => $equipo ? ($equipo->code ?? '') : '',
+                'serie' => $equipo ? ($equipo->serial ?? '') : '',
+                'marca' => $equipo ? ($equipo->marca ?? '') : '',
+                'modelo' => $equipo ? ($equipo->modelo ?? '') : ''
+            ],
+            'estado' => $contingencia->estado_id == 2 ? 'Cerrado' : 'Abierto',
+            'origenContingencia' => 'Equipo BIOMÉDICO',
+            'tiempo_transcurrido' => ($contingencia->estado_id != 2 && $contingencia->fecha) ? 
+                Carbon::parse($contingencia->fecha)->diffForHumans() : null,
+            'horas_transcurridas' => ($contingencia->estado_id != 2 && $contingencia->fecha) ? 
+                Carbon::parse($contingencia->fecha)->diffInHours(now()) : null,
+            'archivo_url' => $contingencia->file ? Storage::disk('public')->url($contingencia->file) : null
+        ];
     }
 }

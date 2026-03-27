@@ -38,6 +38,7 @@ class Contingencia extends Model
     protected $table = 'contingencias';
     protected $primaryKey = 'id';
     public $timestamps = true;
+    const UPDATED_AT = null;
 
     /**
      * Campos que pueden ser asignados masivamente
@@ -60,7 +61,8 @@ class Contingencia extends Model
         'costo_real',
         'archivo_evidencia',
         'impacto',
-        'categoria'
+        'categoria',
+        'archivo'
     ];
 
     /**

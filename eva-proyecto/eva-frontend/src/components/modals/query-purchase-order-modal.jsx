@@ -38,7 +38,7 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
   const {
     purchaseOrders,
     loading,
-    search,
+    updateFilters,
     refresh
   } = usePurchaseOrders();
 
@@ -46,11 +46,16 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
   const { proveedores, loading: proveedoresLoading } = useProveedores();
 
   const handleSearch = () => {
-    const searchFilters = {
+    const backendFilters = {
       search: searchTerm,
-      ...filters
+      proveedor_id: filters.proveedor === "TODOS" ? "" : filters.proveedor,
+      status: filters.estado === "TODOS" ? "" : filters.estado,
+      tipo_compra_id: filters.tipo === "TODOS" ? "" : filters.tipo,
+      fecha_desde: filters.fechaInicio,
+      fecha_hasta: filters.fechaFin,
+      page: 1
     };
-    search(searchFilters);
+    updateFilters(backendFilters);
   };
 
   const handleFilterChange = (key, value) => {
@@ -257,21 +262,21 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                               </Badge>
                               <Badge
                                 className={
-                                  order.status_text === "Aprobada"
-                                    ? "bg-green-100 text-green-800"
-                                    : order.status_text === "Activa"
+                                  order.status == 1
                                     ? "bg-blue-100 text-blue-800"
+                                    : order.status == 2
+                                    ? "bg-green-100 text-green-800"
                                     : "bg-yellow-100 text-yellow-800"
                                 }
                               >
-                                {order.status_text}
+                                {order.status == 1 ? "Activa" : order.status == 2 ? "Aprobada" : "En Proceso"}
                               </Badge>
                             </div>
                             
                             <div className="mb-3">
                               <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
                                 <Calendar className="w-4 h-4" />
-                                {order.fecha_formatted || "Sin fecha"}
+                                {order.fecha ? new Date(order.fecha).toLocaleDateString() : "Sin fecha"}
                               </div>
                               
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

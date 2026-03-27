@@ -96,6 +96,29 @@ function getDefaultPermissionsByRole($rolId, $moduleName) {
     return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
 }
 
+// ENDPOINT OPTIMIZADO PARA SELECTORES DE EQUIPOS (Ligero y rápido)
+Route::prefix('v1')->group(function () {
+    Route::get('equipos-list', function() {
+        try {
+            $equipos = DB::table('equipos')
+                ->where('status', 1)
+                ->select('id', 'name', 'code')
+                ->orderBy('name', 'asc')
+                ->get();
+                
+            return response()->json([
+                'success' => true,
+                'data' => $equipos
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener lista de equipos: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+});
+
 // ENDPOINT FINAL CORREGIDO PARA CREAR EQUIPOS
 Route::post("v1/equipos-final", function(Request $request) {
     header("Access-Control-Allow-Origin: *");
@@ -7924,10 +7947,13 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             $sortOrder = request('sort_order', 'desc');
             $proveedorId = request('proveedor_id', '');
             $tipoCompraId = request('tipo_compra_id', '');
+            $status = request('status', '');
+            $fechaDesde = request('fecha_desde', '');
+            $fechaHasta = request('fecha_hasta', '');
 
             $query = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
+                ->leftJoin('contacto as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
@@ -7951,6 +7977,21 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             // Filtro por tipo de compra
             if ($tipoCompraId) {
                 $query->where('ordenes_compra.tipo_compra_id', $tipoCompraId);
+            }
+
+            // Filtro por estado
+            if ($status) {
+                $query->where('ordenes_compra.status', $status);
+            }
+
+            // Filtro por fecha desde
+            if ($fechaDesde) {
+                $query->whereDate('ordenes_compra.fecha', '>=', $fechaDesde);
+            }
+
+            // Filtro por fecha hasta
+            if ($fechaHasta) {
+                $query->whereDate('ordenes_compra.fecha', '<=', $fechaHasta);
             }
 
             $total = $query->count();
@@ -7999,7 +8040,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'orden' => 'required|string|max:255|unique:ordenes_compra,orden',
                 'fecha' => 'required|date',
                 'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
-                'proveedor_id' => 'nullable|integer|exists:proveedores_mantenimiento,id',
+                'proveedor_id' => 'nullable|integer|exists:contacto,id',
                 'secop_id' => 'nullable|string|max:255',
                 'url_secop' => 'nullable|string|max:500',
                 'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240' // 10MB max
@@ -8037,7 +8078,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
             $orden = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
+                ->leftJoin('contacto as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
@@ -8065,7 +8106,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         try {
             $orden = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
+                ->leftJoin('contacto as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
@@ -8110,7 +8151,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'orden' => 'required|string|max:255|unique:ordenes_compra,orden,' . $id,
                 'fecha' => 'required|date',
                 'tipo_compra_id' => 'required|integer|exists:tipos_compra,id',
-                'proveedor_id' => 'nullable|integer|exists:proveedores_mantenimiento,id',
+                'proveedor_id' => 'nullable|integer|exists:contacto,id',
                 'monto' => 'nullable|numeric|min:0',
                 'descripcion' => 'nullable|string',
                 'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240'
@@ -8153,7 +8194,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
             $updatedOrden = DB::table('ordenes_compra')
                 ->leftJoin('tipos_compra', 'ordenes_compra.tipo_compra_id', '=', 'tipos_compra.id')
-                ->leftJoin('proveedores_mantenimiento as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
+                ->leftJoin('contacto as proveedor', 'ordenes_compra.proveedor_id', '=', 'proveedor.id')
                 ->select([
                     'ordenes_compra.*',
                     'tipos_compra.tipo_compra as tipo_compra_nombre',
@@ -15240,194 +15281,8 @@ Route::put('v1/test-put', function(Request $request) {
 });
 
 // Get all contingencias
-Route::get('v1/contingencias', function() {
-    try {
-        $contingencias = DB::table('contingencias')
-            ->orderBy('fecha', 'desc')
-            ->get()
-            ->map(function($contingencia) {
-                // Get user name if user_id exists
-                $usuario = null;
-                if ($contingencia->usuario_id) {
-                    $usuario = DB::table('usuarios')->where('id', $contingencia->usuario_id)->first();
-                }
+// Rutas de contingencias removidas por redundancia. El controlador ContingenciaController maneja estas peticiones.
 
-                // Get equipment info if equipo_id exists
-                $equipo = null;
-                if ($contingencia->equipo_id) {
-                    $equipo = DB::table('equipos')->where('id', $contingencia->equipo_id)->first();
-                }
-
-                return [
-                    'id' => $contingencia->id,
-                    'descripcion' => $contingencia->observacion ?? 'Sin descripción',
-                    'fecha' => $contingencia->fecha,
-                    'fechaCierre' => $contingencia->fecha_cierre,
-                    'archivo' => $contingencia->file ?? 'contingencia_' . $contingencia->id . '.pdf',
-                    'usuarioReporta' => $usuario ? $usuario->nombre : 'Usuario no encontrado',
-                    'informacionEquipo' => [
-                        'nombre' => $equipo ? ($equipo->equipo ?? $equipo->nombre ?? 'Equipo') : 'Equipo no encontrado',
-                        'codigo' => $equipo ? ($equipo->codigo_interno ?? $equipo->codigo ?? '') : '',
-                        'serie' => $contingencia->fecha, // Usando fecha como serie temporal
-                        'marca' => $equipo ? ($equipo->marca ?? '') : '',
-                        'modelo' => $equipo ? ($equipo->modelo ?? '') : ''
-                    ],
-                    'estado' => $contingencia->estado_id == 2 ? 'Cerrado' : 'Abierto',
-                    'origenContingencia' => 'Equipo BIOMÉDICO' // Valor por defecto
-                ];
-            });
-
-        return response()->json([
-            'success' => true,
-            'data' => $contingencias
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error fetching all contingencias: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al obtener contingencias',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
-
-// Get contingencias for equipment
-Route::get('v1/equipos/{id}/contingencias', function($id) {
-    try {
-        $contingencias = DB::table('contingencias')
-            ->leftJoin('usuarios', 'contingencias.usuario_id', '=', 'usuarios.id')
-            ->where('contingencias.equipo_id', $id)
-            ->select([
-                'contingencias.*',
-                'usuarios.nombre as usuario_nombre'
-            ])
-            ->orderBy('contingencias.fecha', 'desc')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $contingencias
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error fetching contingencias: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al obtener contingencias',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
-
-// Create new contingencia
-Route::post('v1/contingencias', function(Request $request) {
-    try {
-        $request->validate([
-            'equipo_id' => 'required|integer',
-            'usuario_id' => 'required|integer',
-            'fecha' => 'required|date',
-            'observacion' => 'required|string',
-            'estado_id' => 'required|integer',
-            'file' => 'nullable|file|max:10240' // 10MB max
-        ]);
-
-        $fileName = null;
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $fileName = time() . '_contingencia_' . $file->getClientOriginalName();
-            $file->storeAs('contingencias', $fileName, 'public');
-        }
-
-        $contingenciaId = DB::table('contingencias')->insertGetId([
-            'equipo_id' => $request->equipo_id,
-            'usuario_id' => $request->usuario_id,
-            'fecha' => $request->fecha,
-            'observacion' => $request->observacion,
-            'estado_id' => $request->estado_id,
-            'file' => $fileName,
-            'created_at' => now()
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $contingenciaId,
-                'file' => $fileName
-            ],
-            'message' => 'Contingencia registrada exitosamente'
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error creating contingencia: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al registrar contingencia',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
-
-// Update contingencia (POST with method spoofing)
-Route::post('v1/contingencias/{id}/update', function($id, Request $request) {
-    try {
-        \Log::info('Update contingencia request', [
-            'id' => $id,
-            'all_data' => $request->all(),
-            'files' => $request->allFiles(),
-            'has_fecha' => $request->has('fecha'),
-            'has_observacion' => $request->has('observacion')
-        ]);
-
-        // Basic validation
-        if (!$request->has('fecha') || !$request->has('observacion')) {
-            \Log::warning('Validation failed - missing required fields', [
-                'fecha' => $request->fecha,
-                'observacion' => $request->observacion
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Fecha y observación son requeridos'
-            ], 400);
-        }
-
-        // Simple update - only update basic fields that exist
-        $updateData = [
-            'fecha' => $request->fecha,
-            'observacion' => $request->observacion
-        ];
-
-        \Log::info('Attempting to update contingencia', [
-            'id' => $id,
-            'updateData' => $updateData
-        ]);
-
-        $updated = DB::table('contingencias')
-            ->where('id', $id)
-            ->update($updateData);
-
-        \Log::info('Update result', [
-            'updated_rows' => $updated,
-            'id' => $id
-        ]);
-
-        if ($updated) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Contingencia actualizada exitosamente'
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contingencia no encontrada'
-            ], 404);
-        }
-    } catch (\Exception $e) {
-        \Log::error('Error updating contingencia: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al actualizar contingencia',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
 
 // Update contingencia (PUT method)
 Route::put('v1/contingencias/{id}', function($id, Request $request) {
@@ -15480,103 +15335,14 @@ Route::put('v1/contingencias/{id}', function($id, Request $request) {
 });
 
 
-// Export contingencias to Excel
+
+// Rutas de exportación de contingencias (Mantenidas por ahora)
 Route::get('v1/export/contingencias', [App\Http\Controllers\Api\ContingenciasExportController::class, 'export'])
     ->withoutMiddleware(['auth:sanctum']);
 
-// Delete contingencia (POST method)
-Route::post('v1/contingencias/{id}/delete', function($id) {
-    try {
-        // Get file name before deleting to remove from storage
-        $contingencia = DB::table('contingencias')->where('id', $id)->first();
-        
-        if (!$contingencia) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contingencia no encontrada'
-            ], 404);
-        }
+// NOTA: El resto de operaciones CRUD (crear, actualizar, eliminar, cerrar) 
+// son manejadas por el controlador ContingenciaController en v1/.
 
-        // Delete from database
-        DB::table('contingencias')->where('id', $id)->delete();
-
-        // Delete file from storage if exists
-        if ($contingencia->file) {
-            \Storage::disk('public')->delete('contingencias/' . $contingencia->file);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Contingencia eliminada exitosamente'
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error deleting contingencia: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al eliminar contingencia',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
-
-// Delete contingencia (DELETE method)
-Route::delete('v1/contingencias/{id}', function($id) {
-    try {
-        // Get file name before deleting to remove from storage
-        $contingencia = DB::table('contingencias')->where('id', $id)->first();
-        
-        if (!$contingencia) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contingencia no encontrada'
-            ], 404);
-        }
-
-        // Delete from database
-        DB::table('contingencias')->where('id', $id)->delete();
-
-        // Delete file from storage if exists
-        if ($contingencia->file) {
-            \Storage::disk('public')->delete('contingencias/' . $contingencia->file);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Contingencia eliminada exitosamente'
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error deleting contingencia: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al eliminar contingencia',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
-
-// Close contingencia
-Route::put('v1/contingencias/{id}/cerrar', function($id) {
-    try {
-        DB::table('contingencias')
-            ->where('id', $id)
-            ->update([
-                'estado_id' => 2, // Estado cerrado
-                'fecha_cierre' => now()
-            ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Contingencia cerrada exitosamente'
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Error closing contingencia: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al cerrar contingencia',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
 
 // NOTA: Los datos de capacitaciones y movimientos ahora se incluyen
 // en el endpoint v1/equipos/{id}/complete-info del EquipmentController

@@ -21,131 +21,10 @@ import Pagination from "@/components/common/Pagination"
 import { AddContingencyModal } from "@/components/modals/add-contingency-modal"
 import { DeleteContingencyModal } from "@/components/modals/delete-contingency-modal"
 import httpService from "@/services/httpService"
+import SearchableSelect from "@/components/ui/searchable-select"
+import { Label } from "@/components/ui/label";
 
 
-const contingenciesData = [
-  {
-    id: "001",
-    descripcion:
-      "Se requiere ecógrafo en contingencia para el servicio de Imágenes Diagnósticas debido a un daño presentado en el equipo de los ecógrafos del servicio",
-    fecha: "2024-06-11",
-    fechaCierre: "2024-06-19",
-    archivo: "contingencia_001.pdf",
-    usuarioReporta: "Karen Sofia Bustamante Villada (electromedicina@huv)",
-    informacionEquipo: {
-      nombre: "ECÓGRAFO DOPPLER",
-      codigo: "EMCGauge",
-      serie: "2024-06-11",
-      marca: "SAMSUNG",
-      modelo: "SONOACE R7",
-    },
-    estado: "Cerrado",
-    origenContingencia: "Equipo BIOMÉDICO",
-  },
-  {
-    id: "002",
-    descripcion:
-      "Se requiere contingencia en el servicio de sala de Imágenes Diagnósticas para ecógrafo de Doplex en contingencia, se necesita equipo de funcionamiento",
-    fecha: "2024-04-19",
-    fechaCierre: "2024-04-21",
-    archivo: "contingencia_002.pdf",
-    usuarioReporta: "Karen Sofia Bustamante Villada (electromedicina@huv)",
-    informacionEquipo: {
-      nombre: "ECÓGRAFO",
-      codigo: "EMCGauge",
-      serie: "2024-04-19",
-      marca: "SAMSUNG",
-      modelo: "SONOACE R7",
-    },
-    estado: "Cerrado",
-    origenContingencia: "Equipo BIOMÉDICO",
-  },
-  {
-    id: "003",
-    descripcion: "Se requiere para cirugía FALLA incluyen un ecógrafo para el servicio de Emergencias",
-    fecha: "2024-04-18",
-    fechaCierre: "2024-04-18",
-    archivo: "contingencia_003.pdf",
-    usuarioReporta: "Karen Sofia Bustamante Villada (electromedicina@huv)",
-    informacionEquipo: {
-      nombre: "ECÓGRAFO",
-      codigo: "EMCGauge",
-      serie: "2024-04-18",
-      marca: "SAMSUNG",
-      modelo: "SONOACE R7",
-    },
-    estado: "Cerrado",
-    origenContingencia: "Equipo BIOMÉDICO",
-  },
-  {
-    id: "004",
-    descripcion: "Ventilador mecánico presenta falla en el sistema de alarmas, requiere revisión técnica urgente",
-    fecha: "2024-06-15",
-    fechaCierre: null,
-    archivo: "contingencia_004.pdf",
-    usuarioReporta: "Juan Pérez García",
-    informacionEquipo: {
-      nombre: "VENTILADOR MECÁNICO",
-      codigo: "VM001",
-      serie: "VM2024-001",
-      marca: "PHILIPS",
-      modelo: "V60 PLUS",
-    },
-    estado: "Abierto",
-    origenContingencia: "Equipo BIOMÉDICO",
-  },
-  {
-    id: "005",
-    descripcion: "Monitor de signos vitales no registra correctamente la presión arterial en UCI",
-    fecha: "2024-06-10",
-    fechaCierre: "2024-06-12",
-    archivo: "contingencia_005.pdf",
-    usuarioReporta: "María Rodríguez López",
-    informacionEquipo: {
-      nombre: "MONITOR SIGNOS VITALES",
-      codigo: "MSV002",
-      serie: "MSV2024-002",
-      marca: "GE HEALTHCARE",
-      modelo: "CARESCAPE B650",
-    },
-    estado: "Cerrado",
-    origenContingencia: "Equipo BIOMÉDICO",
-  },
-  {
-    id: "006",
-    descripcion: "Falla en el sistema de aire acondicionado del quirófano principal",
-    fecha: "2024-06-08",
-    fechaCierre: "2024-06-09",
-    archivo: "contingencia_006.pdf",
-    usuarioReporta: "Carlos Méndez Silva",
-    informacionEquipo: {
-      nombre: "SISTEMA HVAC",
-      codigo: "HVAC001",
-      serie: "HVAC2024-001",
-      marca: "CARRIER",
-      modelo: "30XA-1002",
-    },
-    estado: "Cerrado",
-    origenContingencia: "Infraestructura",
-  },
-  {
-    id: "007",
-    descripcion: "Desfibrilador no carga correctamente, requiere cambio de batería",
-    fecha: "2024-06-14",
-    fechaCierre: null,
-    archivo: "contingencia_007.pdf",
-    usuarioReporta: "Ana Torres Ruiz",
-    informacionEquipo: {
-      nombre: "DESFIBRILADOR",
-      codigo: "DEF001",
-      serie: "DEF2024-001",
-      marca: "ZOLL",
-      modelo: "R SERIES PLUS",
-    },
-    estado: "En Proceso",
-    origenContingencia: "Equipo BIOMÉDICO",
-  },
-]
 
 export function ContingenciesView() {
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -155,6 +34,8 @@ export function ContingenciesView() {
 
   // Real data states
   const [contingencies, setContingencies] = useState([])
+  const [equipments, setEquipments] = useState([])
+  const [loadingEquipments, setLoadingEquipments] = useState(false)
 
   // Estados de ordenamiento
   const [sortField, setSortField] = useState('fecha')
@@ -202,9 +83,32 @@ export function ContingenciesView() {
     }
   }
 
-  // Load contingencies on component mount
+  // Load equipments for dropdowns (optimized call)
+  const fetchEquipments = async () => {
+    try {
+      setLoadingEquipments(true)
+      const response = await httpService.get('/v1/equipos-list')
+      if (response.data && response.data.success) {
+        const data = response.data.data
+        const options = data.map(eq => ({
+          id: eq.id,
+          nombre: `${eq.name} - ${eq.code || 'S/C'}`,
+          name: eq.name,
+          codigo: eq.code
+        }))
+        setEquipments(options)
+      }
+    } catch (error) {
+      console.error('Error loading equipments:', error)
+    } finally {
+      setLoadingEquipments(false)
+    }
+  }
+
+  // Load data on component mount
   useEffect(() => {
     loadContingencies()
+    fetchEquipments()
   }, [])
 
   // Ordenar contingencias
@@ -281,7 +185,7 @@ export function ContingenciesView() {
     }
   }
 
-  const handleUpdate = async (updatedData) => {
+  const handleUpdateContingency = async (updatedData) => {
     try {
       setLoading(true)
       
@@ -447,7 +351,7 @@ export function ContingenciesView() {
                       onClick={() => handleSort('descripcion')}
                       className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
                     >
-                      Descripción
+                      Observaciones
                       {getSortIcon('descripcion')}
                     </button>
                   </th>
@@ -467,7 +371,7 @@ export function ContingenciesView() {
                       onClick={() => handleSort('fechaCierre')}
                       className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
                     >
-                      F. Cierre
+                      Fecha cierre
                       {getSortIcon('fechaCierre')}
                     </button>
                   </th>
@@ -481,7 +385,7 @@ export function ContingenciesView() {
                       onClick={() => handleSort('usuarioReporta')}
                       className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
                     >
-                      Usuario
+                      Usuario quien la ingresa
                       {getSortIcon('usuarioReporta')}
                     </button>
                   </th>
@@ -491,7 +395,7 @@ export function ContingenciesView() {
                       onClick={() => handleSort('equipo')}
                       className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
                     >
-                      Equipo
+                      Información del equipo
                       {getSortIcon('equipo')}
                     </button>
                   </th>
@@ -511,7 +415,7 @@ export function ContingenciesView() {
                       onClick={() => handleSort('origenContingencia')}
                       className="flex items-center gap-2 hover:text-[#1d293d] transition-colors"
                     >
-                      Origen
+                      Origen de la contingencia
                       {getSortIcon('origenContingencia')}
                     </button>
                   </th>
@@ -560,14 +464,16 @@ export function ContingenciesView() {
         open={addModalOpen} 
         onOpenChange={setAddModalOpen}
         onSuccess={() => {
-          loadContingencies(); // Recargar la lista después de crear
+          loadContingencies(); 
         }}
       />
       <EditContingencyModal 
         open={editModalOpen} 
         onOpenChange={setEditModalOpen}
         contingency={selectedContingency}
-        onUpdate={handleUpdate}
+        equipments={equipments}
+        loadingEquipments={loadingEquipments}
+        onUpdate={handleUpdateContingency}
       />
       <DeleteContingencyModal
         open={deleteModalOpen}
@@ -581,10 +487,11 @@ export function ContingenciesView() {
 
 
 // Edit Contingency Modal Component
-function EditContingencyModal({ open, onOpenChange, contingency, onUpdate }) {
+function EditContingencyModal({ open, onOpenChange, contingency, equipments, loadingEquipments, onUpdate }) {
   const [formData, setFormData] = useState({
     fecha: '',
     observacion: '',
+    equipo_id: '',
     file: null
   })
 
@@ -594,6 +501,7 @@ function EditContingencyModal({ open, onOpenChange, contingency, onUpdate }) {
       setFormData({
         fecha: contingency.fecha || '',
         observacion: contingency.descripcion || '',
+        equipo_id: contingency.equipo_id || '',
         file: null
       })
     }
@@ -612,7 +520,8 @@ function EditContingencyModal({ open, onOpenChange, contingency, onUpdate }) {
     // Simple object instead of FormData for now
     const updateData = {
       fecha: formData.fecha,
-      observacion: formData.observacion
+      observacion: formData.observacion,
+      equipo_id: formData.equipo_id
     }
     
     console.log('Calling onUpdate with simple data:', updateData)
@@ -634,9 +543,23 @@ function EditContingencyModal({ open, onOpenChange, contingency, onUpdate }) {
         
         <form onSubmit={handleSubmit} method="post" action="#" className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label className="block text-sm font-medium text-gray-700 mb-1">
+              Equipo Asociado <span className="text-red-500">*</span>
+            </Label>
+            <SearchableSelect
+              placeholder="Busque un equipo por nombre o código..."
+              options={equipments}
+              value={formData.equipo_id?.toString()}
+              onValueChange={(val) => setFormData(prev => ({ ...prev, equipo_id: val }))}
+              loading={loadingEquipments}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <Label className="block text-sm font-medium text-gray-700 mb-1">
               Fecha <span className="text-red-500">*</span>
-            </label>
+            </Label>
             <input
               type="date"
               value={formData.fecha}
@@ -825,9 +748,13 @@ function DesktopContingencyRow({ contingency, onOpenPdf, onEdit, onDelete }) {
         <div className="text-xs lg:text-sm text-slate-700 max-w-xs truncate">{contingency.usuarioReporta}</div>
       </td>
       <td className="p-2 lg:p-3 border-r border-slate-200 align-top">
-        <div className="text-xs lg:text-sm space-y-1 max-w-xs">
-          <div className="font-medium text-slate-900">{contingency.informacionEquipo.nombre}</div>
-          <div className="text-slate-600">{contingency.informacionEquipo.marca}</div>
+        <div className="text-xs lg:text-sm space-y-1 max-w-[200px]">
+          <div className="font-semibold text-slate-900">{contingency.informacionEquipo.nombre}</div>
+          <div className="flex flex-col text-slate-600 text-[10px] lg:text-xs">
+            <span>Cod: {contingency.informacionEquipo.codigo}</span>
+            <span>Marca: {contingency.informacionEquipo.marca}</span>
+            <span>Mod: {contingency.informacionEquipo.modelo}</span>
+          </div>
         </div>
       </td>
       <td className="p-2 lg:p-3 border-r border-slate-200 align-top">
@@ -843,7 +770,7 @@ function DesktopContingencyRow({ contingency, onOpenPdf, onEdit, onDelete }) {
       <td className="p-2 lg:p-3 border-r border-slate-200 align-top">
         <div className="flex items-center gap-1">
           <AlertTriangle className="w-3 h-3 text-orange-500" />
-          <span className="text-xs lg:text-sm text-slate-700">Biomédico</span>
+          <span className="text-xs lg:text-sm text-slate-700">{contingency.origenContingencia}</span>
         </div>
       </td>
       <td className="p-2 lg:p-3 align-top">

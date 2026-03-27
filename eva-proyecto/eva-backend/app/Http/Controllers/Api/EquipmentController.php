@@ -1881,7 +1881,7 @@ class EquipmentController extends ApiController
                     ->get();
                 $equipoData['mantenimientos_preventivos'] = $mantenimientos;
             } catch (\Exception $e) {
-                \Log::warning('Error obteniendo mantenimientos preventivos: ' . $e->getMessage());
+                Log::warning('Error obteniendo mantenimientos preventivos: ' . $e->getMessage());
                 $equipoData['mantenimientos_preventivos'] = [];
             }
 
