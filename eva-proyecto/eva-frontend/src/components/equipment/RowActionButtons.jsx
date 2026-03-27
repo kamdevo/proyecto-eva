@@ -67,7 +67,10 @@ export function RowActionButtons({
       {/* View Button */}
       <Button
         size="sm"
-        className="bg-cyan-500 hover:bg-cyan-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+        disabled={isBasicUser}
+        className={`bg-cyan-500 hover:bg-cyan-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
+          isBasicUser ? 'opacity-50 cursor-not-allowed hidden' : ''
+        }`}
         title={tooltips.view}
         onClick={() => onViewClick(equipment)}
       >
@@ -77,9 +80,9 @@ export function RowActionButtons({
       {/* Edit Button */}
       <Button
         size="sm"
-        disabled={!canEdit(moduleName)}
+        disabled={!canEdit(moduleName) || isBasicUser}
         className={`bg-blue-500 hover:bg-blue-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
-          !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+          (!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
         }`}
         title={tooltips.edit}
         onClick={() => onEditClick(equipment)}
@@ -117,7 +120,10 @@ export function RowActionButtons({
       {onContingenciasClick && (
         <Button
           size="sm"
-          className="bg-red-600 hover:bg-red-700 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+          disabled={isBasicUser}
+          className={`bg-red-600 hover:bg-red-700 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
+            isBasicUser ? 'opacity-50 cursor-not-allowed hidden' : ''
+          }`}
           title={tooltips.contingencias}
           onClick={() => onContingenciasClick(equipment)}
         >
@@ -129,7 +135,10 @@ export function RowActionButtons({
       {onMovimientosClick && (
         <Button
           size="sm"
-          className="bg-indigo-500 hover:bg-indigo-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+          disabled={isBasicUser}
+          className={`bg-indigo-500 hover:bg-indigo-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
+            isBasicUser ? 'opacity-50 cursor-not-allowed hidden' : ''
+          }`}
           title={tooltips.movimientos}
           onClick={() => onMovimientosClick(equipment)}
         >
@@ -141,7 +150,10 @@ export function RowActionButtons({
       {onCapacitacionesClick && (
         <Button
           size="sm"
-          className="bg-teal-500 hover:bg-teal-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0"
+          disabled={isBasicUser}
+          className={`bg-teal-500 hover:bg-teal-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
+            isBasicUser ? 'opacity-50 cursor-not-allowed hidden' : ''
+          }`}
           title={tooltips.capacitaciones}
           onClick={() => onCapacitacionesClick(equipment)}
         >
@@ -153,9 +165,9 @@ export function RowActionButtons({
       {showCopyButton && onCopyClick && (
         <Button
           size="sm"
-          disabled={!canEdit(moduleName)}
+          disabled={!canEdit(moduleName) || isBasicUser}
           className={`bg-green-500 hover:bg-green-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
-            !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+            (!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
           }`}
           title={tooltips.copy}
           onClick={() => onCopyClick(equipment)}
@@ -168,9 +180,9 @@ export function RowActionButtons({
       {showDecommissionButton && onDecommissionClick && equipment?.estado !== 'BAJA' && (
         <Button
           size="sm"
-          disabled={!canEdit(moduleName)}
+          disabled={!canEdit(moduleName) || isBasicUser}
           className={`bg-yellow-500 hover:bg-yellow-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
-            !canEdit(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+            (!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
           }`}
           title={tooltips.decommission}
           onClick={() => onDecommissionClick(equipment)}
@@ -182,9 +194,9 @@ export function RowActionButtons({
       {/* Delete Button */}
       <Button
         size="sm"
-        disabled={!canDelete(moduleName)}
+        disabled={!canDelete(moduleName) || isBasicUser}
         className={`bg-red-500 hover:bg-red-600 text-white h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${
-          !canDelete(moduleName) ? 'opacity-50 cursor-not-allowed' : ''
+          (!canDelete(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
         }`}
         title={tooltips.delete}
         onClick={() => onDeleteClick(equipment)}
