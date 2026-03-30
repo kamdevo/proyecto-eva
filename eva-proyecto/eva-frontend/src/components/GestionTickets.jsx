@@ -143,11 +143,12 @@ export default function GestionTickets() {
       };
 
       if (searchTerm) {
+        const term = searchTerm.trim();
         // Si el término de búsqueda es un número puro, hacer búsqueda exacta por ID
-        if (/^\d+$/.test(searchTerm)) {
-          params.id = searchTerm; // Búsqueda exacta por ID
+        if (/^\d+$/.test(term)) {
+          params.id = term; // Búsqueda exacta por ID
         } else {
-          params.search = searchTerm; // Búsqueda en todos los campos
+          params.search = term; // Búsqueda en todos los campos
         }
       }
 
@@ -230,6 +231,24 @@ export default function GestionTickets() {
       link.parentNode.removeChild(link);
     } catch (error) {
       console.error('Error al descargar el consolidado:', error);
+    }
+  };
+
+  const handleExportInfraestructuraStats = async () => {
+    try {
+      const response = await httpService.get('/v1/export-infraestructura-tickets', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const year = new Date().getFullYear();
+      link.setAttribute('download', `Consolidado_Tickets_Infraestructura_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+      console.error('Error al descargar el consolidado de infraestructura:', error);
     }
   };
 
@@ -365,13 +384,22 @@ export default function GestionTickets() {
               Administre y supervise todos los tickets del sistema
             </p>
           </div>
-          <Button
-            onClick={handleExportIndustrialStats}
-            className="bg-green-600 hover:bg-green-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm sm:w-auto w-full transition-colors"
-          >
-            <Download className="h-4 w-4" />
-            <span>Exportar Consolidado Tickets Industriales</span>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button
+              onClick={handleExportIndustrialStats}
+              className="bg-orange-600 hover:bg-orange-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm w-full sm:w-auto transition-colors rounded-xl"
+            >
+              <Download className="h-4 w-4" />
+              <span>Exportar Industriales</span>
+            </Button>
+            <Button
+              onClick={handleExportInfraestructuraStats}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm w-full sm:w-auto transition-colors rounded-xl"
+            >
+              <Download className="h-4 w-4" />
+              <span>Exportar Infraestructura</span>
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filter - Refactorizado */}

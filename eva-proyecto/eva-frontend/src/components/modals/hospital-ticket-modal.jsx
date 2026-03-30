@@ -198,7 +198,7 @@ export default function HospitalTicketModal({
         fetchEmpresas();
       }
 
-      if (ticketType === "industrial") {
+      if (ticketType === "industrial" || ticketType === "infraestructura") {
         fetchTiposMantenimiento();
       }
 
@@ -947,12 +947,12 @@ export default function HospitalTicketModal({
               </div>
             </div>
 
-            {/* Campos de Tipo de Mantenimiento para Industrial */}
-            {ticketType === "industrial" && (
+            {/* Campos de Tipo de Mantenimiento para Industrial/Infraestructura */}
+            {(ticketType === "industrial" || ticketType === "infraestructura") && (
               <div className="mt-6 border-t pt-4">
-                <h3 className="text-sm font-semibold text-orange-700 mb-4 flex items-center">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                  Categorización de Mantenimiento (Industrial)
+                <h3 className={`text-sm font-semibold mb-4 flex items-center ${ticketType === "industrial" ? "text-orange-700" : "text-green-700"}`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${ticketType === "industrial" ? "bg-orange-500" : "bg-green-500"}`}></div>
+                  Categorización de Mantenimiento ({ticketType === "industrial" ? "Industrial" : "Infraestructura"})
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>

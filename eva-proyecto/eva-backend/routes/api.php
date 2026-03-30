@@ -5413,25 +5413,28 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             }
         }
 
-        // Filtro por estado
-        if ($estado !== 'all') {
-            $query->where('ordenes.estado_id', $estado);
-        }
+        // Los filtros adicionales solo se aplican si NO es una búsqueda exacta por ID
+        if (!$idExacto) {
+            // Filtro por estado
+            if ($estado !== 'all') {
+                $query->where('ordenes.estado_id', $estado);
+            }
 
-        // Filtro por sede
-        if ($sede !== 'all') {
-            $query->where('sedes.name', 'like', "%{$sede}%");
-        }
+            // Filtro por sede
+            if ($sede !== 'all') {
+                $query->where('sedes.name', 'like', "%{$sede}%");
+            }
 
-        // Filtro por origen (subproceso)
-        if ($origen !== 'all') {
-            // Usar coincidencia exacta para mejor precisión
-            $query->where('subprocesos.nombre', '=', $origen);
-        }
+            // Filtro por origen (subproceso)
+            if ($origen !== 'all') {
+                // Usar coincidencia exacta para mejor precisión
+                $query->where('subprocesos.nombre', '=', $origen);
+            }
 
-        // Filtro por tipo de equipo (subproceso_id)
-        if ($tipoEquipo !== 'all') {
-            $query->where('ordenes.subproceso_id', $tipoEquipo);
+            // Filtro por tipo de equipo (subproceso_id)
+            if ($tipoEquipo !== 'all') {
+                $query->where('ordenes.subproceso_id', $tipoEquipo);
+            }
         }
 
         // Filtro por sede_id
@@ -15409,6 +15412,7 @@ Route::delete('v1/sedes/{id}', [App\Http\Controllers\Api\SedeController::class, 
 
 // EXPORTAR CONSOLIDADO INDUSTRIAL
 Route::get('v1/export-industrial-tickets', [App\Http\Controllers\Api\IndustrialTicketExportController::class, 'export']);
+Route::get('v1/export-infraestructura-tickets', [App\Http\Controllers\Api\InfraestructuraTicketExportController::class, 'export']);
 
 // INCLUIR RUTA ESPECÍFICA PARA MODAL DE EQUIPOS
 @include(__DIR__ . '/equipos-modal.php');
