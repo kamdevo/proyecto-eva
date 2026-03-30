@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useFormSubmit } from "../hooks/useFormSubmit";
 import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, User, Lock, CheckCircle, XCircle, Power, LayoutDashboard, Settings, ShieldCheck, Activity, FileText, Database, Users, HardDrive, Ticket, ClipboardList, Layers } from "lucide-react";
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
 } from "@/components/ui/accordion";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useRoles, useEmpresas, useSedes } from "../hooks/useRoles";
@@ -194,7 +194,7 @@ export default function Usuarios() {
   const empresasOptions = empresas
     .filter((empresa) => empresa && empresa.id && empresa.name)
     .map((empresa) => ({
-      id: empresa.id.toString(), 
+      id: empresa.id.toString(),
       nombre: empresa.name
     }));
 
@@ -230,7 +230,7 @@ export default function Usuarios() {
       }
     };
   }, [searchTimeout]);
-  
+
   // Funciones para manejar usuarios
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
@@ -239,14 +239,14 @@ export default function Usuarios() {
   // Debounced search
   useEffect(() => {
     if (searchTimeout) clearTimeout(searchTimeout);
-    
+
     const timeout = setTimeout(() => {
       // Solo disparar si el término cambió realmente o si está vacío (reset)
       fetchUsuarios(1, pagination.per_page, searchTerm.trim(), usersSortField, usersSortDirection);
     }, 500);
-    
+
     setSearchTimeout(timeout);
-    
+
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
@@ -285,13 +285,13 @@ export default function Usuarios() {
   const [loadingRelations, setLoadingRelations] = useState(false);
   const [relationsSortField, setRelationsSortField] = useState('id');
   const [relationsSortDirection, setRelationsSortDirection] = useState('desc');
-  
+
   // Datos del modal de agregar relación
   const [newRelation, setNewRelation] = useState({
     usuario_id: '',
     zona_id: ''
   });
-  
+
   // Estados para editar relación
   const [isEditRelationModalOpen, setIsEditRelationModalOpen] = useState(false);
   const [selectedRelation, setSelectedRelation] = useState(null);
@@ -299,7 +299,7 @@ export default function Usuarios() {
     usuario_id: '',
     zona_id: ''
   });
-  
+
   // Estados para gestión de zonas
   const [zonasData, setZonasData] = useState([]);
   const [loadingZonas, setLoadingZonas] = useState(false);
@@ -308,7 +308,7 @@ export default function Usuarios() {
   const [editZonaName, setEditZonaName] = useState('');
   const [zonasSortField, setZonasSortField] = useState('id');
   const [zonasSortDirection, setZonasSortDirection] = useState('asc');
-  
+
   // Categorización de módulos para la UI de permisos
   const moduleCategories = [
     {
@@ -352,15 +352,15 @@ export default function Usuarios() {
 
   const getGroupedPermissions = () => {
     if (!userPermissions) return {};
-    
+
     // Filtrar primero por el término de búsqueda si existe
-    const filteredPermissions = permissionSearch 
+    const filteredPermissions = permissionSearch
       ? userPermissions.filter(p => p.modulo_name.toLowerCase().includes(permissionSearch.toLowerCase()))
       : userPermissions;
-    
+
     const grouped = {};
     const categorizedModuleIds = [];
-    
+
     moduleCategories.forEach(cat => {
       grouped[cat.id] = filteredPermissions.filter(p => {
         const matches = cat.modules.some(m => p.modulo_name.toLowerCase().includes(m.toLowerCase()));
@@ -368,14 +368,14 @@ export default function Usuarios() {
         return matches;
       });
     });
-    
+
     // Catch-all for modules not in any category
     grouped['otros'] = filteredPermissions.filter(p => !categorizedModuleIds.includes(p.modulo_id));
-    
+
     return grouped;
   };
-   // Los hooks de accesibilidad se definirán después de las funciones
-  
+  // Los hooks de accesibilidad se definirán después de las funciones
+
   // Funciones para cargar datos reales de usuarios-zonas
   const fetchZoneRelations = async () => {
     try {
@@ -409,11 +409,11 @@ export default function Usuarios() {
     if (relationsSortField !== field) {
       return <ArrowUpDown className="ml-2 h-4 w-4 text-slate-400" />;
     }
-    return relationsSortDirection === 'asc' ? 
-      <ArrowUp className="ml-2 h-4 w-4 text-blue-600" /> : 
+    return relationsSortDirection === 'asc' ?
+      <ArrowUp className="ml-2 h-4 w-4 text-blue-600" /> :
       <ArrowDown className="ml-2 h-4 w-4 text-blue-600" />;
   };
-  
+
   const fetchAvailableUsers = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/usuarios-disponibles`);
@@ -425,7 +425,7 @@ export default function Usuarios() {
       console.error('Error loading users:', error);
     }
   };
-  
+
   const fetchAvailableZones = async () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/zonas-disponibles`);
@@ -437,13 +437,13 @@ export default function Usuarios() {
       console.error('Error loading zones:', error);
     }
   };
-  
+
   const handleAddRelation = async () => {
     if (!newRelation.usuario_id || !newRelation.zona_id) {
       toast.error('Selecciona usuario y zona');
       return;
     }
-    
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas`, {
         method: 'POST',
@@ -453,9 +453,9 @@ export default function Usuarios() {
         },
         body: JSON.stringify(newRelation)
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success('Relación creada exitosamente');
         setNewRelation({ usuario_id: '', zona_id: '' });
@@ -469,10 +469,10 @@ export default function Usuarios() {
       toast.error('Error creando relación');
     }
   };
-  
+
   const deleteRelationDirect = async (relationId) => {
     if (!window.confirm('¿Estás seguro de eliminar esta relación?')) return;
-    
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/${relationId}`, {
         method: 'DELETE',
@@ -480,9 +480,9 @@ export default function Usuarios() {
           'Accept': 'application/json'
         }
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success('Relación eliminada exitosamente');
         fetchZoneRelations(); // Actualizar lista
@@ -509,7 +509,7 @@ export default function Usuarios() {
       toast.error('Por favor complete todos los campos');
       return;
     }
-    
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/usuarios-zonas/${selectedRelation.id}`, {
         method: 'PUT',
@@ -519,9 +519,9 @@ export default function Usuarios() {
         },
         body: JSON.stringify(editRelation)
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success('Relación actualizada exitosamente');
         setEditRelation({ usuario_id: '', zona_id: '' });
@@ -570,8 +570,8 @@ export default function Usuarios() {
     if (zonasSortField !== field) {
       return <ArrowUpDown className="h-4 w-4" />;
     }
-    return zonasSortDirection === 'asc' ? 
-      <ArrowUp className="h-4 w-4" /> : 
+    return zonasSortDirection === 'asc' ?
+      <ArrowUp className="h-4 w-4" /> :
       <ArrowDown className="h-4 w-4" />;
   };
 
@@ -589,8 +589,8 @@ export default function Usuarios() {
     if (usersSortField !== field) {
       return <ArrowUpDown className="h-4 w-4" />;
     }
-    return usersSortDirection === 'asc' ? 
-      <ArrowUp className="h-4 w-4" /> : 
+    return usersSortDirection === 'asc' ?
+      <ArrowUp className="h-4 w-4" /> :
       <ArrowDown className="h-4 w-4" />;
   };
 
@@ -605,7 +605,7 @@ export default function Usuarios() {
       toast.error('Por favor ingrese un nombre para la zona');
       return;
     }
-    
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/zonas/${selectedZona.id}`, {
         method: 'PUT',
@@ -615,9 +615,9 @@ export default function Usuarios() {
         },
         body: JSON.stringify({ name: editZonaName })
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         toast.success('Zona actualizada exitosamente');
         setEditZonaName('');
@@ -992,18 +992,18 @@ export default function Usuarios() {
       const fullUser = await getUsuario(user.id);
       console.log("📝 Usuario obtenido del backend:", fullUser);
       console.log("📝 Campos específicos - apellido:", fullUser.apellido, "telefono:", fullUser.telefono, "rol_id:", fullUser.rol_id);
-      
+
       setSelectedUser(fullUser);
 
       // Cargar permisos del usuario desde la base de datos
       const permissions = await fetchUserPermissions(user.id);
-      
+
       // SINCRONIZACIÓN: Combinar todos los módulos del sistema con los permisos existentes.
       // Esto asegura que el administrador pueda ver y asignar permisos para CUALQUIER módulo,
       // incluso si el usuario aún no tiene un registro de permisos para él.
       const allPermissions = modulos.map(modulo => {
         const existingPermission = (permissions || []).find(p => p.modulo_id === modulo.id);
-        
+
         if (existingPermission) {
           return {
             ...existingPermission,
@@ -1014,7 +1014,7 @@ export default function Usuarios() {
             eliminar: !!existingPermission.eliminar
           };
         }
-        
+
         // Si no existe el permiso, crear uno por defecto (todo desactivado)
         return {
           modulo_id: modulo.id,
@@ -1039,7 +1039,7 @@ export default function Usuarios() {
         centroCosto: fullUser.centro_id || "",
         empresa: fullUser.id_empresa || "",
       };
-      
+
       console.log("📝 FormData a establecer:", formData);
       setAddUserForm(formData);
       setIsEditUserModalOpen(true);
@@ -1059,7 +1059,7 @@ export default function Usuarios() {
       toast.error('Por favor complete los campos obligatorios: Nombre, Email, Username y Password');
       return;
     }
-    
+
     try {
       const userData = {
         nombre: addUserForm.nombre,
@@ -1076,7 +1076,7 @@ export default function Usuarios() {
       };
 
       await createUsuario(userData);
-      
+
       toast.success('Usuario creado exitosamente');
       setIsAddUserModalOpen(false);
       setAddUserForm({
@@ -1090,7 +1090,7 @@ export default function Usuarios() {
         centroCosto: "",
         empresa: "",
       });
-      
+
       // La lista se refresca automáticamente por el hook createUsuario
     } catch (error) {
       console.error("Error creando usuario:", error);
@@ -1288,18 +1288,18 @@ export default function Usuarios() {
 
   const handleResetToDefaultPermissions = async () => {
     if (!selectedUser) return;
-    
+
     if (!window.confirm("¿Seguro que quieres restablecer los permisos por defecto para este rol? Se perderán los cambios manuales.")) {
       return;
     }
-    
+
     try {
       await assignDefaultPermissions(selectedUser.id);
       toast.success("Permisos restablecidos exitosamente");
-      
+
       // Recargar permisos
       const updatedPermissions = await fetchUserPermissions(selectedUser.id);
-      
+
       // Sincronizar con todos los módulos para el estado local
       const syncedPermissions = modulos.map(modulo => {
         const existing = (updatedPermissions || []).find(p => p.modulo_id === modulo.id);
@@ -1318,7 +1318,7 @@ export default function Usuarios() {
           eliminar: false
         };
       });
-      
+
       setUserPermissions(syncedPermissions);
     } catch (error) {
       console.error("Error resetting permissions:", error);
@@ -1339,13 +1339,13 @@ export default function Usuarios() {
       }));
 
       await updateUserPermissions(selectedUser.id, permissionsToSave);
-      
+
       toast.success("Permisos actualizados exitosamente");
-      
+
       // Refrescar permisos
       const updatedPermissions = await fetchUserPermissions(selectedUser.id);
       setUserPermissions(updatedPermissions);
-      
+
     } catch (error) {
       console.error("Error saving user permissions:", error);
       toast.error("Error al guardar los permisos del usuario");
@@ -1388,14 +1388,14 @@ export default function Usuarios() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-8">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-blue-600 font-bold tracking-tight text-xs uppercase">EVA ADMIN PRO</span>
+
             </div>
             <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">Directorio de Usuarios</h2>
             <p className="text-slate-500 text-base max-w-xl leading-relaxed">
               Gestione el acceso, los roles y los permisos de identidad de la empresa desde un panel de control centralizado.
             </p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Animated Search Bar - Premium Design */}
             <div className="relative group w-full sm:w-80">
@@ -1409,7 +1409,7 @@ export default function Usuarios() {
                 className="pl-11 pr-10 h-12 bg-white border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all shadow-sm group-hover:shadow-md"
               />
               {searchTerm && (
-                <button 
+                <button
                   onClick={handleClearSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 hover:bg-slate-100 rounded-full p-1"
                 >
@@ -1428,251 +1428,251 @@ export default function Usuarios() {
               </DialogTrigger>
               {/* Modal content remains the same to keep logic */}
 
-                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
-                        Agregar Nuevo Usuario
-                      </DialogTitle>
-                      <DialogDescription className="text-lg font-medium text-gray-700 mt-4">
-                        Completa la información del nuevo usuario
-                      </DialogDescription>
-                    </DialogHeader>
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
+                    Agregar Nuevo Usuario
+                  </DialogTitle>
+                  <DialogDescription className="text-lg font-medium text-gray-700 mt-4">
+                    Completa la información del nuevo usuario
+                  </DialogDescription>
+                </DialogHeader>
 
-                  <form {...formProps} className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Nombre Input */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Nombre
-                        </Label>
-                        <Input
-                          placeholder="Ingrese el nombre"
-                          value={addUserForm.nombre}
-                          onChange={(e) =>
-                            handleAddUserInputChange("nombre", e.target.value)
-                          }
-                          className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                        />
-                      </div>
+                <form {...formProps} className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Nombre Input */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Nombre
+                      </Label>
+                      <Input
+                        placeholder="Ingrese el nombre"
+                        value={addUserForm.nombre}
+                        onChange={(e) =>
+                          handleAddUserInputChange("nombre", e.target.value)
+                        }
+                        className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                      />
+                    </div>
 
-                      {/* Apellidos Input */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Apellidos
-                        </Label>
+                    {/* Apellidos Input */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Apellidos
+                      </Label>
+                      <Input
+                        placeholder="Ingrese los apellidos"
+                        value={addUserForm.apellidos}
+                        onChange={(e) =>
+                          handleAddUserInputChange(
+                            "apellidos",
+                            e.target.value
+                          )
+                        }
+                        className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                      />
+                    </div>
+
+                    {/* Teléfono Input */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Teléfono
+                      </Label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-500 text-sm">📞</span>
+                        </div>
                         <Input
-                          placeholder="Ingrese los apellidos"
-                          value={addUserForm.apellidos}
+                          placeholder="Número de teléfono"
+                          value={addUserForm.telefono}
                           onChange={(e) =>
                             handleAddUserInputChange(
-                              "apellidos",
+                              "telefono",
                               e.target.value
                             )
                           }
-                          className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                          className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                         />
                       </div>
+                    </div>
 
-                      {/* Teléfono Input */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Teléfono
-                        </Label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 text-sm">📞</span>
-                          </div>
-                          <Input
-                            placeholder="Número de teléfono"
-                            value={addUserForm.telefono}
-                            onChange={(e) =>
-                              handleAddUserInputChange(
-                                "telefono",
-                                e.target.value
-                              )
-                            }
-                            className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                          />
+                    {/* Email Input */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Email <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-500 text-sm">@</span>
                         </div>
-                      </div>
-
-                      {/* Email Input */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Email <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 text-sm">@</span>
-                          </div>
-                          <Input
-                            placeholder="correo@ejemplo.com"
-                            type="email"
-                            value={addUserForm.email}
-                            onChange={(e) =>
-                              handleAddUserInputChange("email", e.target.value)
-                            }
-                            className="h-11 pl-8 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          Usaremos este email para notificaciones
-                        </p>
-                      </div>
-
-                      {/* Username Input */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Username <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <User className="h-4 w-4 text-gray-500" />
-                          </div>
-                          <Input
-                            placeholder="nombre_usuario"
-                            value={addUserForm.username}
-                            onChange={(e) =>
-                              handleAddUserInputChange(
-                                "username",
-                                e.target.value
-                              )
-                            }
-                            className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Password Input */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Password <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Lock className="h-4 w-4 text-gray-500" />
-                          </div>
-                          <Input
-                            placeholder="Contraseña segura"
-                            type="password"
-                            value={addUserForm.password}
-                            onChange={(e) =>
-                              handleAddUserInputChange(
-                                "password",
-                                e.target.value
-                              )
-                            }
-                            className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Rol Select */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Rol <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={addUserForm.rol}
-                          onValueChange={(value) =>
-                            handleAddUserInputChange("rol", value)
+                        <Input
+                          placeholder="correo@ejemplo.com"
+                          type="email"
+                          value={addUserForm.email}
+                          onChange={(e) =>
+                            handleAddUserInputChange("email", e.target.value)
                           }
-                        >
-                          <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
-                            <SelectValue placeholder="Seleccione un rol" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {rolesLoading ? (
-                              <SelectItem value="" disabled>
-                                Cargando roles...
+                          className="h-11 pl-8 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Usaremos este email para notificaciones
+                      </p>
+                    </div>
+
+                    {/* Username Input */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Username <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <User className="h-4 w-4 text-gray-500" />
+                        </div>
+                        <Input
+                          placeholder="nombre_usuario"
+                          value={addUserForm.username}
+                          onChange={(e) =>
+                            handleAddUserInputChange(
+                              "username",
+                              e.target.value
+                            )
+                          }
+                          className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Input */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Password <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Lock className="h-4 w-4 text-gray-500" />
+                        </div>
+                        <Input
+                          placeholder="Contraseña segura"
+                          type="password"
+                          value={addUserForm.password}
+                          onChange={(e) =>
+                            handleAddUserInputChange(
+                              "password",
+                              e.target.value
+                            )
+                          }
+                          className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rol Select */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Rol <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={addUserForm.rol}
+                        onValueChange={(value) =>
+                          handleAddUserInputChange("rol", value)
+                        }
+                      >
+                        <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
+                          <SelectValue placeholder="Seleccione un rol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rolesLoading ? (
+                            <SelectItem value="" disabled>
+                              Cargando roles...
+                            </SelectItem>
+                          ) : (
+                            roles.map((rol) => (
+                              <SelectItem
+                                key={rol.id}
+                                value={rol.id.toString()}
+                              >
+                                {rol.nombre}
                               </SelectItem>
-                            ) : (
-                              roles.map((rol) => (
-                                <SelectItem
-                                  key={rol.id}
-                                  value={rol.id.toString()}
-                                >
-                                  {rol.nombre}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Centro de Costo SearchableSelect */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Centro de Costo{" "}
-                          <span className="text-red-500">*</span>
-                        </Label>
-                        <SearchableSelect
-                          placeholder="Buscar o seleccionar centro de costo..."
-                          options={centrosCostoOptions}
-                          value={addUserForm.centroCosto}
-                          onChange={(value) => handleAddUserInputChange("centroCosto", value)}
-                          disabled={centrosLoading}
-                          loading={centrosLoading}
-                        />
-                      </div>
-
-                      {/* Empresa SearchableSelect */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Empresa
-                        </Label>
-                        <SearchableSelect
-                          placeholder="Buscar o seleccionar empresa..."
-                          options={empresasOptions}
-                          value={addUserForm.empresa}
-                          onChange={(value) => handleAddUserInputChange("empresa", value)}
-                          disabled={empresasLoading}
-                          loading={empresasLoading}
-                        />
-                      </div>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  
-                    <div className="flex gap-3 pt-6">
-                      <Button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-                      >
-                        Ingresar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsAddUserModalOpen(false)}
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
-                      >
-                        Cancelar
-                      </Button>
+
+                    {/* Centro de Costo SearchableSelect */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Centro de Costo{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <SearchableSelect
+                        placeholder="Buscar o seleccionar centro de costo..."
+                        options={centrosCostoOptions}
+                        value={addUserForm.centroCosto}
+                        onChange={(value) => handleAddUserInputChange("centroCosto", value)}
+                        disabled={centrosLoading}
+                        loading={centrosLoading}
+                      />
                     </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+
+                    {/* Empresa SearchableSelect */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Empresa
+                      </Label>
+                      <SearchableSelect
+                        placeholder="Buscar o seleccionar empresa..."
+                        options={empresasOptions}
+                        value={addUserForm.empresa}
+                        onChange={(value) => handleAddUserInputChange("empresa", value)}
+                        disabled={empresasLoading}
+                        loading={empresasLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-6">
+                    <Button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+                    >
+                      Ingresar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsAddUserModalOpen(false)}
+                      className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
 
             {/* Stats Card - Following Image 2 Design */}
             <div className="hidden sm:flex bg-blue-600 rounded-3xl p-6 text-white min-w-[280px] relative overflow-hidden shadow-xl shadow-blue-200">
-               <div className="relative z-10 flex flex-col justify-between h-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="bg-blue-500/50 p-2 rounded-xl">
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <span className="bg-blue-400/30 text-[10px] uppercase font-bold px-2 py-1 rounded-full border border-blue-400/20">
-                      En Vivo
-                    </span>
+              <div className="relative z-10 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="bg-blue-500/50 p-2 rounded-xl">
+                    <Users className="w-5 h-5" />
                   </div>
-                  <div>
-                    <p className="text-blue-100 text-xs font-semibold mb-1">Usuarios Activos</p>
-                    <div className="flex items-baseline gap-2">
-                      <h3 className="text-3xl font-black">{usuariosLoading && !usuarios.length ? '...' : (pagination.total?.toLocaleString() || '0')}</h3>
-                      <span className="text-blue-200 text-xs font-bold">{pagination.total > 0 ? '+Real' : ''}</span>
-                    </div>
+                  <span className="bg-blue-400/30 text-[10px] uppercase font-bold px-2 py-1 rounded-full border border-blue-400/20">
+                    En Vivo
+                  </span>
+                </div>
+                <div>
+                  <p className="text-blue-100 text-xs font-semibold mb-1">Usuarios Activos</p>
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-3xl font-black">{usuariosLoading && !usuarios.length ? '...' : (pagination.total?.toLocaleString() || '0')}</h3>
+                    <span className="text-blue-200 text-xs font-bold">{pagination.total > 0 ? '+Real' : ''}</span>
                   </div>
-               </div>
-               {/* Decorative background circle */}
-               <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500 rounded-full opacity-20 blur-2xl"></div>
+                </div>
+              </div>
+              {/* Decorative background circle */}
+              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500 rounded-full opacity-20 blur-2xl"></div>
             </div>
 
             {selectedUsers.length > 0 && (
@@ -1700,7 +1700,7 @@ export default function Usuarios() {
 
         {/* Search bar removed from this area as requested "sin el input de filtro obviamente" */}
 
-          <Card className="border-none shadow-none bg-transparent">
+        <Card className="border-none shadow-none bg-transparent">
           <CardContent className="p-0">
             {/* Table State Handling */}
             {usuariosError && (
@@ -1711,229 +1711,228 @@ export default function Usuarios() {
             )}
 
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
-                {/* Skeleton Overlay while refreshing */}
-                {usuariosLoading && usuarios.length > 0 && (
-                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
-                    <div className="h-full bg-blue-600 animate-progress origin-left"></div>
-                  </div>
-                )}
+              {/* Skeleton Overlay while refreshing */}
+              {usuariosLoading && usuarios.length > 0 && (
+                <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
+                  <div className="h-full bg-blue-600 animate-progress origin-left"></div>
+                </div>
+              )}
 
-                <Table className={`${usuariosLoading && usuarios.length > 0 ? "opacity-40 transition-opacity duration-300" : "transition-opacity duration-300"}`}>
-                  <TableHeader className="bg-white border-b border-slate-100">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-12 py-5 px-6">
-                        <Checkbox
-                          checked={selectedUsers.length === usuarios.length && usuarios.length > 0}
-                          onCheckedChange={handleSelectAllUsers}
-                          className="rounded-md border-slate-300 data-[state=checked]:bg-blue-600"
-                        />
-                      </TableHead>
-                      <TableHead className="py-3 px-4">
-                        <button
-                          onClick={() => handleUsersSort('id')}
-                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
-                        >
-                          ID
-                          <span className={usersSortField === 'id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
-                            {getUsersSortIcon('id')}
-                          </span>
-                        </button>
-                      </TableHead>
-                      <TableHead className="py-3 px-4">
-                        <button
-                          onClick={() => handleUsersSort('nombre')}
-                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
-                        >
-                          NOMBRE Y APELLIDOS
-                          <span className={usersSortField === 'nombre' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
-                            {getUsersSortIcon('nombre')}
-                          </span>
-                        </button>
-                      </TableHead>
-                      <TableHead className="py-3 px-4">
-                        <button
-                          onClick={() => handleUsersSort('centro_id')}
-                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
-                        >
-                          CENTRO DE COSTO
-                          <span className={usersSortField === 'centro_id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
-                            {getUsersSortIcon('centro_id')}
-                          </span>
-                        </button>
-                      </TableHead>
-                      <TableHead className="py-3 px-4">
-                        <button
-                          onClick={() => handleUsersSort('username')}
-                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
-                        >
-                          LOGIN
-                          <span className={usersSortField === 'username' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
-                            {getUsersSortIcon('username')}
-                          </span>
-                        </button>
-                      </TableHead>
-                      <TableHead className="py-3 px-4">
-                        <button
-                          onClick={() => handleUsersSort('rol_id')}
-                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
-                        >
-                          ROL
-                          <span className={usersSortField === 'rol_id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
-                            {getUsersSortIcon('rol_id')}
-                          </span>
-                        </button>
-                      </TableHead>
-                      <TableHead className="font-bold text-[11px] uppercase tracking-wider text-slate-400 py-5 text-center">
-                        ESTADO
-                      </TableHead>
-                      <TableHead className="font-bold text-[11px] uppercase tracking-wider text-slate-400 py-5 text-center">
-                        ACCIONES
-                      </TableHead>
+              <Table className={`${usuariosLoading && usuarios.length > 0 ? "opacity-40 transition-opacity duration-300" : "transition-opacity duration-300"}`}>
+                <TableHeader className="bg-white border-b border-slate-100">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-12 py-5 px-6">
+                      <Checkbox
+                        checked={selectedUsers.length === usuarios.length && usuarios.length > 0}
+                        onCheckedChange={handleSelectAllUsers}
+                        className="rounded-md border-slate-300 data-[state=checked]:bg-blue-600"
+                      />
+                    </TableHead>
+                    <TableHead className="py-3 px-4">
+                      <button
+                        onClick={() => handleUsersSort('id')}
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
+                      >
+                        ID
+                        <span className={usersSortField === 'id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getUsersSortIcon('id')}
+                        </span>
+                      </button>
+                    </TableHead>
+                    <TableHead className="py-3 px-4">
+                      <button
+                        onClick={() => handleUsersSort('nombre')}
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
+                      >
+                        NOMBRE Y APELLIDOS
+                        <span className={usersSortField === 'nombre' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getUsersSortIcon('nombre')}
+                        </span>
+                      </button>
+                    </TableHead>
+                    <TableHead className="py-3 px-4">
+                      <button
+                        onClick={() => handleUsersSort('centro_id')}
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
+                      >
+                        CENTRO DE COSTO
+                        <span className={usersSortField === 'centro_id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getUsersSortIcon('centro_id')}
+                        </span>
+                      </button>
+                    </TableHead>
+                    <TableHead className="py-3 px-4">
+                      <button
+                        onClick={() => handleUsersSort('username')}
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
+                      >
+                        LOGIN
+                        <span className={usersSortField === 'username' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getUsersSortIcon('username')}
+                        </span>
+                      </button>
+                    </TableHead>
+                    <TableHead className="py-3 px-4">
+                      <button
+                        onClick={() => handleUsersSort('rol_id')}
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
+                      >
+                        ROL
+                        <span className={usersSortField === 'rol_id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getUsersSortIcon('rol_id')}
+                        </span>
+                      </button>
+                    </TableHead>
+                    <TableHead className="font-bold text-[11px] uppercase tracking-wider text-slate-400 py-5 text-center">
+                      ESTADO
+                    </TableHead>
+                    <TableHead className="font-bold text-[11px] uppercase tracking-wider text-slate-400 py-5 text-center">
+                      ACCIONES
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {usuariosLoading && usuarios.length === 0 ? (
+                    // Skeleton rows while initial loading
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <TableRow key={i} className="animate-pulse">
+                        <TableCell className="px-6 py-5">
+                          <Skeleton className="h-4 w-4 rounded" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-12" />
+                        </TableCell>
+                        <TableCell className="py-5">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="w-10 h-10 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-48" />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-6 w-20 rounded-md" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-center gap-1.5">
+                            <Skeleton className="h-6 w-10 rounded-full" />
+                            <Skeleton className="h-3 w-10" />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-2">
+                            <Skeleton className="w-9 h-9 rounded-xl" />
+                            <Skeleton className="w-9 h-9 rounded-xl" />
+                            <Skeleton className="w-9 h-9 rounded-xl" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : usuarios.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="text-center py-20 text-slate-400 bg-slate-50/30"
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <Users className="w-10 h-10 opacity-20" />
+                          <p className="font-medium">No se encontraron usuarios</p>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                    <TableBody>
-                      {usuariosLoading && usuarios.length === 0 ? (
-                        // Skeleton rows while initial loading
-                        Array.from({ length: 8 }).map((_, i) => (
-                          <TableRow key={i} className="animate-pulse">
-                            <TableCell className="px-6 py-5">
-                              <Skeleton className="h-4 w-4 rounded" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-12" />
-                            </TableCell>
-                            <TableCell className="py-5">
-                              <div className="flex items-center gap-3">
-                                <Skeleton className="w-10 h-10 rounded-full" />
-                                <div className="space-y-2">
-                                  <Skeleton className="h-4 w-32" />
-                                  <Skeleton className="h-3 w-48" />
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-24" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-16" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-6 w-20 rounded-md" />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col items-center gap-1.5">
-                                <Skeleton className="h-6 w-10 rounded-full" />
-                                <Skeleton className="h-3 w-10" />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex justify-center gap-2">
-                                <Skeleton className="w-9 h-9 rounded-xl" />
-                                <Skeleton className="w-9 h-9 rounded-xl" />
-                                <Skeleton className="w-9 h-9 rounded-xl" />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : usuarios.length === 0 ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={8}
-                            className="text-center py-20 text-slate-400 bg-slate-50/30"
-                          >
-                             <div className="flex flex-col items-center gap-3">
-                               <Users className="w-10 h-10 opacity-20" />
-                               <p className="font-medium">No se encontraron usuarios</p>
+                  ) : (
+                    usuarios.map((user) => (
+                      <TableRow key={user.id} className="group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0">
+                        <TableCell className="px-6 py-5">
+                          <Checkbox
+                            checked={selectedUsers.includes(user.id)}
+                            onCheckedChange={(checked) => handleSelectUser(user.id, checked)}
+                            className="rounded-md border-slate-300 data-[state=checked]:bg-blue-600"
+                          />
+                        </TableCell>
+                        <TableCell className="font-bold text-slate-700 text-xs px-6">
+                          {user.id}
+                        </TableCell>
+                        <TableCell className="py-5">
+                          <div className="flex items-center gap-3">
+                            {/* Circle with initials like in image 1 */}
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${getInitialsColor(user.id)}`}>
+                              {getInitials(user.nombre, user.apellido)}
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        usuarios.map((user) => (
-                        <TableRow key={user.id} className="group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0">
-                          <TableCell className="px-6 py-5">
-                            <Checkbox
-                              checked={selectedUsers.includes(user.id)}
-                              onCheckedChange={(checked) => handleSelectUser(user.id, checked)}
-                              className="rounded-md border-slate-300 data-[state=checked]:bg-blue-600"
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-800 text-sm">{user.nombre} {user.apellido}</span>
+                              <span className="text-[11px] text-slate-400 font-medium">{user.email}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-slate-600 font-semibold text-xs">
+                          {user.centro?.name || user.centro || "Sin asignar"}
+                        </TableCell>
+                        <TableCell>
+                          <span className="bg-slate-100 text-slate-500 font-bold text-[10px] px-2.5 py-1 rounded-md tracking-tight">
+                            {user.username}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="bg-blue-50 text-blue-600 font-extrabold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
+                            {typeof user.rol === "object" ? user.rol.nombre : user.rol || "Sin rol"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center justify-center gap-1.5">
+                            <Switch
+                              checked={user.active === 'true' || user.active === true}
+                              onCheckedChange={() => handleToggleUserActivation(user)}
+                              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-200"
                             />
-                          </TableCell>
-                          <TableCell className="font-bold text-slate-700 text-xs px-6">
-                            {user.id}
-                          </TableCell>
-                          <TableCell className="py-5">
-                            <div className="flex items-center gap-3">
-                              {/* Circle with initials like in image 1 */}
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${getInitialsColor(user.id)}`}>
-                                {getInitials(user.nombre, user.apellido)}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-800 text-sm">{user.nombre} {user.apellido}</span>
-                                <span className="text-[11px] text-slate-400 font-medium">{user.email}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-slate-600 font-semibold text-xs">
-                            {user.centro?.name || user.centro || "Sin asignar"}
-                          </TableCell>
-                          <TableCell>
-                            <span className="bg-slate-100 text-slate-500 font-bold text-[10px] px-2.5 py-1 rounded-md tracking-tight">
-                              {user.username}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="bg-blue-50 text-blue-600 font-extrabold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
-                              {typeof user.rol === "object" ? user.rol.nombre : user.rol || "Sin rol"}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex flex-col items-center justify-center gap-1.5">
-                              <Switch
-                                checked={user.active === 'true' || user.active === true}
-                                onCheckedChange={() => handleToggleUserActivation(user)}
-                                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-200"
-                              />
-                              <span className={`text-[9px] font-bold uppercase tracking-wider ${
-                                user.active === 'true' || user.active === true ? "text-green-600" : "text-slate-400"
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${user.active === 'true' || user.active === true ? "text-green-600" : "text-slate-400"
                               }`}>
-                                {user.active === 'true' || user.active === true ? "Activo" : "Inactivo"}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-center gap-2">
-                              {/* Soft action buttons like in Image 1 */}
-                              <Button
-                                size="sm"
-                                onClick={() => handleViewUser(user)}
-                                className="w-9 h-9 p-0 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all shadow-none border-none"
-                                title="Ver detalles"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleEditUser(user)}
-                                className="w-9 h-9 p-0 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-xl transition-all shadow-none border-none"
-                                title="Editar usuario"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleDeleteUser(user)}
-                                className="w-9 h-9 p-0 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all shadow-none border-none"
-                                title="Eliminar usuario"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                              {user.active === 'true' || user.active === true ? "Activo" : "Inactivo"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-2">
+                            {/* Soft action buttons like in Image 1 */}
+                            <Button
+                              size="sm"
+                              onClick={() => handleViewUser(user)}
+                              className="w-9 h-9 p-0 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all shadow-none border-none"
+                              title="Ver detalles"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleEditUser(user)}
+                              className="w-9 h-9 p-0 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-xl transition-all shadow-none border-none"
+                              title="Editar usuario"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleDeleteUser(user)}
+                              className="w-9 h-9 p-0 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all shadow-none border-none"
+                              title="Eliminar usuario"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
             {/* Enhanced Pagination */}
             {!usuariosLoading && !usuariosError && usuarios.length > 0 && (
@@ -2237,7 +2236,7 @@ export default function Usuarios() {
                         Seleccione la zona donde trabajará el usuario
                       </p>
                     </div>
-                  
+
                     <div className="flex gap-3 pt-6">
                       <Button
                         type="submit"
@@ -2257,7 +2256,7 @@ export default function Usuarios() {
                   </form>
                 </DialogContent>
               </Dialog>
-              
+
               {/* Modal de Editar Relación */}
               <Dialog
                 open={isEditRelationModalOpen}
@@ -2318,7 +2317,7 @@ export default function Usuarios() {
                         Seleccione la zona donde trabajará el usuario
                       </p>
                     </div>
-                  
+
                     <div className="flex gap-3 pt-6">
                       <Button
                         type="button"
@@ -2569,7 +2568,7 @@ export default function Usuarios() {
                   Puede incluir el nombre del usuario entre paréntesis
                 </p>
               </div>
-            
+
               <div className="flex gap-3 pt-6">
                 <Button
                   type="button"
@@ -2640,595 +2639,595 @@ export default function Usuarios() {
           </CardContent>
         </Card>
 
-      {/* Edit User Modal */}
-      <Dialog open={isEditUserModalOpen} onOpenChange={setIsEditUserModalOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
-              Actualizar
-            </DialogTitle>
-            <DialogDescription className="text-lg font-medium text-gray-700 mt-4">
-              usuario
-            </DialogDescription>
-          </DialogHeader>
+        {/* Edit User Modal */}
+        <Dialog open={isEditUserModalOpen} onOpenChange={setIsEditUserModalOpen}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">
+                Actualizar
+              </DialogTitle>
+              <DialogDescription className="text-lg font-medium text-gray-700 mt-4">
+                usuario
+              </DialogDescription>
+            </DialogHeader>
 
-          {/* Personal Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Nombre <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={addUserForm.nombre}
-                onChange={(e) =>
-                  handleAddUserInputChange("nombre", e.target.value)
-                }
-                className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                placeholder="Nombre del usuario"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Apellidos <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={addUserForm.apellidos}
-                onChange={(e) =>
-                  handleAddUserInputChange("apellidos", e.target.value)
-                }
-                className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                placeholder="Apellidos del usuario"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Teléfono
-              </Label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">📞</span>
-                </div>
+            {/* Personal Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Nombre <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  value={addUserForm.telefono}
+                  value={addUserForm.nombre}
                   onChange={(e) =>
-                    handleAddUserInputChange("telefono", e.target.value)
+                    handleAddUserInputChange("nombre", e.target.value)
                   }
-                  className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                  placeholder="Número de teléfono"
+                  className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  placeholder="Nombre del usuario"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Email <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">@</span>
-                </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Apellidos <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  type="email"
-                  value={addUserForm.email}
+                  value={addUserForm.apellidos}
                   onChange={(e) =>
-                    handleAddUserInputChange("email", e.target.value)
+                    handleAddUserInputChange("apellidos", e.target.value)
                   }
-                  className="h-11 pl-8 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                  placeholder="correo@ejemplo.com"
+                  className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  placeholder="Apellidos del usuario"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Username <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">👤</span>
-                </div>
-                <Input
-                  value={addUserForm.username}
-                  onChange={(e) =>
-                    handleAddUserInputChange("username", e.target.value)
-                  }
-                  className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                  placeholder="nombre_usuario"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Password
-              </Label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">🔒</span>
-                </div>
-                <Input
-                  type="password"
-                  value={addUserForm.password}
-                  onChange={(e) =>
-                    handleAddUserInputChange("password", e.target.value)
-                  }
-                  className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                  placeholder="Nueva contraseña (opcional)"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Rol <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={addUserForm.rol}
-                onValueChange={(value) =>
-                  handleAddUserInputChange("rol", value)
-                }
-              >
-                <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {rolesLoading ? (
-                    <SelectItem value="" disabled>
-                      Cargando roles...
-                    </SelectItem>
-                  ) : (
-                    roles.map((rol) => (
-                      <SelectItem
-                        key={rol.id}
-                        value={rol.id.toString()}
-                      >
-                        {rol.nombre}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Centro de Costo{" "}
-                <span className="text-gray-400">(Opcional)</span>
-              </Label>
-              <SearchableSelect
-                placeholder="Buscar o seleccionar centro de costo..."
-                options={centrosCostoOptions}
-                value={addUserForm.centroCosto}
-                onChange={(value) => handleAddUserInputChange("centroCosto", value)}
-                disabled={centrosLoading}
-                loading={centrosLoading}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Empresa
-              </Label>
-              <SearchableSelect
-                placeholder="Buscar o seleccionar empresa..."
-                options={empresasOptions}
-                value={addUserForm.empresa}
-                onChange={(value) => handleAddUserInputChange("empresa", value)}
-                disabled={empresasLoading}
-                loading={empresasLoading}
-              />
-            </div>
-          </div>
-
-          {/* Permissions Table */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Gestión de Permisos</h3>
-              <div className="flex gap-2">
-                {selectedUser && selectedUser.rol_id !== 1 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResetToDefaultPermissions}
-                    className="text-xs h-8 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
-                    type="button"
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Valores por Defecto (Raíz)
-                  </Button>
-                )}
-                {selectedUser && selectedUser.rol_id === 1 && (
-                  <Badge className="bg-yellow-100 text-yellow-800">
-                    Super Administrador - Acceso Completo
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {selectedUser && selectedUser.rol_id === 1 ? (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
-                <ShieldCheck className="h-6 w-6 text-yellow-600" />
-                <p className="text-yellow-800">
-                  Los super administradores tienen acceso completo a todos los módulos del sistema.
-                  No es necesario configurar permisos individuales.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 bg-gray-100 p-3 rounded-lg border border-gray-200">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                    <Input
-                      placeholder="Buscar módulo o página..."
-                      value={permissionSearch}
-                      onChange={(e) => setPermissionSearch(e.target.value)}
-                      className="pl-9 bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                    />
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Teléfono
+                </Label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">📞</span>
                   </div>
-                  {permissionSearch && (
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setPermissionSearch("")}
-                      className="text-xs text-gray-500 hover:text-blue-600"
+                  <Input
+                    value={addUserForm.telefono}
+                    onChange={(e) =>
+                      handleAddUserInputChange("telefono", e.target.value)
+                    }
+                    className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    placeholder="Número de teléfono"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Email <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">@</span>
+                  </div>
+                  <Input
+                    type="email"
+                    value={addUserForm.email}
+                    onChange={(e) =>
+                      handleAddUserInputChange("email", e.target.value)
+                    }
+                    className="h-11 pl-8 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    placeholder="correo@ejemplo.com"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Username <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">👤</span>
+                  </div>
+                  <Input
+                    value={addUserForm.username}
+                    onChange={(e) =>
+                      handleAddUserInputChange("username", e.target.value)
+                    }
+                    className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    placeholder="nombre_usuario"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Password
+                </Label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">🔒</span>
+                  </div>
+                  <Input
+                    type="password"
+                    value={addUserForm.password}
+                    onChange={(e) =>
+                      handleAddUserInputChange("password", e.target.value)
+                    }
+                    className="h-11 pl-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    placeholder="Nueva contraseña (opcional)"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Rol <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={addUserForm.rol}
+                  onValueChange={(value) =>
+                    handleAddUserInputChange("rol", value)
+                  }
+                >
+                  <SelectTrigger className="h-11 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rolesLoading ? (
+                      <SelectItem value="" disabled>
+                        Cargando roles...
+                      </SelectItem>
+                    ) : (
+                      roles.map((rol) => (
+                        <SelectItem
+                          key={rol.id}
+                          value={rol.id.toString()}
+                        >
+                          {rol.nombre}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Centro de Costo{" "}
+                  <span className="text-gray-400">(Opcional)</span>
+                </Label>
+                <SearchableSelect
+                  placeholder="Buscar o seleccionar centro de costo..."
+                  options={centrosCostoOptions}
+                  value={addUserForm.centroCosto}
+                  onChange={(value) => handleAddUserInputChange("centroCosto", value)}
+                  disabled={centrosLoading}
+                  loading={centrosLoading}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Empresa
+                </Label>
+                <SearchableSelect
+                  placeholder="Buscar o seleccionar empresa..."
+                  options={empresasOptions}
+                  value={addUserForm.empresa}
+                  onChange={(value) => handleAddUserInputChange("empresa", value)}
+                  disabled={empresasLoading}
+                  loading={empresasLoading}
+                />
+              </div>
+            </div>
+
+            {/* Permissions Table */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Gestión de Permisos</h3>
+                <div className="flex gap-2">
+                  {selectedUser && selectedUser.rol_id !== 1 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleResetToDefaultPermissions}
+                      className="text-xs h-8 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                      type="button"
                     >
-                      Limpiar
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Valores por Defecto (Raíz)
                     </Button>
                   )}
+                  {selectedUser && selectedUser.rol_id === 1 && (
+                    <Badge className="bg-yellow-100 text-yellow-800">
+                      Super Administrador - Acceso Completo
+                    </Badge>
+                  )}
                 </div>
+              </div>
 
-                <Accordion type="multiple" defaultValue={["equipos"]} className="w-full">
-                  {(() => {
-                    const grouped = getGroupedPermissions();
-                    
-                    return moduleCategories.map((category) => {
-                      const permissions = grouped[category.id] || [];
-                      if (permissions.length === 0) return null;
+              {selectedUser && selectedUser.rol_id === 1 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+                  <ShieldCheck className="h-6 w-6 text-yellow-600" />
+                  <p className="text-yellow-800">
+                    Los super administradores tienen acceso completo a todos los módulos del sistema.
+                    No es necesario configurar permisos individuales.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 bg-gray-100 p-3 rounded-lg border border-gray-200">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                      <Input
+                        placeholder="Buscar módulo o página..."
+                        value={permissionSearch}
+                        onChange={(e) => setPermissionSearch(e.target.value)}
+                        className="pl-9 bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    {permissionSearch && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setPermissionSearch("")}
+                        className="text-xs text-gray-500 hover:text-blue-600"
+                      >
+                        Limpiar
+                      </Button>
+                    )}
+                  </div>
+
+                  <Accordion type="multiple" defaultValue={["equipos"]} className="w-full">
+                    {(() => {
+                      const grouped = getGroupedPermissions();
+
+                      return moduleCategories.map((category) => {
+                        const permissions = grouped[category.id] || [];
+                        if (permissions.length === 0) return null;
+
+                        return (
+                          <AccordionItem value={category.id} key={category.id} className="border rounded-lg mb-2 overflow-hidden">
+                            <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 bg-gray-50/50">
+                              <div className="flex items-center gap-3">
+                                {category.icon}
+                                <span className="font-semibold text-gray-900">{category.name}</span>
+                                <Badge variant="outline" className="ml-2 font-normal">
+                                  {permissions.length} módulos
+                                </Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-0">
+                              <div className="overflow-x-auto">
+                                <Table className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                                  <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                    <TableRow>
+                                      <TableHead className="w-[200px] text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Página / Módulo</TableHead>
+                                      <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Leer</TableHead>
+                                      <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Crear</TableHead>
+                                      <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Editar</TableHead>
+                                      <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Eliminar</TableHead>
+                                      <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Acciones</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {permissions.map((permission) => (
+                                      <TableRow key={permission.modulo_id} className="hover:bg-blue-50/30 transition-colors">
+                                        <TableCell className="font-medium">
+                                          <div className="flex flex-col">
+                                            <span className="capitalize">{permission.modulo_name}</span>
+                                            <span className="text-[10px] text-gray-400">ID: {permission.modulo_id}</span>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Checkbox
+                                            checked={permission.leer}
+                                            onCheckedChange={(checked) =>
+                                              handleUserPermissionChange(permission.modulo_id, "leer", checked)
+                                            }
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Checkbox
+                                            checked={permission.insertar}
+                                            onCheckedChange={(checked) =>
+                                              handleUserPermissionChange(permission.modulo_id, "insertar", checked)
+                                            }
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Checkbox
+                                            checked={permission.editar}
+                                            onCheckedChange={(checked) =>
+                                              handleUserPermissionChange(permission.modulo_id, "editar", checked)
+                                            }
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Checkbox
+                                            checked={permission.eliminar}
+                                            onCheckedChange={(checked) =>
+                                              handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
+                                            }
+                                          />
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <div className="flex gap-1 justify-center">
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => handleGrantAllPermissions(permission.modulo_id)}
+                                              className="w-8 h-8 p-0 text-green-600 hover:bg-green-50"
+                                              title="Conceder todo"
+                                            >
+                                              <CheckCircle className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => handleRevokeAllPermissions(permission.modulo_id)}
+                                              className="w-8 h-8 p-0 text-red-600 hover:bg-red-50"
+                                              title="Revocar todo"
+                                            >
+                                              <XCircle className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      });
+                    })()}
+
+                    {/* Otros módulos (Catch-all) */}
+                    {(() => {
+                      const grouped = getGroupedPermissions();
+                      const others = grouped['otros'] || [];
+                      if (others.length === 0) return null;
 
                       return (
-                        <AccordionItem value={category.id} key={category.id} className="border rounded-lg mb-2 overflow-hidden">
+                        <AccordionItem value="otros" className="border rounded-lg mb-2 overflow-hidden">
                           <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 bg-gray-50/50">
                             <div className="flex items-center gap-3">
-                              {category.icon}
-                              <span className="font-semibold text-gray-900">{category.name}</span>
+                              <Layers className="h-4 w-4 text-gray-500" />
+                              <span className="font-semibold text-gray-900">Otros Módulos</span>
                               <Badge variant="outline" className="ml-2 font-normal">
-                                {permissions.length} módulos
+                                {others.length} módulos
                               </Badge>
                             </div>
                           </AccordionTrigger>
                           <AccordionContent className="p-0">
-                            <div className="overflow-x-auto">
-                              <Table className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-                                <TableHeader className="bg-slate-50 border-b border-slate-200">
-                                  <TableRow>
-                                    <TableHead className="w-[200px] text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Página / Módulo</TableHead>
-                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Leer</TableHead>
-                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Crear</TableHead>
-                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Editar</TableHead>
-                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Eliminar</TableHead>
-                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Acciones</TableHead>
+                            <Table className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                              <TableHeader className="bg-slate-50 border-b border-slate-200">
+                                <TableRow>
+                                  <TableHead className="text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Módulo</TableHead>
+                                  <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Leer</TableHead>
+                                  <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Crear</TableHead>
+                                  <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Editar</TableHead>
+                                  <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Eliminar</TableHead>
+                                  <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Acciones</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {others.map((permission) => (
+                                  <TableRow key={permission.modulo_id} className="hover:bg-gray-50">
+                                    <TableCell className="font-medium capitalize">{permission.modulo_name}</TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={permission.leer}
+                                        onCheckedChange={(checked) =>
+                                          handleUserPermissionChange(permission.modulo_id, "leer", checked)
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={permission.insertar}
+                                        onCheckedChange={(checked) =>
+                                          handleUserPermissionChange(permission.modulo_id, "insertar", checked)
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={permission.editar}
+                                        onCheckedChange={(checked) =>
+                                          handleUserPermissionChange(permission.modulo_id, "editar", checked)
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={permission.eliminar}
+                                        onCheckedChange={(checked) =>
+                                          handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <div className="flex gap-1 justify-center">
+                                        <Button size="sm" variant="ghost" onClick={() => handleGrantAllPermissions(permission.modulo_id)} className="text-green-600"><CheckCircle className="h-4 w-4" /></Button>
+                                        <Button size="sm" variant="ghost" onClick={() => handleRevokeAllPermissions(permission.modulo_id)} className="text-red-600"><XCircle className="h-4 w-4" /></Button>
+                                      </div>
+                                    </TableCell>
                                   </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {permissions.map((permission) => (
-                                    <TableRow key={permission.modulo_id} className="hover:bg-blue-50/30 transition-colors">
-                                      <TableCell className="font-medium">
-                                        <div className="flex flex-col">
-                                          <span className="capitalize">{permission.modulo_name}</span>
-                                          <span className="text-[10px] text-gray-400">ID: {permission.modulo_id}</span>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <Checkbox
-                                          checked={permission.leer}
-                                          onCheckedChange={(checked) =>
-                                            handleUserPermissionChange(permission.modulo_id, "leer", checked)
-                                          }
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <Checkbox
-                                          checked={permission.insertar}
-                                          onCheckedChange={(checked) =>
-                                            handleUserPermissionChange(permission.modulo_id, "insertar", checked)
-                                          }
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <Checkbox
-                                          checked={permission.editar}
-                                          onCheckedChange={(checked) =>
-                                            handleUserPermissionChange(permission.modulo_id, "editar", checked)
-                                          }
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <Checkbox
-                                          checked={permission.eliminar}
-                                          onCheckedChange={(checked) =>
-                                            handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
-                                          }
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                        <div className="flex gap-1 justify-center">
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleGrantAllPermissions(permission.modulo_id)}
-                                            className="w-8 h-8 p-0 text-green-600 hover:bg-green-50"
-                                            title="Conceder todo"
-                                          >
-                                            <CheckCircle className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleRevokeAllPermissions(permission.modulo_id)}
-                                            className="w-8 h-8 p-0 text-red-600 hover:bg-red-50"
-                                            title="Revocar todo"
-                                          >
-                                            <XCircle className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
+                                ))}
+                              </TableBody>
+                            </Table>
                           </AccordionContent>
                         </AccordionItem>
                       );
-                    });
-                  })()}
+                    })()}
+                  </Accordion>
 
-                  {/* Otros módulos (Catch-all) */}
-                  {(() => {
-                    const grouped = getGroupedPermissions();
-                    const others = grouped['otros'] || [];
-                    if (others.length === 0) return null;
-
-                    return (
-                      <AccordionItem value="otros" className="border rounded-lg mb-2 overflow-hidden">
-                        <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 bg-gray-50/50">
-                          <div className="flex items-center gap-3">
-                            <Layers className="h-4 w-4 text-gray-500" />
-                            <span className="font-semibold text-gray-900">Otros Módulos</span>
-                            <Badge variant="outline" className="ml-2 font-normal">
-                              {others.length} módulos
-                            </Badge>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="p-0">
-                          <Table className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-                            <TableHeader className="bg-slate-50 border-b border-slate-200">
-                              <TableRow>
-                                <TableHead className="text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Módulo</TableHead>
-                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Leer</TableHead>
-                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Crear</TableHead>
-                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Editar</TableHead>
-                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Eliminar</TableHead>
-                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Acciones</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {others.map((permission) => (
-                                <TableRow key={permission.modulo_id} className="hover:bg-gray-50">
-                                  <TableCell className="font-medium capitalize">{permission.modulo_name}</TableCell>
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={permission.leer}
-                                      onCheckedChange={(checked) =>
-                                        handleUserPermissionChange(permission.modulo_id, "leer", checked)
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={permission.insertar}
-                                      onCheckedChange={(checked) =>
-                                        handleUserPermissionChange(permission.modulo_id, "insertar", checked)
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={permission.editar}
-                                      onCheckedChange={(checked) =>
-                                        handleUserPermissionChange(permission.modulo_id, "editar", checked)
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={permission.eliminar}
-                                      onCheckedChange={(checked) =>
-                                        handleUserPermissionChange(permission.modulo_id, "eliminar", checked)
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <div className="flex gap-1 justify-center">
-                                      <Button size="sm" variant="ghost" onClick={() => handleGrantAllPermissions(permission.modulo_id)} className="text-green-600"><CheckCircle className="h-4 w-4" /></Button>
-                                      <Button size="sm" variant="ghost" onClick={() => handleRevokeAllPermissions(permission.modulo_id)} className="text-red-600"><XCircle className="h-4 w-4" /></Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })()}
-                </Accordion>
-
-                <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center rounded-b-lg shadow-inner">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-bold text-blue-600">{userPermissions ? userPermissions.length : 0}</span> módulos configurados para este usuario
+                  <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center rounded-b-lg shadow-inner">
+                    <div className="text-sm text-gray-600">
+                      <span className="font-bold text-blue-600">{userPermissions ? userPermissions.length : 0}</span> módulos configurados para este usuario
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setIsEditUserModalOpen(false)}
+                        variant="outline"
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={handleSaveUserPermissions}
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                      >
+                        Guardar Permisos Individuales
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => setIsEditUserModalOpen(false)}
-                      variant="outline"
-                      className="border-gray-300 text-gray-700 hover:bg-gray-100"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleSaveUserPermissions}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
-                    >
-                      Guardar Permisos Individuales
-                    </Button>
-                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-6">
+              <Button
+                onClick={handleSubmitEditUser}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+              >
+                Actualizar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditUserModalOpen(false)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* View User Modal */}
+        <Dialog open={isViewUserModalOpen} onOpenChange={setIsViewUserModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold text-gray-700">
+                Información detallada del usuario
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedUser && (
+              <div className="space-y-3 py-4">
+                <div>
+                  <span className="font-semibold text-gray-700">Nombre: </span>
+                  <span className="text-gray-600">
+                    {selectedUser.nombre?.toUpperCase() || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Apellido: </span>
+                  <span className="text-gray-600">
+                    {selectedUser.apellido?.toUpperCase() || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Teléfono: </span>
+                  <span className="text-gray-600">
+                    {selectedUser.telefono || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Email: </span>
+                  <span className="text-gray-600">
+                    {selectedUser.email || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Username: </span>
+                  <span className="text-gray-600">
+                    {selectedUser.username || selectedUser.login || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Rol: </span>
+                  <span className="text-gray-600">
+                    {typeof selectedUser.rol === 'object' ? selectedUser.rol.nombre : selectedUser.rol || 'N/A'}
+                  </span>
                 </div>
               </div>
             )}
-          </div>
 
-          <div className="flex gap-3 pt-6">
-            <Button
-              onClick={handleSubmitEditUser}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-            >
-              Actualizar
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditUserModalOpen(false)}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
-            >
-              Cancelar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* View User Modal */}
-      <Dialog open={isViewUserModalOpen} onOpenChange={setIsViewUserModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-700">
-              Información detallada del usuario
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedUser && (
-            <div className="space-y-3 py-4">
-              <div>
-                <span className="font-semibold text-gray-700">Nombre: </span>
-                <span className="text-gray-600">
-                  {selectedUser.nombre?.toUpperCase() || 'N/A'}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Apellido: </span>
-                <span className="text-gray-600">
-                  {selectedUser.apellido?.toUpperCase() || 'N/A'}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Teléfono: </span>
-                <span className="text-gray-600">
-                  {selectedUser.telefono || 'N/A'}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Email: </span>
-                <span className="text-gray-600">
-                  {selectedUser.email || 'N/A'}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Username: </span>
-                <span className="text-gray-600">
-                  {selectedUser.username || selectedUser.login || 'N/A'}
-                </span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Rol: </span>
-                <span className="text-gray-600">
-                  {typeof selectedUser.rol === 'object' ? selectedUser.rol.nombre : selectedUser.rol || 'N/A'}
-                </span>
-              </div>
+            <div className="flex justify-start pt-6">
+              <Button
+                onClick={() => setIsViewUserModalOpen(false)}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+              >
+                Cerrar
+              </Button>
             </div>
-          )}
+          </DialogContent>
+        </Dialog>
 
-          <div className="flex justify-start pt-6">
-            <Button
-              onClick={() => setIsViewUserModalOpen(false)}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-            >
-              Cerrar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        {/* Delete User Confirmation Dialog */}
+        <AlertDialog
+          open={!!userToDelete}
+          onOpenChange={() => setUserToDelete(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará permanentemente el
+                usuario{" "}
+                <span className="font-semibold">{userToDelete?.nombre}</span> del
+                sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setUserToDelete(null)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteUser}
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Delete User Confirmation Dialog */}
-      <AlertDialog
-        open={!!userToDelete}
-        onOpenChange={() => setUserToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el
-              usuario{" "}
-              <span className="font-semibold">{userToDelete?.nombre}</span> del
-              sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setUserToDelete(null)}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteUser}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Relation Confirmation Dialog */}
-      <AlertDialog
-        open={!!relationToDelete}
-        onOpenChange={() => setRelationToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente la
-              relación entre la zona{" "}
-              <span className="font-semibold">
-                {relationToDelete?.nombre_zona}
-              </span>{" "}
-              y el usuario{" "}
-              <span className="font-semibold">
-                {relationToDelete?.nombre_usuario}
-              </span>
-              .
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setRelationToDelete(null)}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteRelation}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Delete Relation Confirmation Dialog */}
+        <AlertDialog
+          open={!!relationToDelete}
+          onOpenChange={() => setRelationToDelete(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará permanentemente la
+                relación entre la zona{" "}
+                <span className="font-semibold">
+                  {relationToDelete?.nombre_zona}
+                </span>{" "}
+                y el usuario{" "}
+                <span className="font-semibold">
+                  {relationToDelete?.nombre_usuario}
+                </span>
+                .
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setRelationToDelete(null)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteRelation}
+                className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
