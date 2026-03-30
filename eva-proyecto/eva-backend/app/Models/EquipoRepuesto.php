@@ -51,7 +51,7 @@ class EquipoRepuesto extends Model
     
     protected $table = 'equipo_repuestos';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    public $timestamps = false;
 
     /**
      * Campos que pueden ser asignados masivamente
@@ -84,9 +84,7 @@ class EquipoRepuesto extends Model
      * Campos protegidos que no pueden ser asignados masivamente
      */
     protected $guarded = [
-        'id',
-        'created_at',
-        'updated_at'
+        'id'
     ];
 
     /**
@@ -98,9 +96,7 @@ class EquipoRepuesto extends Model
         'estado' => 'boolean',
         'status' => 'boolean',
         'fecha' => 'date',
-        'valor' => 'decimal:2',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'valor' => 'decimal:2'
     ];
 
     // ==========================================
@@ -186,7 +182,7 @@ class EquipoRepuesto extends Model
      */
     public function scopeRecientes(Builder $query): Builder
     {
-        return $query->where('created_at', '>=', now()->subDays(30));
+        return $query->where('fecha', '>=', now()->subDays(30));
     }
 
     /**
@@ -268,10 +264,8 @@ class EquipoRepuesto extends Model
                     'descripcion' => $this->descripcion ?? null,
                     'estado' => $this->es_activo,
                     'codigo' => $this->codigo ?? null,
-                    'created_at' => $this->created_at,
-                    'updated_at' => $this->updated_at,
-                    'dias_desde_creacion' => $this->created_at ? $this->created_at->diffInDays(now()) : null,
-                    'ultima_actualizacion' => $this->updated_at ? $this->updated_at->diffForHumans() : null
+                    'fecha' => $this->fecha,
+                    'dias_desde_creacion' => $this->fecha ? \Carbon\Carbon::parse($this->fecha)->diffInDays(now()) : null
                 ];
             }
         );

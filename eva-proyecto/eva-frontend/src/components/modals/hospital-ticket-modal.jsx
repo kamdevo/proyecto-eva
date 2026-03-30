@@ -52,7 +52,7 @@ export default function HospitalTicketModal({
   const [isEquipmentSearchModalOpen, setIsEquipmentSearchModalOpen] =
     useState(false);
   const [currentSigner, setCurrentSigner] = useState("");
-  
+
   // Estados nuevos para control de UI
   const [reportadoPorMi, setReportadoPorMi] = useState(true); // true = yo, false = otro
   const [equipoSeleccionado, setEquipoSeleccionado] = useState(null); // Equipo de la BD
@@ -122,7 +122,7 @@ export default function HospitalTicketModal({
         setSedes((data.sedes || []).map(s => ({ ...s, nombre: s.name })));
         setServicios((data.servicios || []).map(s => ({ ...s, nombre: s.name })));
         setAreas((data.areas || []).map(a => ({ ...a, nombre: a.name })));
-        
+
         // Si hay empresas en 'filter-options', también las cargamos
         if (data.proveedores) {
           setEmpresas(data.proveedores.map(p => ({ ...p, id: p.id.toString(), nombre: p.name })));
@@ -191,25 +191,25 @@ export default function HospitalTicketModal({
     if (isOpen) {
       // Reset inicial y luego autocompletado
       resetForm();
-      
+
       loadFilterOptions();
       // Solo cargamos empresas si no vinieron en filter-options
       if (empresas.length === 0) {
         fetchEmpresas();
       }
-      
+
       if (ticketType === "industrial") {
         fetchTiposMantenimiento();
       }
-      
+
       // Autocompletar fecha actual y tipo de arreglo
-      const today = new Date().toISOString().split('T')[0];
-      setFormData(prev => ({ 
-        ...prev, 
+      const today = new Date().toLocaleDateString('sv-SE');
+      setFormData(prev => ({
+        ...prev,
         fecha: today,
         ...(ticketType === "biomedico" ? { tipoArreglo: "BIOMEDICO" } : {})
       }));
-      
+
       // Autocompletar datos del usuario actual
       const user = authService.getStoredUser();
       if (user) {
@@ -227,7 +227,7 @@ export default function HospitalTicketModal({
   // useEffect separado para manejar cambio de reportante
   useEffect(() => {
     if (!isOpen) return; // Solo ejecutar si el modal está abierto
-    
+
     const user = authService.getStoredUser();
     if (reportadoPorMi && user) {
       // Si cambia a "reportado por mí", autocompletar con datos del usuario
@@ -308,7 +308,7 @@ export default function HospitalTicketModal({
   const handleTipoMantenimientoChange = (value) => {
     handleInputChange("tipoMantenimientoId", value);
     handleInputChange("subcategoriaMantenimientoId", ""); // Reset subcategoria
-    
+
     const selected = tiposMantenimiento.find(t => t.id.toString() === value.toString());
     if (selected && selected.subcategories) {
       setSubcategoriasDisponibles(selected.subcategories);
@@ -410,7 +410,7 @@ export default function HospitalTicketModal({
       : "No especificado";
 
     const message = `Tipo: ${ticketType.toUpperCase()}\nSede: ${sedeTexto}\nServicio: ${servicioTexto}\nÁrea: ${areaTexto}\nEquipo: ${formData.equipo || "No especificado"}\nEmpresa: ${empresaTexto}\n\nCampos completados: ${filledFields.join(", ")}`;
-    
+
     setConfirmMessage(message);
     setShowConfirmDialog(true);
   };
@@ -542,410 +542,410 @@ export default function HospitalTicketModal({
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className="w-[95vw] max-w-7xl h-[90vh] overflow-y-auto p-6"
-        style={{ width: "95vw", maxWidth: "1400px" }}
-      >
-        <DialogHeader className="border-b border-gray-200 pb-4 mb-6">
-          <DialogTitle className="sr-only">
-            Orden de Trabajo Hospital Universitario del Valle
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Formulario para crear una nueva orden de trabajo en el Hospital
-            Universitario del Valle
-          </DialogDescription>
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-2">
-              <img 
-                src="/images/logo_huv.jpg" 
-                alt="Logo HUV" 
-                className="w-12 h-12 mr-3 object-contain"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://www.huv.gov.co/wp-content/uploads/2020/01/logo-huv.png';
-                }}
-              />
-              <div className="text-left">
-                <h1 className="text-lg font-semibold text-gray-900">
-                  Hospital Universitario del Valle
-                </h1>
-                <h2 className="text-xs text-gray-600">Evaristo García</h2>
-              </div>
-            </div>
-            <div className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full">
-              <span className="text-xs font-medium text-gray-700">
-                ORDEN DE TRABAJO
-              </span>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-6 px-2">
-          {/* Sección Reportante */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
-              <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-              ¿Quién reporta el ticket?
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <Button
-                type="button"
-                variant={reportadoPorMi ? "default" : "outline"}
-                onClick={() => setReportadoPorMi(true)}
-                className="h-20 flex flex-col items-center justify-center"
-              >
-                <User className="w-6 h-6 mb-1" />
-                <span className="font-semibold">Reportado por mí</span>
-                <span className="text-xs opacity-75">Yo soy quien reporta</span>
-              </Button>
-              <Button
-                type="button"
-                variant={!reportadoPorMi ? "default" : "outline"}
-                onClick={() => setReportadoPorMi(false)}
-                className="h-20 flex flex-col items-center justify-center"
-              >
-                <User className="w-6 h-6 mb-1" />
-                <span className="font-semibold">Reportado por otro</span>
-                <span className="text-xs opacity-75">Otra persona reporta</span>
-              </Button>
-            </div>
-            
-            {!reportadoPorMi && (
-              <div className="border-t pt-4 mt-4">
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Nombre del reportante
-                </Label>
-                <Input
-                  value={formData.reportanteNombre}
-                  onChange={(e) => handleInputChange("reportanteNombre", e.target.value)}
-                  placeholder="Ingrese el nombre de quien reporta"
-                  className="h-9 text-sm"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Información General */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-              Información General
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  O.T. # (Autoincremental)
-                </Label>
-                <Input
-                  value="Autogenerado"
-                  disabled
-                  className="h-9 text-sm bg-gray-100 border-gray-300 cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 mt-1">Se asignará automáticamente</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Fecha de Registro
-                </Label>
-                <Input
-                  type="date"
-                  value={formData.fecha}
-                  disabled
-                  className="h-9 text-sm bg-gray-100 border-gray-300 cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 mt-1">Fecha actual</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Usuario
-                </Label>
-                <Input
-                  value={formData.solicitadoPor}
-                  disabled={reportadoPorMi}
-                  onChange={(e) => handleInputChange("solicitadoPor", e.target.value)}
-                  className={`h-9 text-sm ${reportadoPorMi ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                />
-                <p className="text-xs text-gray-500 mt-1">{reportadoPorMi ? 'Usuario actual' : 'Editable'}</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Correo Electrónico
-                </Label>
-                <Input
-                  type="email"
-                  value={formData.correoElectronico}
-                  disabled={reportadoPorMi}
-                  onChange={(e) => handleInputChange("correoElectronico", e.target.value)}
-                  className={`h-9 text-sm ${reportadoPorMi ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                />
-                <p className="text-xs text-gray-500 mt-1">{reportadoPorMi ? 'Email actual' : 'Editable'}</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Sede *
-                </Label>
-                <SearchableSelect
-                  placeholder="Seleccionar sede..."
-                  options={sedes}
-                  value={formData.sede}
-                  onValueChange={(value) => {
-                    handleInputChange("sede", value);
-                    // ✅ Limpiar servicio y área cuando cambie la sede
-                    handleInputChange("servicio", "");
-                    handleInputChange("area", "");
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent
+          className="w-[95vw] max-w-7xl h-[90vh] overflow-y-auto p-6"
+          style={{ width: "95vw", maxWidth: "1400px" }}
+        >
+          <DialogHeader className="border-b border-gray-200 pb-4 mb-6">
+            <DialogTitle className="sr-only">
+              Orden de Trabajo Hospital Universitario del Valle
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulario para crear una nueva orden de trabajo en el Hospital
+              Universitario del Valle
+            </DialogDescription>
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-2">
+                <img
+                  src="/images/logo_huv.jpg"
+                  alt="Logo HUV"
+                  className="w-12 h-12 mr-3 object-contain"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://www.huv.gov.co/wp-content/uploads/2020/01/logo-huv.png';
                   }}
-                  loading={loadingSedes}
-                  className="h-9 text-sm"
                 />
+                <div className="text-left">
+                  <h1 className="text-lg font-semibold text-gray-900">
+                    Hospital Universitario del Valle
+                  </h1>
+                  <h2 className="text-xs text-gray-600">Evaristo García</h2>
+                </div>
               </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Servicio *
-                </Label>
-                <SearchableSelect
-                  placeholder="Seleccionar servicio..."
-                  options={
-                    formData.sede
-                      ? servicios.filter(
+              <div className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full">
+                <span className="text-xs font-medium text-gray-700">
+                  ORDEN DE TRABAJO
+                </span>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-6 px-2">
+            {/* Sección Reportante */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                ¿Quién reporta el ticket?
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <Button
+                  type="button"
+                  variant={reportadoPorMi ? "default" : "outline"}
+                  onClick={() => setReportadoPorMi(true)}
+                  className="h-20 flex flex-col items-center justify-center"
+                >
+                  <User className="w-6 h-6 mb-1" />
+                  <span className="font-semibold">Reportado por mí</span>
+                  <span className="text-xs opacity-75">Yo soy quien reporta</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={!reportadoPorMi ? "default" : "outline"}
+                  onClick={() => setReportadoPorMi(false)}
+                  className="h-20 flex flex-col items-center justify-center"
+                >
+                  <User className="w-6 h-6 mb-1" />
+                  <span className="font-semibold">Reportado por otro</span>
+                  <span className="text-xs opacity-75">Otra persona reporta</span>
+                </Button>
+              </div>
+
+              {!reportadoPorMi && (
+                <div className="border-t pt-4 mt-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Nombre del reportante
+                  </Label>
+                  <Input
+                    value={formData.reportanteNombre}
+                    onChange={(e) => handleInputChange("reportanteNombre", e.target.value)}
+                    placeholder="Ingrese el nombre de quien reporta"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Información General */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                Información General
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    O.T. # (Autoincremental)
+                  </Label>
+                  <Input
+                    value="Autogenerado"
+                    disabled
+                    className="h-9 text-sm bg-gray-100 border-gray-300 cursor-not-allowed"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Se asignará automáticamente</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Fecha de Registro
+                  </Label>
+                  <Input
+                    type="date"
+                    value={formData.fecha}
+                    disabled
+                    className="h-9 text-sm bg-gray-100 border-gray-300 cursor-not-allowed"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Fecha actual</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Usuario
+                  </Label>
+                  <Input
+                    value={formData.solicitadoPor}
+                    disabled={reportadoPorMi}
+                    onChange={(e) => handleInputChange("solicitadoPor", e.target.value)}
+                    className={`h-9 text-sm ${reportadoPorMi ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{reportadoPorMi ? 'Usuario actual' : 'Editable'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Correo Electrónico
+                  </Label>
+                  <Input
+                    type="email"
+                    value={formData.correoElectronico}
+                    disabled={reportadoPorMi}
+                    onChange={(e) => handleInputChange("correoElectronico", e.target.value)}
+                    className={`h-9 text-sm ${reportadoPorMi ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{reportadoPorMi ? 'Email actual' : 'Editable'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Sede *
+                  </Label>
+                  <SearchableSelect
+                    placeholder="Seleccionar sede..."
+                    options={sedes}
+                    value={formData.sede}
+                    onValueChange={(value) => {
+                      handleInputChange("sede", value);
+                      // ✅ Limpiar servicio y área cuando cambie la sede
+                      handleInputChange("servicio", "");
+                      handleInputChange("area", "");
+                    }}
+                    loading={loadingSedes}
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Servicio *
+                  </Label>
+                  <SearchableSelect
+                    placeholder="Seleccionar servicio..."
+                    options={
+                      formData.sede
+                        ? servicios.filter(
                           (servicio) =>
                             servicio.sede_id?.toString() === formData.sede.toString()
                         )
-                      : servicios
-                  }
-                  value={formData.servicio}
-                  onValueChange={(value) => {
-                    handleInputChange("servicio", value);
-                    // ✅ Limpiar área cuando cambie el servicio
-                    handleInputChange("area", "");
-                  }}
-                  loading={loadingServicios}
-                  disabled={!formData.sede}
-                  className="h-9 text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Área
-                </Label>
-                <SearchableSelect
-                  placeholder="Seleccionar área..."
-                  options={
-                    formData.servicio
-                      ? areas.filter(
+                        : servicios
+                    }
+                    value={formData.servicio}
+                    onValueChange={(value) => {
+                      handleInputChange("servicio", value);
+                      // ✅ Limpiar área cuando cambie el servicio
+                      handleInputChange("area", "");
+                    }}
+                    loading={loadingServicios}
+                    disabled={!formData.sede}
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Área
+                  </Label>
+                  <SearchableSelect
+                    placeholder="Seleccionar área..."
+                    options={
+                      formData.servicio
+                        ? areas.filter(
                           (area) => area.servicio_id?.toString() === formData.servicio.toString()
                         )
-                      : areas
-                  }
-                  value={formData.area}
-                  onValueChange={(value) => handleInputChange("area", value)}
-                  loading={loadingAreas}
-                  disabled={!formData.servicio}
-                  className="h-9 text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Información del Equipo */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              Información del Equipo
-            </h3>
-            
-            {/* Botones iniciales */}
-            {modoIngresoEquipo === "inicial" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button
-                  type="button"
-                  onClick={() => setIsEquipmentSearchModalOpen(true)}
-                  className="h-16 flex flex-col items-center justify-center bg-blue-600 hover:bg-blue-700"
-                >
-                  <Search className="w-5 h-5 mb-1" />
-                  <span className="text-sm">Buscar en Base de Datos</span>
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => setModoIngresoEquipo("manual")}
-                  variant="outline"
-                  className="h-16 flex flex-col items-center justify-center"
-                >
-                  <FileText className="w-5 h-5 mb-1" />
-                  <span className="text-sm">Ingresar Manualmente</span>
-                </Button>
-              </div>
-            )}
-            
-            {/* Card de equipo seleccionado */}
-            {modoIngresoEquipo === "seleccionado" && equipoSeleccionado && (
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <h4 className="text-md font-semibold text-blue-900">Equipo Seleccionado</h4>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setModoIngresoEquipo("inicial");
-                      setEquipoSeleccionado(null);
-                      setFormData(prev => ({
-                        ...prev,
-                        equipo: "",
-                        modelo: "",
-                        serie: "",
-                        marca: "",
-                        numeroInventario: ""
-                      }));
-                    }}
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Cambiar Equipo
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-600">Nombre</p>
-                    <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Código</p>
-                    <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.code || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Marca</p>
-                    <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.marca || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Modelo</p>
-                    <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.modelo || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Serie</p>
-                    <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.serial || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Campos manuales */}
-            {modoIngresoEquipo === "manual" && (
-              <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                <div className="flex justify-end mb-4">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setModoIngresoEquipo("inicial")}
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Cancelar
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Equipo *
-                    </Label>
-                    <Input
-                      value={formData.equipo}
-                      onChange={(e) => handleInputChange("equipo", e.target.value)}
-                      className="h-9 text-sm"
-                      placeholder="Nombre del equipo"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Modelo
-                    </Label>
-                    <Input
-                      value={formData.modelo}
-                      onChange={(e) => handleInputChange("modelo", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Serie
-                    </Label>
-                    <Input
-                      value={formData.serie}
-                      onChange={(e) => handleInputChange("serie", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Marca
-                    </Label>
-                    <Input
-                      value={formData.marca}
-                      onChange={(e) => handleInputChange("marca", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      No. Inventario
-                    </Label>
-                    <Input
-                      value={formData.numeroInventario}
-                      onChange={(e) => handleInputChange("numeroInventario", e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Tipo de Arreglo
-                    </Label>
-                    <Select
-                      value={formData.tipoArreglo}
-                      onValueChange={(value) => handleInputChange("tipoArreglo", value)}
-                      disabled={ticketType === "biomedico"}
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Seleccionar tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="BIOMEDICO">BIOMÉDICO</SelectItem>
-                        <SelectItem value="LOCATIVO">LOCATIVO</SelectItem>
-                        <SelectItem value="SISTEMAS">SISTEMAS</SelectItem>
-                        <SelectItem value="ELECTRICO">ELÉCTRICO</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Adjuntar Archivo Asociado */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
-                <Upload className="w-4 h-4 mr-2 text-blue-600" />
-                Archivo Asociado al Ticket
-              </h3>
-              <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
-                <div className="flex flex-col items-center justify-center space-y-2">
-                  <Input
-                    type="file"
-                    id="file_diagnostico"
-                    className="max-w-xs cursor-pointer"
-                    onChange={(e) => handleInputChange("file_diagnostico", e.target.files[0])}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                        : areas
+                    }
+                    value={formData.area}
+                    onValueChange={(value) => handleInputChange("area", value)}
+                    loading={loadingAreas}
+                    disabled={!formData.servicio}
+                    className="h-9 text-sm"
                   />
-                  <p className="text-xs text-gray-500">
-                    Soporta: PDF, Word, Imágenes, ZIP (Límite amplio: 50MB+)
-                  </p>
-                  {formData.file_diagnostico && (
-                    <div className="text-xs font-medium text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">
-                      <FileText className="w-3 h-3 mr-1" />
-                      {formData.file_diagnostico.name}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
-          </div>
+
+            {/* Información del Equipo */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                Información del Equipo
+              </h3>
+
+              {/* Botones iniciales */}
+              {modoIngresoEquipo === "inicial" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button
+                    type="button"
+                    onClick={() => setIsEquipmentSearchModalOpen(true)}
+                    className="h-16 flex flex-col items-center justify-center bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Search className="w-5 h-5 mb-1" />
+                    <span className="text-sm">Buscar en Base de Datos</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setModoIngresoEquipo("manual")}
+                    variant="outline"
+                    className="h-16 flex flex-col items-center justify-center"
+                  >
+                    <FileText className="w-5 h-5 mb-1" />
+                    <span className="text-sm">Ingresar Manualmente</span>
+                  </Button>
+                </div>
+              )}
+
+              {/* Card de equipo seleccionado */}
+              {modoIngresoEquipo === "seleccionado" && equipoSeleccionado && (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <h4 className="text-md font-semibold text-blue-900">Equipo Seleccionado</h4>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setModoIngresoEquipo("inicial");
+                        setEquipoSeleccionado(null);
+                        setFormData(prev => ({
+                          ...prev,
+                          equipo: "",
+                          modelo: "",
+                          serie: "",
+                          marca: "",
+                          numeroInventario: ""
+                        }));
+                      }}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cambiar Equipo
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-600">Nombre</p>
+                      <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">Código</p>
+                      <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.code || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">Marca</p>
+                      <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.marca || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">Modelo</p>
+                      <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.modelo || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">Serie</p>
+                      <p className="text-sm font-medium text-gray-900">{equipoSeleccionado.serial || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Campos manuales */}
+              {modoIngresoEquipo === "manual" && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="flex justify-end mb-4">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setModoIngresoEquipo("inicial")}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancelar
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Equipo *
+                      </Label>
+                      <Input
+                        value={formData.equipo}
+                        onChange={(e) => handleInputChange("equipo", e.target.value)}
+                        className="h-9 text-sm"
+                        placeholder="Nombre del equipo"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Modelo
+                      </Label>
+                      <Input
+                        value={formData.modelo}
+                        onChange={(e) => handleInputChange("modelo", e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Serie
+                      </Label>
+                      <Input
+                        value={formData.serie}
+                        onChange={(e) => handleInputChange("serie", e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Marca
+                      </Label>
+                      <Input
+                        value={formData.marca}
+                        onChange={(e) => handleInputChange("marca", e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        No. Inventario
+                      </Label>
+                      <Input
+                        value={formData.numeroInventario}
+                        onChange={(e) => handleInputChange("numeroInventario", e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                        Tipo de Arreglo
+                      </Label>
+                      <Select
+                        value={formData.tipoArreglo}
+                        onValueChange={(value) => handleInputChange("tipoArreglo", value)}
+                        disabled={ticketType === "biomedico"}
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Seleccionar tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BIOMEDICO">BIOMÉDICO</SelectItem>
+                          <SelectItem value="LOCATIVO">LOCATIVO</SelectItem>
+                          <SelectItem value="SISTEMAS">SISTEMAS</SelectItem>
+                          <SelectItem value="ELECTRICO">ELÉCTRICO</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Adjuntar Archivo Asociado */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                  <Upload className="w-4 h-4 mr-2 text-blue-600" />
+                  Evidencia
+                </h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <Input
+                      type="file"
+                      id="file_diagnostico"
+                      className="max-w-xs cursor-pointer"
+                      onChange={(e) => handleInputChange("file_diagnostico", e.target.files[0])}
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Soporta: PDF, Word, Imágenes, ZIP (Límite amplio: 50MB+)
+                    </p>
+                    {formData.file_diagnostico && (
+                      <div className="text-xs font-medium text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">
+                        <FileText className="w-3 h-3 mr-1" />
+                        {formData.file_diagnostico.name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Campos de Tipo de Mantenimiento para Industrial */}
             {ticketType === "industrial" && (
@@ -968,7 +968,7 @@ export default function HospitalTicketModal({
                       className="h-9 text-sm"
                     />
                   </div>
-                  
+
                   {subcategoriasDisponibles.length > 0 && (
                     <div className="animate-in fade-in slide-in-from-left-2 duration-300">
                       <Label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -987,103 +987,103 @@ export default function HospitalTicketModal({
               </div>
             )}
 
-          {/* Descripción del Problema */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-              Descripción del Problema *
-            </h3>
-            <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Descripción detallada del problema presentado
-              </Label>
-              <Textarea
-                value={formData.descripcionProblema}
-                onChange={(e) =>
-                  handleInputChange("descripcionProblema", e.target.value)
-                }
-                rows={6}
-                placeholder="Describa el problema del equipo de manera detallada..."
-                className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full resize-none"
-              />
-              <p className={`text-xs mt-1 ${formData.descripcionProblema.trim().length < 30 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
-                {formData.descripcionProblema.length} caracteres (mínimo 30)
-              </p>
+            {/* Descripción del Problema */}
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+                Descripción del Problema *
+              </h3>
+              <div>
+                <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Descripción detallada del problema presentado
+                </Label>
+                <Textarea
+                  value={formData.descripcionProblema}
+                  onChange={(e) =>
+                    handleInputChange("descripcionProblema", e.target.value)
+                  }
+                  rows={6}
+                  placeholder="Describa el problema del equipo de manera detallada..."
+                  className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full resize-none"
+                />
+                <p className={`text-xs mt-1 ${formData.descripcionProblema.trim().length < 30 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                  {formData.descripcionProblema.length} caracteres (mínimo 30)
+                </p>
+              </div>
+            </div>
+
+            {/* Botones */}
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="h-8 px-4 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                className={`${getHeaderColor()} hover:opacity-90 h-8 px-4 text-xs`}
+              >
+                Crear Orden
+              </Button>
             </div>
           </div>
 
-          {/* Botones */}
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="h-8 px-4 text-xs"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              className={`${getHeaderColor()} hover:opacity-90 h-8 px-4 text-xs`}
-            >
-              Crear Orden
-            </Button>
-          </div>
-        </div>
+          <DigitalSignatureModal
+            isOpen={isSignatureModalOpen}
+            onClose={() => setIsSignatureModalOpen(false)}
+            onSave={saveSignature}
+            signerName={currentSigner}
+          />
+          <EvidenceUploadModal
+            isOpen={isEvidenceModalOpen}
+            onClose={() => setIsEvidenceModalOpen(false)}
+            onSave={saveEvidences}
+            ticketType={ticketType}
+          />
+          <EquipmentSearchModal
+            isOpen={isEquipmentSearchModalOpen}
+            onClose={() => setIsEquipmentSearchModalOpen(false)}
+            onSelectEquipment={handleSelectEquipment}
+            ticketType={ticketType}
+          />
+        </DialogContent>
+      </Dialog>
 
-        <DigitalSignatureModal
-          isOpen={isSignatureModalOpen}
-          onClose={() => setIsSignatureModalOpen(false)}
-          onSave={saveSignature}
-          signerName={currentSigner}
-        />
-        <EvidenceUploadModal
-          isOpen={isEvidenceModalOpen}
-          onClose={() => setIsEvidenceModalOpen(false)}
-          onSave={saveEvidences}
-          ticketType={ticketType}
-        />
-        <EquipmentSearchModal
-          isOpen={isEquipmentSearchModalOpen}
-          onClose={() => setIsEquipmentSearchModalOpen(false)}
-          onSelectEquipment={handleSelectEquipment}
-          ticketType={ticketType}
-        />
-      </DialogContent>
-    </Dialog>
-
-    {/* Modal de confirmación */}
-    <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-      <DialogContent className="sm:max-w-md">
-        <div className="flex flex-col items-center text-center p-6">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-            <FileText className="w-8 h-8 text-green-600" />
+      {/* Modal de confirmación */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center text-center p-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <FileText className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Crear Orden de Trabajo
+            </h3>
+            <p className="text-sm text-gray-600 mb-4 whitespace-pre-line">
+              ¿Desea crear la Orden de Trabajo?
+              {confirmMessage && `\n\n${confirmMessage}`}
+            </p>
+            <div className="flex gap-3 w-full">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmDialog(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmCreate}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Crear Orden
+              </Button>
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Crear Orden de Trabajo
-          </h3>
-          <p className="text-sm text-gray-600 mb-4 whitespace-pre-line">
-            ¿Desea crear la Orden de Trabajo?
-            {confirmMessage && `\n\n${confirmMessage}`}
-          </p>
-          <div className="flex gap-3 w-full">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowConfirmDialog(false)}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleConfirmCreate}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Crear Orden
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

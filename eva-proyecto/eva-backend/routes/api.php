@@ -1548,7 +1548,7 @@ Route::prefix('v1')->group(function () {
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
                 $fileName = time() . '_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('repuestos', $fileName, 'public');
+                $filePath = $file->storeAs('equipos/repuestos', $fileName, 'public');
             }
             
             // TODO: Obtener usuario_id de la sesión cuando se implemente autenticación
@@ -1561,9 +1561,8 @@ Route::prefix('v1')->group(function () {
                 'fecha' => $request->fecha,
                 'observacion' => $request->observacion,
                 'file' => $filePath,
+                'correctivo_general_id' => 0,
                 'usuario_id' => $usuarioId,
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
             
             $equipoRepuesto = DB::table('equipo_repuestos')->where('id', $equipoRepuestoId)->first();

@@ -48,7 +48,7 @@ class EquipoRepuestoController extends Controller
             }
 
             $data = $query->activos()
-                          ->orderBy('created_at', 'desc')
+                          ->orderBy('id', 'desc')
                           ->paginate($request->per_page ?? 15);
 
             return ResponseFormatter::success($data, 'Lista obtenida exitosamente');

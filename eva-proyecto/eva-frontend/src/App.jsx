@@ -381,7 +381,7 @@ function AppContent() {
                   }
                 />
               </Routes>
-              <div className="mt-6">
+              <div className="mt-10">
                 <Footer />
               </div>
             </div>

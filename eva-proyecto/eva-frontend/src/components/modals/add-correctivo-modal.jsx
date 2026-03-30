@@ -54,12 +54,12 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
     // Orden de Trabajo
     code_orden: "",
     orden: "",
-    fecha_orden: new Date().toISOString().split('T')[0],
+    fecha_orden: new Date().toLocaleDateString('sv-SE'),
     hora_orden: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
 
     // Avance
     descripcion_avance: "",
-    fecha_avance: new Date().toISOString().split('T')[0],
+    fecha_avance: new Date().toLocaleDateString('sv-SE'),
     titulo_avance: "",
 
     // Archivo Asociado
@@ -68,7 +68,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
     // Cierre
     code: "",
     description: "",
-    fecha_mantenimiento: new Date().toISOString().split('T')[0],
+    fecha_mantenimiento: new Date().toLocaleDateString('sv-SE'),
     hora_mantenimiento: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
     tipo_falla_id: "",
     cierre_id: "",
@@ -76,7 +76,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
     // Repuesto Instalado
     repuesto_id_instalado: "",
     cantidad_instalado: "1",
-    fecha_instalacion: new Date().toISOString().split('T')[0],
+    fecha_instalacion: new Date().toLocaleDateString('sv-SE'),
     observacion_repuesto: "",
 
     // Repuestos Pendientes
