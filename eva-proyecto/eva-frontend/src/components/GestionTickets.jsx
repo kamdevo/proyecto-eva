@@ -200,10 +200,19 @@ export default function GestionTickets() {
     }
   };
 
-  // Cargar tickets al montar el componente y cuando cambien los filtros
+  // Cargar tickets al montar el componente y cuando cambien los filtros (excepto búsqueda de texto)
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, estadoFilter, sedeFilter, reportanteFilter, sortField, sortOrder]);
+  }, [currentPage, itemsPerPage, selectedOrigin, estadoFilter, sedeFilter, reportanteFilter, sortField, sortOrder]);
+
+  // Función para disparar la búsqueda manualmente (botón o 'Enter')
+  const triggerSearch = () => {
+    if (currentPage !== 1) {
+      setCurrentPage(1); // El cambio de página disparará un fetch
+    } else {
+      fetchTickets(); // Ejecución manual si la página ya es 1
+    }
+  };
 
   // Función para limpiar todos los filtros
   const handleClearFilters = () => {
@@ -457,15 +466,24 @@ export default function GestionTickets() {
               <Label htmlFor="search-input" className="text-sm font-medium text-gray-700 mb-2 block">
                 Buscar
               </Label>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <Input
                   id="search-input"
                   placeholder="Buscar por ID, descripción, equipo, área..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pr-10 h-10"
+                  onKeyDown={(e) => { if (e.key === 'Enter') triggerSearch(); }}
+                  className="pr-12 h-10"
                 />
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Button 
+                  onClick={triggerSearch} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                  title="Buscar"
+                >
+                  <Search className="text-gray-500 h-4 w-4" />
+                </Button>
               </div>
             </div>
 

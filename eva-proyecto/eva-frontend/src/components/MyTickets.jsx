@@ -223,10 +223,19 @@ export default function MyTickets() {
     }
   };
 
-  // useEffect para cargar datos cuando cambien los filtros
+  // useEffect para cargar datos cuando cambien los filtros (excepto búsqueda de texto)
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, sortField, sortOrder, filterField]);
+  }, [currentPage, itemsPerPage, selectedOrigin, sortField, sortOrder]);
+
+  // Función para disparar la búsqueda manualmente (botón o 'Enter')
+  const triggerSearch = () => {
+    if (currentPage !== 1) {
+      setCurrentPage(1); // El cambio de página disparará un fetch
+    } else {
+      fetchTickets(); // Ejecución manual si la página ya es 1
+    }
+  };
 
   const filteredTickets = tickets; // Ya vienen filtrados del backend
 
@@ -410,9 +419,10 @@ export default function MyTickets() {
                       placeholder={`Buscar ${filterField === 'all' ? 'en todos los campos' : 'por ' + filterField}...`}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') triggerSearch(); }}
                       className="flex-1"
                     />
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={triggerSearch} title="Buscar tickets">
                       <Search className="w-4 h-4" />
                     </Button>
                     <Button

@@ -177,10 +177,19 @@ export default function ClosedTickets() {
     }
   };
 
-  // Cargar tickets al montar el componente y cuando cambien los filtros
+  // Cargar tickets al montar el componente y cuando cambien los filtros (excepto búsqueda por texto)
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, searchTerm, selectedOrigin, sedeFilter, reportanteFilter, sortField, sortOrder, filterField]);
+  }, [currentPage, itemsPerPage, selectedOrigin, sedeFilter, reportanteFilter, sortField, sortOrder]);
+
+  // Función para disparar la búsqueda manualmente (botón o 'Enter')
+  const triggerSearch = () => {
+    if (currentPage !== 1) {
+      setCurrentPage(1); // El cambio de página disparará un fetch
+    } else {
+      fetchTickets(); // Ejecución manual si la página ya es 1
+    }
+  };
 
   // Función para limpiar todos los filtros
   const handleClearFilters = () => {
@@ -353,16 +362,26 @@ export default function ClosedTickets() {
               <Label htmlFor="search" className="text-sm font-medium text-gray-700">
                 Término de búsqueda
               </Label>
-              <div className="mt-1 relative">
+              <div className="mt-1 relative flex items-center">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
                   id="search"
                   type="text"
                   placeholder="Buscar tickets..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  onKeyDown={(e) => { if (e.key === 'Enter') triggerSearch(); }}
+                  className="pl-10 pr-12 w-full"
                 />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Button 
+                  onClick={triggerSearch}
+                  variant="ghost" 
+                  size="sm" 
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-2"
+                  title="Buscar"
+                >
+                  <Search className="text-gray-500 h-4 w-4" />
+                </Button>
               </div>
             </div>
 
