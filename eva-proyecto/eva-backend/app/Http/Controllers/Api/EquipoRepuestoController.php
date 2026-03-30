@@ -38,10 +38,15 @@ class EquipoRepuestoController extends Controller
             $request->validate([
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:100',
-                'search' => 'nullable|string|max:255'
+                'search' => 'nullable|string|max:255',
+                'equipo_id' => 'nullable|integer'
             ]);
 
-            $query = EquipoRepuesto::query();
+            $query = EquipoRepuesto::query()->with('repuesto');
+
+            if ($request->equipo_id) {
+                $query->where('equipo_id', $request->equipo_id);
+            }
 
             if ($request->search) {
                 $query->buscar($request->search);

@@ -4386,7 +4386,8 @@ export function EditEquipmentModal({
                           equipmentHistory.repuestos.map((repuesto, index) => (
                             <tr key={repuesto.id || index}>
                               <td className="border border-gray-300 p-2 text-xs">
-                                {repuesto.name ||
+                                {repuesto.repuesto_name ||
+                                  repuesto.name ||
                                   repuesto.repuesto?.name ||
                                   "-"}
                               </td>
@@ -4394,11 +4395,7 @@ export function EditEquipmentModal({
                                 {repuesto.observacion || "-"}
                               </td>
                               <td className="border border-gray-300 p-2 text-xs">
-                                {repuesto.fecha
-                                  ? new Date(
-                                      repuesto.fecha
-                                    ).toLocaleDateString()
-                                  : "-"}
+                                {repuesto.fecha || "-"}
                               </td>
                               <td className="border border-gray-300 p-2 text-xs">
                                 {repuesto.cantidad_entregada || "-"}

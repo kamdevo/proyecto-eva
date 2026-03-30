@@ -77,7 +77,11 @@ class EquipoRepuesto extends Model
         'usuario_id',
         'equipo_id',
         'servicio_id',
-        'area_id'
+        'area_id',
+        'repuesto_id',
+        'correctivo_general_id',
+        'cantidad_entregada',
+        'file'
     ];
 
     /**
@@ -129,6 +133,14 @@ class EquipoRepuesto extends Model
     public function equipo(): BelongsTo
     {
         return $this->belongsTo(Equipo::class, 'equipo_id');
+    }
+
+    /**
+     * Relación con repuesto
+     */
+    public function repuesto(): BelongsTo
+    {
+        return $this->belongsTo(Repuesto::class, 'repuesto_id');
     }
 
     // ==========================================
@@ -315,7 +327,7 @@ class EquipoRepuesto extends Model
     /**
      * Cambiar estado del registro
      */
-    public function cambiarEstado(string $nuevoEstado, string $motivo = null): bool
+    public function cambiarEstado(string $nuevoEstado, ?string $motivo = null): bool
     {
         $estadoAnterior = $this->estado ?? $this->activo ?? $this->status;
         
@@ -398,7 +410,7 @@ class EquipoRepuesto extends Model
     /**
      * Generar código único automático
      */
-    public static function generarCodigo(string $prefijo = null): string
+    public static function generarCodigo(?string $prefijo = null): string
     {
         $prefijo = $prefijo ?? strtoupper(substr('EquipoRepuesto', 0, 3));
         $ultimo = static::where('codigo', 'LIKE', $prefijo . '%')
