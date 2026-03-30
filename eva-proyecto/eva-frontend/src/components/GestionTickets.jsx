@@ -621,14 +621,18 @@ export default function GestionTickets() {
                             <div className="text-blue-600 truncate">{ticket.asignado_nombre}</div>
                           </div>
                         )}
-                        <div className="text-xs text-gray-600 mt-2">
-                          <div className="font-medium text-gray-700">Asignado por:</div>
-                          <div className="text-gray-900 truncate">
-                            {ticket.usuario_asigno_nombre
-                              ? `${ticket.usuario_asigno_nombre} ${ticket.usuario_asigno_apellido || ''}`.trim()
-                              : 'N/A'}
+                        {ticket.usuario_asigno_nombre ? (
+                          <div className="text-xs text-gray-600 mt-2">
+                            <div className="font-medium text-gray-700">Asignado por:</div>
+                            <div className="text-gray-900 truncate">
+                              {`${ticket.usuario_asigno_nombre} ${ticket.usuario_asigno_apellido || ''}`.trim()}
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="text-xs text-gray-500 mt-2 italic">
+                            Aún no ha sido asignado
+                          </div>
+                        )}
                         {ticket.empresa_nombre && (
                           <div className="text-xs text-gray-600 mt-2">
                             <div className="font-medium text-gray-700">Asignado a:</div>

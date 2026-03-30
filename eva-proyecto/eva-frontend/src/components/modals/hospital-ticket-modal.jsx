@@ -619,7 +619,7 @@ export default function HospitalTicketModal({
                   <Input
                     value={formData.reportanteNombre}
                     onChange={(e) => handleInputChange("reportanteNombre", e.target.value)}
-                    placeholder="Ingrese el nombre de quien reporta"
+                    placeholder="Nombre del reportante"
                     className="h-9 text-sm"
                   />
                 </div>
@@ -1003,7 +1003,7 @@ export default function HospitalTicketModal({
                     handleInputChange("descripcionProblema", e.target.value)
                   }
                   rows={6}
-                  placeholder="Describa el problema del equipo de manera detallada..."
+                  placeholder="Descripción detallada del problema... (Ej: El equipo no enciende, emite ruidos extraños, etc.)"
                   className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full resize-none"
                 />
                 <p className={`text-xs mt-1 ${formData.descripcionProblema.trim().length < 30 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>

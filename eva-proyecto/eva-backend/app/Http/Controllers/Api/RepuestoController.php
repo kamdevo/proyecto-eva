@@ -39,7 +39,9 @@ class RepuestoController extends Controller
                 'page' => 'nullable|integer|min:1',
                 'per_page' => 'nullable|integer|min:1|max:5000',
                 'search' => 'nullable|string|max:255',
-                'grupo' => 'nullable|string|max:10'
+                'grupo' => 'nullable|string|max:10',
+                'sort_by' => 'nullable|string|max:50',
+                'sort_order' => 'nullable|string|in:asc,desc'
             ]);
 
             $query = Repuesto::query();
@@ -56,7 +58,12 @@ class RepuestoController extends Controller
                 $query->where('grupo', $request->grupo);
             }
 
-            $data = $query->orderBy('name', 'asc')
+            // Ordenamiento dinámico
+            $allowedSortFields = ['id', 'name', 'code', 'cantidad', 'precio', 'grupo'];
+            $sortBy = in_array($request->sort_by, $allowedSortFields) ? $request->sort_by : 'name';
+            $sortOrder = $request->sort_order === 'desc' ? 'desc' : 'asc';
+
+            $data = $query->orderBy($sortBy, $sortOrder)
                           ->paginate($request->per_page ?? 500);
 
             return ResponseFormatter::paginated($data, 'Lista de inventario obtenida exitosamente');
