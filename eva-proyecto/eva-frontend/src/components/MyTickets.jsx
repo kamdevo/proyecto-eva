@@ -63,6 +63,7 @@ import httpService from "@/services/httpService";
 
 export default function MyTickets() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedOrigin, setSelectedOrigin] = useState("all");
   const [filterField, setFilterField] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -226,15 +227,12 @@ export default function MyTickets() {
   // useEffect para cargar datos cuando cambien los filtros (excepto búsqueda de texto)
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, selectedOrigin, sortField, sortOrder]);
+  }, [currentPage, itemsPerPage, selectedOrigin, sortField, sortOrder, refreshTrigger]);
 
   // Función para disparar la búsqueda manualmente (botón o 'Enter')
   const triggerSearch = () => {
-    if (currentPage !== 1) {
-      setCurrentPage(1); // El cambio de página disparará un fetch
-    } else {
-      fetchTickets(); // Ejecución manual si la página ya es 1
-    }
+    setCurrentPage(1);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const filteredTickets = tickets; // Ya vienen filtrados del backend
@@ -245,6 +243,7 @@ export default function MyTickets() {
     setSelectedOrigin("all");
     setFilterField("all");
     setCurrentPage(1);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   // Función para ordenar columnas (ahora ordena en el backend)

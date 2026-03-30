@@ -41,6 +41,7 @@ export default function ClosedTickets() {
   const userIsAdmin = isAdmin ? isAdmin() : false;
   
   const [searchTerm, setSearchTerm] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedOrigin, setSelectedOrigin] = useState("all");
   const [filterField, setFilterField] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -180,15 +181,12 @@ export default function ClosedTickets() {
   // Cargar tickets al montar el componente y cuando cambien los filtros (excepto búsqueda por texto)
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, selectedOrigin, sedeFilter, reportanteFilter, sortField, sortOrder]);
+  }, [currentPage, itemsPerPage, selectedOrigin, sedeFilter, reportanteFilter, sortField, sortOrder, refreshTrigger]);
 
   // Función para disparar la búsqueda manualmente (botón o 'Enter')
   const triggerSearch = () => {
-    if (currentPage !== 1) {
-      setCurrentPage(1); // El cambio de página disparará un fetch
-    } else {
-      fetchTickets(); // Ejecución manual si la página ya es 1
-    }
+    setCurrentPage(1);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   // Función para limpiar todos los filtros
@@ -199,6 +197,7 @@ export default function ClosedTickets() {
     setReportanteFilter("all");
     setFilterField("all");
     setCurrentPage(1);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   // Función para ordenar columnas
