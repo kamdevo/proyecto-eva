@@ -69,6 +69,7 @@ export default function HospitalTicketModal({
   const [loadingEmpresas, setLoadingEmpresas] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Estados para tipos de mantenimiento (Industrial)
   const [tiposMantenimiento, setTiposMantenimiento] = useState([]);
@@ -416,6 +417,8 @@ export default function HospitalTicketModal({
   };
 
   const handleConfirmCreate = () => {
+    if (isSubmitting) return; // Prevents double click
+    setIsSubmitting(true);
     setShowConfirmDialog(false);
 
     // Obtener usuario actual
@@ -514,12 +517,14 @@ export default function HospitalTicketModal({
     toast.promise(createTicketPromise(), {
       loading: 'Creando orden de trabajo...',
       success: (data) => {
+        setIsSubmitting(false);
         resetForm(); // ✅ LIMPIAR FORMULARIO DESPUÉSU DEL ÉXITO
         onClose();
         if (onSuccess) onSuccess();
         return `¡Orden de Trabajo #${data.ticketId} creada exitosamente! Tipo: ${data.ticketType.toUpperCase()}`;
       },
       error: (err) => {
+        setIsSubmitting(false);
         return `Error: ${err.message || 'No se pudo crear la orden de trabajo'}`;
       },
     });
@@ -1017,12 +1022,14 @@ export default function HospitalTicketModal({
               <Button
                 variant="outline"
                 onClick={onClose}
+                disabled={isSubmitting}
                 className="h-8 px-4 text-xs"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSubmit}
+                disabled={isSubmitting}
                 className={`${getHeaderColor()} hover:opacity-90 h-8 px-4 text-xs`}
               >
                 Crear Orden
@@ -1069,16 +1076,18 @@ export default function HospitalTicketModal({
               <Button
                 variant="outline"
                 onClick={() => setShowConfirmDialog(false)}
+                disabled={isSubmitting}
                 className="flex-1"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleConfirmCreate}
+                disabled={isSubmitting}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                Crear Orden
+                {isSubmitting ? "Creando..." : "Crear Orden"}
               </Button>
             </div>
           </div>

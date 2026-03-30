@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import httpService from "@/services/httpService";
 
 const RepuestosView = () => {
   // Estados principales
@@ -104,13 +105,8 @@ const RepuestosView = () => {
         sort_order: sortDirection
       });
 
-      const response = await fetch(`/api/v1/repuestos-inventory?${queryParams}`, {
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Bearer ${getToken()}`
-        }
-      });
-      const result = await response.json();
+      const response = await httpService.get(`/v1/repuestos-inventory?${queryParams}`);
+      const result = response.data;
 
       if (result.success) {
         setRepuestos(result.data || []);
@@ -146,22 +142,17 @@ const RepuestosView = () => {
     setSaving(true);
     try {
       const url = isEditMode
-        ? `/api/v1/repuestos-inventory/${formData.id}`
-        : `/api/v1/repuestos-inventory`;
+        ? `/v1/repuestos-inventory/${formData.id}`
+        : `/v1/repuestos-inventory`;
 
-      const method = isEditMode ? "PUT" : "POST";
+      let response;
+      if (isEditMode) {
+        response = await httpService.put(url, dataToSend);
+      } else {
+        response = await httpService.post(url, dataToSend);
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Authorization": `Bearer ${getToken()}`
-        },
-        body: JSON.stringify(dataToSend)
-      });
-
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         toast.success(isEditMode ? "Repuesto actualizado" : "Repuesto agregado");
@@ -182,14 +173,8 @@ const RepuestosView = () => {
     if (!confirm("¿Está seguro de eliminar este repuesto?")) return;
 
     try {
-      const response = await fetch(`/api/v1/repuestos-inventory/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Accept": "application/json",
-          "Authorization": `Bearer ${getToken()}`
-        }
-      });
-      const result = await response.json();
+      const response = await httpService.delete(`/v1/repuestos-inventory/${id}`);
+      const result = response.data;
 
       if (result.success) {
         toast.success("Repuesto eliminado");
