@@ -7354,6 +7354,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             $page = request('page', 1);
             $perPage = request('per_page', 10);
             $search = request('search', '');
+            $sortBy = request('sort_by', 'id');
+            $sortDirection = request('sort_direction', 'desc');
 
             $query = DB::table('usuarios')
                 ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
@@ -7386,6 +7388,14 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                       ->orWhere('centros.name', 'like', "%{$searchTerm}%")
                       ->orWhere(DB::raw("CONCAT(usuarios.nombre, ' ', usuarios.apellido)"), 'like', "%{$searchTerm}%");
                 });
+            }
+
+            // Aplicar ordenamiento
+            $validSortColumns = ['id', 'nombre', 'apellido', 'username', 'email', 'telefono', 'estado', 'active', 'rol_id', 'fecha_registro', 'centro_id'];
+            if (in_array($sortBy, $validSortColumns)) {
+                $query->orderBy('usuarios.' . $sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+            } else {
+                $query->orderBy('usuarios.id', 'desc');
             }
 
             $total = $query->count();
@@ -7449,6 +7459,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             $page = request('page', 1);
             $perPage = request('per_page', 10);
             $search = request('search', '');
+            $sortBy = request('sort_by', 'id');
+            $sortDirection = request('sort_direction', 'desc');
 
             $query = DB::table('usuarios')
                 ->leftJoin('roles', 'usuarios.rol_id', '=', 'roles.id')
@@ -7474,6 +7486,14 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                       ->orWhere('usuarios.apellido', 'like', "%{$search}%")
                       ->orWhere('usuarios.username', 'like', "%{$search}%");
                 });
+            }
+
+            // Aplicar ordenamiento
+            $validSortColumns = ['id', 'nombre', 'apellido', 'username', 'email', 'telefono', 'estado', 'active', 'rol_id', 'fecha_registro', 'centro_id'];
+            if (in_array($sortBy, $validSortColumns)) {
+                $query->orderBy('usuarios.' . $sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+            } else {
+                $query->orderBy('usuarios.id', 'desc');
             }
 
             $total = $query->count();
@@ -15284,8 +15304,8 @@ Route::put('v1/test-put', function(Request $request) {
 // Rutas de contingencias removidas por redundancia. El controlador ContingenciaController maneja estas peticiones.
 
 
-// Update contingencia (PUT method)
-Route::put('v1/contingencias/{id}', function($id, Request $request) {
+// Update contingencia (POST method used by frontend)
+Route::post('v1/contingencias/{id}/update', function($id, Request $request) {
     try {
         // Basic validation
         if (!$request->has('fecha') || !$request->has('observacion')) {
@@ -15297,11 +15317,15 @@ Route::put('v1/contingencias/{id}', function($id, Request $request) {
 
         $updateData = [
             'fecha' => $request->fecha,
-            'observacion' => $request->observacion,
-            'updated_at' => now()
+            'observacion' => $request->observacion
         ];
+        
+        // Agregar equipo_id si viene en el request
+        if ($request->has('equipo_id')) {
+            $updateData['equipo_id'] = $request->equipo_id;
+        }
 
-        // Handle file upload if provided
+        // Handle file upload if provided (field is 'file' in this route)
         if ($request->hasFile('file')) {
             $file = $request->file('file');
             $fileName = time() . '_contingencia_' . $file->getClientOriginalName();
@@ -15313,23 +15337,41 @@ Route::put('v1/contingencias/{id}', function($id, Request $request) {
             ->where('id', $id)
             ->update($updateData);
 
-        if ($updated) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Contingencia actualizada exitosamente'
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contingencia no encontrada'
-            ], 404);
-        }
+        // Always return success if request was valid, even if no rows changed
+        return response()->json([
+            'success' => true,
+            'message' => 'Contingencia actualizada exitosamente'
+        ]);
+        
     } catch (\Exception $e) {
         \Log::error('Error updating contingencia: ' . $e->getMessage());
         return response()->json([
             'success' => false,
             'message' => 'Error al actualizar contingencia',
             'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Delete contingencia (POST method used by frontend)
+Route::post('v1/contingencias/{id}/delete', function($id) {
+    try {
+        $deleted = DB::table('contingencias')->where('id', $id)->delete();
+        if ($deleted) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Contingencia eliminada exitosamente'
+            ]);
+        }
+        return response()->json([
+            'success' => false,
+            'message' => 'Contingencia no encontrada o ya eliminada'
+        ], 404);
+    } catch (\Exception $e) {
+        \Log::error('Error deleting contingencia: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al eliminar contingencia: ' . $e->getMessage()
         ], 500);
     }
 });

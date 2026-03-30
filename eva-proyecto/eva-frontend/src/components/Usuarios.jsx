@@ -55,8 +55,29 @@ import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/ui/searchable-select";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 
 export default function Usuarios() {
+  // Helper to get initials
+  const getInitials = (nombre, apellido) => {
+    const n = nombre ? nombre.charAt(0) : "";
+    const a = apellido ? apellido.charAt(0) : "";
+    return (n + a).toUpperCase();
+  };
+
+  // Helper for initials background colors
+  const getInitialsColor = (id) => {
+    const colors = [
+      "bg-blue-100 text-blue-600",
+      "bg-purple-100 text-purple-600",
+      "bg-orange-100 text-orange-600",
+      "bg-green-100 text-green-600",
+      "bg-pink-100 text-pink-600",
+      "bg-indigo-100 text-indigo-600",
+    ];
+    return colors[id % colors.length];
+  };
+
   // Hooks para datos reales
   const {
     usuarios,
@@ -215,6 +236,21 @@ export default function Usuarios() {
     setSearchTerm(e.target.value);
   };
 
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    
+    const timeout = setTimeout(() => {
+      // Solo disparar si el término cambió realmente o si está vacío (reset)
+      fetchUsuarios(1, pagination.per_page, searchTerm.trim(), usersSortField, usersSortDirection);
+    }, 500);
+    
+    setSearchTimeout(timeout);
+    
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
   const triggerSearch = () => {
     fetchUsuarios(1, pagination.per_page, searchTerm.trim(), usersSortField, usersSortDirection);
   };
@@ -371,11 +407,11 @@ export default function Usuarios() {
 
   const getRelationsSortIcon = (field) => {
     if (relationsSortField !== field) {
-      return <ArrowUpDown className="h-4 w-4" />;
+      return <ArrowUpDown className="ml-2 h-4 w-4 text-slate-400" />;
     }
     return relationsSortDirection === 'asc' ? 
-      <ArrowUp className="h-4 w-4" /> : 
-      <ArrowDown className="h-4 w-4" />;
+      <ArrowUp className="ml-2 h-4 w-4 text-blue-600" /> : 
+      <ArrowDown className="ml-2 h-4 w-4 text-blue-600" />;
   };
   
   const fetchAvailableUsers = async () => {
@@ -1346,34 +1382,51 @@ export default function Usuarios() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Page Header */}
-        <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-lg p-6 text-white">
-          <h1 className="text-2xl font-bold">Usuarios</h1>
-          <p className="text-slate-200 mt-1">Gestión de usuarios del sistema</p>
-        </div>
-
-        {/* Main Users Section */}
-        <Card className="shadow-sm border-0">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-semibold text-gray-900">
-                  Usuarios
-                </CardTitle>
-              </div>
-              <div className="flex gap-2">
-                <Dialog
-                  open={isAddUserModalOpen}
-                  onOpenChange={setIsAddUserModalOpen}
+    <div className="bg-[#f8fafc] min-h-screen antialiased">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Page Header Section - New Design */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-8">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-blue-600 font-bold tracking-tight text-xs uppercase">EVA ADMIN PRO</span>
+            </div>
+            <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">Directorio de Usuarios</h2>
+            <p className="text-slate-500 text-base max-w-xl leading-relaxed">
+              Gestione el acceso, los roles y los permisos de identidad de la empresa desde un panel de control centralizado.
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            {/* Animated Search Bar - Premium Design */}
+            <div className="relative group w-full sm:w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+              <Input
+                type="text"
+                placeholder="Buscar por nombre o ID..."
+                value={searchTerm}
+                onChange={handleSearch}
+                onKeyDown={(e) => e.key === 'Enter' && triggerSearch()}
+                className="pl-11 pr-10 h-12 bg-white border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all shadow-sm group-hover:shadow-md"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 hover:bg-slate-100 rounded-full p-1"
                 >
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                      <Plus className="h-4 w-4" />
-                      Nuevo usuario
-                    </Button>
-                  </DialogTrigger>
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2 px-6 h-12 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 hover:shadow-blue-200 transition-all active:scale-95 border-none">
+                  <Plus className="w-5 h-5 font-black" />
+                  <span className="hidden sm:inline">Nuevo Usuario</span>
+                  <span className="sm:hidden">Nuevo</span>
+                </Button>
+              </DialogTrigger>
+              {/* Modal content remains the same to keep logic */}
 
                   <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
@@ -1599,305 +1652,279 @@ export default function Usuarios() {
                 </DialogContent>
               </Dialog>
 
-                {selectedUsers.length > 0 && (
-                  <>
-                    <Button
-                      onClick={handleBulkActivate}
-                      variant="outline"
-                      className="border-green-300 text-green-700 hover:bg-green-50"
-                    >
-                      Activar ({selectedUsers.length})
-                    </Button>
-                    <Button
-                      onClick={handleBulkDeactivate}
-                      variant="outline"
-                      className="border-red-300 text-red-700 hover:bg-red-50"
-                    >
-                      Desactivar ({selectedUsers.length})
-                    </Button>
-                  </>
-                )}
-              </div>
-
-            {/* Search and Pagination Controls - Reorganized */}
-            <div className="mt-4 space-y-4">
-              {/* Primera fila: Búsqueda principal */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="relative flex-1 max-w-md">
-                    <Input
-                      placeholder="Buscar por nombre, email, username, teléfono, rol..."
-                      value={searchTerm}
-                      onChange={handleSearch}
-                      onKeyDown={(e) => e.key === 'Enter' && triggerSearch()}
-                      className="w-full pr-8"
-                    />
-                    {searchTerm && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearSearch}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
-                        title="Limpiar búsqueda"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                  <Button
-                    onClick={triggerSearch}
-                    className="bg-blue-600 hover:bg-blue-700 text-white gap-2 h-10 px-4"
-                  >
-                    <Search className="h-4 w-4" />
-                    <span>Buscar</span>
-                  </Button>
-                </div>
-                
-                {/* Botón actualizar */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchUsuarios(pagination.current_page, pagination.per_page, searchTerm, usersSortField, usersSortDirection)}
-                  className="flex-shrink-0"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Actualizar
-                </Button>
-              </div>
-
-              {/* Segunda fila: Controles de paginación */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-gray-50 p-3 rounded-lg">
-                {/* Registros por página */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-gray-600">Mostrar</span>
-                  <Select
-                    value={pagination.per_page.toString()}
-                    onValueChange={handlePageSizeChange}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-gray-600">registros por página</span>
-                </div>
-
-                {/* Ir a página específica */}
-                {pagination.last_page > 1 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-gray-600">Ir a página:</span>
-                    <form onSubmit={handleGoToPage} className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        min="1"
-                        max={pagination.last_page}
-                        value={goToPage}
-                        onChange={(e) => setGoToPage(e.target.value)}
-                        placeholder="1"
-                        className="w-16 h-8 text-center"
-                      />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3"
-                        disabled={!goToPage || parseInt(goToPage) < 1 || parseInt(goToPage) > pagination.last_page}
-                      >
-                        Ir
-                      </Button>
-                    </form>
-                    <span className="text-xs text-gray-500">
-                      de {pagination.last_page} páginas
+            {/* Stats Card - Following Image 2 Design */}
+            <div className="hidden sm:flex bg-blue-600 rounded-3xl p-6 text-white min-w-[280px] relative overflow-hidden shadow-xl shadow-blue-200">
+               <div className="relative z-10 flex flex-col justify-between h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="bg-blue-500/50 p-2 rounded-xl">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <span className="bg-blue-400/30 text-[10px] uppercase font-bold px-2 py-1 rounded-full border border-blue-400/20">
+                      En Vivo
                     </span>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <p className="text-blue-100 text-xs font-semibold mb-1">Usuarios Activos</p>
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-3xl font-black">{usuariosLoading && !usuarios.length ? '...' : (pagination.total?.toLocaleString() || '0')}</h3>
+                      <span className="text-blue-200 text-xs font-bold">{pagination.total > 0 ? '+Real' : ''}</span>
+                    </div>
+                  </div>
+               </div>
+               {/* Decorative background circle */}
+               <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500 rounded-full opacity-20 blur-2xl"></div>
             </div>
-          </div>
-          </CardHeader>
 
-          <CardContent>
-            {/* Error State */}
+            {selectedUsers.length > 0 && (
+              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-white shadow-2xl rounded-2xl p-4 border border-slate-200 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-4">
+                <span className="text-sm font-bold text-slate-700 px-2">{selectedUsers.length} seleccionados</span>
+                <div className="h-6 w-px bg-slate-200"></div>
+                <Button
+                  onClick={handleBulkActivate}
+                  variant="outline"
+                  className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 rounded-xl"
+                >
+                  Activar
+                </Button>
+                <Button
+                  onClick={handleBulkDeactivate}
+                  variant="outline"
+                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100 rounded-xl"
+                >
+                  Desactivar
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Search bar removed from this area as requested "sin el input de filtro obviamente" */}
+
+          <Card className="border-none shadow-none bg-transparent">
+          <CardContent className="p-0">
+            {/* Table State Handling */}
             {usuariosError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-red-800">Error: {usuariosError}</p>
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                <XCircle className="text-red-500 w-5 h-5" />
+                <p className="text-red-800 text-sm font-medium">Error: {usuariosError}</p>
               </div>
             )}
 
-            {/* Users Table */}
-            {!usuariosLoading && !usuariosError && (
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <Table>
-                  <TableHeader className="bg-gray-50">
-                    <TableRow>
-                      <TableHead className="font-semibold text-gray-900 w-12">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+                {/* Skeleton Overlay while refreshing */}
+                {usuariosLoading && usuarios.length > 0 && (
+                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
+                    <div className="h-full bg-blue-600 animate-progress origin-left"></div>
+                  </div>
+                )}
+
+                <Table className={`${usuariosLoading && usuarios.length > 0 ? "opacity-40 transition-opacity duration-300" : "transition-opacity duration-300"}`}>
+                  <TableHeader className="bg-white border-b border-slate-100">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-12 py-5 px-6">
                         <Checkbox
                           checked={selectedUsers.length === usuarios.length && usuarios.length > 0}
                           onCheckedChange={handleSelectAllUsers}
+                          className="rounded-md border-slate-300 data-[state=checked]:bg-blue-600"
                         />
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
+                      <TableHead className="py-3 px-4">
                         <button
                           onClick={() => handleUsersSort('id')}
-                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                         >
                           ID
-                          {getUsersSortIcon('id')}
+                          <span className={usersSortField === 'id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                            {getUsersSortIcon('id')}
+                          </span>
                         </button>
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
+                      <TableHead className="py-3 px-4">
                         <button
                           onClick={() => handleUsersSort('nombre')}
-                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                         >
-                          Nombre y Apellidos
-                          {getUsersSortIcon('nombre')}
+                          NOMBRE Y APELLIDOS
+                          <span className={usersSortField === 'nombre' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                            {getUsersSortIcon('nombre')}
+                          </span>
                         </button>
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
+                      <TableHead className="py-3 px-4">
                         <button
                           onClick={() => handleUsersSort('centro_id')}
-                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                         >
-                          Centro de Costo
-                          {getUsersSortIcon('centro_id')}
+                          CENTRO DE COSTO
+                          <span className={usersSortField === 'centro_id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                            {getUsersSortIcon('centro_id')}
+                          </span>
                         </button>
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
+                      <TableHead className="py-3 px-4">
                         <button
                           onClick={() => handleUsersSort('username')}
-                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                         >
-                          Login
-                          {getUsersSortIcon('username')}
+                          LOGIN
+                          <span className={usersSortField === 'username' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                            {getUsersSortIcon('username')}
+                          </span>
                         </button>
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900">
+                      <TableHead className="py-3 px-4">
                         <button
                           onClick={() => handleUsersSort('rol_id')}
-                          className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                          className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                         >
-                          Rol
-                          {getUsersSortIcon('rol_id')}
+                          ROL
+                          <span className={usersSortField === 'rol_id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                            {getUsersSortIcon('rol_id')}
+                          </span>
                         </button>
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        <button
-                          onClick={() => handleUsersSort('active')}
-                          className="flex items-center gap-1 hover:text-blue-600 transition-colors mx-auto"
-                        >
-                          Estado
-                          {getUsersSortIcon('active')}
-                        </button>
+                      <TableHead className="font-bold text-[11px] uppercase tracking-wider text-slate-400 py-5 text-center">
+                        ESTADO
                       </TableHead>
-                      <TableHead className="font-semibold text-gray-900 text-center">
-                        Acciones
+                      <TableHead className="font-bold text-[11px] uppercase tracking-wider text-slate-400 py-5 text-center">
+                        ACCIONES
                       </TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {usuarios.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={8}
-                          className="text-center py-8 text-gray-500"
-                        >
-                          No se encontraron usuarios
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      usuarios.map((user) => (
-                        <TableRow key={user.id} className="hover:bg-gray-50">
-                          <TableCell>
+                    <TableBody>
+                      {usuariosLoading && usuarios.length === 0 ? (
+                        // Skeleton rows while initial loading
+                        Array.from({ length: 8 }).map((_, i) => (
+                          <TableRow key={i} className="animate-pulse">
+                            <TableCell className="px-6 py-5">
+                              <Skeleton className="h-4 w-4 rounded" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-4 w-12" />
+                            </TableCell>
+                            <TableCell className="py-5">
+                              <div className="flex items-center gap-3">
+                                <Skeleton className="w-10 h-10 rounded-full" />
+                                <div className="space-y-2">
+                                  <Skeleton className="h-4 w-32" />
+                                  <Skeleton className="h-3 w-48" />
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-4 w-24" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-4 w-16" />
+                            </TableCell>
+                            <TableCell>
+                              <Skeleton className="h-6 w-20 rounded-md" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col items-center gap-1.5">
+                                <Skeleton className="h-6 w-10 rounded-full" />
+                                <Skeleton className="h-3 w-10" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-center gap-2">
+                                <Skeleton className="w-9 h-9 rounded-xl" />
+                                <Skeleton className="w-9 h-9 rounded-xl" />
+                                <Skeleton className="w-9 h-9 rounded-xl" />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : usuarios.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={8}
+                            className="text-center py-20 text-slate-400 bg-slate-50/30"
+                          >
+                             <div className="flex flex-col items-center gap-3">
+                               <Users className="w-10 h-10 opacity-20" />
+                               <p className="font-medium">No se encontraron usuarios</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        usuarios.map((user) => (
+                        <TableRow key={user.id} className="group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0">
+                          <TableCell className="px-6 py-5">
                             <Checkbox
                               checked={selectedUsers.includes(user.id)}
                               onCheckedChange={(checked) => handleSelectUser(user.id, checked)}
+                              className="rounded-md border-slate-300 data-[state=checked]:bg-blue-600"
                             />
                           </TableCell>
-                          <TableCell className="text-gray-600">
+                          <TableCell className="font-bold text-slate-700 text-xs px-6">
                             {user.id}
                           </TableCell>
-                          <TableCell className="font-medium text-gray-900">
-                            {user.nombre} {user.apellido}
+                          <TableCell className="py-5">
+                            <div className="flex items-center gap-3">
+                              {/* Circle with initials like in image 1 */}
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${getInitialsColor(user.id)}`}>
+                                {getInitials(user.nombre, user.apellido)}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-slate-800 text-sm">{user.nombre} {user.apellido}</span>
+                                <span className="text-[11px] text-slate-400 font-medium">{user.email}</span>
+                              </div>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-gray-600">
+                          <TableCell className="text-slate-600 font-semibold text-xs">
                             {user.centro?.name || user.centro || "Sin asignar"}
                           </TableCell>
-                          <TableCell className="text-gray-600">
-                            {user.username}
+                          <TableCell>
+                            <span className="bg-slate-100 text-slate-500 font-bold text-[10px] px-2.5 py-1 rounded-md tracking-tight">
+                              {user.username}
+                            </span>
                           </TableCell>
                           <TableCell>
-                            <Badge className={getRoleColor(user.rol)}>
-                              {typeof user.rol === "object"
-                                ? user.rol.nombre
-                                : user.rol || "Sin rol"}
-                            </Badge>
+                            <span className="bg-blue-50 text-blue-600 font-extrabold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
+                              {typeof user.rol === "object" ? user.rol.nombre : user.rol || "Sin rol"}
+                            </span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Badge
-                                className={
-                                  user.active === 'true' || user.active === true
-                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                    : "bg-red-100 text-red-800 hover:bg-red-200"
-                                }
-                              >
+                            <div className="flex flex-col items-center justify-center gap-1.5">
+                              <Switch
+                                checked={user.active === 'true' || user.active === true}
+                                onCheckedChange={() => handleToggleUserActivation(user)}
+                                className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-200"
+                              />
+                              <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                                user.active === 'true' || user.active === true ? "text-green-600" : "text-slate-400"
+                              }`}>
                                 {user.active === 'true' || user.active === true ? "Activo" : "Inactivo"}
-                              </Badge>
-                              {user.rol_id === 1 ? null : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleToggleUserActivation(user)}
-                                  className={`w-8 h-8 p-0 rounded-lg transition-all duration-200 hover:shadow-md ${
-                                    user.active === 'true' || user.active === true
-                                      ? "bg-red-500 hover:bg-red-600"
-                                      : "bg-green-500 hover:bg-green-600"
-                                  }`}
-                                  title={
-                                    user.active === 'true' || user.active === true
-                                      ? "Desactivar usuario"
-                                      : "Activar usuario"
-                                  }
-                                >
-                                  {user.active === 'true' || user.active === true ? (
-                                    <Power className="h-4 w-4" />
-                                  ) : (
-                                    <CheckCircle className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              )}
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleEditUser(user)}
-                                className="w-8 h-8 p-0 bg-orange-500 hover:bg-orange-600 rounded-lg transition-all duration-200 hover:shadow-md"
-                                title="Editar usuario"
-                              >
-                                <Pencil className="h-4 w-4 text-white" />
-                              </Button>
+                              {/* Soft action buttons like in Image 1 */}
                               <Button
                                 size="sm"
                                 onClick={() => handleViewUser(user)}
-                                className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg transition-all duration-200 hover:shadow-md"
-                                title="Examinar usuario"
+                                className="w-9 h-9 p-0 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all shadow-none border-none"
+                                title="Ver detalles"
                               >
-                                <Eye className="h-4 w-4 text-white" />
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                                className="w-9 h-9 p-0 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-xl transition-all shadow-none border-none"
+                                title="Editar usuario"
+                              >
+                                <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
                                 onClick={() => handleDeleteUser(user)}
-                                className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-lg transition-all duration-200 hover:shadow-md"
+                                className="w-9 h-9 p-0 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all shadow-none border-none"
                                 title="Eliminar usuario"
                               >
-                                <Trash2 className="h-4 w-4 text-white" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -1907,7 +1934,6 @@ export default function Usuarios() {
                   </TableBody>
                 </Table>
               </div>
-            )}
 
             {/* Enhanced Pagination */}
             {!usuariosLoading && !usuariosError && usuarios.length > 0 && (
@@ -2067,20 +2093,20 @@ export default function Usuarios() {
 
           <CardContent>
             {/* Modules Table */}
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
               <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-900">
+                <TableHeader className="bg-white border-b border-slate-100">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400">
                       ID
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400">
                       Módulo
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400">
                       Usuarios con Acceso
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400 text-center">
                       Acciones
                     </TableHead>
                   </TableRow>
@@ -2090,7 +2116,7 @@ export default function Usuarios() {
                     <TableRow>
                       <TableCell
                         colSpan={4}
-                        className="text-center py-8 text-gray-500"
+                        className="text-center py-8 text-slate-500 font-medium text-sm"
                       >
                         No se encontraron módulos
                       </TableCell>
@@ -2102,29 +2128,29 @@ export default function Usuarios() {
                         ? moduleStats.find((s) => s && s.id === modulo.id) || {}
                         : {};
                       return (
-                        <TableRow key={modulo.id} className="hover:bg-gray-50">
-                          <TableCell className="text-gray-600">
+                        <TableRow key={modulo.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                          <TableCell className="font-bold text-slate-700 text-xs px-6 py-4">
                             {modulo.id}
                           </TableCell>
-                          <TableCell className="font-medium text-gray-900">
+                          <TableCell className="font-bold text-slate-900 text-xs px-6 py-4">
                             {modulo.name}
                           </TableCell>
-                          <TableCell className="text-gray-600">
-                            {(stats && typeof stats.usuarios_con_acceso === 'number')
-                              ? stats.usuarios_con_acceso
-                              : 0} usuarios
+                          <TableCell className="text-slate-500 font-medium text-xs px-6 py-4">
+                            <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider">
+                              {(stats && typeof stats.usuarios_con_acceso === 'number') ? stats.usuarios_con_acceso : 0} USUARIOS
+                            </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-6 py-4">
                             <div className="flex items-center justify-center gap-2">
                               <Button
                                 size="sm"
                                 onClick={() =>
                                   resetModulePermissions(modulo.id)
                                 }
-                                className="w-auto h-8 px-3 bg-yellow-500 hover:bg-yellow-600 rounded-lg transition-all duration-200 hover:shadow-md"
+                                className="w-auto h-8 px-3 bg-amber-500 hover:bg-amber-600 rounded-lg transition-all duration-200 shadow hover:shadow-md text-white border-none"
                                 title="Restablecer permisos del módulo"
                               >
-                                <RotateCcw className="h-4 w-4 mr-1" />
+                                <RotateCcw className="h-4 w-4 mr-1.5" />
                                 Restablecer
                               </Button>
                             </div>
@@ -2321,38 +2347,44 @@ export default function Usuarios() {
           </CardHeader>
 
           <CardContent>
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
               <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-900">
+                <TableHeader className="bg-white border-b border-slate-100">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="py-3 px-4">
                       <button
                         onClick={() => handleRelationsSort('zona')}
-                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                       >
-                        nombre de la zona
-                        {getRelationsSortIcon('zona')}
+                        NOMBRE DE LA ZONA
+                        <span className={relationsSortField === 'zona' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getRelationsSortIcon('zona')}
+                        </span>
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
+                    <TableHead className="py-3 px-4">
                       <button
                         onClick={() => handleRelationsSort('usuario')}
-                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                       >
-                        nombre del usuario
-                        {getRelationsSortIcon('usuario')}
+                        NOMBRE DEL USUARIO
+                        <span className={relationsSortField === 'usuario' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getRelationsSortIcon('usuario')}
+                        </span>
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
+                    <TableHead className="py-3 px-4">
                       <button
                         onClick={() => handleRelationsSort('email')}
-                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                       >
-                        correo electrónico
-                        {getRelationsSortIcon('email')}
+                        CORREO ELECTRÓNICO
+                        <span className={relationsSortField === 'email' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getRelationsSortIcon('email')}
+                        </span>
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400 text-center">
                       Acciones
                     </TableHead>
                   </TableRow>
@@ -2361,9 +2393,9 @@ export default function Usuarios() {
                   {loadingRelations ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8">
-                        <div className="space-y-2">
+                        <div className="space-y-2 px-6">
                           {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-8 bg-gray-100 rounded animate-pulse"></div>
+                            <div key={i} className="h-8 bg-slate-100 rounded animate-pulse"></div>
                           ))}
                         </div>
                       </TableCell>
@@ -2371,7 +2403,7 @@ export default function Usuarios() {
                   ) : zoneRelationsData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8">
-                        <div className="text-gray-500">
+                        <div className="text-slate-500">
                           <p className="text-lg font-medium">No hay relaciones configuradas</p>
                           <p className="text-sm">Agregue una nueva relación usando el botón "Agregar Nueva relación"</p>
                         </div>
@@ -2379,33 +2411,33 @@ export default function Usuarios() {
                     </TableRow>
                   ) : (
                     zoneRelationsData.map((relation) => (
-                      <TableRow key={relation.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium text-gray-900">
+                      <TableRow key={relation.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                        <TableCell className="font-bold text-slate-900 text-xs px-6 py-4">
                           {relation.nombre_zona || 'N/A'}
                         </TableCell>
-                        <TableCell className="text-gray-600">
+                        <TableCell className="text-slate-600 font-medium text-xs px-6 py-4">
                           {relation.nombre_usuario || 'N/A'}
                         </TableCell>
-                        <TableCell className="text-gray-600">
+                        <TableCell className="text-slate-500 font-medium text-xs px-6 py-4">
                           {relation.correo_electronico || 'N/A'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <Button
                               size="sm"
                               onClick={() => handleEditRelationClick(relation)}
-                              className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg"
+                              className="w-8 h-8 p-0 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors border-none shadow-none"
                               title="Editar relación"
                             >
-                              <Pencil className="h-4 w-4 text-white" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
                               onClick={() => deleteRelationDirect(relation.id)}
-                              className="w-8 h-8 p-0 bg-red-500 hover:bg-red-600 rounded-lg"
+                              className="w-8 h-8 p-0 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors border-none shadow-none"
                               title="Eliminar relación"
                             >
-                              <X className="h-4 w-4 text-white" />
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -2429,29 +2461,33 @@ export default function Usuarios() {
           </CardHeader>
 
           <CardContent>
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
               <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-900">
+                <TableHeader className="bg-white border-b border-slate-100">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="py-3 px-4">
                       <button
                         onClick={() => handleZonasSort('id')}
-                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                       >
                         ID
-                        {getZonasSortIcon('id')}
+                        <span className={zonasSortField === 'id' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getZonasSortIcon('id')}
+                        </span>
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
+                    <TableHead className="py-3 px-4">
                       <button
                         onClick={() => handleZonasSort('name')}
-                        className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors group outline-none w-full"
                       >
-                        Nombre de la Zona
-                        {getZonasSortIcon('name')}
+                        NOMBRE DE LA ZONA
+                        <span className={zonasSortField === 'name' ? "text-blue-600" : "text-slate-400 group-hover:text-slate-500 transition-colors"}>
+                          {getZonasSortIcon('name')}
+                        </span>
                       </button>
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400 text-center">
                       Acciones
                     </TableHead>
                   </TableRow>
@@ -2460,9 +2496,9 @@ export default function Usuarios() {
                   {loadingZonas ? (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center py-8">
-                        <div className="space-y-2">
+                        <div className="space-y-2 px-6">
                           {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-8 bg-gray-100 rounded animate-pulse"></div>
+                            <div key={i} className="h-8 bg-slate-100 rounded animate-pulse"></div>
                           ))}
                         </div>
                       </TableCell>
@@ -2470,29 +2506,29 @@ export default function Usuarios() {
                   ) : zonasData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center py-8">
-                        <div className="text-gray-500">
+                        <div className="text-slate-500">
                           <p className="text-lg font-medium">No hay zonas configuradas</p>
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
                     zonasData.map((zona) => (
-                      <TableRow key={zona.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium text-gray-900">
+                      <TableRow key={zona.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                        <TableCell className="font-bold text-slate-700 text-xs px-6 py-4">
                           {zona.id}
                         </TableCell>
-                        <TableCell className="text-gray-600">
+                        <TableCell className="font-bold text-slate-900 text-xs px-6 py-4">
                           {zona.name}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
                             <Button
                               size="sm"
                               onClick={() => handleEditZonaClick(zona)}
-                              className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-lg"
+                              className="w-8 h-8 p-0 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors border-none shadow-none"
                               title="Editar zona"
                             >
-                              <Pencil className="h-4 w-4 text-white" />
+                              <Pencil className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -2571,27 +2607,27 @@ export default function Usuarios() {
           </CardHeader>
 
           <CardContent>
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
               <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-900 w-1/3">
+                <TableHeader className="bg-white border-b border-slate-100">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400 w-1/3 border-r border-slate-100">
                       Empresa
                     </TableHead>
-                    <TableHead className="font-semibold text-gray-900">
+                    <TableHead className="py-3 px-6 font-bold text-[11px] uppercase tracking-wider text-slate-400">
                       Usuarios pertenecientes
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {companyUsersData.map((company, index) => (
-                    <TableRow key={index} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900 border-r border-gray-200">
+                    <TableRow key={index} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                      <TableCell className="font-bold text-slate-900 text-xs px-6 py-4 border-r border-slate-100">
                         {company.empresa}
                       </TableCell>
-                      <TableCell className="text-gray-600">
+                      <TableCell className="text-slate-600 font-medium text-xs px-6 py-4">
                         {company.usuarios || (
-                          <span className="text-gray-400 italic">
+                          <span className="text-slate-400 italic">
                             Sin usuarios asignados
                           </span>
                         )}
@@ -2855,15 +2891,15 @@ export default function Usuarios() {
                           </AccordionTrigger>
                           <AccordionContent className="p-0">
                             <div className="overflow-x-auto">
-                              <Table>
-                                <TableHeader className="bg-gray-50/50">
+                              <Table className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                                <TableHeader className="bg-slate-50 border-b border-slate-200">
                                   <TableRow>
-                                    <TableHead className="w-[200px] text-xs uppercase font-bold text-gray-500">Página / Módulo</TableHead>
-                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Leer</TableHead>
-                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Crear</TableHead>
-                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Editar</TableHead>
-                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Eliminar</TableHead>
-                                    <TableHead className="text-center text-xs uppercase font-bold text-gray-500">Acciones</TableHead>
+                                    <TableHead className="w-[200px] text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Página / Módulo</TableHead>
+                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Leer</TableHead>
+                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Crear</TableHead>
+                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Editar</TableHead>
+                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Eliminar</TableHead>
+                                    <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Acciones</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -2958,15 +2994,15 @@ export default function Usuarios() {
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="p-0">
-                          <Table>
-                            <TableHeader className="bg-gray-50/50">
+                          <Table className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                            <TableHeader className="bg-slate-50 border-b border-slate-200">
                               <TableRow>
-                                <TableHead>Módulo</TableHead>
-                                <TableHead className="text-center">Leer</TableHead>
-                                <TableHead className="text-center">Crear</TableHead>
-                                <TableHead className="text-center">Editar</TableHead>
-                                <TableHead className="text-center">Eliminar</TableHead>
-                                <TableHead className="text-center">Acciones</TableHead>
+                                <TableHead className="text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Módulo</TableHead>
+                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Leer</TableHead>
+                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Crear</TableHead>
+                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Editar</TableHead>
+                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Eliminar</TableHead>
+                                <TableHead className="text-center text-[10px] uppercase tracking-wider font-bold text-slate-500 py-3">Acciones</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -3193,7 +3229,7 @@ export default function Usuarios() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
+      </main>
     </div>
   );
 }

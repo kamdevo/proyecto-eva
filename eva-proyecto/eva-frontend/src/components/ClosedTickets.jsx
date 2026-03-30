@@ -254,8 +254,17 @@ export default function ClosedTickets() {
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-gray-400" />
               <div>
-                <p className="text-gray-500 text-xs">Fecha</p>
-                <p className="font-medium text-gray-700">{ticket.fecha_creacion}</p>
+                <p className="text-gray-500 text-xs">Fecha Creación</p>
+                <p className="font-bold text-blue-600">
+                  {ticket.fecha_creacion
+                    ? new Date(ticket.fecha_creacion).toLocaleDateString('es-CO')
+                    : 'N/A'}
+                </p>
+                <p className="font-bold text-blue-600">
+                  {ticket.fecha_creacion
+                    ? new Date(ticket.fecha_creacion).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+                    : ''}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -555,8 +564,16 @@ export default function ClosedTickets() {
                         <td className="px-2 py-3 align-top">
                           {getStatusBadge(ticket.estado, ticket.estado_color)}
                         </td>
-                        <td className="px-2 py-3 align-top text-xs text-gray-600">
-                          {ticket.fecha_fin ? new Date(ticket.fecha_fin).toLocaleDateString('es-CO') : 'N/A'}
+                        <td className="px-2 py-3 align-top text-xs">
+                          {ticket.fecha_fin ? (
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                                <span className="font-bold text-blue-600">{new Date(ticket.fecha_fin).toLocaleDateString('es-CO')}</span>
+                              </div>
+                              <div className="ml-4 font-bold text-blue-600">{new Date(ticket.fecha_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          ) : <span className="text-gray-500">N/A</span>}
                         </td>
                         <td className="px-2 py-3">
                           <div className="flex items-center justify-center">

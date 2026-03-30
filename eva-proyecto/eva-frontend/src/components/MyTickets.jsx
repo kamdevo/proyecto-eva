@@ -533,8 +533,11 @@ export default function MyTickets() {
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1 text-xs text-gray-600">
                           <Calendar className="h-3 w-3 text-gray-400" />
-                          <span className="font-medium">Creado:</span>
-                          {new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}
+                          <div>
+                            <span className="font-bold text-blue-600">Creado:</span>{' '}
+                            <span className="font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}</span>
+                            <div className="font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+                          </div>
                         </div>
                         <div className="flex items-center justify-center gap-1 mt-2">
                           <div className="flex flex-col items-center min-h-[4rem] justify-start">
@@ -697,8 +700,11 @@ export default function MyTickets() {
                           </td>
                           <td className="px-3 py-4 align-top">
                             <div className="text-xs text-gray-700">
-                              <Calendar className="h-3 w-3 inline mr-1 text-gray-400" />
-                              {new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                                <span className="font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}</span>
+                              </div>
+                              <div className="ml-4 font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
                             </div>
                           </td>
                           <td className="px-2 py-4 bg-orange-25">

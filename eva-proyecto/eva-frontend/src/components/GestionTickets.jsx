@@ -342,9 +342,10 @@ export default function GestionTickets() {
         </div>
 
         <div className="flex flex-wrap gap-1">
-          <span className="text-xs text-gray-500">
+          <span className="text-xs  text-blue-600 font-bold">
             <Calendar className="h-3 w-3 inline mr-1" />
             {new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}
+            <span className="block ml-4 font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>
           </span>
         </div>
       </CardContent>
@@ -364,12 +365,12 @@ export default function GestionTickets() {
               Administre y supervise todos los tickets del sistema
             </p>
           </div>
-          <Button 
-            onClick={handleExportIndustrialStats} 
+          <Button
+            onClick={handleExportIndustrialStats}
             className="bg-green-600 hover:bg-green-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm sm:w-auto w-full transition-colors"
           >
-             <Download className="h-4 w-4" /> 
-             <span>Exportar Consolidado Tickets Industriales</span>
+            <Download className="h-4 w-4" />
+            <span>Exportar Consolidado Tickets Industriales</span>
           </Button>
         </div>
 
@@ -472,9 +473,9 @@ export default function GestionTickets() {
 
         {/* Items per Page Select */}
         <div className="flex justify-start mt-4 px-1">
-          <ItemsPerPage 
-            value={itemsPerPage} 
-            onChange={setItemsPerPage} 
+          <ItemsPerPage
+            value={itemsPerPage}
+            onChange={setItemsPerPage}
             disabled={loading}
           />
         </div>
@@ -584,7 +585,7 @@ export default function GestionTickets() {
                       <div className="space-y-1">
                         <div className="text-xs font-bold text-gray-900 truncate">#{ticket.id}</div>
                         <div className="text-xs text-blue-600 font-medium truncate">{ticket.origen}</div>
-                        <div className="text-xs text-gray-500">{new Date(ticket.fecha_inicio).toLocaleDateString('es-CO')}</div>
+                        <div className="text-xs text-blue-600 font-bold">{new Date(ticket.fecha_inicio).toLocaleDateString('es-CO')}</div>
                       </div>
                     </td>
                     <td className="px-3 py-4 align-top">
@@ -641,8 +642,11 @@ export default function GestionTickets() {
                     </td>
                     <td className="px-2 py-3 align-top">
                       <div className="text-xs text-gray-700">
-                        <Calendar className="h-3 w-3 inline mr-1 text-gray-400" />
-                        {new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                          <span className="font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleDateString('es-CO')}</span>
+                        </div>
+                        <div className="ml-4 font-bold text-blue-600">{new Date(ticket.created_at || ticket.fecha_inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
                       </div>
                     </td>
                     <td className="px-2 py-3">
