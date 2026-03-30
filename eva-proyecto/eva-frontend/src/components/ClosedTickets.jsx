@@ -131,10 +131,11 @@ export default function ClosedTickets() {
       }
 
       if (searchTerm) {
-        if (filterField === 'id' && /^\d+$/.test(searchTerm)) {
-          params.id = searchTerm;
+        const term = searchTerm.trim();
+        if ((filterField === 'id' || filterField === 'all') && /^\d+$/.test(term)) {
+          params.id = term;
         } else {
-          params.search = searchTerm;
+          params.search = term;
           if (filterField !== 'all') {
             params.search_field = filterField;
           }

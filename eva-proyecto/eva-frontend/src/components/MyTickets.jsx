@@ -175,11 +175,12 @@ export default function MyTickets() {
       };
 
       if (searchTerm) {
-        // Si el campo de filtro es 'id' y el término de búsqueda es un número, hacer búsqueda exacta
-        if (filterField === 'id' && /^\d+$/.test(searchTerm)) {
-          params.id = searchTerm; // Búsqueda exacta por ID
+        const term = searchTerm.trim();
+        // Si el campo de filtro es 'id' o 'all' y el término de búsqueda es un número puro, buscar por ID
+        if ((filterField === 'id' || filterField === 'all') && /^\d+$/.test(term)) {
+          params.id = term; // Búsqueda exacta por ID
         } else {
-          params.search = searchTerm;
+          params.search = term;
           if (filterField !== 'all') {
             params.search_field = filterField;
           }
