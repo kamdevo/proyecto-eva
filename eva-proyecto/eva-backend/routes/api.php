@@ -5587,13 +5587,13 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Tickets');
 
-        // Headers
+        // Headers (según requerimiento de imagen + categorías)
         $headers = [
-            'ID', 'Asunto', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 
-            'Estado', 'Prioridad', 'Reportante', 'Email Reportante', 
-            'Asignado', 'Equipo', 'Código Equipo', 'Marca', 'Modelo',
-            'Servicio', 'Área', 'Sede', 'Empresa', 'Origen', 
-            'Diagnóstico', 'Reparación'
+            'Información de Cierre', 'Fecha creación', 'Fecha diagnostico', 'Fecha asignación', 'Fecha de cierre',
+            'Descripcion', 'Asunto', 'Prioridad', 'Marca', 'Codigo', 'Serie', 'Nombre', 'ID Equipo', 'Ubicación',
+            'Nombre del reportante', 'Centro de costo', 'Usuario asignado', 'Usuario que reporta', 'Usuario que cierre',
+            'Fecha solicitud repuesto', 'Fecha recepcion repuesto', 'Marca ingresada', 'Codigo ingresado', 'Serie ingresada', 'Nombre ingresado',
+            'Categoría', 'Subcategoría'
         ];
 
         $col = 'A';
@@ -5614,83 +5614,100 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
             ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
             ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+            ->leftJoin('usuarios as tecnico_cierre', 'ordenes.tecnico_cierre', '=', 'tecnico_cierre.id')
+            ->leftJoin('tipos_mantenimientos as tm_tipo', 'ordenes.tipo_mantenimiento_id', '=', 'tm_tipo.id')
+            ->leftJoin('tipos_mantenimientos as tm_sub', 'ordenes.subcategoria_mantenimiento_id', '=', 'tm_sub.id')
             ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
             ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
             ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
-            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
             ->select([
                 'ordenes.id',
                 'ordenes.asunto',
                 'ordenes.descripcion',
                 'ordenes.fecha_inicio',
                 'ordenes.fecha_fin',
+                'ordenes.fecha_diagnostico',
+                'ordenes.fecha_asignacion',
+                'ordenes.fecha_solicitud_repuesto',
+                'ordenes.fecha_recepcion_repuesto',
                 'ordenes.estado_id',
                 'ordenes.prioridad',
+                'ordenes.reparacion',
+                'ordenes.diagnostico',
+                'ordenes.equipo_id',
+                'ordenes.centro_costo',
+                'ordenes.nombre_reportante',
+                'ordenes.marca_equipo',
+                'ordenes.modelo_equipo',
+                'ordenes.serie_equipo',
+                'ordenes.codigo_equipo',
+                'ordenes.nombre_equipo',
                 'reportante.nombre as reportante_nombre',
                 'reportante.apellido as reportante_apellido',
-                'reportante.email as reportante_email',
                 'asignado.nombre as asignado_nombre',
                 'asignado.apellido as asignado_apellido',
-                'equipos.name as equipo_nombre',
-                'equipos.code as equipo_codigo',
-                'equipos.marca as equipo_marca',
-                'equipos.modelo as equipo_modelo',
-                'servicios.name as servicio_nombre',
-                'areas.name as area_nombre',
-                'sedes.name as sede_nombre',
-                'empresas.name as empresa_nombre',
-                'subprocesos.nombre as origen',
-                'ordenes.diagnostico',
-                'ordenes.reparacion'
+                'tecnico_cierre.nombre as tecnico_cierre_nombre',
+                'tecnico_cierre.apellido as tecnico_cierre_apellido',
+                'ordenes.tecnico_cierre_text',
+                'equipos.name as master_equipo_nombre',
+                'equipos.code as master_equipo_codigo',
+                'equipos.marca as master_equipo_marca',
+                'equipos.serial as master_equipo_serie',
+                'tm_tipo.nombre as categoria_nombre',
+                'tm_sub.nombre as subcategoria_nombre',
+                'servicios.name as servicio_nombre'
             ])
             ->orderBy('ordenes.id', 'desc')
             ->cursor();
 
         foreach ($tickets as $ticket) {
-            // Mapear estado
-            switch($ticket->estado_id) {
-                case 1: $estado = 'Abierto'; break;
-                case 2: $estado = 'Asignado'; break;
-                case 3: $estado = 'Diagnosticado'; break;
-                case 4: $estado = 'Cerrado'; break;
-                case 5: $estado = 'Esperando cierre'; break;
-                default: $estado = 'Desconocido';
-            }
-
-            $reportante = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
-            $asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
+            $reportante_usuario = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
+            $usuario_asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
             
-            $sheet->setCellValue('A' . $row, $ticket->id);
-            $sheet->setCellValue('B' . $row, $ticket->asunto ?? '');
-            $sheet->setCellValue('C' . $row, $ticket->descripcion ?? '');
-            $sheet->setCellValue('D' . $row, $ticket->fecha_inicio ?? '');
+            // Usuario que cierra: Priorizar nombre del usuario unido, luego campo técnico_cierre_text
+            $usuario_cierre = trim(($ticket->tecnico_cierre_nombre ?? '') . ' ' . ($ticket->tecnico_cierre_apellido ?? ''));
+            if (empty($usuario_cierre)) {
+                $usuario_cierre = $ticket->tecnico_cierre_text ?? '';
+            }
+            
+            $sheet->setCellValue('A' . $row, $ticket->reparacion ?? '');
+            $sheet->setCellValue('B' . $row, $ticket->fecha_inicio ?? '');
+            $sheet->setCellValue('C' . $row, $ticket->fecha_diagnostico ?? '');
+            $sheet->setCellValue('D' . $row, $ticket->fecha_asignacion ?? '');
             $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
-            $sheet->setCellValue('F' . $row, $estado);
-            $sheet->setCellValue('G' . $row, $ticket->prioridad ?? '');
-            $sheet->setCellValue('H' . $row, $reportante);
-            $sheet->setCellValue('I' . $row, $ticket->reportante_email ?? '');
-            $sheet->setCellValue('J' . $row, $asignado);
-            $sheet->setCellValue('K' . $row, $ticket->equipo_nombre ?? '');
-            $sheet->setCellValue('L' . $row, $ticket->equipo_codigo ?? '');
-            $sheet->setCellValue('M' . $row, $ticket->equipo_marca ?? '');
-            $sheet->setCellValue('N' . $row, $ticket->equipo_modelo ?? '');
-            $sheet->setCellValue('O' . $row, $ticket->servicio_nombre ?? '');
-            $sheet->setCellValue('P' . $row, $ticket->area_nombre ?? '');
-            $sheet->setCellValue('Q' . $row, $ticket->sede_nombre ?? '');
-            $sheet->setCellValue('R' . $row, $ticket->empresa_nombre ?? '');
-            $sheet->setCellValue('S' . $row, $ticket->origen ?? '');
-            $sheet->setCellValue('T' . $row, $ticket->diagnostico ?? '');
-            $sheet->setCellValue('U' . $row, $ticket->reparacion ?? '');
+            $sheet->setCellValue('F' . $row, $ticket->descripcion ?? '');
+            $sheet->setCellValue('G' . $row, $ticket->asunto ?? '');
+            $sheet->setCellValue('H' . $row, $ticket->prioridad ?? '');
+            $sheet->setCellValue('I' . $row, $ticket->master_equipo_marca ?? '');
+            $sheet->setCellValue('J' . $row, $ticket->master_equipo_codigo ?? '');
+            $sheet->setCellValue('K' . $row, $ticket->master_equipo_serie ?? '');
+            $sheet->setCellValue('L' . $row, $ticket->master_equipo_nombre ?? '');
+            $sheet->setCellValue('M' . $row, $ticket->equipo_id ?? '');
+            $sheet->setCellValue('N' . $row, $ticket->servicio_nombre ?? '');
+            $sheet->setCellValue('O' . $row, $ticket->nombre_reportante ?? '');
+            $sheet->setCellValue('P' . $row, $ticket->centro_costo ?? '');
+            $sheet->setCellValue('Q' . $row, $usuario_asignado);
+            $sheet->setCellValue('R' . $row, $reportante_usuario);
+            $sheet->setCellValue('S' . $row, $usuario_cierre);
+            $sheet->setCellValue('T' . $row, $ticket->fecha_solicitud_repuesto ?? '');
+            $sheet->setCellValue('U' . $row, $ticket->fecha_recepcion_repuesto ?? '');
+            $sheet->setCellValue('V' . $row, $ticket->marca_equipo ?? '');
+            $sheet->setCellValue('W' . $row, $ticket->codigo_equipo ?? '');
+            $sheet->setCellValue('X' . $row, $ticket->serie_equipo ?? '');
+            $sheet->setCellValue('Y' . $row, $ticket->nombre_equipo ?? '');
+            $sheet->setCellValue('Z' . $row, $ticket->categoria_nombre ?? '');
+            $sheet->setCellValue('AA' . $row, $ticket->subcategoria_nombre ?? '');
             $row++;
         }
 
         // NO USAR setAutoSize en producción con muchos datos, consume mucha memoria y tiempo
         $colWidths = [
-            'A' => 10, 'B' => 30, 'C' => 50, 'D' => 20, 'E' => 20,
-            'F' => 15, 'G' => 10, 'H' => 30, 'I' => 30, 'J' => 30,
-            'K' => 30, 'L' => 20, 'M' => 20, 'N' => 20, 'O' => 30,
-            'P' => 30, 'Q' => 20, 'R' => 30, 'S' => 20, 'T' => 50,
-            'U' => 50
+            'A' => 40, 'B' => 20, 'C' => 20, 'D' => 20, 'E' => 20,
+            'F' => 40, 'G' => 30, 'H' => 15, 'I' => 20, 'J' => 20,
+            'K' => 20, 'L' => 30, 'M' => 15, 'N' => 30, 'O' => 30,
+            'P' => 20, 'Q' => 30, 'R' => 30, 'S' => 30, 'T' => 20,
+            'U' => 20, 'V' => 20, 'W' => 20, 'X' => 20, 'Y' => 20,
+            'Z' => 25, 'AA' => 25
         ];
         foreach ($colWidths as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
