@@ -1226,8 +1226,10 @@ class CorrectivoGeneralController extends Controller
                 }
 
                     // Auto-ajustar anchos de columnas
-                    foreach (range('A', \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers))) as $col) {
-                        $sheet->getColumnDimension($col)->setAutoSize(true);
+                    $maxCol = count($headers);
+                    for ($i = 1; $i <= $maxCol; $i++) {
+                        $colStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+                        $sheet->getColumnDimension($colStr)->setAutoSize(true);
                     }
                 }
 
