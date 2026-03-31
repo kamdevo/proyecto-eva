@@ -1,18 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -20,491 +9,376 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Search, Settings, MapPin, Building, Users, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-
-// Importar modales
-import UIModalAgregarServicio from "@/components/modals/ui-modal-agregar-servicio";
-import UIModalEditarServicio from "@/components/modals/ui-modal-editar-servicio";
-import UIModalEliminarServicio from "@/components/modals/ui-modal-eliminar-servicio";
-import UIModalCrearZona from "@/components/modals/ui-modal-crear-zona";
-import UIModalCrearSede from "@/components/modals/ui-modal-crear-sede";
-import UIModalAgregarArea from "@/components/modals/ui-modal-agregar-area";
-import UIModalVerServicio from "@/components/modals/ui-modal-ver-servicio";
+import {
+  Edit, Trash2, Plus, Search, Settings, Eye,
+  ArrowUpDown, ArrowUp, ArrowDown, Loader2, Building2,
+} from "lucide-react";
+import { toast } from "sonner";
+import httpService from "@/services/httpService";
 import Pagination from "@/components/common/Pagination";
 
+// Modales
+import UIModalAgregarServicio  from "@/components/modals/ui-modal-agregar-servicio";
+import UIModalEditarServicio   from "@/components/modals/ui-modal-editar-servicio";
+import UIModalEliminarServicio from "@/components/modals/ui-modal-eliminar-servicio";
+import UIModalAgregarArea      from "@/components/modals/ui-modal-agregar-area";
+import UIModalVerServicio      from "@/components/modals/ui-modal-ver-servicio";
+
 export default function VistaServiciosPrincipal() {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // ── Modales ──────────────────────────────────────────────
+  const [isAddModalOpen,    setIsAddModalOpen]    = useState(false);
+  const [isEditModalOpen,   setIsEditModalOpen]   = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isZonaModalOpen, setIsZonaModalOpen] = useState(false);
-  const [isSedeModalOpen, setIsSedeModalOpen] = useState(false);
-  const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [isAreaModalOpen,   setIsAreaModalOpen]   = useState(false);
+  const [isViewModalOpen,   setIsViewModalOpen]   = useState(false);
+  const [selectedService,   setSelectedService]   = useState(null);
+
+  // ── Datos ─────────────────────────────────────────────────
+  const [servicios,    setServicios]    = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [inputSearch,  setInputSearch]  = useState("");
+  const [searchTerm,   setSearchTerm]   = useState("");
+
+  // ── Paginación ────────────────────────────────────────────
+  const [currentPage,  setCurrentPage]  = useState(1);
+  const [totalPages,   setTotalPages]   = useState(1);
+  const [totalItems,   setTotalItems]   = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  // Simular carga para consistencia visual
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Estados de ordenamiento
-  const [sortField, setSortField] = useState('nombre');
-  const [sortDirection, setSortDirection] = useState('asc');
+  // ── Ordenamiento ──────────────────────────────────────────
+  const [sortField,     setSortField]     = useState("s.name");
+  const [sortDirection, setSortDirection] = useState("asc");
 
-  // Función para manejar ordenamiento
   const handleSort = (field) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
+    setCurrentPage(1);
   };
 
-  // Función para obtener icono de ordenamiento
   const getSortIcon = (field) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="w-4 h-4 text-slate-400" />;
+    if (sortField !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
+    return sortDirection === "asc"
+      ? <ArrowUp   className="w-3.5 h-3.5 text-blue-500" />
+      : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
+  };
+
+  // ── Fetch ─────────────────────────────────────────────────
+  const fetchServicios = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {
+        page:            currentPage,
+        per_page:        itemsPerPage,
+        order_by:        sortField,
+        order_direction: sortDirection,
+      };
+      if (searchTerm) params.search = searchTerm;
+
+      console.log('🌐 [SERVICIOS] Fetching data...', { currentPage, itemsPerPage, searchTerm });
+      const response = await httpService.get("/v1/servicios", { params });
+      const res      = response.data;
+
+      // Estructuras posibles: res.data.data (paginator) o res.data (array)
+      let rawItems = [];
+      let metaInfo = { last_page: 1, total: 0 };
+
+      if (res?.data && res.data.data) {
+        rawItems = res.data.data;
+        metaInfo = res.data;
+      } else if (Array.isArray(res?.data)) {
+        rawItems = res.data;
+        metaInfo = res.pagination || {};
+      }
+
+      console.log('📦 [SERVICIOS] RAW Items count:', rawItems.length);
+      console.log('🔍 [SERVICIOS] Primer item (KEYS):', rawItems.length > 0 ? Object.keys(rawItems[0]) : 'vacío');
+      console.log('🔍 [SERVICIOS] Primer item (VALUE):', rawItems.length > 0 ? rawItems[0] : 'vacío');
+
+      setServicios(rawItems);
+      setTotalPages(metaInfo.last_page || 1);
+      setTotalItems(metaInfo.total     || rawItems.length);
+    } catch (err) {
+      console.error('❌ [SERVICIOS] Error en fetch:', err);
+      toast.error("Error al cargar servicios");
+    } finally {
+      setLoading(false);
     }
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="w-4 h-4 text-blue-600" />
-      : <ArrowDown className="w-4 h-4 text-blue-600" />;
+  }, [currentPage, itemsPerPage, searchTerm, sortField, sortDirection]);
+
+  useEffect(() => { fetchServicios(); }, [fetchServicios]);
+
+  // ── Búsqueda manual ───────────────────────────────────────
+  const triggerSearch = () => {
+    setSearchTerm(inputSearch);
+    setCurrentPage(1);
   };
 
-  // Datos de ejemplo para servicios
-  const serviciosData = [
-    {
-      id: 1,
-      nombre: "ACONDICIONAMIENTO FISICO",
-      zona: "ZONA MOLANO1",
-      piso: "PISO 2",
-      centroCosto: "ADMINISTRACION UES URGENCIAS",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 35,
-      areasAsociadas: 0,
-    },
-    {
-      id: 2,
-      nombre: "2004 URGENCIAS SEDE NORTE",
-      zona: "ZONA NORTE",
-      piso: "PISO 1",
-      centroCosto: "ADMINISTRACION UES URGENCIAS",
-      sede: "HUV NORTE",
-      equiposAsociados: 64,
-      areasAsociadas: 8,
-    },
-    {
-      id: 3,
-      nombre: "ALMACEN GENERAL",
-      zona: "ZONA CENTRAL",
-      piso: "PISO 1",
-      centroCosto: "ALMACEN GENERAL",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 7,
-      areasAsociadas: 0,
-    },
-    {
-      id: 4,
-      nombre: "ALMACEN GENERAL Y COMPRAS",
-      zona: "ZONA CENTRAL",
-      piso: "PISO 3",
-      centroCosto: "ALMACEN GENERAL",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 4,
-      areasAsociadas: 1,
-    },
-    {
-      id: 5,
-      nombre: "AMBULANCIA",
-      zona: "ZONA MOLANO1",
-      piso: "PISO 1",
-      centroCosto: "GINECOBSTETRICIA",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 56,
-      areasAsociadas: 0,
-    },
-    {
-      id: 6,
-      nombre: "AMBULANCIA CARTAGO",
-      zona: "ZONA SUR",
-      piso: "PISO 1",
-      centroCosto: "INVENTARIOS",
-      sede: "HUV CARTAGO",
-      equiposAsociados: 22,
-      areasAsociadas: 0,
-    },
-    {
-      id: 7,
-      nombre: "ANA FRANK",
-      zona: "ZONA SALUD1",
-      piso: "PISO 4",
-      centroCosto: "SALA CIRUGIA PEDIATRICA ANA FR",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 94,
-      areasAsociadas: 0,
-    },
-    {
-      id: 8,
-      nombre: "ANGAR",
-      zona: "ZONA CENTRAL",
-      piso: "PISO 2",
-      centroCosto: "ALMACEN GENERAL",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 11,
-      areasAsociadas: 0,
-    },
-    {
-      id: 9,
-      nombre: "ANGIOGRAFIA",
-      zona: "ZONA MOLANO1",
-      piso: "PISO 1",
-      centroCosto: "HEMODINAMIA",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 5,
-      areasAsociadas: 0,
-    },
-    {
-      id: 10,
-      nombre: "ANHELO DE VIDA",
-      zona: "ZONA SALUD1",
-      piso: "PISO 3",
-      centroCosto: "SALA PEDIATRIA GENERAL",
-      sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL",
-      equiposAsociados: 70,
-      areasAsociadas: 0,
-    },
-    { id: 11, nombre: "CARDIOLOGIA ADULTOS", zona: "ZONA CRISTIAN", piso: "PISO 2", centroCosto: "CARDIOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 45, areasAsociadas: 3 },
-    { id: 12, nombre: "CIRUGIA GENERAL", zona: "ZONA MOLANO1", piso: "PISO 3", centroCosto: "CIRUGIA GENERAL", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 78, areasAsociadas: 6 },
-    { id: 13, nombre: "CONSULTA EXTERNA", zona: "ZONA NORTE", piso: "PISO 1", centroCosto: "CONSULTA EXTERNA", sede: "HUV NORTE", equiposAsociados: 32, areasAsociadas: 8 },
-    { id: 14, nombre: "DERMATOLOGIA", zona: "ZONA SALUD1", piso: "PISO 2", centroCosto: "DERMATOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 18, areasAsociadas: 2 },
-    { id: 15, nombre: "ENDOCRINOLOGIA", zona: "ZONA CRISTIAN", piso: "PISO 3", centroCosto: "ENDOCRINOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 25, areasAsociadas: 3 },
-    { id: 16, nombre: "FARMACIA CENTRAL", zona: "ZONA CENTRAL", piso: "PISO 1", centroCosto: "FARMACIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 12, areasAsociadas: 2 },
-    { id: 17, nombre: "GASTROENTEROLOGIA", zona: "ZONA MOLANO1", piso: "PISO 4", centroCosto: "GASTROENTEROLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 38, areasAsociadas: 4 },
-    { id: 18, nombre: "GINECOLOGIA", zona: "ZONA SALUD1", piso: "PISO 5", centroCosto: "GINECOBSTETRICIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 52, areasAsociadas: 5 },
-    { id: 19, nombre: "HEMATOLOGIA", zona: "ZONA CRISTIAN", piso: "PISO 4", centroCosto: "HEMATOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 29, areasAsociadas: 3 },
-    { id: 20, nombre: "HOSPITALIZACION GENERAL", zona: "ZONA NORTE", piso: "PISO 2", centroCosto: "HOSPITALIZACION", sede: "HUV NORTE", equiposAsociados: 85, areasAsociadas: 12 },
-    { id: 21, nombre: "IMAGENOLOGIA", zona: "ZONA CENTRAL", piso: "PISO 2", centroCosto: "IMAGENOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 67, areasAsociadas: 6 },
-    { id: 22, nombre: "INFECTOLOGIA", zona: "ZONA MOLANO1", piso: "PISO 5", centroCosto: "INFECTOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 31, areasAsociadas: 3 },
-    { id: 23, nombre: "LABORATORIO CLINICO", zona: "ZONA CRISTIAN", piso: "PISO 1", centroCosto: "LABORATORIO", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 89, areasAsociadas: 8 },
-    { id: 24, nombre: "MEDICINA INTERNA", zona: "ZONA SALUD1", piso: "PISO 6", centroCosto: "MEDICINA INTERNA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 73, areasAsociadas: 9 },
-    { id: 25, nombre: "NEFROLOGIA", zona: "ZONA NORTE", piso: "PISO 3", centroCosto: "NEFROLOGIA", sede: "HUV NORTE", equiposAsociados: 42, areasAsociadas: 4 },
-    { id: 26, nombre: "NEUMOLOGIA", zona: "ZONA CENTRAL", piso: "PISO 4", centroCosto: "NEUMOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 36, areasAsociadas: 3 },
-    { id: 27, nombre: "NEUROCIRUGIA", zona: "ZONA MOLANO1", piso: "PISO 6", centroCosto: "NEUROCIRUGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 58, areasAsociadas: 5 },
-    { id: 28, nombre: "NEUROLOGIA", zona: "ZONA CRISTIAN", piso: "PISO 5", centroCosto: "NEUROLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 41, areasAsociadas: 4 },
-    { id: 29, nombre: "NUTRICION", zona: "ZONA SALUD1", piso: "PISO 1", centroCosto: "NUTRICION", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 15, areasAsociadas: 2 },
-    { id: 30, nombre: "OBSTETRICIA", zona: "ZONA NORTE", piso: "PISO 4", centroCosto: "GINECOBSTETRICIA", sede: "HUV NORTE", equiposAsociados: 63, areasAsociadas: 7 },
-    { id: 31, nombre: "OFTALMOLOGIA", zona: "ZONA CENTRAL", piso: "PISO 3", centroCosto: "OFTALMOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 27, areasAsociadas: 3 },
-    { id: 32, nombre: "ONCOLOGIA", zona: "ZONA MOLANO1", piso: "PISO 7", centroCosto: "ONCOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 76, areasAsociadas: 8 },
-    { id: 33, nombre: "ORTOPEDIA", zona: "ZONA CRISTIAN", piso: "PISO 6", centroCosto: "ORTOPEDIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 54, areasAsociadas: 6 },
-    { id: 34, nombre: "OTORRINOLARINGOLOGIA", zona: "ZONA SALUD1", piso: "PISO 7", centroCosto: "OTORRINOLARINGOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 33, areasAsociadas: 3 },
-    { id: 35, nombre: "PATOLOGIA", zona: "ZONA NORTE", piso: "PISO 5", centroCosto: "PATOLOGIA", sede: "HUV NORTE", equiposAsociados: 21, areasAsociadas: 2 },
-    { id: 36, nombre: "PEDIATRIA GENERAL", zona: "ZONA CENTRAL", piso: "PISO 5", centroCosto: "PEDIATRIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 68, areasAsociadas: 9 },
-    { id: 37, nombre: "PSICOLOGIA", zona: "ZONA MOLANO1", piso: "PISO 2", centroCosto: "PSICOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 8, areasAsociadas: 1 },
-    { id: 38, nombre: "PSIQUIATRIA", zona: "ZONA CRISTIAN", piso: "PISO 7", centroCosto: "PSIQUIATRIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 19, areasAsociadas: 2 },
-    { id: 39, nombre: "QUIMIOTERAPIA", zona: "ZONA SALUD1", piso: "PISO 6", centroCosto: "ONCOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 44, areasAsociadas: 4 },
-    { id: 40, nombre: "RADIOLOGIA", zona: "ZONA NORTE", piso: "PISO 6", centroCosto: "IMAGENOLOGIA", sede: "HUV NORTE", equiposAsociados: 59, areasAsociadas: 5 },
-    { id: 41, nombre: "REHABILITACION", zona: "ZONA CENTRAL", piso: "PISO 6", centroCosto: "REHABILITACION", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 37, areasAsociadas: 4 },
-    { id: 42, nombre: "REUMATOLOGIA", zona: "ZONA MOLANO1", piso: "PISO 3", centroCosto: "REUMATOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 26, areasAsociadas: 2 },
-    { id: 43, nombre: "TERAPIA INTENSIVA", zona: "ZONA CRISTIAN", piso: "PISO 2", centroCosto: "UCI", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 92, areasAsociadas: 6 },
-    { id: 44, nombre: "TERAPIA RESPIRATORIA", zona: "ZONA SALUD1", piso: "PISO 4", centroCosto: "TERAPIA RESPIRATORIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 48, areasAsociadas: 3 },
-    { id: 45, nombre: "TOXICOLOGIA", zona: "ZONA NORTE", piso: "PISO 7", centroCosto: "TOXICOLOGIA", sede: "HUV NORTE", equiposAsociados: 17, areasAsociadas: 2 },
-    { id: 46, nombre: "TRANSPLANTES", zona: "ZONA CENTRAL", piso: "PISO 7", centroCosto: "TRANSPLANTES", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 81, areasAsociadas: 7 },
-    { id: 47, nombre: "UNIDAD CORONARIA", zona: "ZONA MOLANO1", piso: "PISO 4", centroCosto: "CARDIOLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 65, areasAsociadas: 5 },
-    { id: 48, nombre: "UROLOGIA", zona: "ZONA CRISTIAN", piso: "PISO 3", centroCosto: "UROLOGIA", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 39, areasAsociadas: 4 },
-    { id: 49, nombre: "VACUNACION", zona: "ZONA SALUD1", piso: "PISO 1", centroCosto: "VACUNACION", sede: "HUV EVARISTO GARCÍA - SEDE PRINCIPAL", equiposAsociados: 6, areasAsociadas: 1 },
-    { id: 50, nombre: "VIGILANCIA EPIDEMIOLOGICA", zona: "ZONA SUR", piso: "PISO 2", centroCosto: "EPIDEMIOLOGIA", sede: "HUV CARTAGO", equiposAsociados: 14, areasAsociadas: 2 }
-  ];
+  // ── Acciones ──────────────────────────────────────────────
+  const handleView   = (s) => { setSelectedService(s); setIsViewModalOpen(true);   };
+  const handleEdit   = (s) => { setSelectedService(s); setIsEditModalOpen(true);   };
+  const handleDelete = (s) => { setSelectedService(s); setIsDeleteModalOpen(true); };
 
-  const handleEdit = (servicio) => {
-    setSelectedService(servicio);
-    setIsEditModalOpen(true);
+  const handleModalClose = (refresh = false) => {
+    setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    setIsDeleteModalOpen(false);
+    setSelectedService(null);
+    if (refresh) fetchServicios();
   };
 
-  const handleDelete = (servicio) => {
-    setSelectedService(servicio);
-    setIsDeleteModalOpen(true);
-  };
-
-  const handleView = (servicio) => {
-    setSelectedService(servicio);
-    setIsViewModalOpen(true);
-  };
-
-  // Aplicar búsqueda funcional
-  let filteredData = serviciosData.filter(servicio => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      servicio.nombre?.toLowerCase().includes(search) ||
-      servicio.zona?.toLowerCase().includes(search) ||
-      servicio.sede?.toLowerCase().includes(search) ||
-      servicio.centroCosto?.toLowerCase().includes(search)
-    );
-  });
-
-  const totalItems = filteredData.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-  if (loading) {
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-6 w-96" />
-        <Card className="mt-8">
-          <div className="p-6">
-            <Skeleton className="h-8 w-64" />
-          </div>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <Skeleton className="h-10 w-96" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // ── Render ────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-lg">
-                <Settings className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold">Services</h1>
-                <p className="text-sm text-slate-200">Gestión de servicios</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#f8f9fa]">
 
-            {/* Barra de búsqueda */}
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white/20"
-              />
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="bg-slate-900 text-white px-6 py-5 shadow-lg">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-xl">
+              <Settings className="w-5 h-5 text-white" />
             </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-wide uppercase">Gestión de Servicios</h1>
+              <p className="text-xs text-slate-400">Administra todos los servicios del hospital</p>
+            </div>
+          </div>
+
+          {/* Buscador integrado */}
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, código, zona, sede..."
+              value={inputSearch}
+              onChange={(e) => setInputSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && triggerSearch()}
+              className="w-full pl-9 pr-9 py-2.5 bg-white/10 border border-white/20 text-white placeholder-white/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={triggerSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              <Search className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto p-4 lg:p-6">
-        <Card className="shadow-lg">
-          <CardContent className="p-0">
-            {/* Controles superiores */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white flex items-center space-x-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Agregar Servicio</span>
-                  </Button>
-                </div>
+      {/* ── Barra de controles ─────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 pt-5 space-y-4">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2.5 px-6 shadow-lg shadow-blue-100 transition-all font-semibold"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Servicio
+            </Button>
+          </div>
 
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <span>Mostrar</span>
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => setItemsPerPage(Number(value))}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span>entradas</span>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <span>Mostrar</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}
+            >
+              <SelectTrigger className="w-20 rounded-xl border-slate-100 bg-slate-50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span>entradas</span>
+          </div>
+        </div>
 
-            {/* Tabla Completamente Responsiva */}
-            <div className="w-full">
-              <Table className="w-full table-fixed">
-                <TableHeader className="bg-slate-100">
-                  <TableRow>
-                    <TableHead className="font-semibold text-slate-700 w-[18%]">
-                      <button 
-                        onClick={() => handleSort('nombre')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Servicio
-                        {getSortIcon('nombre')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 w-[18%]">
-                      <button 
-                        onClick={() => handleSort('centroCosto')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Centro de Costo
-                        {getSortIcon('centroCosto')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[12%]">
-                      <button 
-                        onClick={() => handleSort('zona')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
-                      >
-                        Zona
-                        {getSortIcon('zona')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[14%]">
-                      <button 
-                        onClick={() => handleSort('sede')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
-                      >
-                        Sede
-                        {getSortIcon('sede')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[12%]">
-                      <button 
-                        onClick={() => handleSort('equiposAsociados')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
-                      >
-                        Equipos
-                        {getSortIcon('equiposAsociados')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[12%]">
-                      <button 
-                        onClick={() => handleSort('areasAsociadas')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
-                      >
-                        Áreas
-                        {getSortIcon('areasAsociadas')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-slate-700 text-center w-[14%]">
-                      Acciones
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...serviciosData]
-                    .sort((a, b) => {
-                      let aValue = a[sortField];
-                      let bValue = b[sortField];
-                      if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-                      if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-                      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-                      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-                      return 0;
-                    })
-                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                    .map((servicio) => (
-                    <TableRow key={servicio.id} className="hover:bg-gray-50">
+        {/* ── Tabla ──────────────────────────────────────────── */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <button onClick={() => handleSort("s.name")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+                      Servicio {getSortIcon("s.name")}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <button onClick={() => handleSort("s.code")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+                      Código {getSortIcon("s.code")}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <button onClick={() => handleSort("zona_nombre")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+                      Zona {getSortIcon("zona_nombre")}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    <button onClick={() => handleSort("sede_nombre")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+                      Sede {getSortIcon("sede_nombre")}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Piso / Centro
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">
+                    <button onClick={() => handleSort("total_equipos")} className="flex items-center justify-center gap-1.5 hover:text-blue-600 transition-colors w-full">
+                      Equipos {getSortIcon("total_equipos")}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">
+                    <button onClick={() => handleSort("total_usuarios")} className="flex items-center justify-center gap-1.5 hover:text-blue-600 transition-colors w-full">
+                      Usuarios {getSortIcon("total_usuarios")}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">
+                    Estado
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="h-56 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-300" />
+                      <p className="text-slate-400 mt-3 text-sm">Cargando servicios...</p>
+                    </td>
+                  </tr>
+                ) : servicios.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="h-56 text-center">
+                      <Building2 className="w-12 h-12 mx-auto text-slate-200 mb-3" />
+                      <p className="text-slate-400 font-medium text-sm">No se encontraron servicios</p>
+                      {searchTerm && (
+                        <p className="text-slate-300 text-xs mt-1">Intenta con otro término de búsqueda</p>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  servicios.map((s) => (
+                    <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+
                       {/* Servicio */}
-                      <TableCell className="p-3 w-[18%]">
-                        <div className="font-semibold text-gray-900 text-sm leading-tight break-words whitespace-normal">
-                          {servicio.nombre}
-                        </div>
-                      </TableCell>
-                      
-                      {/* Centro de Costo */}
-                      <TableCell className="p-3 w-[18%]">
-                        <div className="text-sm text-gray-700 leading-tight break-words whitespace-normal">
-                          {servicio.centroCosto}
-                        </div>
-                      </TableCell>
-                      
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-sm text-slate-900">{s.name}</div>
+                        {s.description && (
+                          <div className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{s.description}</div>
+                        )}
+                      </td>
+
+                      {/* Código */}
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-sm font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg">
+                          {s.code ?? "—"}
+                        </span>
+                      </td>
+
                       {/* Zona */}
-                      <TableCell className="text-center p-3 w-[12%]">
-                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 px-2 py-1">
-                          {servicio.zona}
-                        </Badge>
-                      </TableCell>
-                      
+                      <td className="px-6 py-4">
+                        {(s.zona_nombre || s.zona) ? (
+                          <span className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-lg">
+                            {s.zona_nombre || s.zona}
+                          </span>
+                        ) : <span className="text-slate-300 text-xs">—</span>}
+                      </td>
+
                       {/* Sede */}
-                      <TableCell className="text-center p-3 w-[14%]">
-                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 px-2 py-1">
-                          {servicio.sede}
-                        </Badge>
-                      </TableCell>
-                      
-                      {/* Equipos Asociados */}
-                      <TableCell className="text-center p-3 w-[12%]">
-                        <div className="flex items-center justify-center gap-1">
-                          <Settings className="w-3 h-3 text-orange-600" />
-                          <span className="text-sm font-medium text-gray-700">{servicio.equiposAsociados}</span>
+                      <td className="px-6 py-4">
+                        {(s.sede_nombre || s.sede) ? (
+                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-lg">
+                            {s.sede_nombre || s.sede}
+                          </span>
+                        ) : <span className="text-slate-300 text-xs">—</span>}
+                      </td>
+
+                      {/* Piso / Centro */}
+                      <td className="px-6 py-4">
+                        <div className="text-xs text-slate-600">
+                          {(s.piso_nombre || s.piso) ? <div><span className="font-semibold">Piso:</span> {s.piso_nombre || s.piso}</div> : null}
+                          {(s.centro_nombre || s.centro) ? <div><span className="font-semibold">Centro:</span> {s.centro_nombre || s.centro}</div> : null}
+                          {!(s.piso_nombre || s.piso) && !(s.centro_nombre || s.centro) && <span className="text-slate-300">—</span>}
                         </div>
-                      </TableCell>
-                      
-                      {/* Áreas Asociadas */}
-                      <TableCell className="text-center p-3 w-[12%]">
-                        <div className="flex items-center justify-center gap-1">
-                          <Users className="w-3 h-3 text-teal-600" />
-                          <span className="text-sm font-medium text-gray-700">{servicio.areasAsociadas}</span>
-                        </div>
-                      </TableCell>
-                      
+                      </td>
+
+                      {/* Equipos */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 text-xs font-bold">
+                          <span className="w-1.5 h-1.5 bg-orange-400 rounded-full" />
+                          {s.total_equipos ?? s.cant_equipos ?? 0}
+                        </span>
+                      </td>
+
+                      {/* Usuarios */}
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 text-teal-600 text-xs font-bold">
+                          <span className="w-1.5 h-1.5 bg-teal-400 rounded-full" />
+                          {s.total_usuarios ?? s.cant_usuarios ?? 0}
+                        </span>
+                      </td>
+
+                      {/* Estado */}
+                      <td className="px-6 py-4 text-center">
+                        {(s.is_active == 1 || s.is_active === true || s.activo == 1 || s.status == 1) ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-600 text-xs font-bold">
+                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-100 text-red-600 text-xs font-bold">
+                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+
                       {/* Acciones */}
-                      <TableCell className="text-center p-3 w-[14%]">
-                        <div className="flex flex-col gap-1 items-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 w-6 p-0 bg-green-500 hover:bg-green-600 text-white border-green-500"
-                            onClick={() => handleView(servicio)}
-                            title="Ver"
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleView(s)}
+                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors"
+                            title="Ver detalle"
                           >
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 w-6 p-0 bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
-                            onClick={() => handleEdit(servicio)}
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(s)}
+                            className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors"
                             title="Editar"
                           >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white border-red-500"
-                            onClick={() => handleDelete(servicio)}
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(s)}
+                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors"
                             title="Eliminar"
                           >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-            {/* Paginación */}
+          {/* Paginación */}
+          <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-100">
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -513,43 +387,29 @@ export default function VistaServiciosPrincipal() {
               onPageChange={setCurrentPage}
               showInfo={true}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Modales */}
+      {/* ── Modales ──────────────────────────────────────────── */}
       <UIModalAgregarServicio
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={(refresh) => handleModalClose(refresh)}
       />
-
       <UIModalEditarServicio
         isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
+        onClose={(refresh) => handleModalClose(refresh)}
         servicio={selectedService}
       />
-
       <UIModalEliminarServicio
         isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        onClose={(refresh) => handleModalClose(refresh)}
         servicio={selectedService}
       />
-
-      <UIModalCrearZona
-        isOpen={isZonaModalOpen}
-        onClose={() => setIsZonaModalOpen(false)}
-      />
-
-      <UIModalCrearSede
-        isOpen={isSedeModalOpen}
-        onClose={() => setIsSedeModalOpen(false)}
-      />
-
       <UIModalAgregarArea
         isOpen={isAreaModalOpen}
         onClose={() => setIsAreaModalOpen(false)}
       />
-
       <UIModalVerServicio
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}

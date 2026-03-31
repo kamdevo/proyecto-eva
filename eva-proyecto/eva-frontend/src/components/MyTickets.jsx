@@ -352,7 +352,7 @@ export default function MyTickets() {
                 </div>
                 <div className="text-left min-w-0">
                   <div className="font-semibold text-sm sm:text-base truncate">Equipos Biomédicos</div>
-                  <div className="text-xs sm:text-sm text-blue-600 truncate">Médicos y Licenciados</div>
+                  <div className="text-xs sm:text-sm text-blue-600 truncate">Crea un ticket para equipos médicos y Licenciados</div>
                 </div>
               </Button>
 
@@ -463,9 +463,9 @@ export default function MyTickets() {
 
             {/* Items per page selector ARRIBA */}
             <div className="flex justify-start py-2">
-              <ItemsPerPage 
-                value={itemsPerPage} 
-                onChange={setItemsPerPage} 
+              <ItemsPerPage
+                value={itemsPerPage}
+                onChange={setItemsPerPage}
                 disabled={loading}
               />
             </div>

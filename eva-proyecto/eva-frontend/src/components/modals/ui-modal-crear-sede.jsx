@@ -5,208 +5,94 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Textarea } from "../ui/textarea"
-import { Building } from "lucide-react"
+import { Building, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import httpService from "../../services/httpService"
 
 export default function UIModalCrearSede({ isOpen, onClose }) {
-  const [formData, setFormData] = useState({
-    nombre: "",
-    codigo: "",
-    direccion: "",
-    ciudad: "",
-    telefono: "",
-    email: "",
-    responsable: "",
-    descripcion: "",
-    estado: "ACTIVA"
-  })
+  const [name, setName] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log("Creando sede:", formData)
-    onClose()
-    setFormData({
-      nombre: "",
-      codigo: "",
-      direccion: "",
-      ciudad: "",
-      telefono: "",
-      email: "",
-      responsable: "",
-      descripcion: "",
-      estado: "ACTIVA"
-    })
-  }
+    if (!name.trim()) return
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setSubmitting(true)
+    try {
+      const res = await httpService.post("/v1/sede", { name: name.trim() })
+      
+      if (res.data.success) {
+        toast.success("Sede creada exitosamente")
+        setName("")
+        onClose(true) // Cerrar e informar que hubo cambios
+      } else {
+        toast.error(res.data.message || "Error al crear la sede")
+      }
+    } catch (err) {
+      console.error("Error al crear sede:", err)
+      toast.error(err.response?.data?.message || "Error al conectar con el servidor")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-gray-800 border-b-2 border-blue-500 pb-2 flex items-center gap-2">
-            <Building className="w-4 h-4 text-blue-600" />
-            Crear Sede
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="mt-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre" className="text-sm font-medium text-gray-700">
-                  Nombre de la sede *
-                </Label>
-                <Input
-                  id="nombre"
-                  type="text"
-                  placeholder="Ej: HUV SEDE NORTE"
-                  value={formData.nombre}
-                  onChange={(e) => handleInputChange("nombre", e.target.value)}
-                  className="w-full"
-                  required
-                />
+    <Dialog open={isOpen} onOpenChange={() => onClose(false)}>
+      <DialogContent className="sm:max-w-[450px] rounded-3xl p-0 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8 text-white">
+           <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Building className="w-6 h-6 text-white" />
               </div>
+              Nueva Sede
+            </DialogTitle>
+            <p className="text-blue-100 mt-2 text-sm">
+              Registra una ubicación física central para agrupar servicios y zonas.
+            </p>
+          </DialogHeader>
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="codigo" className="text-sm font-medium text-gray-700">
-                  Código
-                </Label>
-                <Input
-                  id="codigo"
-                  type="text"
-                  placeholder="Ej: HUV-N001"
-                  value={formData.codigo}
-                  onChange={(e) => handleInputChange("codigo", e.target.value)}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="direccion" className="text-sm font-medium text-gray-700">
-                Dirección *
+              <Label htmlFor="sede-name" className="text-sm font-bold text-slate-700 ml-1">
+                Nombre de la sede *
               </Label>
               <Input
-                id="direccion"
+                id="sede-name"
                 type="text"
-                placeholder="Dirección completa de la sede"
-                value={formData.direccion}
-                onChange={(e) => handleInputChange("direccion", e.target.value)}
-                className="w-full"
+                placeholder="Ej. HUV SEDE NORTE"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full h-12 rounded-xl border-slate-200 focus:ring-2 focus:ring-blue-500 transition-all text-lg"
                 required
+                autoFocus
               />
+              <p className="text-[10px] text-slate-400 ml-1">
+                Este nombre será visible en los selectores de equipos y servicios.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ciudad" className="text-sm font-medium text-gray-700">
-                  Ciudad *
-                </Label>
-                <Select onValueChange={(value) => handleInputChange("ciudad", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar ciudad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CALI">CALI</SelectItem>
-                    <SelectItem value="CARTAGO">CARTAGO</SelectItem>
-                    <SelectItem value="PALMIRA">PALMIRA</SelectItem>
-                    <SelectItem value="BUENAVENTURA">BUENAVENTURA</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="estado" className="text-sm font-medium text-gray-700">
-                  Estado
-                </Label>
-                <Select value={formData.estado} onValueChange={(value) => handleInputChange("estado", value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACTIVA">ACTIVA</SelectItem>
-                    <SelectItem value="INACTIVA">INACTIVA</SelectItem>
-                    <SelectItem value="EN_CONSTRUCCION">EN CONSTRUCCIÓN</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="text-md font-semibold text-gray-800 border-b pb-2">Información de Contacto</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="telefono" className="text-sm font-medium text-gray-700">
-                    Teléfono
-                  </Label>
-                  <Input
-                    id="telefono"
-                    type="tel"
-                    placeholder="318 555 0000"
-                    value={formData.telefono}
-                    onChange={(e) => handleInputChange("telefono", e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="sede@huv.gov.co"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="responsable" className="text-sm font-medium text-gray-700">
-                  Responsable
-                </Label>
-                <Input
-                  id="responsable"
-                  type="text"
-                  placeholder="Nombre del responsable de la sede"
-                  value={formData.responsable}
-                  onChange={(e) => handleInputChange("responsable", e.target.value)}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="descripcion" className="text-sm font-medium text-gray-700">
-                Descripción
-              </Label>
-              <Textarea
-                id="descripcion"
-                placeholder="Descripción de la sede..."
-                value={formData.descripcion}
-                onChange={(e) => handleInputChange("descripcion", e.target.value)}
-                className="w-full min-h-[80px]"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t">
-              <Button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white px-6 w-full sm:w-auto">
-                Crear Sede
+            <div className="flex flex-col gap-3 pt-2">
+              <Button 
+                type="submit" 
+                disabled={submitting || !name.trim()}
+                className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-blue-200 transition-all"
+              >
+                {submitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "CREAR SEDE"
+                )}
               </Button>
 
-              <Button type="button" variant="outline" onClick={onClose} className="px-6 w-full sm:w-auto">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={() => onClose(false)} 
+                className="w-full py-6 text-slate-500 hover:text-slate-800 rounded-2xl font-medium"
+              >
                 Cancelar
               </Button>
             </div>

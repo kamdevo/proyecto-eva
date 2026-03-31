@@ -494,7 +494,10 @@ class CorrectivoGeneralController extends Controller
         }, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $filename . '.xlsx"',
-            'Cache-Control' => 'max-age=0'
+            'Cache-Control' => 'max-age=0',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
         ]);
     }
 
@@ -566,7 +569,10 @@ class CorrectivoGeneralController extends Controller
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
-            'Cache-Control' => 'max-age=0'
+            'Cache-Control' => 'max-age=0',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
         ]);
     }
 
@@ -1231,6 +1237,9 @@ class CorrectivoGeneralController extends Controller
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
                 'Cache-Control' => 'max-age=0',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
             ]);
 
         } catch (Exception $e) {
@@ -1241,7 +1250,10 @@ class CorrectivoGeneralController extends Controller
             
             return new StreamedResponse(function() use ($e) {
                 echo json_encode(['error' => 'Error al exportar: ' . $e->getMessage()]);
-            }, 500, ['Content-Type' => 'application/json']);
+            }, 500, [
+                'Content-Type' => 'application/json',
+                'Access-Control-Allow-Origin' => '*'
+            ]);
         }
     }
 

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 /**
@@ -35,31 +36,27 @@ class SedeController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $request->validate([
-                'page' => 'nullable|integer|min:1',
-                'per_page' => 'nullable|integer|min:1|max:100',
-                'search' => 'nullable|string|max:255',
-                'sort_by' => 'nullable|string|in:id,name',
-                'sort_order' => 'nullable|string|in:asc,desc'
-            ]);
-
             $query = Sede::query();
 
             if ($request->search) {
                 $query->where('name', 'LIKE', "%{$request->search}%");
             }
 
-            $sortBy = $request->sort_by ?? 'id';
+            $sortBy    = $request->sort_by ?? 'id';
             $sortOrder = $request->sort_order ?? 'desc';
 
             $data = $query->orderBy($sortBy, $sortOrder)
-                          ->paginate($request->per_page ?? 10);
+                          ->paginate($request->per_page ?? 15);
 
-            return ResponseFormatter::success($data, 'Lista obtenida exitosamente');
+            return response()->json([
+                'success' => true,
+                'data'    => $data,
+                'message' => 'Lista obtenida exitosamente'
+            ]);
 
         } catch (Exception $e) {
-            Log::error('Error en SedeController::index', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al obtener lista', 500);
+            Log::error('🔥 [SEDE] Index: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -79,6 +76,7 @@ class SedeController extends Controller
                 'name' => 'required|string|max:255'
             ]);
 
+            // Obtener el siguiente ID manual si es necesario (el modelo tiene incrementing=false)
             $nextId = (Sede::max('id') ?? 0) + 1;
 
             $item = Sede::create([
@@ -86,11 +84,15 @@ class SedeController extends Controller
                 'name' => $request->name
             ]);
 
-            return ResponseFormatter::success($item, 'Creado exitosamente', 201);
+            return response()->json([
+                'success' => true,
+                'data'    => $item,
+                'message' => 'Sede creada exitosamente'
+            ], 201);
 
         } catch (Exception $e) {
-            Log::error('Error en SedeController::store', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al crear', 500);
+            Log::error('🔥 [SEDE] Store: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -136,11 +138,15 @@ class SedeController extends Controller
                 'name' => $request->name
             ]);
 
-            return ResponseFormatter::success($item, 'Actualizado exitosamente');
+            return response()->json([
+                'success' => true,
+                'data'    => $item,
+                'message' => 'Sede actualizada exitosamente'
+            ]);
 
         } catch (Exception $e) {
-            Log::error('Error en SedeController::update', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al actualizar', 500);
+            Log::error('🔥 [SEDE] Update: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -157,13 +163,26 @@ class SedeController extends Controller
     {
         try {
             $item = Sede::findOrFail($id);
+            
+            // Verificar dependencias
+            $serviciosCount = DB::table('servicios')->where('sede_id', $id)->count();
+            if ($serviciosCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "No se puede eliminar la sede porque tiene {$serviciosCount} servicios vinculados."
+                ], 400);
+            }
+
             $item->delete();
 
-            return ResponseFormatter::success(null, 'Eliminado exitosamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Sede eliminada exitosamente'
+            ]);
 
         } catch (Exception $e) {
-            Log::error('Error en SedeController::destroy', ['error' => $e->getMessage()]);
-            return ResponseFormatter::error(null, 'Error al eliminar', 500);
+            Log::error('🔥 [SEDE] Destroy: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }

@@ -36,50 +36,125 @@ class ServicioController extends ApiController
     public function index(Request $request)
     {
         try {
-            $query = Servicio::query();
+            // Usar el modelo Servicio directamente para asegurar que siga las convenciones de Laravel
+            $query = Servicio::query()->from('servicios as s');
+            
+            // Joins realizados con máxima precaución
+            $query->leftJoin('pisos as p',   's.piso_id',   '=', 'p.id')
+                  ->leftJoin('zonas as z',   's.zona_id',   '=', 'z.id')
+                  ->leftJoin('centros as c', 's.centro_id', '=', 'c.id')
+                  ->leftJoin('sedes as se',  's.sede_id',   '=', 'se.id');
+            
+            // Selección explícita total
+            $query->select([
+                's.*',
+                'p.name as piso_nombre',
+                'z.name as zona_nombre',
+                'c.name as centro_nombre',
+                'se.name as sede_nombre',
+            ]);
+            
+            // Agregar contadores con subconsultas optimizadas
+            $query->selectSub(function($q) {
+                $q->from('equipos')->whereColumn('servicio_id', 's.id')->where('status', 1)->selectRaw('count(*)');
+            }, 'total_equipos');
+            
+            $query->selectSub(function($q) {
+                $q->from('usuarios')->whereColumn('servicio_id', 's.id')->where('estado', 1)->selectRaw('count(*)');
+            }, 'total_usuarios');
 
-            // Aplicar filtros
-            if ($request->has('search')) {
+            // Búsqueda multi-campo heredada de lógica original
+            if ($request->filled('search')) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%");
+                    $q->where('s.name',    'like', "%{$search}%")
+                      ->orWhere('s.code',  'like', "%{$search}%")
+                      ->orWhere('z.name',  'like', "%{$search}%")
+                      ->orWhere('se.name', 'like', "%{$search}%")
+                      ->orWhere('p.name',  'like', "%{$search}%");
                 });
             }
 
-            if ($request->has('activo')) {
-                $query->where('activo', $request->activo);
+            // Filtro de estado
+            if ($request->has('is_active')) {
+                $query->where('s.is_active', $request->is_active === 'true' || $request->is_active == 1);
             }
 
-            if ($request->has('tipo')) {
-                $query->where('tipo', $request->tipo);
-            }
-
-            // Ordenamiento
-            $orderBy = $request->get('order_by', 'name');
-            $orderDirection = $request->get('order_direction', 'asc');
-            $query->orderBy($orderBy, $orderDirection);
+            // Ordenamiento dinámico
+            $allowedSorts = ['s.name', 's.code', 'zona_nombre', 'sede_nombre', 'total_equipos', 'total_usuarios'];
+            $sortBy = in_array($request->order_by, $allowedSorts) ? $request->order_by : 's.name';
+            $order  = $request->order_direction === 'desc' ? 'desc' : 'asc';
+            
+            $query->orderBy($sortBy, $order);
 
             // Paginación
-            $perPage = $request->get('per_page', 15);
+            $perPage = (int)$request->get('per_page', 10);
             $servicios = $query->paginate($perPage);
 
-            // Agregar estadísticas por servicio
-            $servicios->getCollection()->transform(function ($servicio) {
-                $servicio->total_areas = Area::where('servicio_id', $servicio->id)
-                    ->where('activo', true)->count();
-                $servicio->total_equipos = Equipo::where('servicio_id', $servicio->id)
-                    ->where('status', true)->count();
-                $servicio->total_usuarios = Usuario::where('servicio_id', $servicio->id)
-                    ->where('estado', 1)->count();
-                return $servicio;
+            // Transformación manual para asegurar que TODOS los campos lleguen al frontend
+            $items = collect($servicios->items())->map(function($s) {
+                // NO usar $s->toArray() ya que filtra campos que no están en $fillable o en la tabla propia
+                $data = [
+                    'id'             => $s->id,
+                    'code'           => $s->code,
+                    'name'           => $s->name,
+                    'description'    => $s->description,
+                    'is_active'      => (int)$s->is_active,
+                    'status'         => (int)$s->status,
+                    'piso_id'        => $s->piso_id,
+                    'piso_nombre'    => $s->piso_nombre,
+                    'zona_id'        => $s->zona_id,
+                    'zona_nombre'    => $s->zona_nombre,
+                    'centro_id'      => $s->centro_id,
+                    'centro_nombre'  => $s->centro_nombre,
+                    'sede_id'        => $s->sede_id,
+                    'sede_nombre'    => $s->sede_nombre,
+                    'total_equipos'  => (int)($s->total_equipos ?? 0),
+                    'total_usuarios' => (int)($s->total_usuarios ?? 0),
+                    'created_at'     => $s->created_at ? $s->created_at->toDateTimeString() : null,
+                ];
+                
+                // Alias de redundancia absoluta solicitada
+                $data['activo'] = $data['is_active'];
+                
+                return $data;
             });
 
-            return ResponseFormatter::success($servicios, 'Servicios obtenidos exitosamente');
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $items,
+                    'current_page' => $servicios->currentPage(),
+                    'last_page' => $servicios->lastPage(),
+                    'per_page' => $servicios->perPage(),
+                    'total' => $servicios->total(),
+                ],
+                'message' => 'Servicios obtenidos exitosamente'
+            ]);
 
         } catch (\Exception $e) {
+            \Log::error('🔥 [SERVICIOS] Error en el index: ' . $e->getMessage());
             return ResponseFormatter::error('Error al obtener servicios: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Obtener opciones para selectores (Sedes, Zonas, Pisos, Centros)
+     */
+    public function getOptions()
+    {
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'sedes'   => DB::table('sedes')->select('id', 'name')->orderBy('name')->get(),
+                    'zonas'   => DB::table('zonas')->select('id', 'name')->orderBy('name')->get(),
+                    'pisos'   => DB::table('pisos')->select('id', 'name')->orderBy('name')->get(),
+                    'centros' => DB::table('centros')->select('id', 'code', 'name')->where('status', 1)->orderBy('name')->get(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -100,34 +175,51 @@ class ServicioController extends ApiController
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'codigo' => 'nullable|string|max:50|unique:servicios,codigo',
-            'tipo' => 'nullable|string|max:100',
-            'responsable' => 'nullable|string|max:255',
-            'telefono' => 'nullable|string|max:20',
-            'extension' => 'nullable|string|max:10',
-            'email' => 'nullable|email|max:255',
-            'ubicacion' => 'nullable|string|max:255',
-            'horario_atencion' => 'nullable|string|max:255',
-            'activo' => 'nullable|boolean'
+            'name'         => 'required|string|max:255',
+            'code'         => 'nullable|string|max:50|unique:servicios,code',
+            'description'  => 'nullable|string',
+            'piso_id'      => 'nullable|exists:pisos,id',
+            'zona_id'      => 'nullable|exists:zonas,id',
+            'centro_id'    => 'nullable|exists:centros,id',
+            'sede_id'      => 'nullable|exists:sedes,id',
+            'is_active'    => 'nullable|boolean',
+            'status'       => 'nullable|integer'
         ]);
 
         if ($validator->fails()) {
-            return ResponseFormatter::validation($validator->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors'  => $validator->errors()
+            ], 422);
         }
 
         try {
-            $servicioData = $request->all();
-            $servicioData['activo'] = $servicioData['activo'] ?? true;
-            $servicioData['created_at'] = now();
+            $data = $request->only([
+                'name', 'code', 'description', 'piso_id', 'zona_id', 
+                'centro_id', 'sede_id', 'is_active', 'status'
+            ]);
+            
+            // Mapeo de campos antiguos si vienen del frontend
+            if ($request->has('activo')) $data['is_active'] = $request->activo;
+            if ($request->has('codigo')) $data['code'] = $request->codigo;
+            
+            $data['is_active'] = $data['is_active'] ?? 1;
+            $data['status']    = $data['status'] ?? 1;
 
-            $servicio = Servicio::create($servicioData);
+            $servicio = Servicio::create($data);
 
-            return ResponseFormatter::success($servicio, 'Servicio creado exitosamente', 201);
+            return response()->json([
+                'success' => true,
+                'data'    => $servicio,
+                'message' => 'Servicio creado exitosamente'
+            ], 201);
 
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al crear servicio: ' . $e->getMessage(), 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear servicio: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -205,31 +297,50 @@ class ServicioController extends ApiController
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'codigo' => 'nullable|string|max:50|unique:servicios,codigo,' . $id,
-            'tipo' => 'nullable|string|max:100',
-            'responsable' => 'nullable|string|max:255',
-            'telefono' => 'nullable|string|max:20',
-            'extension' => 'nullable|string|max:10',
-            'email' => 'nullable|email|max:255',
-            'ubicacion' => 'nullable|string|max:255',
-            'horario_atencion' => 'nullable|string|max:255',
-            'activo' => 'nullable|boolean'
+            'name'         => 'required|string|max:255',
+            'code'         => 'nullable|string|max:50|unique:servicios,code,' . $id,
+            'description'  => 'nullable|string',
+            'piso_id'      => 'nullable|exists:pisos,id',
+            'zona_id'      => 'nullable|exists:zonas,id',
+            'centro_id'    => 'nullable|exists:centros,id',
+            'sede_id'      => 'nullable|exists:sedes,id',
+            'is_active'    => 'nullable|boolean',
+            'status'       => 'nullable|integer'
         ]);
 
         if ($validator->fails()) {
-            return ResponseFormatter::validation($validator->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors'  => $validator->errors()
+            ], 422);
         }
 
         try {
             $servicio = Servicio::findOrFail($id);
-            $servicio->update($request->all());
+            
+            $data = $request->only([
+                'name', 'code', 'description', 'piso_id', 'zona_id', 
+                'centro_id', 'sede_id', 'is_active', 'status'
+            ]);
 
-            return ResponseFormatter::success($servicio, 'Servicio actualizado exitosamente');
+            // Mapeo de campos antiguos si vienen del frontend
+            if ($request->has('activo')) $data['is_active'] = $request->activo;
+            if ($request->has('codigo')) $data['code'] = $request->codigo;
+
+            $servicio->update($data);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $servicio,
+                'message' => 'Servicio actualizado exitosamente'
+            ]);
 
         } catch (\Exception $e) {
-            return ResponseFormatter::error('Error al actualizar servicio: ' . $e->getMessage(), 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar servicio: ' . $e->getMessage()
+            ], 500);
         }
     }
 

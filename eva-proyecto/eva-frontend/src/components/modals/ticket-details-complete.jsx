@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { X, Building, FileText, FileSignature, Plus, Wrench, UserPlus, Printer, Calendar, User, Clock, AlertCircle, ExternalLink, Upload, File, Link, Image as ImageIcon } from "lucide-react";
+import { X, Building, FileText, FileSignature, Plus, Wrench, UserPlus, Printer, Calendar, User, Clock, AlertCircle, ExternalLink, Upload, File, Link, Image as ImageIcon, Pencil, Check } from "lucide-react";
 import WorkOrderClosureModal from "./work-order-closure-modal";
 import AddProgressModal from "./add-progress-modal";
 import AssociateSparePart from "./associate-spare-part-modal";
@@ -15,6 +15,7 @@ import ConfirmarCierreModal from "./confirmar-cierre-modal";
 import EquipmentSearchModal from "./equipment-search-modal";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import permissionService from "@/services/permissionService";
 import { pdf } from '@react-pdf/renderer';
 import TicketPDF from '../pdf/TicketPDF';
 
@@ -29,17 +30,69 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
   const [showEquipmentSearchModal, setShowEquipmentSearchModal] = useState(false);
 
+  // Estados para edición de categoría
+  const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [mantenimientoOptions, setMantenimientoOptions] = useState({ categorias: [], subcategorias: [] });
+  const [selectedCategory, setSelectedCategory] = useState(ticket?.tipo_mantenimiento_id || "");
+  const [selectedSubcategory, setSelectedSubcategory] = useState(ticket?.subcategoria_mantenimiento_id || "");
+
   // Estados para subir archivo de cierre
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
 
   // Cargar datos completos SOLO al abrir el modal (no en cada renderizado)
   useEffect(() => {
-    if (isOpen && ticket?.id && onRefresh) {
+    if (isOpen && ticket?.id) {
       console.log('🔄 Modal abierto - Cargando datos completos del ticket:', ticket.id);
-      onRefresh();
+      if (onRefresh) onRefresh();
+      
+      // Cargar opciones de mantenimiento
+      loadMantenimientoOptions();
+      
+      // Sincronizar estados de edición
+      setSelectedCategory(ticket.tipo_mantenimiento_id || "");
+      setSelectedSubcategory(ticket.subcategoria_mantenimiento_id || "");
+      setIsEditingCategory(false);
     }
   }, [isOpen]); // Solo cuando cambia isOpen (se abre/cierra el modal)
+
+  const loadMantenimientoOptions = async () => {
+    try {
+      const response = await httpService.get('/v1/mantenimiento-options');
+      if (response.data.success) {
+        setMantenimientoOptions(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error al cargar opciones de mantenimiento:', error);
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!selectedCategory) {
+      toast.error("Debe seleccionar al menos la categoría principal");
+      return;
+    }
+
+    try {
+      setIsUpdatingCategory(true);
+      const res = await httpService.put(`/v1/gestion-tickets/${ticket.id}`, {
+        tipo_mantenimiento_id: selectedCategory,
+        subcategoria_mantenimiento_id: selectedSubcategory || null
+      });
+
+      if (res.data.success) {
+        toast.success("Categoría actualizada correctamente");
+        setIsEditingCategory(false);
+        if (onRefresh) onRefresh();
+      }
+    } catch (error) {
+      console.error("Error al actualizar categoría:", error);
+      toast.error("Error al actualizar la categoría");
+    } finally {
+      setIsUpdatingCategory(false);
+    }
+  };
 
   // Función simple para cerrar modales sin recargar
   const handleModalClose = (modalSetter) => {
@@ -505,16 +558,102 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 block">TIPO DE ARREGLO *</label>
                   <p className="text-sm text-gray-900 mt-2 uppercase">{ticket.tipo || ticket.origen || 'Datos no disponibles'}</p>
                 </div>
-                {ticket.tipo_mantenimiento_nombre && (
-                  <div className="border-l-2 border-orange-400 pl-3 rounded-lg">
-                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wide border-b border-orange-300 pb-1 mb-2 block">Categoría Mantenimiento</label>
-                    <p className="text-sm text-gray-900 mt-2 font-medium">{ticket.tipo_mantenimiento_nombre}</p>
+                {/* Visualización de Categoría (Solo si no estamos editando) */}
+                {!isEditingCategory && (
+                  <div className="border-l-2 border-orange-400 pl-3 rounded-lg relative group min-h-[50px]">
+                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wide border-b border-orange-300 pb-1 mb-2 flex items-center justify-between">
+                      Categoría Mantenimiento
+                      {permissionService.isAdmin() && (
+                        <button 
+                          onClick={() => setIsEditingCategory(true)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-orange-100 rounded text-orange-600"
+                          title="Editar categoría"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </label>
+                    <div className="space-y-3 mt-2">
+                       <div>
+                         <p className="text-sm text-gray-900 font-medium">{ticket.tipo_mantenimiento_nombre || "No asignada"}</p>
+                       </div>
+                       {ticket.subcategoria_mantenimiento_nombre && (
+                         <div>
+                           <label className="text-[10px] font-bold text-orange-600 uppercase tracking-tight block border-b border-orange-100 mb-1">Subcategoría</label>
+                           <p className="text-sm text-gray-900 font-medium">{ticket.subcategoria_mantenimiento_nombre}</p>
+                         </div>
+                       )}
+                    </div>
                   </div>
                 )}
-                {ticket.subcategoria_mantenimiento_nombre && (
-                  <div className="border-l-2 border-orange-400 pl-3 rounded-lg">
-                    <label className="text-xs font-bold text-orange-600 uppercase tracking-wide border-b border-orange-300 pb-1 mb-2 block">Subcategoría</label>
-                    <p className="text-sm text-gray-900 mt-2 font-medium">{ticket.subcategoria_mantenimiento_nombre}</p>
+
+                {/* Formulario de Edición de Categoría */}
+                {isEditingCategory && (
+                  <div className="col-span-full bg-orange-50 border border-orange-200 p-4 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-bold text-orange-700 uppercase flex items-center gap-2">
+                        <Pencil className="w-4 h-4" />
+                        Editar Categorización
+                      </h4>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-8 text-orange-700 hover:bg-orange-100 px-2"
+                          onClick={() => setIsEditingCategory(false)}
+                          disabled={isUpdatingCategory}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="h-8 bg-orange-600 hover:bg-orange-700 text-white px-3 flex items-center gap-1 shadow-sm"
+                          onClick={handleUpdateCategory}
+                          disabled={isUpdatingCategory}
+                        >
+                          {isUpdatingCategory ? (
+                            <Clock className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Check className="w-3 h-3" />
+                          )}
+                          {isUpdatingCategory ? 'Guardando...' : 'Guardar Cambios'}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-orange-600 uppercase ml-1">Categoría Principal</label>
+                        <select 
+                          className="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-all shadow-sm"
+                          value={selectedCategory}
+                          onChange={(e) => {
+                            setSelectedCategory(e.target.value);
+                            setSelectedSubcategory(""); // Reset subcat when cat changes
+                          }}
+                        >
+                          <option value="">Seleccione una categoría</option>
+                          {mantenimientoOptions.categorias.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-orange-600 uppercase ml-1">Subcategoría</label>
+                        <select 
+                          className="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-all shadow-sm"
+                          value={selectedSubcategory}
+                          onChange={(e) => setSelectedSubcategory(e.target.value)}
+                        >
+                          <option value="">Seleccione una subcategoría</option>
+                          {mantenimientoOptions.subcategorias
+                            .filter(sub => sub.id_padre == selectedCategory)
+                            .map(sub => (
+                              <option key={sub.id} value={sub.id}>{sub.nombre}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 )}
                 <div className="border-l-2 border-gray-400 pl-3 rounded-lg">

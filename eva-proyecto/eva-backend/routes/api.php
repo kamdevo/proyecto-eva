@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use App\Http\Controllers\Api\ArchivosController;
+use App\Http\Controllers\Api\ServicioController;
 // use App\Models\Equipo; // COMENTADO: No usar modelo, usar consultas directas
 
 // Helper function for default permissions based on roles.md
@@ -5611,10 +5612,39 @@ Route::get('v1/gestion-tickets', function(Request $request) {
 // Endpoint para exportar todos los tickets a Excel
 Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
     try {
-        \Log::info('🔄 Exportando todos los tickets a Excel');
+        // Aumentar límites para exportaciones grandes
+        set_time_limit(600); // 10 minutos
+        ini_set('memory_limit', '1024M');
+        
+        \Log::info('🔄 [EXPORT] Iniciando exportación de tickets a Excel');
 
-        // Obtener todos los tickets sin paginación
-        $tickets = DB::table('ordenes')
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Tickets');
+
+        // Headers
+        $headers = [
+            'ID', 'Asunto', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 
+            'Estado', 'Prioridad', 'Reportante', 'Email Reportante', 
+            'Asignado', 'Equipo', 'Código Equipo', 'Marca', 'Modelo',
+            'Servicio', 'Área', 'Sede', 'Empresa', 'Origen', 
+            'Diagnóstico', 'Reparación'
+        ];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getStyle($col . '1')->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FF4472C4');
+            $sheet->getStyle($col . '1')->getFont()->getColor()->setARGB('FFFFFFFF');
+            $col++;
+        }
+
+        // Obtener tickets en bloques para ahorrar memoria
+        $row = 2;
+        DB::table('ordenes')
             ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
             ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
             ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
@@ -5649,115 +5679,78 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
                 'ordenes.reparacion'
             ])
             ->orderBy('ordenes.id', 'desc')
-            ->get();
+            ->chunk(1000, function($chunk) use (&$sheet, &$row) {
+                foreach ($chunk as $ticket) {
+                    // Mapear estado
+                    switch($ticket->estado_id) {
+                        case 1: $estado = 'Abierto'; break;
+                        case 2: $estado = 'Asignado'; break;
+                        case 3: $estado = 'Diagnosticado'; break;
+                        case 4: $estado = 'Cerrado'; break;
+                        case 5: $estado = 'Esperando cierre'; break;
+                        default: $estado = 'Desconocido';
+                    }
 
-        // Mapear estados manualmente
-        $tickets = $tickets->map(function($ticket) {
-            switch($ticket->estado_id) {
-                case 1:
-                    $ticket->estado_descripcion = 'Abierto';
-                    break;
-                case 2:
-                    $ticket->estado_descripcion = 'Asignado';
-                    break;
-                case 3:
-                    $ticket->estado_descripcion = 'Diagnosticado';
-                    break;
-                case 4:
-                    $ticket->estado_descripcion = 'Cerrado';
-                    break;
-                case 5:
-                    $ticket->estado_descripcion = 'Esperando cierre';
-                    break;
-                default:
-                    $ticket->estado_descripcion = 'Desconocido';
-            }
-            return $ticket;
-        });
-
-        // Crear spreadsheet
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Tickets');
-
-        // Headers
-        $headers = [
-            'ID', 'Asunto', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 
-            'Estado', 'Prioridad', 'Reportante', 'Email Reportante', 
-            'Asignado', 'Equipo', 'Código Equipo', 'Marca', 'Modelo',
-            'Servicio', 'Área', 'Sede', 'Empresa', 'Origen', 
-            'Diagnóstico', 'Reparación'
-        ];
-
-        $col = 'A';
-        foreach ($headers as $header) {
-            $sheet->setCellValue($col . '1', $header);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
-            $sheet->getStyle($col . '1')->getFill()
-                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setARGB('FF4472C4');
-            $sheet->getStyle($col . '1')->getFont()->getColor()->setARGB('FFFFFFFF');
-            $col++;
-        }
-
-        // Data
-        $row = 2;
-        foreach ($tickets as $ticket) {
-            $reportante = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
-            $asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
-            
-            $sheet->setCellValue('A' . $row, $ticket->id);
-            $sheet->setCellValue('B' . $row, $ticket->asunto ?? '');
-            $sheet->setCellValue('C' . $row, $ticket->descripcion ?? '');
-            $sheet->setCellValue('D' . $row, $ticket->fecha_inicio ?? '');
-            $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
-            $sheet->setCellValue('F' . $row, $ticket->estado_descripcion ?? '');
-            $sheet->setCellValue('G' . $row, $ticket->prioridad ?? '');
-            $sheet->setCellValue('H' . $row, $reportante);
-            $sheet->setCellValue('I' . $row, $ticket->reportante_email ?? '');
-            $sheet->setCellValue('J' . $row, $asignado);
-            $sheet->setCellValue('K' . $row, $ticket->equipo_nombre ?? '');
-            $sheet->setCellValue('L' . $row, $ticket->equipo_codigo ?? '');
-            $sheet->setCellValue('M' . $row, $ticket->equipo_marca ?? '');
-            $sheet->setCellValue('N' . $row, $ticket->equipo_modelo ?? '');
-            $sheet->setCellValue('O' . $row, $ticket->servicio_nombre ?? '');
-            $sheet->setCellValue('P' . $row, $ticket->area_nombre ?? '');
-            $sheet->setCellValue('Q' . $row, $ticket->sede_nombre ?? '');
-            $sheet->setCellValue('R' . $row, $ticket->empresa_nombre ?? '');
-            $sheet->setCellValue('S' . $row, $ticket->origen ?? '');
-            $sheet->setCellValue('T' . $row, $ticket->diagnostico ?? '');
-            $sheet->setCellValue('U' . $row, $ticket->reparacion ?? '');
-            $row++;
-        }
+                    $reportante = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
+                    $asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
+                    
+                    $sheet->setCellValue('A' . $row, $ticket->id);
+                    $sheet->setCellValue('B' . $row, $ticket->asunto ?? '');
+                    $sheet->setCellValue('C' . $row, $ticket->descripcion ?? '');
+                    $sheet->setCellValue('D' . $row, $ticket->fecha_inicio ?? '');
+                    $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
+                    $sheet->setCellValue('F' . $row, $estado);
+                    $sheet->setCellValue('G' . $row, $ticket->prioridad ?? '');
+                    $sheet->setCellValue('H' . $row, $reportante);
+                    $sheet->setCellValue('I' . $row, $ticket->reportante_email ?? '');
+                    $sheet->setCellValue('J' . $row, $asignado);
+                    $sheet->setCellValue('K' . $row, $ticket->equipo_nombre ?? '');
+                    $sheet->setCellValue('L' . $row, $ticket->equipo_codigo ?? '');
+                    $sheet->setCellValue('M' . $row, $ticket->equipo_marca ?? '');
+                    $sheet->setCellValue('N' . $row, $ticket->equipo_modelo ?? '');
+                    $sheet->setCellValue('O' . $row, $ticket->servicio_nombre ?? '');
+                    $sheet->setCellValue('P' . $row, $ticket->area_nombre ?? '');
+                    $sheet->setCellValue('Q' . $row, $ticket->sede_nombre ?? '');
+                    $sheet->setCellValue('R' . $row, $ticket->empresa_nombre ?? '');
+                    $sheet->setCellValue('S' . $row, $ticket->origen ?? '');
+                    $sheet->setCellValue('T' . $row, $ticket->diagnostico ?? '');
+                    $sheet->setCellValue('U' . $row, $ticket->reparacion ?? '');
+                    $row++;
+                }
+            });
 
         // Auto-size columns
         foreach (range('A', 'U') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // Crear archivo temporal
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filename = 'Tickets_Consolidado_' . date('Y-m-d') . '.xlsx';
-        $tempFile = tempnam(sys_get_temp_dir(), 'excel');
-        $writer->save($tempFile);
 
-        \Log::info('✅ Tickets exportados exitosamente: ' . $tickets->count() . ' registros');
+        \Log::info('✅ [EXPORT] Tickets procesados exitosamente. Iniciando descarga.');
 
-        return response()->download($tempFile, $filename, [
+        return new \Symfony\Component\HttpFoundation\StreamedResponse(function() use ($writer) {
+            $writer->save('php://output');
+        }, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             'Cache-Control' => 'max-age=0',
             'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
             'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
-        ])->deleteFileAfterSend(true);
+        ]);
 
     } catch (\Exception $e) {
-        \Log::error('❌ Error exportando tickets: ' . $e->getMessage());
+        \Log::error('❌ [EXPORT] Error exportando tickets: ' . $e->getMessage(), [
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
         return response()->json([
             'success' => false,
             'message' => 'Error al exportar tickets: ' . $e->getMessage()
-        ], 500);
+        ], 500, [
+            'Access-Control-Allow-Origin' => '*'
+        ]);
     }
 });
 
@@ -5783,6 +5776,8 @@ Route::put('v1/gestion-tickets/{id}', function(Request $request, $id) {
         if ($request->has('marca_equipo')) $updateData['marca_equipo'] = $request->marca_equipo;
         if ($request->has('modelo_equipo')) $updateData['modelo_equipo'] = $request->modelo_equipo;
         if ($request->has('serie_equipo')) $updateData['serie_equipo'] = $request->serie_equipo;
+        if ($request->has('tipo_mantenimiento_id')) $updateData['tipo_mantenimiento_id'] = $request->tipo_mantenimiento_id;
+        if ($request->has('subcategoria_mantenimiento_id')) $updateData['subcategoria_mantenimiento_id'] = $request->subcategoria_mantenimiento_id;
 
         // Actualizar en la BD
         if (!empty($updateData)) {
@@ -5802,6 +5797,36 @@ Route::put('v1/gestion-tickets/{id}', function(Request $request, $id) {
         return response()->json([
             'success' => false,
             'message' => 'Error al actualizar el ticket: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Endpoint para obtener opciones de mantenimiento (categorias y subcategorias)
+Route::get('v1/mantenimiento-options', function() {
+    try {
+        $categorias = DB::table('tipos_mantenimientos')
+            ->whereNull('id_padre')
+            ->orWhere('id_padre', 0)
+            ->select('id', 'nombre')
+            ->get();
+            
+        $subcategorias = DB::table('tipos_mantenimientos')
+            ->whereNotNull('id_padre')
+            ->where('id_padre', '>', 0)
+            ->select('id', 'nombre', 'id_padre')
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'categorias' => $categorias,
+                'subcategorias' => $subcategorias
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener opciones: ' . $e->getMessage()
         ], 500);
     }
 });
@@ -6521,6 +6546,9 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     });
 
+    Route::get('servicios/options', [ServicioController::class, 'getOptions']);
+    Route::get('servicios', [ServicioController::class, 'index']);
+/*
     Route::get('servicios', function() {
         try {
             $servicios = DB::table('servicios')->where('status', 1)->get(['id', 'name']);
@@ -6534,7 +6562,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'message' => 'Error obteniendo servicios: ' . $e->getMessage()
             ], 500);
         }
-    });
+    });*/
 
     // ==========================================
     // COMPLETE USER REGISTRATION SYSTEM
