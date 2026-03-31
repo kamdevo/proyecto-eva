@@ -5588,12 +5588,17 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Tickets');
 
-        // Headers (según requerimiento de imagen + categorías)
+        // Headers Originales + Nuevos (37 Columnas)
         $headers = [
-            'Información de Cierre', 'Fecha creación', 'Fecha diagnostico', 'Fecha asignación', 'Fecha de cierre',
-            'Descripcion', 'Asunto', 'Prioridad', 'Marca', 'Codigo', 'Serie', 'Nombre', 'ID Equipo', 'Ubicación',
-            'Nombre del reportante', 'Centro de costo', 'Usuario asignado', 'Usuario que reporta', 'Usuario que cierre',
-            'Fecha solicitud repuesto', 'Fecha recepcion repuesto', 'Marca ingresada', 'Codigo ingresado', 'Serie ingresada', 'Nombre ingresado',
+            'ID', 'Asunto', 'Descripción', 'Fecha Inicio', 'Fecha Fin', 
+            'Estado', 'Prioridad', 'Reportante', 'Email Reportante', 
+            'Asignado', 'Equipo', 'Código Equipo', 'Marca', 'Modelo',
+            'Servicio', 'Área', 'Sede', 'Empresa', 'Origen', 
+            'Diagnóstico', 'Reparación',
+            'Fecha diagnostico', 'Fecha asignación', 'ID Equipo',
+            'Serie Maestro', 'Nombre del reportante (Ingresado)', 'Centro de costo',
+            'Usuario que cierre', 'Fecha solicitud repuesto', 'Fecha recepcion repuesto',
+            'Marca ingresada', 'Codigo ingresado', 'Modelo ingresado', 'Serie ingresada', 'Nombre ingresado',
             'Categoría', 'Subcategoría'
         ];
 
@@ -5620,48 +5625,65 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
             ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
             ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
+            ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
             ->select([
                 'ordenes.id',
                 'ordenes.asunto',
                 'ordenes.descripcion',
                 'ordenes.fecha_inicio',
                 'ordenes.fecha_fin',
+                'ordenes.estado_id',
+                'ordenes.prioridad',
+                'reportante.nombre as reportante_nombre',
+                'reportante.apellido as reportante_apellido',
+                'reportante.email as reportante_email',
+                'asignado.nombre as asignado_nombre',
+                'asignado.apellido as asignado_apellido',
+                'equipos.name as equipo_nombre',
+                'equipos.code as equipo_codigo',
+                'equipos.marca as equipo_marca',
+                'equipos.modelo as equipo_modelo',
+                'equipos.serial as master_equipo_serie',
+                'servicios.name as servicio_nombre',
+                'areas.name as area_nombre',
+                'sedes.name as sede_nombre',
+                'empresas.name as empresa_nombre',
+                'subprocesos.nombre as origen',
+                'ordenes.diagnostico',
+                'ordenes.reparacion',
                 'ordenes.fecha_diagnostico',
                 'ordenes.fecha_asignacion',
                 'ordenes.fecha_solicitud_repuesto',
                 'ordenes.fecha_recepcion_repuesto',
-                'ordenes.estado_id',
-                'ordenes.prioridad',
-                'ordenes.reparacion',
-                'ordenes.diagnostico',
                 'ordenes.equipo_id',
                 'ordenes.centro_costo',
-                'ordenes.nombre_reportante',
-                'ordenes.marca_equipo',
-                'ordenes.modelo_equipo',
-                'ordenes.serie_equipo',
-                'ordenes.codigo_equipo',
-                'ordenes.nombre_equipo',
-                'reportante.nombre as reportante_nombre',
-                'reportante.apellido as reportante_apellido',
-                'asignado.nombre as asignado_nombre',
-                'asignado.apellido as asignado_apellido',
+                'ordenes.nombre_reportante as nombre_reportante_texto',
+                'ordenes.marca_equipo as marca_ingresada',
+                'ordenes.modelo_equipo as modelo_ingresada',
+                'ordenes.serie_equipo as serie_ingresada',
+                'ordenes.codigo_equipo as codigo_ingresada',
+                'ordenes.nombre_equipo as nombre_ingresada',
                 'tecnico_cierre.nombre as tecnico_cierre_nombre',
                 'tecnico_cierre.apellido as tecnico_cierre_apellido',
                 'ordenes.tecnico_cierre_text',
-                'equipos.name as master_equipo_nombre',
-                'equipos.code as master_equipo_codigo',
-                'equipos.marca as master_equipo_marca',
-                'equipos.serial as master_equipo_serie',
                 'tm_tipo.nombre as categoria_nombre',
-                'tm_sub.nombre as subcategoria_nombre',
-                'servicios.name as servicio_nombre'
+                'tm_sub.nombre as subcategoria_nombre'
             ])
             ->orderBy('ordenes.id', 'desc')
             ->get();
 
         $allData = [];
         foreach ($tickets as $ticket) {
+            // Mapear estado
+            switch($ticket->estado_id) {
+                case 1: $estado = 'Abierto'; break;
+                case 2: $estado = 'Asignado'; break;
+                case 3: $estado = 'Diagnosticado'; break;
+                case 4: $estado = 'Cerrado'; break;
+                case 5: $estado = 'Esperando cierre'; break;
+                default: $estado = 'Desconocido';
+            }
+
             $reportante_usuario = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
             $usuario_asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
             
@@ -5672,31 +5694,41 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             }
             
             $allData[] = [
-                $ticket->reparacion ?? '',
+                $ticket->id,
+                $ticket->asunto ?? '',
+                $ticket->descripcion ?? '',
                 $ticket->fecha_inicio ?? '',
+                $ticket->fecha_fin ?? '',
+                $estado,
+                $ticket->prioridad ?? '',
+                $reportante_usuario,
+                $ticket->reportante_email ?? '',
+                $usuario_asignado,
+                $ticket->equipo_nombre ?? '',
+                $ticket->equipo_codigo ?? '',
+                $ticket->equipo_marca ?? '',
+                $ticket->equipo_modelo ?? '',
+                $ticket->servicio_nombre ?? '',
+                $ticket->area_nombre ?? '',
+                $ticket->sede_nombre ?? '',
+                $ticket->empresa_nombre ?? '',
+                $ticket->origen ?? '',
+                $ticket->diagnostico ?? '',
+                $ticket->reparacion ?? '',
                 $ticket->fecha_diagnostico ?? '',
                 $ticket->fecha_asignacion ?? '',
-                $ticket->fecha_fin ?? '',
-                $ticket->descripcion ?? '',
-                $ticket->asunto ?? '',
-                $ticket->prioridad ?? '',
-                $ticket->master_equipo_marca ?? '',
-                $ticket->master_equipo_codigo ?? '',
-                $ticket->master_equipo_serie ?? '',
-                $ticket->master_equipo_nombre ?? '',
                 $ticket->equipo_id ?? '',
-                $ticket->servicio_nombre ?? '',
-                $ticket->nombre_reportante ?? '',
+                $ticket->master_equipo_serie ?? '',
+                $ticket->nombre_reportante_texto ?? '',
                 $ticket->centro_costo ?? '',
-                $usuario_asignado,
-                $reportante_usuario,
                 $usuario_cierre,
                 $ticket->fecha_solicitud_repuesto ?? '',
                 $ticket->fecha_recepcion_repuesto ?? '',
-                $ticket->marca_equipo ?? '',
-                $ticket->codigo_equipo ?? '',
-                $ticket->serie_equipo ?? '',
-                $ticket->nombre_equipo ?? '',
+                $ticket->marca_ingresada ?? '',
+                $ticket->codigo_ingresada ?? '',
+                $ticket->modelo_ingresada ?? '',
+                $ticket->serie_ingresada ?? '',
+                $ticket->nombre_ingresada ?? '',
                 $ticket->categoria_nombre ?? '',
                 $ticket->subcategoria_nombre ?? ''
             ];
@@ -5708,12 +5740,14 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
 
         // NO USAR setAutoSize en producción con muchos datos, consume mucha memoria y tiempo
         $colWidths = [
-            'A' => 40, 'B' => 20, 'C' => 20, 'D' => 20, 'E' => 20,
-            'F' => 40, 'G' => 30, 'H' => 15, 'I' => 20, 'J' => 20,
-            'K' => 20, 'L' => 30, 'M' => 15, 'N' => 30, 'O' => 30,
-            'P' => 20, 'Q' => 30, 'R' => 30, 'S' => 30, 'T' => 20,
-            'U' => 20, 'V' => 20, 'W' => 20, 'X' => 20, 'Y' => 20,
-            'Z' => 25, 'AA' => 25
+            'A' => 10, 'B' => 30, 'C' => 50, 'D' => 20, 'E' => 20,
+            'F' => 15, 'G' => 10, 'H' => 30, 'I' => 30, 'J' => 30,
+            'K' => 30, 'L' => 20, 'M' => 20, 'N' => 20, 'O' => 30,
+            'P' => 30, 'Q' => 20, 'R' => 30, 'S' => 20, 'T' => 50,
+            'U' => 50, 'V' => 20, 'W' => 20, 'X' => 15, 'Y' => 20,
+            'Z' => 30, 'AA' => 20, 'AB' => 30, 'AC' => 20, 'AD' => 20,
+            'AE' => 20, 'AF' => 20, 'AG' => 20, 'AH' => 20, 'AI' => 30,
+            'AJ' => 25, 'AK' => 25
         ];
         foreach ($colWidths as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
