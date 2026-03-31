@@ -1734,15 +1734,11 @@ Route::prefix('v1')->group(function () {
             }, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Access-Control-Allow-Origin' => '*',
-                'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+                'Cache-Control' => 'max-age=0'
             ]);
         } catch (\Exception $e) {
             \Log::error('❌ [EXPORT] Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500, [
-                'Access-Control-Allow-Origin' => '*'
-            ]);
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     });
 
@@ -3473,8 +3469,8 @@ Route::post('v1/crear-ticket', function (Request $request) {
             'usuario_final_id' => $request->usuario_final_id ?: 1,
             'trabajo_id' => $request->trabajo_id ?: 1,
             'listado_industrial_id' => $request->listado_industrial_id ?: 1,
-            'servicio_id' => $request->servicio_id ?: 1, // Default servicio
-            'area_id' => $request->area_id ?: 1 // Default area
+            'servicio_id' => $request->servicio_id ?: null,
+            'area_id' => $request->area_id ?: null
         ];
         
         // Campos opcionales del formulario
@@ -4958,10 +4954,10 @@ Route::post('v1/equipos-create', function(Request $request) {
             'name' => $request->input('name'),
             'code' => $request->input('code'),
             'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
-            'servicio_id' => $request->input('servicio_id') ?: 1, // REQUERIDO - usar 1 si está vacío
-            'area_id' => $request->input('area_id') ?: 1, // REQUERIDO - usar 1 si está vacío
-            'propietario_id' => $request->input('propietario_id') ?: 1, // REQUERIDO - usar 1 si está vacío
-            'tipo_id' => $request->input('tipo_id') ?: 1, // REQUERIDO - usar 1 si está vacío
+            'servicio_id' => $request->input('servicio_id') ?: null,
+            'area_id' => $request->input('area_id') ?: null,
+            'propietario_id' => $request->input('propietario_id') ?: null,
+            'tipo_id' => $request->input('tipo_id') ?: null,
             'marca' => $request->input('marca'),
             'modelo' => $request->input('modelo'),
             'descripcion' => $request->input('descripcion'),
@@ -5703,10 +5699,7 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
         }, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Cache-Control' => 'max-age=0',
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+            'Cache-Control' => 'max-age=0'
         ]);
 
     } catch (\Exception $e) {
@@ -5717,9 +5710,7 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
         return response()->json([
             'success' => false,
             'message' => 'Error al exportar tickets: ' . $e->getMessage()
-        ], 500, [
-            'Access-Control-Allow-Origin' => '*'
-        ]);
+        ], 500);
     }
 });
 

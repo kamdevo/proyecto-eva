@@ -61,8 +61,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 if (app()->environment('production')) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Error interno del servidor'
-                    ], 500);
+                        'message' => 'Error interno del servidor: ' . $e->getMessage()
+                    ], 500, [
+                        'Access-Control-Allow-Origin' => '*',
+                        'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+                        'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+                    ]);
                 }
             }
         });
