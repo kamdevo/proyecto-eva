@@ -1742,8 +1742,8 @@ Route::prefix('v1')->group(function () {
                         $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
                         $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
                         $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
-                        $sheet->setCellValue('P' . $row, $preventivo->proveedor_nombre ?? '');
-                        $sheet->setCellValue('Q' . $row, $preventivo->created_at ?? '');
+                        $sheet->setCellValue('O' . $row, $preventivo->proveedor_nombre ?? '');
+                        $sheet->setCellValue('P' . $row, $preventivo->created_at ?? '');
                         $row++;
                     }
                 });
@@ -1856,8 +1856,8 @@ Route::prefix('v1')->group(function () {
                 $sheet->setCellValue('L' . $row, $p->equipo_serie ?? '');
                 $sheet->setCellValue('M' . $row, $p->servicio_nombre ?? '');
                 $sheet->setCellValue('N' . $row, $p->area_nombre ?? '');
-                $sheet->setCellValue('P' . $row, $p->proveedor_nombre ?? '');
-                $sheet->setCellValue('Q' . $row, $p->created_at ?? '');
+                $sheet->setCellValue('O' . $row, $p->proveedor_nombre ?? '');
+                $sheet->setCellValue('P' . $row, $p->created_at ?? '');
                 $row++;
             }
             

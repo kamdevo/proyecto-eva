@@ -934,26 +934,17 @@ class CorrectivoGeneralController extends Controller
                 });
             }
             
+            // Combinar ambas consultas usando UNION para ordenar y procesar eficientemente
+            $queryFinal = $queryGenerales->unionAll($queryTickets)
+                ->orderBy('created_at', 'desc');
+
             if ($limit) {
-                $queryTickets->limit($limit);
+                $queryFinal->limit($limit);
             }
             
-            $tickets = $queryTickets->get();
+            \Log::info("📊 [EXPORT] Iniciando stream de datos...");
 
-            // Combinar ambas colecciones
-            $correctivos = $correctivosGenerales->concat($tickets)->sortByDesc('created_at');
-
-            $totalRecords = $correctivos->count();
-            $totalGenerales = $correctivosGenerales->count();
-            $totalTickets = $tickets->count();
-            
-            Log::info("📊 [EXPORT] Total de correctivos a exportar: {$totalRecords}");
-            Log::info("   - Correctivos Generales: {$totalGenerales}");
-            Log::info("   - Tickets/Órdenes: {$totalTickets}");
-
-            if ($totalRecords === 0) {
-                throw new Exception('No hay correctivos para exportar');
-            }
+            Log::info("📊 [EXPORT] Total de correctivos a exportar: Consultando...");
 
             if ($formato === 'parada') {
                 $tipoNombre = $tipo === 'industrial' ? 'Industrial' : 'Biomedico';
@@ -962,7 +953,7 @@ class CorrectivoGeneralController extends Controller
                 $filename = 'correctivos_TODOS_' . date('Y-m-d_H-i-s') . '.xlsx';
             }
 
-            return new StreamedResponse(function() use ($correctivos, $filename, $formato, $tipo) {
+            return new StreamedResponse(function() use ($queryFinal, $filename, $formato, $tipo) {
                 $spreadsheet = new Spreadsheet();
                 $sheet = $spreadsheet->getActiveSheet();
 
@@ -1048,7 +1039,8 @@ class CorrectivoGeneralController extends Controller
 
                     // Datos
                     $row = 5;
-                    foreach ($correctivos as $correctivo) {
+                    // Procesar registros usando cursor para ahorrar memoria
+                    foreach ($queryFinal->cursor() as $correctivo) {
                         // FECHA DE CREACIÓN (con hora)
                         $fechaCreacion = $correctivo->fecha_inicio ?? $correctivo->created_at ?? '';
                         if ($fechaCreacion) {
@@ -1182,9 +1174,9 @@ class CorrectivoGeneralController extends Controller
                 $sheet->getStyle('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')
                       ->applyFromArray($headerStyle);
 
-                // Escribir datos reales usando campos directos del JOIN
+                // Escribir datos reales usando cursor para ahorrar memoria
                 $row = 2;
-                foreach ($correctivos as $correctivo) {
+                foreach ($queryFinal->cursor() as $correctivo) {
                     $rowData = [
                         'Correctivos generales', // fuente
                         'No especificado', // responsable (no existe en tabla)
