@@ -3563,7 +3563,7 @@ Route::post('v1/crear-ticket', function (Request $request) {
         \Log::info('🎫 [CREAR-TICKET] Datos preparados para insertar', $ticketData);
         
         // Verificar que todos los campos obligatorios están presentes
-        $camposObligatorios = ['descripcion', 'fecha_inicio', 'estado_id', 'reportante_id', 'subproceso_id', 'prioridad', 'tecnico_id', 'electrico', 'mecanico', 'locativo', 'cierre_active', 'usuario_final_id', 'trabajo_id', 'listado_industrial_id', 'servicio_id', 'area_id'];
+        $camposObligatorios = ['descripcion', 'fecha_inicio', 'estado_id', 'reportante_id', 'subproceso_id', 'prioridad', 'tecnico_id', 'electrico', 'mecanico', 'locativo', 'cierre_active', 'usuario_final_id', 'trabajo_id', 'listado_industrial_id'];
         foreach ($camposObligatorios as $campo) {
             if (!isset($ticketData[$campo])) {
                 \Log::error("🎫 [CREAR-TICKET] Campo obligatorio faltante: {$campo}");
