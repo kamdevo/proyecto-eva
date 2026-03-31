@@ -30,15 +30,38 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
   const [firmaRecibidoInfo, setFirmaRecibidoInfo] = useState(null); // {name, date}
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Autocompletar datos al abrir el modal
+  // Autocompletar datos al abrir el modal y recuperar estado guardado
   useEffect(() => {
     if (isOpen && ticketId) {
       const user = authService.getStoredUser();
       const userName = user ? (user.username || user.nombre || user.name || '') : '';
-      
-      // Autocompletar solo el ID del ticket sin prefijos
       const generatedCode = String(ticketId);
+
+      // Intentar recuperar el estado de localStorage
+      const storageKey = `enviar_cierre_state_${ticketId}`;
+      const savedState = localStorage.getItem(storageKey);
+
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          setFormData(parsedState.formData || {
+            retro_cierre: generatedCode,
+            reparacion: "",
+            fecha_asignacion_cierre: "",
+            hora_asignacion_cierre: "",
+            tecnico_cierre_text: userName
+          });
+          setFirmaTecnicoData(parsedState.firmaTecnicoData || null);
+          setFirmaRecibidoData(parsedState.firmaRecibidoData || null);
+          setFirmaTecnicoInfo(parsedState.firmaTecnicoInfo || null);
+          setFirmaRecibidoInfo(parsedState.firmaRecibidoInfo || null);
+          return; // Salir para no inicializar en blanco
+        } catch (e) {
+          console.error("Error parsing saved state:", e);
+        }
+      }
       
+      // Si no hay estado guardado, inicializar en blanco
       setFormData({
         retro_cierre: generatedCode, // ✅ Solo el ID
         reparacion: "",
@@ -46,8 +69,30 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
         hora_asignacion_cierre: "",
         tecnico_cierre_text: userName
       });
+      // Asegurarse de limpiar firmas si no había estado
+      setFirmaTecnicoData(null);
+      setFirmaRecibidoData(null);
+      setFirmaTecnicoInfo(null);
+      setFirmaRecibidoInfo(null);
     }
   }, [isOpen, ticketId, ticketCode]);
+
+  // Guardar estado en localStorage cada vez que haya un cambio
+  useEffect(() => {
+    if (ticketId && isOpen) {
+      const storageKey = `enviar_cierre_state_${ticketId}`;
+      const stateToSave = {
+        formData,
+        firmaTecnicoData,
+        firmaRecibidoData,
+        firmaTecnicoInfo,
+        firmaRecibidoInfo
+      };
+      
+      // Solo guardar si hay algo modificado o para preservar el texto (evitar sobreescribirlo si se vacia la primer vez por el init hook si demora)
+      localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+    }
+  }, [formData, firmaTecnicoData, firmaRecibidoData, firmaTecnicoInfo, firmaRecibidoInfo, ticketId, isOpen]);
 
   if (!isOpen) return null;
 
@@ -158,6 +203,9 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
 
       toast.success("Ticket enviado a cierre exitosamente");
       
+      // Limpiar de localStorage al enviar correctamente
+      localStorage.removeItem(`enviar_cierre_state_${ticketId}`);
+
       // Resetear formulario
       setFormData({
         retro_cierre: "",

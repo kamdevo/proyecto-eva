@@ -441,95 +441,91 @@ const TicketPDF = ({ ticket }) => {
         </View>
 
         {/* Sección: Diagnóstico */}
-        {(ticket.diagnostico || ticket.retro_diagnostico) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>DIAGNÓSTICO</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>DIAGNÓSTICO</Text>
+          </View>
+          <View style={styles.fieldFull}>
+            <Text style={styles.fieldLabel}>Diagnóstico *</Text>
+            <Text style={styles.fieldValue}>{ticket.diagnostico || ticket.retro_diagnostico || ' '}</Text>
+          </View>
+          <View style={styles.fieldGrid}>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Repuestos necesarios *</Text>
+              <Text style={styles.fieldValue}>{ticket.repuestos_usados || ticket.repuestos_diagnostico || ' '}</Text>
             </View>
-            <View style={styles.fieldFull}>
-              <Text style={styles.fieldLabel}>Diagnóstico *</Text>
-              <Text style={styles.fieldValue}>{ticket.diagnostico || ticket.retro_diagnostico || 'Datos no disponibles'}</Text>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Responsable del diagnóstico *</Text>
+              <Text style={styles.fieldValue}>
+                {ticket.tecnico_diagnostico_text || 
+                 `${ticket.nombre_tecnico_diagnostico || ''} ${ticket.apellido_tecnico_diagnostico || ''}`.trim() || 
+                 ticket.asignado_nombre || 
+                 ' '}
+              </Text>
             </View>
+          </View>
+          <View style={{marginTop: 5, padding: 5, backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 4}}>
+            <Text style={{fontSize: 7, fontWeight: 'bold', color: '#374151', marginBottom: 3}}>Tiempo de ejecución</Text>
             <View style={styles.fieldGrid}>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Repuestos necesarios *</Text>
-                <Text style={styles.fieldValue}>{ticket.repuestos_usados || ticket.repuestos_diagnostico || 'N/A'}</Text>
+                <Text style={styles.fieldLabel}>Fecha de inicio *</Text>
+                <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_diagnostico) !== 'N/A' ? formatDateTime(ticket.fecha_diagnostico) : ' '}</Text>
               </View>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Responsable del diagnóstico *</Text>
-                <Text style={styles.fieldValue}>
-                  {ticket.tecnico_diagnostico_text || 
-                   `${ticket.nombre_tecnico_diagnostico || ''} ${ticket.apellido_tecnico_diagnostico || ''}`.trim() || 
-                   ticket.asignado_nombre || 
-                   'Datos no disponibles'}
-                </Text>
-              </View>
-            </View>
-            <View style={{marginTop: 5, padding: 5, backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 4}}>
-              <Text style={{fontSize: 7, fontWeight: 'bold', color: '#374151', marginBottom: 3}}>Tiempo de ejecución</Text>
-              <View style={styles.fieldGrid}>
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Fecha de inicio *</Text>
-                  <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_diagnostico)}</Text>
-                </View>
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Fecha de finalización *</Text>
-                  <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_diagnostico)}</Text>
-                </View>
+                <Text style={styles.fieldLabel}>Fecha de finalización *</Text>
+                <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_diagnostico) !== 'N/A' ? formatDateTime(ticket.fecha_diagnostico) : ' '}</Text>
               </View>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Sección: Trabajo Realizado */}
-        {ticket.reparacion && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>TRABAJO REALIZADO</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>TRABAJO REALIZADO</Text>
+          </View>
+          <View style={styles.fieldFull}>
+            <Text style={styles.fieldLabel}>Tipo y descripción del trabajo realizado *</Text>
+            <Text style={styles.fieldValue}>{ticket.reparacion || ticket.retro_cierre || ' '}</Text>
+          </View>
+          <View style={styles.fieldGrid}>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Repuestos instalados *</Text>
+              <Text style={styles.fieldValue}>{ticket.repuestos_instalados || ticket.repuestos_usados || ' '}</Text>
             </View>
-            <View style={styles.fieldFull}>
-              <Text style={styles.fieldLabel}>Tipo y descripción del trabajo realizado *</Text>
-              <Text style={styles.fieldValue}>{ticket.reparacion || ticket.retro_cierre || 'Datos no disponibles'}</Text>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Responsable de la reparación *</Text>
+              <Text style={styles.fieldValue}>
+                {ticket.tecnico_cierre_text || 
+                 `${ticket.nombre_tecnico_cierre || ''} ${ticket.apellido_tecnico_cierre || ''}`.trim() || 
+                 ' '}
+              </Text>
             </View>
+          </View>
+          <View style={{marginTop: 5, padding: 5, backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 4}}>
+            <Text style={{fontSize: 7, fontWeight: 'bold', color: '#374151', marginBottom: 3}}>Tiempo de ejecución</Text>
             <View style={styles.fieldGrid}>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Repuestos instalados *</Text>
-                <Text style={styles.fieldValue}>{ticket.repuestos_instalados || ticket.repuestos_usados || 'Datos no disponibles'}</Text>
+                <Text style={styles.fieldLabel}>Fecha de inicio *</Text>
+                <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_asignacion_cierre || ticket.fecha_inicio) !== 'N/A' ? formatDateTime(ticket.fecha_asignacion_cierre || ticket.fecha_inicio) : ' '}</Text>
               </View>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Responsable de la reparación *</Text>
-                <Text style={styles.fieldValue}>
-                  {ticket.tecnico_cierre_text || 
-                   `${ticket.nombre_tecnico_cierre || ''} ${ticket.apellido_tecnico_cierre || ''}`.trim() || 
-                   'Datos no disponibles'}
-                </Text>
-              </View>
-            </View>
-            <View style={{marginTop: 5, padding: 5, backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 4}}>
-              <Text style={{fontSize: 7, fontWeight: 'bold', color: '#374151', marginBottom: 3}}>Tiempo de ejecución</Text>
-              <View style={styles.fieldGrid}>
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Fecha de inicio *</Text>
-                  <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_asignacion_cierre || ticket.fecha_inicio)}</Text>
-                </View>
-                <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Fecha de finalización *</Text>
-                  <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_fin)}</Text>
-                </View>
+                <Text style={styles.fieldLabel}>Fecha de finalización *</Text>
+                <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_fin) !== 'N/A' ? formatDateTime(ticket.fecha_fin) : ' '}</Text>
               </View>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Sección: Avances del Trabajo */}
-        {ticket.avances && ticket.avances.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>AVANCES DEL TRABAJO</Text>
-            </View>
-            <View style={styles.fieldFull}>
-              <Text style={styles.fieldLabel}>Estado del trabajo + observaciones *</Text>
-              {ticket.avances.map((avance, index) => (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>AVANCES DEL TRABAJO</Text>
+          </View>
+          <View style={styles.fieldFull}>
+            <Text style={styles.fieldLabel}>Estado del trabajo + observaciones *</Text>
+            {ticket.avances && ticket.avances.length > 0 ? (
+              ticket.avances.map((avance, index) => (
                 <View key={index} style={{marginBottom: 4, paddingLeft: 5, borderLeft: '1px solid #E5E7EB'}}>
                   <Text style={styles.fieldValue}>
                     {formatDateTime(avance.fecha || avance.created_at)} - {avance.descripcion || avance.observacion}
@@ -538,10 +534,14 @@ const TicketPDF = ({ ticket }) => {
                     <Text style={{fontSize: 6, color: '#6B7280', marginTop: 1}}>Por: {avance.usuario_nombre}</Text>
                   )}
                 </View>
-              ))}
-            </View>
+              ))
+            ) : (
+              <View style={{marginBottom: 4, paddingLeft: 5, minHeight: 20}}>
+                <Text style={styles.fieldValue}> </Text>
+              </View>
+            )}
           </View>
-        )}
+        </View>
 
         {/* Sección: Cierre y Firmas */}
         <View style={styles.section}>
@@ -567,19 +567,13 @@ const TicketPDF = ({ ticket }) => {
                 {ticket?.firma_tecnico && typeof ticket.firma_tecnico === 'string' && ticket.firma_tecnico.trim() !== '' ? (
                   <Image src={ticket.firma_tecnico} style={styles.signatureImage} />
                 ) : (
-                  <Text style={styles.noSignature}>Sin firma</Text>
+                  <Text style={styles.noSignature}> </Text>
                 )}
               </View>
-              {ticket.firma_tecnico_nombre && (
-                <View>
-                  <Text style={styles.signatureName}>{ticket.firma_tecnico_nombre}</Text>
-                  {ticket.firma_tecnico_fecha && (
-                    <Text style={styles.signatureDate}>
-                      {formatDate(ticket.firma_tecnico_fecha)}
-                    </Text>
-                  )}
-                </View>
-              )}
+              <Text style={styles.signatureName}>{ticket.firma_tecnico_nombre || ' '}</Text>
+              <Text style={styles.signatureDate}>
+                {ticket.firma_tecnico_fecha ? formatDate(ticket.firma_tecnico_fecha) : ' '}
+              </Text>
             </View>
 
             <View style={styles.signatureBox}>
@@ -588,19 +582,13 @@ const TicketPDF = ({ ticket }) => {
                 {ticket?.firma_recibido && typeof ticket.firma_recibido === 'string' && ticket.firma_recibido.trim() !== '' ? (
                   <Image src={ticket.firma_recibido} style={styles.signatureImage} />
                 ) : (
-                  <Text style={styles.noSignature}>Sin firma</Text>
+                  <Text style={styles.noSignature}> </Text>
                 )}
               </View>
-              {ticket.firma_recibido_nombre && (
-                <View>
-                  <Text style={styles.signatureName}>{ticket.firma_recibido_nombre}</Text>
-                  {ticket.firma_recibido_fecha && (
-                    <Text style={styles.signatureDate}>
-                      {formatDate(ticket.firma_recibido_fecha)}
-                    </Text>
-                  )}
-                </View>
-              )}
+              <Text style={styles.signatureName}>{ticket.firma_recibido_nombre || ' '}</Text>
+              <Text style={styles.signatureDate}>
+                {ticket.firma_recibido_fecha ? formatDate(ticket.firma_recibido_fecha) : ' '}
+              </Text>
             </View>
           </View>
         </View>

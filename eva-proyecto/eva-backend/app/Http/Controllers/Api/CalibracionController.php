@@ -49,7 +49,7 @@ class CalibracionController extends ApiController
     {
         try {
             $query = Calibracion::with([
-                'equipo:id,name,code,servicio_id,area_id',
+                'equipo:id,name,code,marca,modelo,serial,servicio_id,area_id',
                 'equipo.servicio:id,name',
                 'equipo.area:id,name'
             ]);
@@ -68,6 +68,22 @@ class CalibracionController extends ApiController
 
             if ($request->has('equipo_id')) {
                 $query->where('equipo_id', $request->equipo_id);
+            }
+
+            // Filtros basados en el equipo relacionado
+            if ($request->has('equipo_status')) {
+                $status = $request->equipo_status;
+                if (strtolower($status) === 'activo') $status = 1;
+
+                $query->whereHas('equipo', function($eq) use ($status) {
+                    $eq->where('status', $status);
+                });
+            }
+
+            if ($request->has('equipo_tipo_id')) {
+                $query->whereHas('equipo', function($eq) use ($request) {
+                    $eq->where('tipo_id', $request->equipo_tipo_id);
+                });
             }
 
             // Removed tecnico_id filter as column doesn't exist

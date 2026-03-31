@@ -20,15 +20,51 @@ export default function AddDiagnosticoModal({ isOpen, onClose, ticketId }) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Autocomplete ticket ID when modal opens
+  // Autocompletar datos al abrir el modal y restaurar localStorage
   useEffect(() => {
     if (isOpen && ticketId) {
+      const storageKey = `add_diagnostico_state_${ticketId}`;
+      const savedState = localStorage.getItem(storageKey);
+      
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          setFormData(prev => ({
+            ...prev,
+            ...parsedState.formData,
+            retro_diagnostico: parsedState.formData?.retro_diagnostico || String(ticketId),
+            file_diagnostico: null // Cannot restore files from localStorage
+          }));
+          return;
+        } catch (e) {
+          console.error("Error parsing saved diagnostico state:", e);
+        }
+      }
+
       setFormData(prev => ({
         ...prev,
-        retro_diagnostico: String(ticketId)
+        retro_diagnostico: String(ticketId),
+        diagnostico: "",
+        fecha_diagnostico: "",
+        hora_diagnostico: "",
+        tecnico_diagnostico_text: "",
+        file_diagnostico: null
       }));
     }
   }, [isOpen, ticketId]);
+
+  // Guardar estado en localStorage al cambiar
+  useEffect(() => {
+    if (isOpen && ticketId) {
+      const storageKey = `add_diagnostico_state_${ticketId}`;
+      // No podemos guardar el archivo en localStorage
+      const { file_diagnostico, ...formDataToSave } = formData;
+      const stateToSave = {
+        formData: formDataToSave
+      };
+      localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+    }
+  }, [formData, isOpen, ticketId]);
 
   if (!isOpen) return null;
 
@@ -102,6 +138,9 @@ export default function AddDiagnosticoModal({ isOpen, onClose, ticketId }) {
 
       toast.success("Diagnóstico agregado exitosamente");
       
+      // Limpiar el autoguardado después de enviar con éxito
+      localStorage.removeItem(`add_diagnostico_state_${ticketId}`);
+
       // Resetear formulario
       setFormData({
         retro_diagnostico: "",

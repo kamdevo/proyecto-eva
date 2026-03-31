@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,46 @@ export default function AddProgressModal({ isOpen, onClose, ticketId }) {
     archivo: null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Inicializar formData desde localStorage o valores por defecto
+  useEffect(() => {
+    if (isOpen && ticketId) {
+      const storageKey = `add_progress_state_${ticketId}`;
+      const savedState = localStorage.getItem(storageKey);
+      
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          setFormData({
+            ...parsedState.formData,
+            archivo: null // No podemos restaurar archivos
+          });
+          return;
+        } catch(e) {
+          console.error("Error parsing saved progress state", e);
+        }
+      }
+      
+      setFormData({
+        fecha: new Date().toISOString().split('T')[0],
+        titulo: "",
+        descripcion: "",
+        archivo: null
+      });
+    }
+  }, [isOpen, ticketId]);
+
+  // Guardar en localStorage ante cada cambio
+  useEffect(() => {
+    if (isOpen && ticketId) {
+      const storageKey = `add_progress_state_${ticketId}`;
+      const { archivo, ...formDataToSave } = formData;
+      const stateToSave = {
+        formData: formDataToSave
+      };
+      localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+    }
+  }, [formData, isOpen, ticketId]);
 
   if (!isOpen) return null;
 
@@ -85,11 +125,15 @@ export default function AddProgressModal({ isOpen, onClose, ticketId }) {
 
       toast.success("✅ Avance agregado exitosamente");
       
+      // Limpiar datos de autoguardado tras éxito
+      localStorage.removeItem(`add_progress_state_${ticketId}`);
+
       // Resetear formulario
       setFormData({
         fecha: new Date().toISOString().split('T')[0],
         titulo: "",
         descripcion: "",
+        archivo: null
       });
       
       // Cerrar modal - el padre se encarga de recargar los datos
@@ -104,7 +148,7 @@ export default function AddProgressModal({ isOpen, onClose, ticketId }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-full max-h-[90vh] h-auto w-auto overflow-y-auto">
+      <DialogContent className="max-w-2xl w-full max-h-[90vh] h-auto overflow-y-auto">
         <DialogHeader className="bg-green-600 text-white p-4 rounded-t-lg -mt-6 -mx-6 mb-4">
           <div className="flex items-center">
             <FileText className="w-6 h-6 mr-3" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,25 @@ export default function AssociateSparePart({ isOpen, onClose, ticketId, hasSpare
   const [repuestoNombre, setRepuestoNombre] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mode, setMode] = useState(hasSpare ? 'remove' : 'add'); // 'add' o 'remove'
+
+  useEffect(() => {
+    if (isOpen && ticketId && mode === 'add') {
+      const storageKey = `associate_spare_state_${ticketId}`;
+      const savedState = localStorage.getItem(storageKey);
+      if (savedState) {
+        setRepuestoNombre(savedState);
+      } else {
+        setRepuestoNombre("");
+      }
+    }
+  }, [isOpen, ticketId, mode]);
+
+  useEffect(() => {
+    if (isOpen && ticketId && mode === 'add') {
+      const storageKey = `associate_spare_state_${ticketId}`;
+      localStorage.setItem(storageKey, repuestoNombre);
+    }
+  }, [repuestoNombre, isOpen, ticketId, mode]);
 
   if (!isOpen) return null;
 
@@ -64,6 +83,8 @@ export default function AssociateSparePart({ isOpen, onClose, ticketId, hasSpare
         }
 
         toast.success("✅ Repuesto asociado exitosamente");
+        localStorage.removeItem(`associate_spare_state_${ticketId}`);
+        setRepuestoNombre("");
       }
       
       // Cerrar modal - el padre se encarga de recargar los datos

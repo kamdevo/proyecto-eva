@@ -1868,6 +1868,8 @@ export function MedicalDevicesView() {
       <CalibrationModal
         open={calibrationModalOpen}
         onOpenChange={setCalibrationModalOpen}
+        equipoTipoId={1}
+        equipoStatus="activo"
       />
       <CorrectiveModal
         open={correctiveModalOpen}

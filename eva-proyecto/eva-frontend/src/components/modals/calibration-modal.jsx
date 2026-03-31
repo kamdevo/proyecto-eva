@@ -38,7 +38,7 @@ import { useAuth } from "@/hooks/useAuth";
 import httpService from "@/services/httpService";
 import { toast } from "sonner";
 
-export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
+export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTipoId = null, equipoStatus = null }) {
   const {  hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
   const [calibraciones, setCalibraciones] = useState([]);
@@ -75,7 +75,9 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
         per_page: itemsPerPage,
         search,
         ...filters,
-        ...(equipoId && { equipo_id: equipoId })
+        ...(equipoId && { equipo_id: equipoId }),
+        ...(equipoTipoId && { equipo_tipo_id: equipoTipoId }),
+        ...(equipoStatus && { equipo_status: equipoStatus })
       };
 
       console.log('Loading calibrations with params:', params);
@@ -606,8 +608,10 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                         <TableHead className="text-gray-700 font-semibold">Marca</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Modelo</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Serie</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Cód. Inv.</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Ubicación</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">Archivo</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Fecha Prog.</TableHead>
+                        <TableHead className="text-center text-gray-700 font-semibold">Archivo</TableHead>
                         <TableHead className="text-center text-gray-700 font-semibold">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -685,19 +689,33 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                             <TableCell>{calibration.equipo?.marca || 'N/A'}</TableCell>
                             <TableCell>{calibration.equipo?.modelo || 'N/A'}</TableCell>
                             <TableCell className="font-mono text-sm">{calibration.equipo?.serial || 'N/A'}</TableCell>
+                            <TableCell className="font-mono text-sm">{calibration.equipo?.code || 'N/A'}</TableCell>
                             <TableCell>
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
                                 {calibration.equipo?.servicio?.name || 'N/A'}
                               </span>
                             </TableCell>
                             <TableCell>
-                              {calibration.file ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
-                                  Disponible
-                                </span>
+                              {calibration.fecha_programada ? (
+                                <span className="text-xs text-gray-700">{new Date(calibration.fecha_programada).toLocaleDateString('es-ES')}</span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">
-                                  No disponible
+                                <span className="text-gray-400 text-xs">N/A</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {calibration.file ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewDocument(calibration.file)}
+                                  className="p-2 hover:bg-blue-50 rounded-full transition-colors"
+                                  title="Ver archivo / Preview"
+                                >
+                                  <FileText className="h-5 w-5 text-blue-600" />
+                                </Button>
+                              ) : (
+                                <span className="text-gray-300" title="Sin archivo">
+                                  <FileText className="h-5 w-5 mx-auto" />
                                 </span>
                               )}
                             </TableCell>
@@ -707,9 +725,18 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null }) {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleViewDocument(calibration.file)}
+                                    onClick={() => {
+                                      setSelectedCalibration(calibration);
+                                      setFormData({
+                                        codigo: calibration.description || '',
+                                        fecha_calibracion: calibration.fecha_calibracion || '',
+                                        fecha_programada: calibration.fecha_programada || '',
+                                        observaciones: calibration.observaciones || ''
+                                      });
+                                      setViewMode('edit');
+                                    }}
                                     className="p-2 hover:bg-blue-50 rounded-full transition-colors"
-                                    title="Ver documento"
+                                    title="Editar"
                                   >
                                     <FileText className="h-4 w-4 text-blue-600" />
                                   </Button>

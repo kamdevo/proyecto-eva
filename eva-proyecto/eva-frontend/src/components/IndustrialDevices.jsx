@@ -1125,6 +1125,7 @@ function IndustrialDevices() {
       <CalibrationModal
         open={calibrationModalOpen}
         onOpenChange={setCalibrationModalOpen}
+        equipoTipoId={2}
       />
       <CorrectiveModal
         open={correctiveModalOpen}
