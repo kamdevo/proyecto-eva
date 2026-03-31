@@ -1067,7 +1067,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/storage/mantenimientos/${mant.file}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/${mant.file}`, '_blank')}
                                 className="text-green-600 hover:bg-green-100 h-7 px-2"
                                 title="Ver archivo de mantenimiento"
                               >
@@ -1331,7 +1331,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/storage/observaciones/${obs.file}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/observaciones/${obs.file}`, '_blank')}
                                 className="text-purple-600 hover:bg-purple-100 h-7 px-2"
                                 title="Ver archivo de observación"
                               >
@@ -1450,7 +1450,7 @@ export function ViewEquipmentModal({
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/storage/equipos/archivos/${doc.vinculo}`, '_blank')}
+                                  onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/equipos/archivos/${doc.vinculo}`, '_blank')}
                                   className="text-gray-800 hover:bg-gray-100 h-7 px-2"
                                   title="Ver documento"
                                 >

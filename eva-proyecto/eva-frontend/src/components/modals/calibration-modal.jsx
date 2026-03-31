@@ -19,10 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  Search, 
-  Plus, 
-  FileText, 
+import {
+  Search,
+  Plus,
+  FileText,
   Download,
   Calendar,
   Filter,
@@ -32,14 +32,16 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Eye,
+  Edit
 } from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
 import httpService from "@/services/httpService";
 import { toast } from "sonner";
 
 export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTipoId = null, equipoStatus = null }) {
-  const {  hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
   const [calibraciones, setCalibraciones] = useState([]);
   const [filteredCalibraciones, setFilteredCalibraciones] = useState([]);
@@ -68,7 +70,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
   const loadCalibraciones = useCallback(async (page = 1, search = '', filters = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = {
         page,
@@ -81,15 +83,15 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
       };
 
       console.log('Loading calibrations with params:', params);
-      console.log('🔍 Date filters being sent:', { 
-        fecha_desde: params.fecha_desde, 
-        fecha_hasta: params.fecha_hasta 
+      console.log('🔍 Date filters being sent:', {
+        fecha_desde: params.fecha_desde,
+        fecha_hasta: params.fecha_hasta
       });
       const response = await httpService.get('/v1/calibracion', { params });
-      
+
       if (response.data && response.data.success) {
         const apiData = response.data.data;
-        
+
         if (apiData && typeof apiData === 'object' && Array.isArray(apiData.data)) {
           // Paginated response structure from Laravel
           setCalibraciones(apiData.data);
@@ -130,7 +132,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
   // Apply filters with server-side pagination
   const applyFilters = useCallback(() => {
     const filters = {};
-    
+
     // Build date filters for API
     if (dateFromFilter) {
       filters.fecha_desde = dateFromFilter;
@@ -183,7 +185,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
   // Handle page change with server reload
   const handlePageChange = (page) => {
     const filters = {};
-    
+
     // Handle date filters
     if (dateFromFilter) {
       filters.fecha_desde = dateFromFilter;
@@ -191,7 +193,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
     if (dateToFilter) {
       filters.fecha_hasta = dateToFilter;
     }
-    
+
     loadCalibraciones(page, searchTerm, filters);
   };
 
@@ -225,7 +227,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
   // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.codigo || !formData.fecha_calibracion) {
       setError('Código y fecha de calibración son requeridos');
       return;
@@ -243,11 +245,11 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
           submitData.append(key, formData[key]);
         }
       });
-      
+
       if (equipoId) {
         submitData.append('equipo_id', equipoId);
       }
-      
+
       if (selectedFile) {
         submitData.append('file', selectedFile);
       }
@@ -286,13 +288,13 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
   // Handle document view
   const handleViewDocument = (fileName) => {
     if (!fileName) return;
-    
+
     // Usar la URL del backend para acceder a los archivos
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
     const documentUrl = `${API_BASE_URL}/storage/calibraciones/${fileName}`;
-    
+
     console.log('🔍 Abriendo documento:', documentUrl);
-    
+
     const newWindow = window.open(documentUrl, "_blank");
     if (newWindow) {
       newWindow.focus();
@@ -307,12 +309,12 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
     try {
       setLoading(true);
       toast.loading('Exportando calibraciones...', { id: toastId });
-      
+
       const response = await httpService.get('/v1/export/calibraciones', {
         responseType: 'blob',
         params: { ...(equipoId && { equipo_id: equipoId }) }
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -320,7 +322,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
+
       toast.success('Calibraciones exportadas exitosamente', { id: toastId });
     } catch (err) {
       console.error('Error exporting:', err);
@@ -355,7 +357,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
               required
             />
           </div>
-          
+
           <div>
             <Label htmlFor="fecha_calibracion">Fecha de Ejecución *</Label>
             <Input
@@ -368,7 +370,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
               required
             />
           </div>
-          
+
           <div>
             <Label htmlFor="fecha_programada">Fecha Programada</Label>
             <Input
@@ -397,9 +399,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
           <Label>Archivo Asociado</Label>
           {!selectedFile ? (
             <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-              }`}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                }`}
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
               onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
@@ -498,16 +499,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    {hasPermission('calibraciones', 'crear') && (
-                      <Button
-                        onClick={() => setViewMode('add')}
-                        className="bg-green-600 hover:bg-green-700 text-white shadow-md"
-                        size="sm"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Agregar
-                      </Button>
-                    )}
+
                     <Button
                       onClick={handleExport}
                       variant="outline"
@@ -527,7 +519,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                     <Filter className="h-4 w-4 text-gray-500" />
                     <span className="text-sm font-medium text-gray-700">Filtros:</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Label htmlFor="date-from-filter" className="text-sm text-gray-600">Desde:</Label>
                     <Input
@@ -603,22 +595,22 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                     <TableHeader>
                       <TableRow className="bg-gray-100">
                         <TableHead className="text-gray-700 font-semibold">Fecha Calibración</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">Código</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">N° Certificado</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Equipo</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Marca</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Modelo</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Serie</TableHead>
-                        <TableHead className="text-gray-700 font-semibold">Cód. Inv.</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Código</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Ubicación</TableHead>
+                        <TableHead className="text-gray-700 font-semibold">Sede</TableHead>
                         <TableHead className="text-gray-700 font-semibold">Fecha Prog.</TableHead>
                         <TableHead className="text-center text-gray-700 font-semibold">Archivo</TableHead>
-                        <TableHead className="text-center text-gray-700 font-semibold">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan="9" className="text-center py-12">
+                          <TableCell colSpan="11" className="text-center py-12">
                             <div className="flex items-center justify-center gap-2">
                               <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
                               <span className="text-gray-600">Cargando calibraciones...</span>
@@ -627,12 +619,12 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                         </TableRow>
                       ) : filteredCalibraciones.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan="9" className="text-center py-12 text-gray-500">
+                          <TableCell colSpan="11" className="text-center py-12 text-gray-500">
                             <div className="flex flex-col items-center gap-2">
                               <AlertCircle className="h-8 w-8 text-gray-400" />
                               <span className="font-medium">
-                                {searchTerm || dateFromFilter || dateToFilter ? 
-                                  'No se encontraron calibraciones que coincidan con los filtros aplicados' : 
+                                {searchTerm || dateFromFilter || dateToFilter ?
+                                  'No se encontraron calibraciones que coincidan con los filtros aplicados' :
                                   'No hay calibraciones registradas'
                                 }
                               </span>
@@ -656,20 +648,19 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                         </TableRow>
                       ) : (
                         getCurrentPageData().map((calibration, index) => (
-                          <TableRow 
-                            key={calibration.id} 
-                            className={`hover:bg-blue-50 transition-colors ${
-                              index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                            }`}
+                          <TableRow
+                            key={calibration.id}
+                            className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                              }`}
                           >
                             <TableCell className="font-medium">
                               {calibration.fecha_calibracion ? (
                                 <div className="flex flex-col">
                                   <span>{new Date(calibration.fecha_calibracion).toLocaleDateString('es-ES')}</span>
                                   <span className="text-xs text-gray-500">
-                                    {new Date(calibration.fecha_calibracion).toLocaleDateString('es-ES', { 
-                                      weekday: 'short', 
-                                      month: 'short' 
+                                    {new Date(calibration.fecha_calibracion).toLocaleDateString('es-ES', {
+                                      weekday: 'short',
+                                      month: 'short'
                                     })}
                                   </span>
                                 </div>
@@ -692,8 +683,11 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                             <TableCell className="font-mono text-sm">{calibration.equipo?.code || 'N/A'}</TableCell>
                             <TableCell>
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                                {calibration.equipo?.servicio?.name || 'N/A'}
+                                {calibration.equipo?.area?.servicio?.name || calibration.equipo?.servicio?.name || 'N/A'}
                               </span>
+                            </TableCell>
+                            <TableCell>
+                              {calibration.equipo?.area?.servicio?.sede?.name || calibration.equipo?.servicio?.sede?.name || 'N/A'}
                             </TableCell>
                             <TableCell>
                               {calibration.fecha_programada ? (
@@ -715,33 +709,9 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                                 </Button>
                               ) : (
                                 <span className="text-gray-300" title="Sin archivo">
-                                  <FileText className="h-5 w-5 mx-auto" />
+                                  <FileText className="h-5 w-5 mx-auto opacity-20" />
                                 </span>
                               )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center gap-2">
-                                {hasPermission('calibraciones', 'leer') && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedCalibration(calibration);
-                                      setFormData({
-                                        codigo: calibration.description || '',
-                                        fecha_calibracion: calibration.fecha_calibracion || '',
-                                        fecha_programada: calibration.fecha_programada || '',
-                                        observaciones: calibration.observaciones || ''
-                                      });
-                                      setViewMode('edit');
-                                    }}
-                                    className="p-2 hover:bg-blue-50 rounded-full transition-colors"
-                                    title="Editar"
-                                  >
-                                    <FileText className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                )}
-                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -758,11 +728,11 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                       <span className="text-gray-400">•</span>
                       <span>{filteredCalibraciones.length} registros total</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-1">
                       {/* First page */}
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(1)}
                         disabled={currentPage <= 1 || loading}
@@ -771,10 +741,10 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                       >
                         <ChevronsLeft className="h-4 w-4" />
                       </Button>
-                      
+
                       {/* Previous page */}
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage <= 1 || loading}
@@ -783,19 +753,19 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      
+
                       {/* Page numbers */}
                       {(() => {
                         const pages = [];
                         const maxVisiblePages = 5;
                         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
                         let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-                        
+
                         // Adjust start page if we're near the end
                         if (endPage - startPage + 1 < maxVisiblePages) {
                           startPage = Math.max(1, endPage - maxVisiblePages + 1);
                         }
-                        
+
                         // Add ellipsis at the beginning if needed
                         if (startPage > 1) {
                           pages.push(
@@ -817,7 +787,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                             );
                           }
                         }
-                        
+
                         // Add visible page numbers
                         for (let i = startPage; i <= endPage; i++) {
                           pages.push(
@@ -826,17 +796,16 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                               variant={currentPage === i ? "default" : "outline"}
                               size="sm"
                               onClick={() => handlePageChange(i)}
-                              className={`min-w-[2.5rem] ${
-                                currentPage === i 
-                                  ? "bg-blue-600 text-white hover:bg-blue-700 border-blue-600 shadow-md font-semibold" 
-                                  : "hover:bg-blue-50 hover:border-blue-300"
-                              }`}
+                              className={`min-w-[2.5rem] ${currentPage === i
+                                ? "bg-blue-600 text-white hover:bg-blue-700 border-blue-600 shadow-md font-semibold"
+                                : "hover:bg-blue-50 hover:border-blue-300"
+                                }`}
                             >
                               {i}
                             </Button>
                           );
                         }
-                        
+
                         // Add ellipsis at the end if needed
                         if (endPage < totalPages) {
                           if (endPage < totalPages - 1) {
@@ -858,13 +827,13 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                             </Button>
                           );
                         }
-                        
+
                         return pages;
                       })()}
-                      
+
                       {/* Next page */}
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage >= totalPages || loading}
@@ -873,10 +842,10 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
-                      
+
                       {/* Last page */}
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(totalPages)}
                         disabled={currentPage >= totalPages || loading}

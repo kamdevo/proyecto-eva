@@ -307,7 +307,9 @@ function IndustrialDevices() {
         if (publicData && publicData.length > 0) {
           const maintenance = publicData[0];
           if (maintenance.file) {
-            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${maintenance.file}`;
+            // Limpiar nombre del archivo de prefijos redundantes
+            const fileName = maintenance.file.replace(/^mantenimientos\//, "");
+            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${fileName}`;
             window.open(fileUrl, "_blank");
             return;
           }
@@ -344,11 +346,14 @@ function IndustrialDevices() {
         const maintenance = maintenanceData[0];
 
         if (maintenance.file) {
+          // Limpiar nombre del archivo de prefijos redundantes
+          const fileName = maintenance.file.replace(/^mantenimientos\//, "");
+
           // Construct the file URL - archivos preventivos están en mantenimientos
           const possibleUrls = [
-            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${maintenance.file}`,
-            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_asociados/${maintenance.file}`,
-            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${maintenance.file}`
+            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${fileName}`,
+            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_asociados/${fileName}`,
+            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${fileName}`
           ];
           
           // Intentar abrir la primera URL (mantenimientos preventivos)

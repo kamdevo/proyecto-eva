@@ -277,9 +277,12 @@ export function MedicalDevicesView() {
 
         if (recordsWithFiles.length > 0) {
           const latestMaintenance = recordsWithFiles[0];
+          
+          // Limpiar nombre del archivo de prefijos redundantes
+          const fileName = latestMaintenance.file.replace(/^mantenimientos\//, "");
 
           // Abrir el documento directamente
-          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${latestMaintenance.file}`;
+          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${fileName}`;
 
           window.open(fileUrl, "_blank");
           return;
@@ -343,55 +346,30 @@ export function MedicalDevicesView() {
   // Function to handle calibration document opening
   const handleOpenCalibrationDocument = async (equipmentId) => {
     try {
+      // Usar el mismo endpoint que el modal de calibraciones (v1/calibracion) pero filtrando por el último
+      const response = await httpService.get(`/v1/calibracion`, {
+        params: {
+          equipo_id: equipmentId,
+          per_page: 1,
+          order_by: "fecha_calibracion",
+          order_direction: "desc"
+        }
+      });
 
-      // Try to get calibration data for this equipment
-      let response;
-      const authToken = localStorage.getItem("eva_auth_token") || localStorage.getItem("auth_token");
+      const data = response.data?.data?.data || response.data?.data || response.data;
+      const calibration = Array.isArray(data) ? data[0] : (data.data ? data.data[0] : null);
 
-      if (authToken) {
-        response = await httpService.get(`/v1/equipos/${equipmentId}/calibraciones`);
+      if (calibration && calibration.file) {
+        // Limpiar nombre del archivo de prefijos redundantes
+        const fileName = calibration.file.replace(/^calibraciones\//, "");
+        const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/calibraciones/${fileName}`;
+        window.open(fileUrl, "_blank");
       } else {
-        // Fallback to public endpoint
-        response = await fetch(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/calibraciones`, {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-
-        const publicData = await response.json();
-        if (publicData && publicData.length > 0) {
-          const calibration = publicData[0];
-          if (calibration.file) {
-            // calibration.file ya incluye la carpeta 'calibraciones/', no duplicar
-            const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${calibration.file}`;
-            window.open(fileUrl, "_blank");
-            return;
-          }
-        }
-        throw new Error('No se encontraron registros de calibración');
-      }
-
-      const data = response.data;
-      if (data && data.length > 0) {
-        const calibration = data[0];
-        if (calibration.file) {
-          // calibration.file ya incluye la carpeta 'calibraciones/', no duplicar
-          const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${calibration.file}`;
-          window.open(fileUrl, "_blank");
-        } else {
-          toast.warning("No hay documento de calibración disponible para este equipo");
-        }
-      } else {
-        toast.warning("No se encontraron registros de calibración para este equipo");
+        toast.warning("No se encontraron registros de calibración con archivo para este equipo");
       }
     } catch (error) {
       console.error("❌ Error al abrir documento de calibración:", error);
-      toast.error(`Error al acceder al documento de calibración: ${error.message}`);
+      toast.error(`Error al acceder al documento de calibración: ${error.response?.data?.message || error.message}`);
     }
   };
 

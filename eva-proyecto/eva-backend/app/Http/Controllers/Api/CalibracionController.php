@@ -50,8 +50,8 @@ class CalibracionController extends ApiController
         try {
             $query = Calibracion::with([
                 'equipo:id,name,code,marca,modelo,serial,servicio_id,area_id',
-                'equipo.servicio:id,name',
-                'equipo.area:id,name'
+                'equipo.servicio.sede:id,name',
+                'equipo.area.servicio.sede:id,name'
             ]);
 
             // Aplicar filtros

@@ -120,10 +120,13 @@ class Servicio extends Model
     /**
      * Relación genérica - personalizar según necesidades
      */
-    // public function relacion(): BelongsTo
-    // {
-    //     return $this->belongsTo(RelatedModel::class);
-    // }
+    /**
+     * Relación con Sede
+     */
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class, 'sede_id');
+    }
 
     // ==========================================
     // SCOPES EMPRESARIALES

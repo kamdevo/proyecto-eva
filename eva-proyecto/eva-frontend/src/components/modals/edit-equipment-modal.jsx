@@ -1323,8 +1323,11 @@ export function EditEquipmentModal({
       return;
     }
 
+    // Limpiar nombre del archivo de prefijos redundantes
+    const fileName = filename.replace(/^mantenimientos\//, "");
+    
     // Construir URL del archivo de preventivo
-    const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/storage/mantenimientos/${filename}`;
+    const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${fileName}`;
     
     // Abrir directamente en nueva pestaña
     window.open(fileUrl, "_blank", "noopener,noreferrer");
@@ -1337,8 +1340,11 @@ export function EditEquipmentModal({
       return;
     }
 
-    // Construir URL del archivo de calibración (filename ya incluye la carpeta)
-    const fileUrl = `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${filename}`;
+    // Limpiar nombre del archivo de prefijos redundantes
+    const fileName = filename.replace(/^calibraciones\//, "");
+    
+    // Construir URL del archivo de calibración
+    const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/calibraciones/${fileName}`;
     
     // Abrir directamente en nueva pestaña
     window.open(fileUrl, "_blank", "noopener,noreferrer");

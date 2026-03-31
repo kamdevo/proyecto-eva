@@ -4,53 +4,53 @@ import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/render
 // Estilos para el PDF
 const styles = StyleSheet.create({
   page: {
-    padding: 20,
-    fontSize: 8,
+    padding: 10,
+    fontSize: 7,
     fontFamily: 'Helvetica',
   },
   // Contenedor principal del talonario
   talonario: {
     border: '1.5px solid #D1D5DB',
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   // Header con logo, título y OT
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 10,
+    alignItems: 'center',
+    padding: 8,
     borderBottom: '1.5px solid #93C5FD',
   },
   logoContainer: {
-    width: 45,
+    width: 40,
     marginRight: 8,
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 35,
+    height: 35,
   },
   titleContainer: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 5,
+    paddingTop: 0,
   },
   hospitalName: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: 'bold',
     color: '#2563EB',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   subtitle: {
-    fontSize: 7,
+    fontSize: 6,
     color: '#6B7280',
   },
   otBox: {
     backgroundColor: '#EFF6FF',
     border: '1.5px solid #93C5FD',
-    borderRadius: 8,
-    padding: 8,
-    width: 110,
+    borderRadius: 6,
+    padding: 4,
+    width: 100,
     alignItems: 'center',
   },
   otLabel: {
@@ -60,10 +60,10 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   otNumber: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#2563EB',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   otDate: {
     fontSize: 6,
@@ -77,21 +77,21 @@ const styles = StyleSheet.create({
   },
   infoCell: {
     flex: 1,
-    padding: 6,
+    padding: 3,
     borderRight: '1px solid #E5E7EB',
   },
   infoCellLast: {
     flex: 1,
-    padding: 6,
+    padding: 3,
   },
   infoLabel: {
-    fontSize: 7,
+    fontSize: 6,
     fontWeight: 'bold',
     color: '#374151',
     marginBottom: 2,
   },
   infoValue: {
-    fontSize: 7,
+    fontSize: 6,
     color: '#111827',
   },
   // Fila de datos adicionales
@@ -102,25 +102,25 @@ const styles = StyleSheet.create({
   },
   dataCell: {
     flex: 1,
-    padding: 5,
+    padding: 3,
     borderRight: '1px solid #E5E7EB',
   },
   dataCellLast: {
     flex: 1,
-    padding: 5,
+    padding: 3,
   },
   // Secciones
   section: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   sectionHeader: {
     backgroundColor: '#EFF6FF',
     borderLeft: '2px solid #93C5FD',
-    padding: 4,
-    marginBottom: 5,
+    padding: 2,
+    marginBottom: 2,
   },
   sectionTitle: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: 'bold',
     color: '#1F2937',
   },
@@ -128,32 +128,32 @@ const styles = StyleSheet.create({
   fieldGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 5,
+    gap: 3,
   },
   field: {
-    width: '48%',
-    marginBottom: 5,
+    width: '32%',
+    marginBottom: 2,
     borderLeft: '1.5px solid #D1D5DB',
-    paddingLeft: 5,
+    paddingLeft: 3,
   },
   fieldFull: {
     width: '100%',
-    marginBottom: 5,
+    marginBottom: 3,
     borderLeft: '1.5px solid #D1D5DB',
-    paddingLeft: 5,
+    paddingLeft: 4,
   },
   fieldLabel: {
     fontSize: 6,
     fontWeight: 'bold',
     color: '#6B7280',
-    marginBottom: 2,
+    marginBottom: 0,
     borderBottom: '0.5px solid #E5E7EB',
-    paddingBottom: 1,
+    paddingBottom: 0,
   },
   fieldValue: {
     fontSize: 7,
     color: '#111827',
-    marginTop: 2,
+    marginTop: 1,
   },
   // Firmas
   signaturesContainer: {
@@ -165,8 +165,8 @@ const styles = StyleSheet.create({
     flex: 1,
     border: '1.5px solid #D1D5DB',
     borderRadius: 6,
-    padding: 6,
-    minHeight: 70,
+    padding: 4,
+    minHeight: 50,
   },
   signatureLabel: {
     fontSize: 6,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     border: '1px solid #E5E7EB',
     borderRadius: 4,
     backgroundColor: '#F9FAFB',
-    height: 40,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   footer: {
     borderTop: '1px solid #D1D5DB',
     paddingTop: 6,
-    marginTop: 10,
+    marginTop: 5,
     alignItems: 'center',
   },
   footerText: {
@@ -546,7 +546,7 @@ const TicketPDF = ({ ticket }) => {
         {/* Sección: Cierre y Firmas */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>CIERRE</Text>
+            <Text style={styles.sectionTitle}>CIERRE Y ESTADO ACTUAL</Text>
           </View>
           <View style={styles.fieldGrid}>
             <View style={styles.field}>
@@ -556,6 +556,22 @@ const TicketPDF = ({ ticket }) => {
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Fecha de cierre *</Text>
               <Text style={styles.fieldValue}>{formatDateTime(ticket.fecha_fin)}</Text>
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Estado *</Text>
+              <Text style={styles.fieldValue}>{ticket.estado || 'N/A'}</Text>
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Prioridad *</Text>
+              <Text style={styles.fieldValue}>{ticket.prioridad_texto || ticket.prioridad || 'N/A'}</Text>
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Origen *</Text>
+              <Text style={styles.fieldValue}>{ticket.origen || 'N/A'}</Text>
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Total avances *</Text>
+              <Text style={styles.fieldValue}>{ticket.total_avances || ticket.avances?.length || 0}</Text>
             </View>
           </View>
 
@@ -589,33 +605,6 @@ const TicketPDF = ({ ticket }) => {
               <Text style={styles.signatureDate}>
                 {ticket.firma_recibido_fecha ? formatDate(ticket.firma_recibido_fecha) : ' '}
               </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Sección: Estado Actual */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>ESTADO ACTUAL</Text>
-          </View>
-          <View style={styles.fieldGrid}>
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Estado *</Text>
-              <Text style={styles.fieldValue}>{ticket.estado || 'N/A'}</Text>
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Prioridad *</Text>
-              <Text style={styles.fieldValue}>{ticket.prioridad_texto || ticket.prioridad || 'N/A'}</Text>
-            </View>
-          </View>
-          <View style={styles.fieldGrid}>
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Origen *</Text>
-              <Text style={styles.fieldValue}>{ticket.origen || 'N/A'}</Text>
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Total avances *</Text>
-              <Text style={styles.fieldValue}>{ticket.total_avances || ticket.avances?.length || 0}</Text>
             </View>
           </View>
         </View>

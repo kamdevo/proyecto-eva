@@ -2947,7 +2947,6 @@ class EquipmentController extends ApiController
 
             // Obtener calibraciones del equipo con información de archivos
             $calibraciones = DB::table('calibracion')
-                ->leftJoin('usuarios', 'calibracion.usuario_id', '=', 'usuarios.id')
                 ->where('calibracion.equipo_id', $equipoId)
                 ->select([
                     'calibracion.id',
@@ -2955,8 +2954,7 @@ class EquipmentController extends ApiController
                     'calibracion.descripcion',
                     'calibracion.observaciones',
                     'calibracion.file',
-                    'calibracion.created_at',
-                    'usuarios.nombre as usuario_nombre'
+                    'calibracion.created_at'
                 ])
                 ->orderBy('calibracion.fecha_calibracion', 'desc')
                 ->get();
