@@ -1668,14 +1668,41 @@ Route::prefix('v1')->group(function () {
                 'message' => 'Error al eliminar plan de mantenimiento: ' . $e->getMessage()
             ], 500);
         }
-    });
-    
-    // Exportar TODOS los preventivos (sin filtros)
-    Route::get('planes-mantenimientos/export-excel', function (Request $request) {
+     Route::get('planes-mantenimientos/export-excel', function (Request $request) {
         try {
-            \Log::info('📊 Exportando TODOS los preventivos');
+            // Aumentar límites para exportaciones grandes
+            set_time_limit(600); // 10 minutos
+            ini_set('memory_limit', '1024M');
             
-            $preventivos = DB::table('mantenimiento')
+            \Log::info('📊 [EXPORT] Iniciando exportación de TODOS los preventivos');
+            
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Preventivos');
+            
+            // Headers
+            $headers = [
+                'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
+                'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
+                'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Fecha Creación'
+            ];
+            
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
+            ];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
+                $col++;
+            }
+            
+            // Datos en bloques
+            $row = 2;
+            DB::table('mantenimiento')
                 ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
                 ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
                 ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
@@ -1699,91 +1726,92 @@ Route::prefix('v1')->group(function () {
                     'pm.name as proveedor_nombre'
                 ])
                 ->orderBy('mantenimiento.id', 'desc')
-                ->get();
+                ->chunk(1000, function($chunk) use (&$sheet, &$row) {
+                    foreach ($chunk as $preventivo) {
+                        $sheet->setCellValue('A' . $row, $preventivo->id);
+                        $sheet->setCellValue('B' . $row, $preventivo->description ?? '');
+                        $sheet->setCellValue('C' . $row, $preventivo->fecha_programada ?? '');
+                        $sheet->setCellValue('D' . $row, $preventivo->fecha_mantenimiento ?? '');
+                        $sheet->setCellValue('E' . $row, $preventivo->observacion ?? '');
+                        $sheet->setCellValue('F' . $row, $preventivo->repuesto_pendiente ?? 'no');
+                        $sheet->setCellValue('G' . $row, $preventivo->status ?? '');
+                        $sheet->setCellValue('H' . $row, $preventivo->equipo_nombre ?? '');
+                        $sheet->setCellValue('I' . $row, $preventivo->equipo_codigo ?? '');
+                        $sheet->setCellValue('J' . $row, $preventivo->equipo_marca ?? '');
+                        $sheet->setCellValue('K' . $row, $preventivo->equipo_modelo ?? '');
+                        $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
+                        $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
+                        $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
+                        $sheet->setCellValue('P' . $row, $preventivo->proveedor_nombre ?? '');
+                        $sheet->setCellValue('Q' . $row, $preventivo->created_at ?? '');
+                        $row++;
+                    }
+                });
+            
+            // Auto-size columns
+            foreach (range('A', 'Q') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+            
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'preventivos_TODOS_' . date('Y-m-d_His') . '.xlsx';
+            
+            \Log::info('✅ [EXPORT] Preventivos procesados. Iniciando streamed response.');
+            
+            return new \Symfony\Component\HttpFoundation\StreamedResponse(function() use ($writer) {
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'max-age=0',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('❌ [EXPORT] Error exportando preventivos: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al exportar preventivos: ' . $e->getMessage()
+            ], 500, [
+                'Access-Control-Allow-Origin' => '*'
+            ]);
+        }
+    });
 
-            \Log::info('✅ Total preventivos a exportar: ' . $preventivos->count());
-
-            // Crear archivo Excel real
+    // Exportar preventivos FILTRADOS/CUSTOM
+    Route::post('planes-mantenimientos/export-custom', function (Request $request) {
+        try {
+            set_time_limit(600);
+            ini_set('memory_limit', '1024M');
+            
+            \Log::info('📊 [EXPORT] Exportando preventivos FILTRADOS');
+            
+            $ids = collect($request->input('data', []))->pluck('id')->toArray();
+            
+            if (empty($ids)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay preventivos para exportar'
+                ], 400, [
+                    'Access-Control-Allow-Origin' => '*'
+                ]);
+            }
+            
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Preventivos Filtrados');
             
-            // Headers
             $headers = [
                 'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
                 'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
                 'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Fecha Creación'
             ];
             
-            // Estilo para headers
-            $headerStyle = [
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
-            ];
-            
             $col = 'A';
             foreach ($headers as $header) {
                 $sheet->setCellValue($col . '1', $header);
-                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
-                $sheet->getColumnDimension($col)->setAutoSize(true);
                 $col++;
-            }
-            
-            // Datos
-            $row = 2;
-            foreach ($preventivos as $preventivo) {
-                $sheet->setCellValue('A' . $row, $preventivo->id);
-                $sheet->setCellValue('B' . $row, $preventivo->description ?? '');
-                $sheet->setCellValue('C' . $row, $preventivo->fecha_programada ?? '');
-                $sheet->setCellValue('D' . $row, $preventivo->fecha_mantenimiento ?? '');
-                $sheet->setCellValue('E' . $row, $preventivo->observacion ?? '');
-                $sheet->setCellValue('F' . $row, $preventivo->repuesto_pendiente ?? 'no');
-                $sheet->setCellValue('G' . $row, $preventivo->status ?? '');
-                $sheet->setCellValue('H' . $row, $preventivo->equipo_nombre ?? '');
-                $sheet->setCellValue('I' . $row, $preventivo->equipo_codigo ?? '');
-                $sheet->setCellValue('J' . $row, $preventivo->equipo_marca ?? '');
-                $sheet->setCellValue('K' . $row, $preventivo->equipo_modelo ?? '');
-                $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
-                $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
-                $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
-                $sheet->setCellValue('P' . $row, $preventivo->proveedor_nombre ?? '');
-                $sheet->setCellValue('Q' . $row, $preventivo->created_at ?? '');
-                $row++;
-            }
-            
-            // Crear el writer y generar el archivo
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $filename = 'preventivos_TODOS_' . date('Y-m-d_His') . '.xlsx';
-            
-            // Crear archivo temporal
-            $tempFile = tempnam(sys_get_temp_dir(), 'export_');
-            $writer->save($tempFile);
-            
-            return response()->download($tempFile, $filename, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ])->deleteFileAfterSend(true);
-        } catch (\Exception $e) {
-            \Log::error('❌ Error exportando todos los preventivos: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al exportar preventivos: ' . $e->getMessage()
-            ], 500);
-        }
-    });
-    
-    // Exportar preventivos FILTRADOS/CUSTOM
-    Route::post('planes-mantenimientos/export-custom', function (Request $request) {
-        try {
-            \Log::info('📊 Exportando preventivos FILTRADOS');
-            
-            $ids = collect($request->input('data', []))->pluck('id')->toArray();
-            \Log::info('IDs a exportar: ' . json_encode($ids));
-            
-            if (empty($ids)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No hay preventivos para exportar'
-                ], 400);
             }
             
             $preventivos = DB::table('mantenimiento')
@@ -1810,77 +1838,51 @@ Route::prefix('v1')->group(function () {
                     'pm.name as proveedor_nombre'
                 ])
                 ->whereIn('mantenimiento.id', $ids)
-                ->orderBy('mantenimiento.id', 'desc')
                 ->get();
-
-            \Log::info('✅ Total preventivos filtrados: ' . $preventivos->count());
-
-            // Crear archivo Excel real
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
             
-            // Headers
-            $headers = [
-                'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
-                'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
-                'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Fecha Creación'
-            ];
-            
-            // Estilo para headers
-            $headerStyle = [
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
-            ];
-            
-            $col = 'A';
-            foreach ($headers as $header) {
-                $sheet->setCellValue($col . '1', $header);
-                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
-                $sheet->getColumnDimension($col)->setAutoSize(true);
-                $col++;
-            }
-            
-            // Datos
             $row = 2;
-            foreach ($preventivos as $preventivo) {
-                $sheet->setCellValue('A' . $row, $preventivo->id);
-                $sheet->setCellValue('B' . $row, $preventivo->description ?? '');
-                $sheet->setCellValue('C' . $row, $preventivo->fecha_programada ?? '');
-                $sheet->setCellValue('D' . $row, $preventivo->fecha_mantenimiento ?? '');
-                $sheet->setCellValue('E' . $row, $preventivo->observacion ?? '');
-                $sheet->setCellValue('F' . $row, $preventivo->repuesto_pendiente ?? 'no');
-                $sheet->setCellValue('G' . $row, $preventivo->status ?? '');
-                $sheet->setCellValue('H' . $row, $preventivo->equipo_nombre ?? '');
-                $sheet->setCellValue('I' . $row, $preventivo->equipo_codigo ?? '');
-                $sheet->setCellValue('J' . $row, $preventivo->equipo_marca ?? '');
-                $sheet->setCellValue('K' . $row, $preventivo->equipo_modelo ?? '');
-                $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
-                $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
-                $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
-                $sheet->setCellValue('P' . $row, $preventivo->proveedor_nombre ?? '');
-                $sheet->setCellValue('Q' . $row, $preventivo->created_at ?? '');
+            foreach ($preventivos as $p) {
+                $sheet->setCellValue('A' . $row, $p->id);
+                $sheet->setCellValue('B' . $row, $p->description ?? '');
+                $sheet->setCellValue('C' . $row, $p->fecha_programada ?? '');
+                $sheet->setCellValue('D' . $row, $p->fecha_mantenimiento ?? '');
+                $sheet->setCellValue('E' . $row, $p->observacion ?? '');
+                $sheet->setCellValue('F' . $row, $p->repuesto_pendiente ?? 'no');
+                $sheet->setCellValue('G' . $row, $p->status ?? '');
+                $sheet->setCellValue('H' . $row, $p->equipo_nombre ?? '');
+                $sheet->setCellValue('I' . $row, $p->equipo_codigo ?? '');
+                $sheet->setCellValue('J' . $row, $p->equipo_marca ?? '');
+                $sheet->setCellValue('K' . $row, $p->equipo_modelo ?? '');
+                $sheet->setCellValue('L' . $row, $p->equipo_serie ?? '');
+                $sheet->setCellValue('M' . $row, $p->servicio_nombre ?? '');
+                $sheet->setCellValue('N' . $row, $p->area_nombre ?? '');
+                $sheet->setCellValue('P' . $row, $p->proveedor_nombre ?? '');
+                $sheet->setCellValue('Q' . $row, $p->created_at ?? '');
                 $row++;
             }
             
-            // Crear el writer y generar el archivo
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $filename = 'preventivos_FILTRADOS_' . date('Y-m-d_His') . '.xlsx';
+            $filename = 'preventivos_filtrados_' . date('Y-m-d_His') . '.xlsx';
             
-            // Crear archivo temporal
-            $tempFile = tempnam(sys_get_temp_dir(), 'export_');
-            $writer->save($tempFile);
-            
-            return response()->download($tempFile, $filename, [
+            return new \Symfony\Component\HttpFoundation\StreamedResponse(function() use ($writer) {
+                $writer->save('php://output');
+            }, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ])->deleteFileAfterSend(true);
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+            ]);
         } catch (\Exception $e) {
-            \Log::error('❌ Error exportando preventivos filtrados: ' . $e->getMessage());
+            \Log::error('❌ [EXPORT] Error exportando preventivos filtrados: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al exportar preventivos filtrados: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Error al exportar: ' . $e->getMessage()
+            ], 500, [
+                'Access-Control-Allow-Origin' => '*'
+            ]);
         }
+    });
     });
     
     // =================== NOTIFICACIONES POR CORREO ===================
