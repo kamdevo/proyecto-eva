@@ -1582,6 +1582,79 @@ Route::prefix('v1')->group(function () {
         }
     });
     
+    // Exportar todos los preventivos a Excel (DEBE estar ANTES de las rutas con {id})
+    Route::get('planes-mantenimientos/export-excel', function (Request $request) {
+        try {
+            // Aumentar límites para exportaciones grandes
+            set_time_limit(900); // 15 minutos
+            ini_set('memory_limit', '2048M');
+            
+            \Log::info('📊 [EXPORT] Inicio Preventivos - Cursor Mode');
+            
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Preventivos');
+            
+            // Headers
+            $headers = ['ID', 'Descripción', 'Programada', 'Realizada', 'Observación', 'Repuesto', 'Estado', 'Equipo', 'Código', 'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Creación'];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $sheet->getStyle($col . '1')->getFont()->setBold(true);
+                $col++;
+            }
+            
+            $query = DB::table('mantenimiento')
+                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
+                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
+                ->select([
+                    'mantenimiento.id', 'mantenimiento.description', 'mantenimiento.fecha_programada', 'mantenimiento.fecha_mantenimiento',
+                    'mantenimiento.observacion', 'mantenimiento.repuesto_pendiente', 'mantenimiento.status', 'mantenimiento.created_at',
+                    'equipos.name as equipo_nombre', 'equipos.code as equipo_codigo', 'equipos.marca as equipo_marca', 'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serie', 'servicios.name as servicio_nombre', 'areas.name as area_nombre', 'pm.name as proveedor_nombre'
+                ])
+                ->orderBy('mantenimiento.id', 'desc');
+
+            $row = 2;
+            foreach ($query->cursor() as $p) {
+                $sheet->setCellValue('A' . $row, $p->id);
+                $sheet->setCellValue('B' . $row, $p->description ?? '');
+                $sheet->setCellValue('C' . $row, $p->fecha_programada ?? '');
+                $sheet->setCellValue('D' . $row, $p->fecha_mantenimiento ?? '');
+                $sheet->setCellValue('E' . $row, $p->observacion ?? '');
+                $sheet->setCellValue('F' . $row, $p->repuesto_pendiente ?? 'no');
+                $sheet->setCellValue('G' . $row, $p->status ?? '');
+                $sheet->setCellValue('H' . $row, $p->equipo_nombre ?? '');
+                $sheet->setCellValue('I' . $row, $p->equipo_codigo ?? '');
+                $sheet->setCellValue('J' . $row, $p->equipo_marca ?? '');
+                $sheet->setCellValue('K' . $row, $p->equipo_modelo ?? '');
+                $sheet->setCellValue('L' . $row, $p->equipo_serie ?? '');
+                $sheet->setCellValue('M' . $row, $p->servicio_nombre ?? '');
+                $sheet->setCellValue('N' . $row, $p->area_nombre ?? '');
+                $sheet->setCellValue('O' . $row, $p->proveedor_nombre ?? '');
+                $sheet->setCellValue('P' . $row, $p->created_at ?? '');
+                $row++;
+            }
+            
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'preventivos_' . date('Y-m-d_His') . '.xlsx';
+            
+            return new \Symfony\Component\HttpFoundation\StreamedResponse(function() use ($writer) {
+                $writer->save('php://output');
+            }, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'max-age=0'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('❌ [EXPORT] Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    });
+
     // Update preventive maintenance plan
     Route::put('planes-mantenimientos/{id}', function (Request $request, $id) {
         try {
@@ -1667,78 +1740,6 @@ Route::prefix('v1')->group(function () {
                 'success' => false,
                 'message' => 'Error al eliminar plan de mantenimiento: ' . $e->getMessage()
             ], 500);
-        }
-     Route::get('planes-mantenimientos/export-excel', function (Request $request) {
-        try {
-            // Aumentar límites para exportaciones grandes
-            set_time_limit(900); // 15 minutos
-            ini_set('memory_limit', '2048M');
-            
-            \Log::info('📊 [EXPORT] Inicio Preventivos - Cursor Mode');
-            
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setTitle('Preventivos');
-            
-            // Headers
-            $headers = ['ID', 'Descripción', 'Programada', 'Realizada', 'Observación', 'Repuesto', 'Estado', 'Equipo', 'Código', 'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Creación'];
-            
-            $col = 'A';
-            foreach ($headers as $header) {
-                $sheet->setCellValue($col . '1', $header);
-                $sheet->getStyle($col . '1')->getFont()->setBold(true);
-                $col++;
-            }
-            
-            $query = DB::table('mantenimiento')
-                ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
-                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
-                ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
-                ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
-                ->select([
-                    'mantenimiento.id', 'mantenimiento.description', 'mantenimiento.fecha_programada', 'mantenimiento.fecha_mantenimiento',
-                    'mantenimiento.observacion', 'mantenimiento.repuesto_pendiente', 'mantenimiento.status', 'mantenimiento.created_at',
-                    'equipos.name as equipo_nombre', 'equipos.code as equipo_codigo', 'equipos.marca as equipo_marca', 'equipos.modelo as equipo_modelo',
-                    'equipos.serial as equipo_serie', 'servicios.name as servicio_nombre', 'areas.name as area_nombre', 'pm.name as proveedor_nombre'
-                ])
-                ->orderBy('mantenimiento.id', 'desc');
-
-            $row = 2;
-            foreach ($query->cursor() as $p) {
-                $sheet->setCellValue('A' . $row, $p->id);
-                $sheet->setCellValue('B' . $row, $p->description ?? '');
-                $sheet->setCellValue('C' . $row, $p->fecha_programada ?? '');
-                $sheet->setCellValue('D' . $row, $p->fecha_mantenimiento ?? '');
-                $sheet->setCellValue('E' . $row, $p->observacion ?? '');
-                $sheet->setCellValue('F' . $row, $p->repuesto_pendiente ?? 'no');
-                $sheet->setCellValue('G' . $row, $p->status ?? '');
-                $sheet->setCellValue('H' . $row, $p->equipo_nombre ?? '');
-                $sheet->setCellValue('I' . $row, $p->equipo_codigo ?? '');
-                $sheet->setCellValue('J' . $row, $p->equipo_marca ?? '');
-                $sheet->setCellValue('K' . $row, $p->equipo_modelo ?? '');
-                $sheet->setCellValue('L' . $row, $p->equipo_serie ?? '');
-                $sheet->setCellValue('M' . $row, $p->servicio_nombre ?? '');
-                $sheet->setCellValue('N' . $row, $p->area_nombre ?? '');
-                $sheet->setCellValue('O' . $row, $p->proveedor_nombre ?? '');
-                $sheet->setCellValue('P' . $row, $p->created_at ?? '');
-                $row++;
-                
-                // Liberar memoria periódicamente si es necesario (PhpSpreadsheet no lo hace fácil)
-            }
-            
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $filename = 'preventivos_' . date('Y-m-d_His') . '.xlsx';
-            
-            return new \Symfony\Component\HttpFoundation\StreamedResponse(function() use ($writer) {
-                $writer->save('php://output');
-            }, 200, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0'
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('❌ [EXPORT] Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     });
 
@@ -1845,7 +1846,6 @@ Route::prefix('v1')->group(function () {
                 'Access-Control-Allow-Origin' => '*'
             ]);
         }
-    });
     });
     
     // =================== NOTIFICACIONES POR CORREO ===================
