@@ -933,13 +933,22 @@ class CorrectivoGeneralController extends Controller
                           ->orWhere('o.subproceso_id', 2); // Para tickets sin equipo asociado
                 });
             }
-            
-            // Combinar ambas consultas usando UNION para ordenar y procesar eficientemente
-            $queryFinal = $queryGenerales->unionAll($queryTickets)
-                ->orderBy('created_at', 'desc');
 
             if ($limit) {
-                $queryFinal->limit($limit);
+                $queryTickets->limit($limit);
+            }
+            
+            // Cambiar de UNION SQL a manipulación de colecciones para evitar errores 1271 Illegal mix of collations
+            $tickets = $queryTickets->get();
+            
+            // Combinar ambas y ordenar por fecha descendente
+            $queryFinal = collect($correctivosGenerales)
+                ->concat($tickets)
+                ->sortByDesc('created_at')
+                ->values();
+
+            if ($limit) {
+                $queryFinal = $queryFinal->take($limit);
             }
             
             \Log::info("📊 [EXPORT] Iniciando stream de datos...");
@@ -1039,8 +1048,8 @@ class CorrectivoGeneralController extends Controller
 
                     // Datos
                     $row = 5;
-                    // Procesar registros usando cursor para ahorrar memoria
-                    foreach ($queryFinal->cursor() as $correctivo) {
+                    // Procesar registros iterando Collection
+                    foreach ($queryFinal as $correctivo) {
                         // FECHA DE CREACIÓN (con hora)
                         $fechaCreacion = $correctivo->fecha_inicio ?? $correctivo->created_at ?? '';
                         if ($fechaCreacion) {
@@ -1174,9 +1183,9 @@ class CorrectivoGeneralController extends Controller
                 $sheet->getStyle('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')
                       ->applyFromArray($headerStyle);
 
-                // Escribir datos reales usando cursor para ahorrar memoria
+                // Escribir datos reales iterando Collection en lugar de cursor SQL
                 $row = 2;
-                foreach ($queryFinal->cursor() as $correctivo) {
+                foreach ($queryFinal as $correctivo) {
                     $rowData = [
                         'Correctivos generales', // fuente
                         'No especificado', // responsable (no existe en tabla)

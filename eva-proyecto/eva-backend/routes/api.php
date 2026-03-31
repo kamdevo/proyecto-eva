@@ -5627,7 +5627,7 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             ->leftJoin('empresas', 'ordenes.empresa_id', '=', 'empresas.id')
             ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
             ->select([
-                'ordenes.id',
+                DB::raw('ordenes.id as ticket_id'),
                 'ordenes.asunto',
                 'ordenes.descripcion',
                 'ordenes.fecha_inicio',
