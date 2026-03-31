@@ -5608,8 +5608,7 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             $col++;
         }
 
-        // Obtener tickets uno a uno usando cursor para ahorrar memoria
-        $row = 2;
+        // Obtener tickets
         $tickets = DB::table('ordenes')
             ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
             ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
@@ -5659,8 +5658,9 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
                 'servicios.name as servicio_nombre'
             ])
             ->orderBy('ordenes.id', 'desc')
-            ->cursor();
+            ->get();
 
+        $allData = [];
         foreach ($tickets as $ticket) {
             $reportante_usuario = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
             $usuario_asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
@@ -5671,34 +5671,39 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
                 $usuario_cierre = $ticket->tecnico_cierre_text ?? '';
             }
             
-            $sheet->setCellValue('A' . $row, $ticket->reparacion ?? '');
-            $sheet->setCellValue('B' . $row, $ticket->fecha_inicio ?? '');
-            $sheet->setCellValue('C' . $row, $ticket->fecha_diagnostico ?? '');
-            $sheet->setCellValue('D' . $row, $ticket->fecha_asignacion ?? '');
-            $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
-            $sheet->setCellValue('F' . $row, $ticket->descripcion ?? '');
-            $sheet->setCellValue('G' . $row, $ticket->asunto ?? '');
-            $sheet->setCellValue('H' . $row, $ticket->prioridad ?? '');
-            $sheet->setCellValue('I' . $row, $ticket->master_equipo_marca ?? '');
-            $sheet->setCellValue('J' . $row, $ticket->master_equipo_codigo ?? '');
-            $sheet->setCellValue('K' . $row, $ticket->master_equipo_serie ?? '');
-            $sheet->setCellValue('L' . $row, $ticket->master_equipo_nombre ?? '');
-            $sheet->setCellValue('M' . $row, $ticket->equipo_id ?? '');
-            $sheet->setCellValue('N' . $row, $ticket->servicio_nombre ?? '');
-            $sheet->setCellValue('O' . $row, $ticket->nombre_reportante ?? '');
-            $sheet->setCellValue('P' . $row, $ticket->centro_costo ?? '');
-            $sheet->setCellValue('Q' . $row, $usuario_asignado);
-            $sheet->setCellValue('R' . $row, $reportante_usuario);
-            $sheet->setCellValue('S' . $row, $usuario_cierre);
-            $sheet->setCellValue('T' . $row, $ticket->fecha_solicitud_repuesto ?? '');
-            $sheet->setCellValue('U' . $row, $ticket->fecha_recepcion_repuesto ?? '');
-            $sheet->setCellValue('V' . $row, $ticket->marca_equipo ?? '');
-            $sheet->setCellValue('W' . $row, $ticket->codigo_equipo ?? '');
-            $sheet->setCellValue('X' . $row, $ticket->serie_equipo ?? '');
-            $sheet->setCellValue('Y' . $row, $ticket->nombre_equipo ?? '');
-            $sheet->setCellValue('Z' . $row, $ticket->categoria_nombre ?? '');
-            $sheet->setCellValue('AA' . $row, $ticket->subcategoria_nombre ?? '');
-            $row++;
+            $allData[] = [
+                $ticket->reparacion ?? '',
+                $ticket->fecha_inicio ?? '',
+                $ticket->fecha_diagnostico ?? '',
+                $ticket->fecha_asignacion ?? '',
+                $ticket->fecha_fin ?? '',
+                $ticket->descripcion ?? '',
+                $ticket->asunto ?? '',
+                $ticket->prioridad ?? '',
+                $ticket->master_equipo_marca ?? '',
+                $ticket->master_equipo_codigo ?? '',
+                $ticket->master_equipo_serie ?? '',
+                $ticket->master_equipo_nombre ?? '',
+                $ticket->equipo_id ?? '',
+                $ticket->servicio_nombre ?? '',
+                $ticket->nombre_reportante ?? '',
+                $ticket->centro_costo ?? '',
+                $usuario_asignado,
+                $reportante_usuario,
+                $usuario_cierre,
+                $ticket->fecha_solicitud_repuesto ?? '',
+                $ticket->fecha_recepcion_repuesto ?? '',
+                $ticket->marca_equipo ?? '',
+                $ticket->codigo_equipo ?? '',
+                $ticket->serie_equipo ?? '',
+                $ticket->nombre_equipo ?? '',
+                $ticket->categoria_nombre ?? '',
+                $ticket->subcategoria_nombre ?? ''
+            ];
+        }
+
+        if (!empty($allData)) {
+            $sheet->fromArray($allData, NULL, 'A2');
         }
 
         // NO USAR setAutoSize en producción con muchos datos, consume mucha memoria y tiempo
