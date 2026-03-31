@@ -1671,109 +1671,76 @@ Route::prefix('v1')->group(function () {
      Route::get('planes-mantenimientos/export-excel', function (Request $request) {
         try {
             // Aumentar límites para exportaciones grandes
-            set_time_limit(600); // 10 minutos
-            ini_set('memory_limit', '1024M');
+            set_time_limit(900); // 15 minutos
+            ini_set('memory_limit', '2048M');
             
-            \Log::info('📊 [EXPORT] Iniciando exportación de TODOS los preventivos');
+            \Log::info('📊 [EXPORT] Inicio Preventivos - Cursor Mode');
             
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Preventivos');
             
             // Headers
-            $headers = [
-                'ID', 'Descripción', 'Fecha Programada', 'Fecha Realizada', 
-                'Observación', 'Repuesto Pendiente', 'Estado', 'Equipo', 'Código',
-                'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Fecha Creación'
-            ];
-            
-            $headerStyle = [
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
-            ];
+            $headers = ['ID', 'Descripción', 'Programada', 'Realizada', 'Observación', 'Repuesto', 'Estado', 'Equipo', 'Código', 'Marca', 'Modelo', 'Serie', 'Servicio', 'Área', 'Proveedor', 'Creación'];
             
             $col = 'A';
             foreach ($headers as $header) {
                 $sheet->setCellValue($col . '1', $header);
-                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
+                $sheet->getStyle($col . '1')->getFont()->setBold(true);
                 $col++;
             }
             
-            // Datos en bloques
-            $row = 2;
-            DB::table('mantenimiento')
+            $query = DB::table('mantenimiento')
                 ->leftJoin('equipos', 'mantenimiento.equipo_id', '=', 'equipos.id')
                 ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
                 ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
                 ->leftJoin('proveedores_mantenimiento as pm', 'mantenimiento.proveedor_mantenimiento_id', '=', 'pm.id')
                 ->select([
-                    'mantenimiento.id',
-                    'mantenimiento.description',
-                    'mantenimiento.fecha_programada',
-                    'mantenimiento.fecha_mantenimiento',
-                    'mantenimiento.observacion',
-                    'mantenimiento.repuesto_pendiente',
-                    'mantenimiento.status',
-                    'mantenimiento.created_at',
-                    'equipos.name as equipo_nombre',
-                    'equipos.code as equipo_codigo',
-                    'equipos.marca as equipo_marca',
-                    'equipos.modelo as equipo_modelo',
-                    'equipos.serial as equipo_serie',
-                    'servicios.name as servicio_nombre',
-                    'areas.name as area_nombre',
-                    'pm.name as proveedor_nombre'
+                    'mantenimiento.id', 'mantenimiento.description', 'mantenimiento.fecha_programada', 'mantenimiento.fecha_mantenimiento',
+                    'mantenimiento.observacion', 'mantenimiento.repuesto_pendiente', 'mantenimiento.status', 'mantenimiento.created_at',
+                    'equipos.name as equipo_nombre', 'equipos.code as equipo_codigo', 'equipos.marca as equipo_marca', 'equipos.modelo as equipo_modelo',
+                    'equipos.serial as equipo_serie', 'servicios.name as servicio_nombre', 'areas.name as area_nombre', 'pm.name as proveedor_nombre'
                 ])
-                ->orderBy('mantenimiento.id', 'desc')
-                ->chunk(1000, function($chunk) use (&$sheet, &$row) {
-                    foreach ($chunk as $preventivo) {
-                        $sheet->setCellValue('A' . $row, $preventivo->id);
-                        $sheet->setCellValue('B' . $row, $preventivo->description ?? '');
-                        $sheet->setCellValue('C' . $row, $preventivo->fecha_programada ?? '');
-                        $sheet->setCellValue('D' . $row, $preventivo->fecha_mantenimiento ?? '');
-                        $sheet->setCellValue('E' . $row, $preventivo->observacion ?? '');
-                        $sheet->setCellValue('F' . $row, $preventivo->repuesto_pendiente ?? 'no');
-                        $sheet->setCellValue('G' . $row, $preventivo->status ?? '');
-                        $sheet->setCellValue('H' . $row, $preventivo->equipo_nombre ?? '');
-                        $sheet->setCellValue('I' . $row, $preventivo->equipo_codigo ?? '');
-                        $sheet->setCellValue('J' . $row, $preventivo->equipo_marca ?? '');
-                        $sheet->setCellValue('K' . $row, $preventivo->equipo_modelo ?? '');
-                        $sheet->setCellValue('L' . $row, $preventivo->equipo_serie ?? '');
-                        $sheet->setCellValue('M' . $row, $preventivo->servicio_nombre ?? '');
-                        $sheet->setCellValue('N' . $row, $preventivo->area_nombre ?? '');
-                        $sheet->setCellValue('O' . $row, $preventivo->proveedor_nombre ?? '');
-                        $sheet->setCellValue('P' . $row, $preventivo->created_at ?? '');
-                        $row++;
-                    }
-                });
-            
-            // Auto-size columns
-            foreach (range('A', 'Q') as $col) {
-                $sheet->getColumnDimension($col)->setAutoSize(true);
+                ->orderBy('mantenimiento.id', 'desc');
+
+            $row = 2;
+            foreach ($query->cursor() as $p) {
+                $sheet->setCellValue('A' . $row, $p->id);
+                $sheet->setCellValue('B' . $row, $p->description ?? '');
+                $sheet->setCellValue('C' . $row, $p->fecha_programada ?? '');
+                $sheet->setCellValue('D' . $row, $p->fecha_mantenimiento ?? '');
+                $sheet->setCellValue('E' . $row, $p->observacion ?? '');
+                $sheet->setCellValue('F' . $row, $p->repuesto_pendiente ?? 'no');
+                $sheet->setCellValue('G' . $row, $p->status ?? '');
+                $sheet->setCellValue('H' . $row, $p->equipo_nombre ?? '');
+                $sheet->setCellValue('I' . $row, $p->equipo_codigo ?? '');
+                $sheet->setCellValue('J' . $row, $p->equipo_marca ?? '');
+                $sheet->setCellValue('K' . $row, $p->equipo_modelo ?? '');
+                $sheet->setCellValue('L' . $row, $p->equipo_serie ?? '');
+                $sheet->setCellValue('M' . $row, $p->servicio_nombre ?? '');
+                $sheet->setCellValue('N' . $row, $p->area_nombre ?? '');
+                $sheet->setCellValue('O' . $row, $p->proveedor_nombre ?? '');
+                $sheet->setCellValue('P' . $row, $p->created_at ?? '');
+                $row++;
+                
+                // Liberar memoria periódicamente si es necesario (PhpSpreadsheet no lo hace fácil)
             }
             
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $filename = 'preventivos_TODOS_' . date('Y-m-d_His') . '.xlsx';
-            
-            \Log::info('✅ [EXPORT] Preventivos procesados. Iniciando streamed response.');
+            $filename = 'preventivos_' . date('Y-m-d_His') . '.xlsx';
             
             return new \Symfony\Component\HttpFoundation\StreamedResponse(function() use ($writer) {
                 $writer->save('php://output');
             }, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0',
                 'Access-Control-Allow-Origin' => '*',
                 'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
                 'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
             ]);
         } catch (\Exception $e) {
-            \Log::error('❌ [EXPORT] Error exportando preventivos: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al exportar preventivos: ' . $e->getMessage()
-            ], 500, [
+            \Log::error('❌ [EXPORT] Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500, [
                 'Access-Control-Allow-Origin' => '*'
             ]);
         }
