@@ -5607,9 +5607,9 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             $col++;
         }
 
-        // Obtener tickets en bloques para ahorrar memoria
+        // Obtener tickets uno a uno usando cursor para ahorrar memoria
         $row = 2;
-        DB::table('ordenes')
+        $tickets = DB::table('ordenes')
             ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
             ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
             ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
@@ -5644,49 +5644,56 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
                 'ordenes.reparacion'
             ])
             ->orderBy('ordenes.id', 'desc')
-            ->chunk(1000, function($chunk) use (&$sheet, &$row) {
-                foreach ($chunk as $ticket) {
-                    // Mapear estado
-                    switch($ticket->estado_id) {
-                        case 1: $estado = 'Abierto'; break;
-                        case 2: $estado = 'Asignado'; break;
-                        case 3: $estado = 'Diagnosticado'; break;
-                        case 4: $estado = 'Cerrado'; break;
-                        case 5: $estado = 'Esperando cierre'; break;
-                        default: $estado = 'Desconocido';
-                    }
+            ->cursor();
 
-                    $reportante = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
-                    $asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
-                    
-                    $sheet->setCellValue('A' . $row, $ticket->id);
-                    $sheet->setCellValue('B' . $row, $ticket->asunto ?? '');
-                    $sheet->setCellValue('C' . $row, $ticket->descripcion ?? '');
-                    $sheet->setCellValue('D' . $row, $ticket->fecha_inicio ?? '');
-                    $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
-                    $sheet->setCellValue('F' . $row, $estado);
-                    $sheet->setCellValue('G' . $row, $ticket->prioridad ?? '');
-                    $sheet->setCellValue('H' . $row, $reportante);
-                    $sheet->setCellValue('I' . $row, $ticket->reportante_email ?? '');
-                    $sheet->setCellValue('J' . $row, $asignado);
-                    $sheet->setCellValue('K' . $row, $ticket->equipo_nombre ?? '');
-                    $sheet->setCellValue('L' . $row, $ticket->equipo_codigo ?? '');
-                    $sheet->setCellValue('M' . $row, $ticket->equipo_marca ?? '');
-                    $sheet->setCellValue('N' . $row, $ticket->equipo_modelo ?? '');
-                    $sheet->setCellValue('O' . $row, $ticket->servicio_nombre ?? '');
-                    $sheet->setCellValue('P' . $row, $ticket->area_nombre ?? '');
-                    $sheet->setCellValue('Q' . $row, $ticket->sede_nombre ?? '');
-                    $sheet->setCellValue('R' . $row, $ticket->empresa_nombre ?? '');
-                    $sheet->setCellValue('S' . $row, $ticket->origen ?? '');
-                    $sheet->setCellValue('T' . $row, $ticket->diagnostico ?? '');
-                    $sheet->setCellValue('U' . $row, $ticket->reparacion ?? '');
-                    $row++;
-                }
-            });
+        foreach ($tickets as $ticket) {
+            // Mapear estado
+            switch($ticket->estado_id) {
+                case 1: $estado = 'Abierto'; break;
+                case 2: $estado = 'Asignado'; break;
+                case 3: $estado = 'Diagnosticado'; break;
+                case 4: $estado = 'Cerrado'; break;
+                case 5: $estado = 'Esperando cierre'; break;
+                default: $estado = 'Desconocido';
+            }
 
-        // Auto-size columns
-        foreach (range('A', 'U') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $reportante = trim(($ticket->reportante_nombre ?? '') . ' ' . ($ticket->reportante_apellido ?? ''));
+            $asignado = trim(($ticket->asignado_nombre ?? '') . ' ' . ($ticket->asignado_apellido ?? ''));
+            
+            $sheet->setCellValue('A' . $row, $ticket->id);
+            $sheet->setCellValue('B' . $row, $ticket->asunto ?? '');
+            $sheet->setCellValue('C' . $row, $ticket->descripcion ?? '');
+            $sheet->setCellValue('D' . $row, $ticket->fecha_inicio ?? '');
+            $sheet->setCellValue('E' . $row, $ticket->fecha_fin ?? '');
+            $sheet->setCellValue('F' . $row, $estado);
+            $sheet->setCellValue('G' . $row, $ticket->prioridad ?? '');
+            $sheet->setCellValue('H' . $row, $reportante);
+            $sheet->setCellValue('I' . $row, $ticket->reportante_email ?? '');
+            $sheet->setCellValue('J' . $row, $asignado);
+            $sheet->setCellValue('K' . $row, $ticket->equipo_nombre ?? '');
+            $sheet->setCellValue('L' . $row, $ticket->equipo_codigo ?? '');
+            $sheet->setCellValue('M' . $row, $ticket->equipo_marca ?? '');
+            $sheet->setCellValue('N' . $row, $ticket->equipo_modelo ?? '');
+            $sheet->setCellValue('O' . $row, $ticket->servicio_nombre ?? '');
+            $sheet->setCellValue('P' . $row, $ticket->area_nombre ?? '');
+            $sheet->setCellValue('Q' . $row, $ticket->sede_nombre ?? '');
+            $sheet->setCellValue('R' . $row, $ticket->empresa_nombre ?? '');
+            $sheet->setCellValue('S' . $row, $ticket->origen ?? '');
+            $sheet->setCellValue('T' . $row, $ticket->diagnostico ?? '');
+            $sheet->setCellValue('U' . $row, $ticket->reparacion ?? '');
+            $row++;
+        }
+
+        // NO USAR setAutoSize en producción con muchos datos, consume mucha memoria y tiempo
+        $colWidths = [
+            'A' => 10, 'B' => 30, 'C' => 50, 'D' => 20, 'E' => 20,
+            'F' => 15, 'G' => 10, 'H' => 30, 'I' => 30, 'J' => 30,
+            'K' => 30, 'L' => 20, 'M' => 20, 'N' => 20, 'O' => 30,
+            'P' => 30, 'Q' => 20, 'R' => 30, 'S' => 20, 'T' => 50,
+            'U' => 50
+        ];
+        foreach ($colWidths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
         }
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
