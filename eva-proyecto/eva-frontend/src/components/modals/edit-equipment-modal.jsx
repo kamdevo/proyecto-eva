@@ -41,7 +41,7 @@ import AddPreventivoModal from "./add-preventivo-modal";
 import AddCalibracionModal from "./add-calibracion-modal";
 import AddRepuestoModal from "./add-repuesto-modal";
 import AddCorrectivoModal from "./add-correctivo-modal";
-
+import EditObservacionModal from "./edit-observacion-modal";
 export function EditEquipmentModal({
   open = false,
   onOpenChange,
@@ -102,6 +102,8 @@ export function EditEquipmentModal({
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
   const [showOrderSearchModal, setShowOrderSearchModal] = useState(false);
   const [editingPreventivo, setEditingPreventivo] = useState(null);
+  const [showEditObservacionModal, setShowEditObservacionModal] = useState(false);
+  const [selectedObservacion, setSelectedObservacion] = useState(null);
   
   // Estados para guardar la información de los manuales, guías y órdenes seleccionados
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
@@ -3854,19 +3856,33 @@ export function EditEquipmentModal({
                                       ).toLocaleDateString()
                                     : "Fecha no disponible"}
                                 </span>
-                                {obs.file && (
+                                <div className="flex gap-2">
+                                  {obs.file && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs h-6"
+                                      onClick={() =>
+                                        viewObservacionDocument(obs.file)
+                                      }
+                                    >
+                                      Ver archivo
+                                    </Button>
+                                  )}
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="text-xs h-6"
-                                    onClick={() =>
-                                      viewObservacionDocument(obs.file)
-                                    }
+                                    className="text-xs h-6 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                    onClick={() => {
+                                      setSelectedObservacion(obs);
+                                      setShowEditObservacionModal(true);
+                                    }}
                                   >
-                                    Ver archivo
+                                    Editar
                                   </Button>
-                                )}
+                                </div>
                               </div>
                               <p className="text-gray-800">
                                 {obs.description || "Sin descripción"}
@@ -4521,6 +4537,21 @@ export function EditEquipmentModal({
       />
 
       {/* Modal para agregar Correctivo General */}
+      <EditObservacionModal
+        isOpen={showEditObservacionModal}
+        onClose={() => {
+          setShowEditObservacionModal(false);
+          setSelectedObservacion(null);
+        }}
+        equipmentName={equipment?.name || equipment?.nombre || formData?.name}
+        observation={selectedObservacion}
+        onObservationUpdated={() => {
+          if (equipment?.id) {
+            loadEquipmentHistory(equipment.id);
+          }
+        }}
+      />
+
       <AddCorrectivoModal
         isOpen={showAddCorrectivoModal}
         onClose={() => setShowAddCorrectivoModal(false)}

@@ -24,6 +24,12 @@ const AddPreventivoModal = ({
   onPreventivoAdded,
   preventivo = null, // Para edición
 }) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    // Separar por 'T' (ISO) o espacio (MySQL) para obtener solo la parte de la fecha
+    return dateString.toString().split(/[ T]/)[0];
+  };
+
   const getLastDayOfMonth = (dateString) => {
     try {
       if (!dateString) return "";
@@ -76,8 +82,8 @@ const AddPreventivoModal = ({
           description: preventivo.description || preventivo.descripcion || "",
           proveedor_mantenimiento_id: (preventivo.proveedor_mantenimiento_id || preventivo.proveedor_id || "").toString(),
           observacion: preventivo.observacion || preventivo.observaciones || "",
-          fecha_mantenimiento: preventivo.fecha_mantenimiento ? preventivo.fecha_mantenimiento.substring(0, 10) : "",
-          fecha_programada: preventivo.fecha_programada ? preventivo.fecha_programada.substring(0, 10) : "",
+          fecha_mantenimiento: formatDate(preventivo.fecha_mantenimiento),
+          fecha_programada: formatDate(preventivo.fecha_programada),
           file: null,
           repuesto_id: preventivo.repuesto_id || "",
         });

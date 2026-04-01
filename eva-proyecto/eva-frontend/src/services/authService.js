@@ -20,8 +20,10 @@ class AuthService {
    */
   async login(credentials) {
     try {
-      // Debug logging disabled for production
-      // console.log("🔐 [AUTH] Iniciando sesión...");
+      // 🔥 FIX: Limpiar datos de autenticación previos para asegurar que 
+      // no mandamos un token caducado/corrupto en el header Authorization
+      // lo cual causaría que Laravel rechace el login con código 401
+      this.clearAuthData();
 
       // Obtener CSRF token antes del login
       await getCsrfToken();

@@ -25,6 +25,8 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
   const [formData, setFormData] = useState({
     fecha: new Date().toISOString().split('T')[0],
     observacion: "",
+    severidad: "Media",
+    tipo: "Falla",
     file: null
   });
   const [dragActive, setDragActive] = useState(false);
@@ -39,7 +41,7 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
   const fetchContingencias = async () => {
     setLoading(true);
     try {
-      const response = await httpService.get(`/v1/equipos/${equipmentId}/contingencias`);
+      const response = await httpService.get(`/v1/contingencias?equipo_id=${equipmentId}`);
       if (response.data.success) {
         setContingencias(response.data.data || []);
       }
@@ -122,10 +124,12 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
       const user = authService.getStoredUser();
       const formDataToSend = new FormData();
       formDataToSend.append('equipo_id', equipmentId);
-      formDataToSend.append('usuario_id', user?.id || 1);
+      formDataToSend.append('usuario_reporta', user?.id || 1);
       formDataToSend.append('fecha', formData.fecha);
-      formDataToSend.append('observacion', formData.observacion);
-      formDataToSend.append('estado_id', 1); // Estado inicial: Abierto
+      formDataToSend.append('descripcion', formData.observacion);
+      formDataToSend.append('severidad', formData.severidad);
+      formDataToSend.append('tipo', formData.tipo);
+      formDataToSend.append('estado', 'Abierto');
       
       if (formData.file) {
         formDataToSend.append('file', formData.file);
@@ -142,6 +146,8 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
         setFormData({
           fecha: new Date().toISOString().split('T')[0],
           observacion: "",
+          severidad: "Media",
+          tipo: "Falla",
           file: null
         });
         setShowForm(false);
@@ -158,18 +164,21 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
   };
 
   const handleCerrarContingencia = async (contingenciaId) => {
+    const solucion = window.prompt("Escriba la solución aplicada para poder cerrar la contingencia:");
+    if (!solucion) return;
+
     const toastId = 'cerrar-contingencia';
     try {
       toast.loading('Cerrando contingencia...', { id: toastId });
       
-      const response = await httpService.put(`/v1/contingencias/${contingenciaId}/cerrar`);
+      const response = await httpService.post(`/v1/contingencias/${contingenciaId}/cerrar`, { solucion });
       if (response.data.success) {
         toast.success("Contingencia cerrada exitosamente", { id: toastId });
         fetchContingencias();
       }
     } catch (error) {
       console.error('Error closing contingencia:', error);
-      toast.error("Error al cerrar contingencia", { id: toastId });
+      toast.error(error.response?.data?.message || "Error al cerrar contingencia", { id: toastId });
     }
   };
 
@@ -215,7 +224,7 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
             >
               <h3 className="text-lg font-semibold text-slate-800 mb-4">Registrar Nueva Contingencia</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <Label htmlFor="fecha" className="text-sm font-semibold text-slate-700">
                   Fecha de la Contingencia *
@@ -229,6 +238,40 @@ export function ContingenciasModal({ open, onOpenChange, equipmentId, equipmentN
                   required
                   className="mt-1"
                 />
+              </div>
+              <div>
+                <Label htmlFor="tipo" className="text-sm font-semibold text-slate-700">
+                  Tipo *
+                </Label>
+                <select
+                  id="tipo"
+                  value={formData.tipo}
+                  onChange={(e) => handleInputChange('tipo', e.target.value)}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                  required
+                >
+                  <option value="Falla">Falla</option>
+                  <option value="Incidente">Incidente</option>
+                  <option value="Evento Adverso">Evento Adverso</option>
+                  <option value="Mantenimiento Urgente">Mantenimiento Urgente</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="severidad" className="text-sm font-semibold text-slate-700">
+                  Severidad *
+                </Label>
+                <select
+                  id="severidad"
+                  value={formData.severidad}
+                  onChange={(e) => handleInputChange('severidad', e.target.value)}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+                  required
+                >
+                  <option value="Baja">Baja</option>
+                  <option value="Media">Media</option>
+                  <option value="Alta">Alta</option>
+                  <option value="Crítica">Crítica</option>
+                </select>
               </div>
             </div>
 

@@ -532,4 +532,77 @@ class ObservacionController extends ApiController
             ], 500);
         }
     }
+
+    /**
+     * Actualizar observación específica para equipos
+     */
+    public function actualizarObservacionEquipo(Request $request, $id)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'description' => 'required|string',
+                'fecha_nota' => 'required|date',
+                'repuesto_id' => 'nullable|string',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de validación incorrectos',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $observacion = Observacion::find($id);
+
+            if (!$observacion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Observación no encontrada'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            $observacionData = [
+                'description' => $request->description,
+                'fecha_nota' => $request->fecha_nota,
+                'repuesto_id' => $request->repuesto_id,
+                'repuesto_pendiente' => $request->repuesto_id ? 'si' : 'no'
+            ];
+
+            // Handle file upload if present
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('observaciones', $fileName, 'public');
+                $observacionData['file'] = $filePath;
+                
+                // Optional: You could delete the old file if it exists
+                // if ($observacion->file && \Storage::disk('public')->exists($observacion->file)) {
+                //     \Storage::disk('public')->delete($observacion->file);
+                // }
+            }
+
+            $observacion->update($observacionData);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Observación actualizada exitosamente',
+                'data' => $observacion
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error updating equipment observation: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la observación: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

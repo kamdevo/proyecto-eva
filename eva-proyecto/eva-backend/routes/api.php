@@ -9815,6 +9815,8 @@ Route::prefix('v1')->group(function () {
 // Observaciones routes (PUBLIC - no authentication required)
 Route::withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
     Route::post('observaciones/equipo', [\App\Http\Controllers\Api\ObservacionController::class, 'crearObservacionEquipo']);
+    Route::post('observaciones/equipo/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'actualizarObservacionEquipo']);
+    Route::put('observaciones/equipo/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'actualizarObservacionEquipo']);
     Route::get('observaciones/equipo/{equipoId}', [\App\Http\Controllers\Api\ObservacionController::class, 'obtenerObservacionesEquipo']);
 });
 

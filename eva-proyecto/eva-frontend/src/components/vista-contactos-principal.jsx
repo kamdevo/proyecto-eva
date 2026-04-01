@@ -14,6 +14,12 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Users,
+  Mail,
+  Phone,
+  Tag,
+  Loader2,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,11 +138,11 @@ export default function ContactsView() {
   // Función para obtener icono de ordenamiento
   const getSortIcon = (field) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="h-3 w-3" />;
+      return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
     }
     return sortDirection === 'asc' 
-      ? <ArrowUp className="h-3 w-3" /> 
-      : <ArrowDown className="h-3 w-3" />;
+      ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" /> 
+      : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
   };
 
   const handleOpenModal = (contact = null) => {
@@ -232,340 +238,304 @@ export default function ContactsView() {
     }
   };
 
-  const getTypeColor = (tipo) => {
-    switch (tipo) {
-      case "PROVEEDOR":
-        return "bg-blue-100 text-blue-800";
-      case "FABRICANTE":
-        return "bg-green-100 text-green-800";
-      case "REPRESENTANTE":
-        return "bg-purple-100 text-purple-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* Page Header */}
-        <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-lg p-4 sm:p-6 text-white">
-          <h1 className="text-xl sm:text-2xl font-bold">Contactos y proveedores</h1>
-          <p className="text-slate-200 mt-1 text-sm sm:text-base">
-            Gestión de contactos y proveedores del sistema
-          </p>
+    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
+      
+      {/* ── PAGE HEADER (White Editorial Style) ── */}
+      <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-blue-600">
+            <Users className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mt-1">
+              Contactos y Proveedores
+            </h1>
+            <p className="text-slate-500 mt-2 max-w-lg text-sm">
+              Gestión centralizada de fabricantes, representantes y proveedores externos vinculados al sistema EVA.
+            </p>
+          </div>
         </div>
 
-        {/* Main Content Card */}
-        <Card className="shadow-sm border-0">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl font-semibold text-gray-900">
-                  Lista de Contactos
-                </CardTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  Gestiona todos los contactos y proveedores
-                </p>
-              </div>
+        {/* Summary Stat Card */}
+        <div className="bg-white border border-gray-100 p-5 rounded-3xl shadow-sm flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
+          <div className="bg-blue-100 p-3 rounded-2xl">
+            <Package className="h-8 w-8 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Registros</p>
+            <p className="text-3xl font-bold text-slate-900">{totalItems}</p>
+          </div>
+        </div>
+      </header>
 
-              {/* Add Contact Button */}
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    onClick={() => handleOpenModal()}
-                    className="bg-blue-600 hover:bg-blue-700 gap-2 w-full sm:w-auto"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Agregar Contacto
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold">
-                      {editingContact
-                        ? "Actualizar Contacto"
-                        : "Agregar Contacto"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {editingContact
-                        ? "Modifica la información del contacto seleccionado."
-                        : "Completa la información para agregar un nuevo contacto."}
-                    </DialogDescription>
-                  </DialogHeader>
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Barra de Controles y Búsqueda */}
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
+          <div className="relative flex-grow w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+            <Input
+              placeholder="Buscar por nombre, email o teléfono..."
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 h-12 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 text-sm shadow-inner"
+            />
+          </div>
 
-                  {/* Contact Form */}
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name" className="text-sm font-medium">
-                        Nombre *
-                      </Label>
-                      <Input
-                        id="name"
-                        placeholder="Nombre del contacto"
-                        value={formData.name}
-                        onChange={(e) =>
-                          handleInputChange("name", e.target.value)
-                        }
-                        className="w-full"
-                        required
-                      />
-                    </div>
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={() => handleOpenModal()}
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12 shadow-lg shadow-blue-100 transition-all font-bold w-full lg:w-auto shrink-0"
+              >
+                <Plus className="w-5 h-5 font-bold" />
+                Nuevo Contacto
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md rounded-3xl border-none shadow-2xl">
+              <DialogHeader className="space-y-3">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                     <Plus className="w-5 h-5" />
+                   </div>
+                   <DialogTitle className="text-xl font-bold text-slate-900">
+                     {editingContact ? "Actualizar Contacto" : "Agregar Contacto"}
+                   </DialogTitle>
+                </div>
+                <DialogDescription className="text-slate-500">
+                  {editingContact
+                    ? "Modifica los detalles del contacto seleccionado."
+                    : "Ingresa la información básica del nuevo contacto/proveedor."}
+                </DialogDescription>
+              </DialogHeader>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium">
-                        Email
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="correo@ejemplo.com"
-                        value={formData.email}
-                        onChange={(e) =>
-                          handleInputChange("email", e.target.value)
-                        }
-                        className="w-full"
-                      />
-                    </div>
+              <div className="space-y-5 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre Completo *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    className="h-12 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 shadow-inner"
+                    placeholder="Nombre o Razón Social"
+                  />
+                </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="telefono" className="text-sm font-medium">
-                        Teléfono
-                      </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className="pl-10 h-12 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 shadow-inner"
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="telefono" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
                         id="telefono"
-                        placeholder="Número de teléfono"
                         value={formData.telefono}
-                        onChange={(e) =>
-                          handleInputChange("telefono", e.target.value)
-                        }
-                        className="w-full"
+                        onChange={(e) => handleInputChange("telefono", e.target.value)}
+                        className="pl-10 h-12 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 shadow-inner"
+                        placeholder="000-000-0000"
                       />
                     </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="tcontacto_id"
-                        className="text-sm font-medium"
-                      >
-                        Tipo de contacto
-                      </Label>
-                      <Select
-                        value={formData.tcontacto_id?.toString() || ""}
-                        onValueChange={(value) =>
-                          handleInputChange("tcontacto_id", value ? parseInt(value) : null)
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiposContacto.map((tipo) => (
-                            <SelectItem key={tipo.id} value={tipo.id.toString()}>
-                              {tipo.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-
-                  {/* Form Actions */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={handleCloseModal}
-                      className="flex-1"
+                  <div className="space-y-2">
+                    <Label htmlFor="tcontacto_id" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Clasificación</Label>
+                    <Select
+                      value={formData.tcontacto_id?.toString() || ""}
+                      onValueChange={(v) => handleInputChange("tcontacto_id", v ? parseInt(v) : null)}
                     >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleSubmit}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    >
-                      {editingContact ? "Actualizar" : "Agregar"}
-                    </Button>
+                      <SelectTrigger className="h-12 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 shadow-inner">
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-100">
+                        {tiposContacto.map((tipo) => (
+                          <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                            {tipo.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar por nombre, email o teléfono..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                />
+                </div>
               </div>
-            </div>
-          </CardHeader>
 
-          <CardContent>
-            {/* Contacts Table */}
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <Table className="w-full">
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-gray-900 min-w-[200px]">
-                      <button 
-                        onClick={() => handleSort('name')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Nombre
-                        {getSortIcon('name')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 w-16">
-                      <button 
-                        onClick={() => handleSort('id')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        ID
-                        {getSortIcon('id')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 min-w-[200px]">
-                      <button 
-                        onClick={() => handleSort('email')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Email
-                        {getSortIcon('email')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 min-w-[150px]">
-                      <button 
-                        onClick={() => handleSort('telefono')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Teléfono
-                        {getSortIcon('telefono')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 min-w-[120px]">
-                      <button 
-                        onClick={() => handleSort('tcontacto_id')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                      >
-                        Tipo
-                        {getSortIcon('tcontacto_id')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900 text-center w-24">
-                      Acciones
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                          <span className="ml-3 text-gray-600">Cargando contactos...</span>
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" onClick={handleCloseModal} className="flex-1 h-12 rounded-xl text-slate-500 hover:bg-slate-50">
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmit} className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-100">
+                  {editingContact ? "Actualizar" : "Guardar Registro"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Tabla de Resultados */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr className="bg-white/50">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                    <button onClick={() => handleSort('name')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
+                      Nombre / Razón Social {getSortIcon('name')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                    ID {getSortIcon('id')}
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                    Correo Electrónico {getSortIcon('email')}
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                    Teléfono {getSortIcon('telefono')}
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
+                    Tipo de Contacto
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : contactsData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Users className="h-16 w-16 text-slate-100" />
+                        <span className="text-slate-400 font-medium italic">No se encontraron registros</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  contactsData.map((contact) => (
+                    <tr key={contact.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100/50 group-hover:scale-110 transition-transform">
+                            {contact.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-bold text-slate-700">{contact.name}</span>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : contactsData.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        No se encontraron contactos
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    contactsData.map((contact) => (
-                      <TableRow key={contact.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium text-gray-900 text-sm">
-                          <div className="break-words">{contact.name}</div>
-                        </TableCell>
-                        <TableCell className="text-gray-600 text-sm">
-                          {contact.id}
-                        </TableCell>
-                        <TableCell className="text-gray-600 text-sm">
-                          <div className="break-all">
-                            {contact.email || "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                         <span className="px-2 py-1 bg-slate-100 text-slate-500 text-xs font-mono font-bold rounded-lg">#{contact.id}</span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 italic">
+                        {contact.email ? (
+                          <div className="flex items-center gap-2">
+                             <Mail className="w-3.5 h-3.5 opacity-40" />
+                             {contact.email}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-gray-600 text-sm">
-                          {contact.telefono || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="bg-blue-100 text-blue-800 text-xs">
-                            {contact.tipo_nombre || "Sin tipo"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1">
-                            {/* Edit Button - Blue */}
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenModal(contact)}
-                              className="w-7 h-7 p-0 bg-blue-500 hover:bg-blue-600 rounded-md"
-                              title="Editar contacto"
-                            >
-                              <Pencil className="h-3 w-3 text-white" />
-                            </Button>
-
-                            {/* Delete Button - Red */}
-                            <Button
-                              size="sm"
-                              onClick={() => handleDeleteContact(contact)}
-                              className="w-7 h-7 p-0 bg-red-500 hover:bg-red-600 rounded-md"
-                              title="Eliminar contacto"
-                            >
-                              <Trash2 className="h-3 w-3 text-white" />
-                            </Button>
+                        ) : <span className="opacity-25">—</span>}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        {contact.telefono ? (
+                          <div className="flex items-center gap-2">
+                             <Phone className="w-3.5 h-3.5 opacity-40" />
+                             {contact.telefono}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                        ) : <span className="opacity-25">—</span>}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border border-white/50 ${
+                           contact.tipo_nombre?.toUpperCase().includes('PROVEEDOR') ? 'bg-indigo-100 text-indigo-700' :
+                           contact.tipo_nombre?.toUpperCase().includes('FABRICANTE') ? 'bg-amber-100 text-amber-700' :
+                           'bg-emerald-100 text-emerald-700'
+                         }`}>
+                           <Tag className="w-3 h-3" />
+                           {contact.tipo_nombre || "General"}
+                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 transition-opacity">
+                          <button
+                            onClick={() => handleOpenModal(contact)}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
+                            title="Editar registro"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContact(contact)}
+                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-            {/* Pagination */}
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                itemsPerPage={10}
-                onPageChange={(page) => setCurrentPage(page)}
-                showInfo={true}
-              />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="bg-slate-50/50 px-6 py-5 border-t border-slate-100">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={10}
+              onPageChange={(page) => setCurrentPage(page)}
+              showInfo={true}
+            />
+          </div>
+        </div>
       </div>
-      {/* Delete Confirmation Dialog */}
+
       <AlertDialog
         open={!!contactToDelete}
         onOpenChange={() => setContactToDelete(null)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el
-              contacto{" "}
-              <span className="font-semibold">{contactToDelete?.name}</span>{" "}
-              del sistema.
+            <div className="flex items-center gap-3 mb-2">
+               <div className="p-3 bg-red-50 rounded-2xl text-red-600">
+                 <Trash2 className="w-6 h-6" />
+               </div>
+               <AlertDialogTitle className="text-xl font-bold text-slate-900 italic">¿Confirmar Eliminación?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-slate-500 leading-relaxed">
+              Estás a punto de eliminar permanentemente a <span className="font-bold text-slate-800">{contactToDelete?.name}</span>. 
+              Esta acción es irreversible y podría afectar registros históricos vinculados.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDelete}>
-              Cancelar
+          <AlertDialogFooter className="gap-3 mt-4">
+            <AlertDialogCancel onClick={cancelDelete} className="h-12 rounded-xl text-slate-500 border-slate-200">
+              Conservar Registro
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              className="h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold"
             >
-              Eliminar
+              Sí, Eliminar Definitivamente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -28,7 +28,7 @@ import {
   Eye,
   ExternalLink,
 } from "lucide-react";
-import { usePDF } from "@react-pdf/renderer";
+import { pdf } from "@react-pdf/renderer";
 import { EquipmentLifecyclePDFCompact   } from "../pdf/equipment-lifecycle-pdf-compact";
 import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import EquipmentModalReplicaPDF from "../pdf/equipment-modal-replica-pdf";
@@ -71,10 +71,8 @@ export function ViewEquipmentModal({
   // Estado para imagen del equipo en base64
   const [equipmentImageBase64, setEquipmentImageBase64] = useState(null);
 
-  // PDF generation hook - using new modal replica component
-  const [instance, updateInstance] = usePDF({
-    document: null, // Initialize as null to prevent initial render errors
-  });
+  // Control de generación de PDF a demanda para evitar caché indeseada o lags
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
   // Función para obtener imagen en base64 usando el endpoint del backend (evita CORS)
   const getImageBase64FromBackend = async (filename) => {
@@ -351,11 +349,30 @@ export function ViewEquipmentModal({
   // Fetch complete equipment information when modal opens
   useEffect(() => {
     if (open && equipment?.id) {
+      // ✅ Limpiar explicitamente los estados anteriores. 
+      // Esto previene un bug donde se descargaba el PDF en caché de la visualización del equipo anterior.
+      setEquipmentDetails(null);
+      setEquipmentImageBase64(null);
+      setEquipmentTickets([]);
+      setUserHistory([]);
+      setCambiosHdv([]);
+      
       setImageError(false); // Reset image error state
       fetchEquipmentDetails(equipment.id);
       fetchEquipmentTickets(equipment.id); // ✅ Usar endpoint de gestión de tickets
     }
   }, [open, equipment?.id, fetchEquipmentDetails]);
+
+  // Limpiar memoria cuando el modal se cierra
+  useEffect(() => {
+    if (!open) {
+      setEquipmentDetails(null);
+      setEquipmentImageBase64(null);
+      setEquipmentTickets([]);
+      setUserHistory([]);
+      setCambiosHdv([]);
+    }
+  }, [open]);
 
   // Cargar información completa de manuales y guías cuando se cargan los detalles del equipo
   useEffect(() => {
@@ -530,74 +547,51 @@ export function ViewEquipmentModal({
     loadEquipmentImage();
   }, [equipmentDetails]);
 
-  // Update PDF when equipment details change - using new modal replica component
-  useEffect(() => {
-    if (equipmentDetails && EquipmentModalReplicaPDF) {
-      try {
-        // Combinar todos los datos para el PDF incluyendo información cargada e imagen en base64
-        const pdfData = {
-          ...equipmentDetails,
-          selectedManualInfo,
-          selectedGuideInfo,
-          userHistory,
-          equipmentTickets, // ✅ Incluir tickets
-          equipmentImageBase64 // Incluir la imagen convertida a base64
-        };
-        
-        console.log('📄 Actualizando PDF con datos:', {
-          hasEquipmentDetails: !!equipmentDetails,
-          hasManualInfo: !!selectedManualInfo,
-          hasGuideInfo: !!selectedGuideInfo,
-          hasUserHistory: !!userHistory,
-          hasEquipmentTickets: !!equipmentTickets,
-          ticketsCount: equipmentTickets?.length || 0,
-          hasObservaciones: !!equipmentDetails.observaciones,
-          observacionesCount: equipmentDetails.observaciones?.length || 0,
-          hasContingencias: !!equipmentDetails.contingencias,
-          contingenciasCount: equipmentDetails.contingencias?.length || 0,
-          hasEquipmentImage: !!equipmentImageBase64,
-          imageSize: equipmentImageBase64 ? `${(equipmentImageBase64.length / 1024).toFixed(2)} KB` : 'N/A',
-          imageType: typeof equipmentImageBase64,
-          imagePreview: equipmentImageBase64 ? equipmentImageBase64.substring(0, 50) + '...' : null
-        });
-        
-        console.log('🎯 pdfData.equipmentImageBase64:', {
-          exists: !!pdfData.equipmentImageBase64,
-          same: pdfData.equipmentImageBase64 === equipmentImageBase64
-        });
-        
-        // Solo actualizar si tenemos la imagen o si ya pasó tiempo suficiente
-        updateInstance(
-          <EquipmentModalReplicaPDF data={pdfData} />
-        );
-      } catch (error) {
-        console.error("Error updating PDF instance:", error);
-      }
-    }
-  }, [equipmentDetails, selectedManualInfo, selectedGuideInfo, userHistory, equipmentTickets, equipmentImageBase64, updateInstance]);
-
-  // Handle PDF download
-  const handleDownloadPDF = () => {
+  // Handle PDF download generating explicitly on click
+  const handleDownloadPDF = async () => {
+    let toastId = null;
     try {
-      if (instance.url && !instance.loading && !instance.error) {
-        const link = document.createElement("a");
-        link.href = instance.url;
-        link.download = `equipo_${
-          equipmentDetails?.code || equipment?.id
-        }_reporte.pdf`;
-        link.click();
-        toast.success("Reporte PDF descargado exitosamente");
-      } else if (instance.loading) {
-        toast.info("El PDF se está generando, espere un momento...");
-      } else if (instance.error) {
-        console.error("PDF generation error:", instance.error);
-        toast.error("Error al generar el PDF. Verifique los datos del equipo.");
-      } else {
-        toast.error("Error al generar el PDF. Intente nuevamente.");
+      if (!equipmentDetails) {
+        toast.error("Datos del equipo incompletos. Intente nuevamente.");
+        return;
       }
+      
+      setIsGeneratingPDF(true);
+      toastId = toast.loading("Generando PDF, por favor espere...", {
+        position: "bottom-right",
+      });
+
+      // Preparar data exacta del equipo actual (limpia y sin caché)
+      const pdfData = {
+        ...equipmentDetails,
+        selectedManualInfo,
+        selectedGuideInfo,
+        userHistory,
+        equipmentTickets, // ✅ Incluir tickets
+        equipmentImageBase64 // Incluir la imagen convertida a base64
+      };
+
+      // Generación a demanda (evita bug de PDFs cruzados)
+      const blob = await pdf(<EquipmentModalReplicaPDF data={pdfData} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `equipo_${equipmentDetails?.code || equipment?.id}_reporte.pdf`;
+      link.click();
+      
+      // Limpiar memoria manualmente
+      setTimeout(() => URL.revokeObjectURL(url), 500);
+      
+      // Manejar el cierre del loading
+      if (toastId) toast.dismiss(toastId);
+      toast.success("Reporte PDF descargado exitosamente");
+      
     } catch (error) {
       console.error("Error in PDF download:", error);
-      toast.error("Error al descargar el PDF. Intente nuevamente.");
+      if (toastId) toast.dismiss(toastId);
+      toast.error("Error al generar el PDF. Intente nuevamente.");
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -709,11 +703,11 @@ export function ViewEquipmentModal({
             </div>
             <Button
               onClick={handleDownloadPDF}
-              disabled={!equipmentDetails || instance.loading}
+              disabled={!equipmentDetails || isGeneratingPDF}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               <Download className="h-4 w-4 mr-2" />
-              {instance.loading ? "Generando..." : "Descargar PDF"}
+              {isGeneratingPDF ? "Generando..." : "Descargar PDF"}
             </Button>
           </div>
         </DialogHeader>
@@ -1621,7 +1615,7 @@ export function ViewEquipmentModal({
                   📋 HISTORIAL DE ACTIVIDAD DE USUARIOS
                 </h3>
                 
-                {userHistory.length > 0 ? (
+                {userHistory?.length > 0 ? (
                   <div className="space-y-3 max-h-64 overflow-y-auto">
                     {userHistory.map((entry) => (
                       <div key={entry.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
@@ -1684,7 +1678,7 @@ export function ViewEquipmentModal({
                   📝 HISTORIAL COMPLETO DE CAMBIOS DEL EQUIPO
                 </h3>
                 
-                {cambiosHdv.length > 0 ? (
+                {cambiosHdv?.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {cambiosHdv.map((cambio) => (
                       <div key={cambio.id} className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200">
