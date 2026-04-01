@@ -1,4 +1,4 @@
-﻿/* Fondo general del body con imagen y fuente base */
+/* Fondo general del body con imagen y fuente base */
 body {
   margin: 0;
   padding: 0;
@@ -336,6 +336,13 @@ dialog.modal-login {
   grid-template-columns: 1fr 1fr;
   gap: 15px;
 }
+
+@media (max-width: 600px) {
+  .input-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
@@ -666,4 +673,8 @@ input.is-warning {
   color: #2b3d5e;
   padding: 0 10px;
   margin-bottom: 15px;
+}
+
+.input-with-icon {
+  padding-left: 36px !important;
 }

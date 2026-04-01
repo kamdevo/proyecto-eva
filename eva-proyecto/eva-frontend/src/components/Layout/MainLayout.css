@@ -4,6 +4,7 @@
   flex-direction: column;
   height: 100vh;
   background-color: #f5f5f5;
+  overflow: hidden;
 }
 
 /* Header */
@@ -17,6 +18,7 @@
   height: 60px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 1000;
+  flex-shrink: 0;
 }
 
 .header-left {
@@ -126,7 +128,7 @@
 .layout-content {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow: hidden; /* Esto es clave para que los hijos con scroll funcionen */
 }
 
 /* Sidebar */
@@ -136,6 +138,8 @@
   transition: width 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
+  height: 100%;
+  flex-shrink: 0;
 }
 
 .sidebar.open {
@@ -240,14 +244,7 @@
   flex: 1;
   overflow-y: auto;
   transition: margin-left 0.3s ease;
-}
-
-.main-content.sidebar-open {
-  margin-left: 0;
-}
-
-.main-content.sidebar-closed {
-  margin-left: 0;
+  background-color: #f5f5f5;
 }
 
 .content-wrapper {

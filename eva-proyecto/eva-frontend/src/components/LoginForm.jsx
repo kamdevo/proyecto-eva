@@ -324,7 +324,7 @@ const LoginForm = () => {
                     <Label>Nombre de usuario</Label>
                     <div className="relative">
                       <Input
-                        className={`peer ps-9 ${loginValidation.hasError("username")
+                        className={`peer ps-9 input-with-icon ${loginValidation.hasError("username")
                           ? "border-red-500"
                           : ""
                           }`}
@@ -337,7 +337,7 @@ const LoginForm = () => {
                         onBlur={() => handleLoginBlur("username")}
                         disabled={isLoading}
                       />
-                      <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
+                      <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex w-9 items-center justify-center peer-disabled:opacity-50">
                         <CircleUser size={16} aria-hidden="true" />
                       </div>
                     </div>
@@ -475,7 +475,7 @@ const LoginForm = () => {
                       <Label>Nombre</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${registerValidation.hasError("nombre")
+                          className={`peer ps-9 input-with-icon ${registerValidation.hasError("nombre")
                             ? "border-red-500"
                             : ""
                             }`}
@@ -488,7 +488,7 @@ const LoginForm = () => {
                           onBlur={() => handleRegisterBlur("nombre")}
                           disabled={isLoading}
                         />
-                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
+                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex w-9 items-center justify-center peer-disabled:opacity-50">
                           <User size={16} aria-hidden="true" />
                         </div>
                       </div>
@@ -503,7 +503,7 @@ const LoginForm = () => {
                       <Label>Apellidos</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${registerValidation.hasError("apellido")
+                          className={`peer ps-9 input-with-icon ${registerValidation.hasError("apellido")
                             ? "border-red-500"
                             : ""
                             }`}
@@ -516,7 +516,7 @@ const LoginForm = () => {
                           onBlur={() => handleRegisterBlur("apellido")}
                           disabled={isLoading}
                         />
-                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
+                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex w-9 items-center justify-center peer-disabled:opacity-50">
                           <User size={16} aria-hidden="true" />
                         </div>
                       </div>
@@ -531,7 +531,7 @@ const LoginForm = () => {
                       <Label>Teléfono</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${registerValidation.hasError("telefono")
+                          className={`peer ps-9 input-with-icon ${registerValidation.hasError("telefono")
                             ? "border-red-500"
                             : ""
                             }`}
@@ -544,7 +544,7 @@ const LoginForm = () => {
                           onBlur={() => handleRegisterBlur("telefono")}
                           disabled={isLoading}
                         />
-                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
+                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex w-9 items-center justify-center peer-disabled:opacity-50">
                           <Phone size={16} aria-hidden="true" />
                         </div>
                       </div>
@@ -559,7 +559,7 @@ const LoginForm = () => {
                       <Label>Correo electrónico</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${registerValidation.hasError("email")
+                          className={`peer ps-9 input-with-icon ${registerValidation.hasError("email")
                             ? "border-red-500"
                             : ""
                             }`}
@@ -572,7 +572,7 @@ const LoginForm = () => {
                           onBlur={() => handleRegisterBlur("email")}
                           disabled={isLoading}
                         />
-                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
+                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex w-9 items-center justify-center peer-disabled:opacity-50">
                           <AtSignIcon size={16} aria-hidden="true" />
                         </div>
                       </div>
@@ -587,7 +587,7 @@ const LoginForm = () => {
                       <Label>Nombre de usuario</Label>
                       <div className="relative">
                         <Input
-                          className={`peer ps-9 ${registerValidation.hasError("username")
+                          className={`peer ps-9 input-with-icon ${registerValidation.hasError("username")
                             ? "border-red-500"
                             : ""
                             }`}
@@ -600,7 +600,7 @@ const LoginForm = () => {
                           onBlur={() => handleRegisterBlur("username")}
                           disabled={isLoading}
                         />
-                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
+                        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex w-9 items-center justify-center peer-disabled:opacity-50">
                           <CircleUser size={16} aria-hidden="true" />
                         </div>
                       </div>

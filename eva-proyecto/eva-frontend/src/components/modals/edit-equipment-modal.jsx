@@ -28,6 +28,7 @@ import {
   FileText,
   X,
   Search,
+  Edit,
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -100,6 +101,7 @@ export function EditEquipmentModal({
   const [showAddCorrectivoModal, setShowAddCorrectivoModal] = useState(false);
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
   const [showOrderSearchModal, setShowOrderSearchModal] = useState(false);
+  const [editingPreventivo, setEditingPreventivo] = useState(null);
   
   // Estados para guardar la información de los manuales, guías y órdenes seleccionados
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
@@ -4134,7 +4136,7 @@ export function EditEquipmentModal({
                             información relacionada
                           </th>
                           <th className="border border-gray-300 p-2 text-xs">
-                            documento
+                            acciones
                           </th>
                         </tr>
                       </thead>
@@ -4164,22 +4166,35 @@ export function EditEquipmentModal({
                                     preventivo.observacion ||
                                     "-"}
                                 </td>
-                                <td className="border border-gray-300 p-2 text-xs">
-                                  {preventivo.file || preventivo.archivo ? (
+                                <td className="border border-gray-300 p-2 text-xs text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    {(preventivo.file || preventivo.archivo) && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-[10px]"
+                                        onClick={() =>
+                                          viewPreventivoDocument(preventivo.file || preventivo.archivo)
+                                        }
+                                      >
+                                        Ver
+                                      </Button>
+                                    )}
                                     <Button
                                       type="button"
-                                      variant="outline"
+                                      variant="ghost"
                                       size="sm"
-                                      className="text-xs"
-                                      onClick={() =>
-                                        viewPreventivoDocument(preventivo.file || preventivo.archivo)
-                                      }
+                                      className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setEditingPreventivo(preventivo);
+                                        setShowAddPreventivoModal(true);
+                                      }}
+                                      title="Editar mantenimiento"
                                     >
-                                      Ver documento
+                                      <Edit className="h-3.5 w-3.5" />
                                     </Button>
-                                  ) : (
-                                    "-"
-                                  )}
+                                  </div>
                                 </td>
                               </tr>
                             )
@@ -4522,7 +4537,10 @@ export function EditEquipmentModal({
       {/* Modal para agregar preventivo */}
       <AddPreventivoModal
         isOpen={showAddPreventivoModal}
-        onClose={() => setShowAddPreventivoModal(false)}
+        onClose={() => {
+          setShowAddPreventivoModal(false);
+          setEditingPreventivo(null);
+        }}
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
         onPreventivoAdded={() => {
@@ -4531,6 +4549,7 @@ export function EditEquipmentModal({
             loadEquipmentHistory(equipment.id);
           }
         }}
+        preventivo={editingPreventivo}
       />
 
       {/* Modal para agregar calibración */}

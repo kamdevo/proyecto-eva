@@ -14,7 +14,7 @@ import SearchableSelect from "@/components/ui/searchable-select";
 import { Calendar, Upload, X, FileText, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
-import { useProveedores } from "../../hooks/useTiposCompra";
+import { useProveedoresMantenimiento } from "../../hooks/useTiposCompra";
 
 const AddPreventivoModal = ({
   isOpen,
@@ -22,13 +22,39 @@ const AddPreventivoModal = ({
   equipmentId,
   equipmentName,
   onPreventivoAdded,
+  preventivo = null, // Para edición
 }) => {
+  const getLastDayOfMonth = (dateString) => {
+    try {
+      if (!dateString) return "";
+      const parts = dateString.split("-");
+      if (parts.length !== 3) return "";
+      
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      
+      // El día 0 del mes siguiente es el último día del mes actual
+      const lastDay = new Date(year, month, 0);
+      
+      const resYear = lastDay.getFullYear();
+      const resMonth = String(lastDay.getMonth() + 1).padStart(2, '0');
+      const resDay = String(lastDay.getDate()).padStart(2, '0');
+      
+      return `${resYear}-${resMonth}-${resDay}`;
+    } catch (e) {
+      console.error("Error calculating last day of month:", e);
+      return "";
+    }
+  };
+
+  const initialFechaMantenimiento = new Date().toISOString().split("T")[0];
+
   const [formData, setFormData] = useState({
     description: "",
     proveedor_mantenimiento_id: "",
     observacion: "",
-    fecha_mantenimiento: new Date().toISOString().split("T")[0],
-    fecha_programada: "",
+    fecha_mantenimiento: initialFechaMantenimiento,
+    fecha_programada: getLastDayOfMonth(initialFechaMantenimiento),
     file: null,
     repuesto_id: "",
   });
@@ -38,29 +64,54 @@ const AddPreventivoModal = ({
   const [dragActive, setDragActive] = useState(false);
 
   // Cargar proveedores desde la BD
-  const { proveedores, loading: proveedoresLoading } = useProveedores();
+  const { proveedores, loading: proveedoresLoading } = useProveedoresMantenimiento();
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        description: "",
-        proveedor_mantenimiento_id: "",
-        observacion: "",
-        fecha_mantenimiento: new Date().toISOString().split("T")[0],
-        fecha_programada: "",
-        file: null,
-        repuesto_id: "",
-      });
+      if (preventivo) {
+        // En modo edición, cargamos los datos del preventivo seleccionado
+        // Usamos substring(0, 10) para asegurar formato YYYY-MM-DD
+        setFormData({
+          description: preventivo.description || preventivo.descripcion || "",
+          proveedor_mantenimiento_id: (preventivo.proveedor_mantenimiento_id || preventivo.proveedor_id || "").toString(),
+          observacion: preventivo.observacion || preventivo.observaciones || "",
+          fecha_mantenimiento: preventivo.fecha_mantenimiento ? preventivo.fecha_mantenimiento.substring(0, 10) : "",
+          fecha_programada: preventivo.fecha_programada ? preventivo.fecha_programada.substring(0, 10) : "",
+          file: null,
+          repuesto_id: preventivo.repuesto_id || "",
+        });
+      } else {
+        // Modo creación
+        const today = new Date().toISOString().split("T")[0];
+        setFormData({
+          description: "",
+          proveedor_mantenimiento_id: "",
+          observacion: "",
+          fecha_mantenimiento: today,
+          fecha_programada: getLastDayOfMonth(today),
+          file: null,
+          repuesto_id: "",
+        });
+      }
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, preventivo]);
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [field]: value,
+      };
+
+      // Autocompletar fecha programada si cambia la fecha de ejecución
+      if (field === "fecha_mantenimiento" && value) {
+        newData.fecha_programada = getLastDayOfMonth(value);
+      }
+
+      return newData;
+    });
 
     // Clear error when user starts typing
     if (errors[field]) {
@@ -143,7 +194,7 @@ const AddPreventivoModal = ({
     const toastId = 'add-preventivo';
 
     try {
-      toast.loading('Registrando mantenimiento preventivo...', { id: toastId });
+      toast.loading(preventivo ? 'Actualizando mantenimiento...' : 'Registrando mantenimiento...', { id: toastId });
       
       const formDataToSend = new FormData();
       formDataToSend.append("equipo_id", equipmentId);
@@ -164,18 +215,27 @@ const AddPreventivoModal = ({
         formDataToSend.append("file", formData.file);
       }
 
-      const response = await httpService.post("/v1/mantenimientos", formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      let response;
+      if (preventivo) {
+        // Para Laravel, cuando se usa multipart/form-data con PUT, a veces es mejor usar POST con _method
+        formDataToSend.append("_method", "PUT");
+        response = await httpService.post(`/v1/mantenimientos/${preventivo.id}`, formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        response = await httpService.post("/v1/mantenimientos", formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
 
       if (response.data.success) {
-        toast.success("Mantenimiento preventivo agregado exitosamente", { id: toastId });
+        toast.success(preventivo ? "Mantenimiento actualizado exitosamente" : "Mantenimiento agregado exitosamente", { id: toastId });
         if (onPreventivoAdded) onPreventivoAdded();
         onClose();
       }
     } catch (error) {
-      console.error("Error al agregar preventivo:", error);
-      toast.error(error.response?.data?.message || "Error al agregar el mantenimiento preventivo", { id: toastId });
+      console.error("Error al guardar preventivo:", error);
+      toast.error(error.response?.data?.message || "Error al procesar el mantenimiento", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -187,7 +247,7 @@ const AddPreventivoModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-green-700">
             <Wrench className="h-5 w-5" />
-            Agregar Mantenimiento Preventivo
+            {preventivo ? "Editar Mantenimiento Preventivo" : "Agregar Mantenimiento Preventivo"}
           </DialogTitle>
           {equipmentName && (
             <p className="text-sm text-gray-600">
@@ -389,7 +449,7 @@ const AddPreventivoModal = ({
               className="bg-green-600 hover:bg-green-700"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Guardando..." : "Guardar Preventivo"}
+              {isSubmitting ? "Guardando..." : (preventivo ? "Actualizar Preventivo" : "Guardar Preventivo")}
             </Button>
           </DialogFooter>
         </form>

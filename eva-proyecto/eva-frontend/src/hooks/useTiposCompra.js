@@ -117,3 +117,54 @@ export const useProveedores = () => {
     refresh: fetchProveedores
   };
 };
+
+export const useProveedoresMantenimiento = () => {
+  const [proveedores, setProveedores] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchProveedores = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`${API_BASE_URL}/proveedores-mantenimiento`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setProveedores(data.data || []);
+      } else {
+        throw new Error(data.message || 'Error al obtener proveedores de mantenimiento');
+      }
+    } catch (err) {
+      console.error('Error fetching proveedores mantenimiento:', err);
+      setError(err.message);
+      setProveedores([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProveedores();
+  }, [fetchProveedores]);
+
+  return {
+    proveedores,
+    loading,
+    error,
+    fetchProveedores,
+    refresh: fetchProveedores
+  };
+};

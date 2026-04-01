@@ -291,7 +291,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* SECCION 1: ORDEN DE TRABAJO */}
-          <div className="space-y-4  p-5 rounded-lg border border-red-200 border-dashed border-4 ">
+          <div className="space-y-4  p-5 rounded-lg border-red-200 border-dashed border-4 ">
             <h3 className="text-sm font-bold text-red-700 flex items-center gap-2 border-b border-red-100 pb-1">
               <FileCode className="h-4 w-4" />
               ORDEN DE TRABAJO
@@ -339,7 +339,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
           </div>
 
           {/* SECCION 2: AVANCE */}
-          <div className="space-y-4   p-5 rounded-lg border border-blue-200 border-dashed border-3 ">
+          <div className="space-y-4   p-5 rounded-lg border-blue-200 border-dashed border-3 ">
             <h3 className="text-sm font-bold text-blue-700 flex items-center gap-2 border-b border-blue-100 pb-1">
               <History className="h-4 w-4" />
               AVANCE / DIAGNÓSTICO
@@ -377,7 +377,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
           </div>
 
           {/* SECCION 3: ARCHIVO ASOCIADO */}
-          <div className="space-y-4   p-5 rounded-lg border border-purple-200 border-dashed border-4 ">
+          <div className="space-y-4   p-5 rounded-lg border-purple-200 border-dashed border-4 ">
             <h3 className="text-sm font-bold text-purple-700 flex items-center gap-2 border-b border-purple-100 pb-1">
               <Upload className="h-4 w-4" />
               ARCHIVO ASOCIADO
@@ -421,7 +421,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
           </div>
 
           {/* SECCION 4: CIERRE */}
-          <div className="space-y-4   p-5 rounded-lg border border-emerald-200 border-dashed border-4 ">
+          <div className="space-y-4   p-5 rounded-lg border-emerald-200 border-dashed border-4 ">
             <h3 className="text-sm font-bold text-emerald-700 flex items-center gap-2 border-b border-emerald-100 pb-1">
               <CheckCircle2 className="h-4 w-4" />
               CIERRE DEL CORRECTIVO
@@ -492,7 +492,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
           </div>
 
           {/* SECCION 5: REPUESTO INSTALADO */}
-          <div className="space-y-4   p-5 rounded-lg border border-orange-200 border-dashed border-4 ">
+          <div className="space-y-4   p-5 rounded-lg border-orange-200 border-dashed border-4 ">
             <h3 className="text-sm font-bold text-orange-700 flex items-center gap-2 border-b border-orange-100 pb-1">
               <Settings className="h-4 w-4" />
               REPUESTO INSTALADO

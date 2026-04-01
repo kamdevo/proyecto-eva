@@ -1491,6 +1491,74 @@ Route::prefix('v1')->group(function () {
             ], 500);
         }
     });
+
+    // Update executed maintenance
+    Route::put('mantenimientos/{id}', function (Request $request, $id) {
+        try {
+            $validator = Validator::make($request->all(), [
+                'equipo_id' => 'required|integer|exists:equipos,id',
+                'description' => 'required|string|max:100',
+                'proveedor_mantenimiento_id' => 'required|integer',
+                'fecha_mantenimiento' => 'required|date',
+                'fecha_programada' => 'required|date',
+                'observacion' => 'nullable|string',
+                'repuesto_id' => 'nullable|string|max:100',
+                'repuesto_pendiente' => 'nullable|in:si,no',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            $mantenimiento = DB::table('mantenimiento')->where('id', $id)->first();
+            if (!$mantenimiento) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mantenimiento no encontrado'
+                ], 404);
+            }
+            
+            $updateData = [
+                'equipo_id' => $request->equipo_id,
+                'description' => $request->description,
+                'proveedor_mantenimiento_id' => $request->proveedor_mantenimiento_id,
+                'observacion' => $request->observacion,
+                'fecha_mantenimiento' => $request->fecha_mantenimiento,
+                'fecha_programada' => $request->fecha_programada,
+                'repuesto_id' => $request->repuesto_id,
+                'repuesto_pendiente' => $request->repuesto_pendiente ?? 'no',
+            ];
+            
+            // Process file
+            if ($request->hasFile('file')) {
+                if ($mantenimiento->file && Storage::disk('public')->exists($mantenimiento->file)) {
+                    Storage::disk('public')->delete($mantenimiento->file);
+                }
+                
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('mantenimientos', $fileName, 'public');
+                $updateData['file'] = $filePath;
+            }
+            
+            DB::table('mantenimiento')->where('id', $id)->update($updateData);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mantenimiento actualizado exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar: ' . $e->getMessage()
+            ], 500);
+        }
+    });
     
     // Get spare parts catalog (without auth)
     Route::get('repuestos-catalogo', function (Request $request) {
