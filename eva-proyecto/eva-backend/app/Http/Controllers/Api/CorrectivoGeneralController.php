@@ -1149,8 +1149,18 @@ class CorrectivoGeneralController extends Controller
                         }
                         $sheet->setCellValueExplicit('A' . $row, $fechaCreacion, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // CODIFICACIÓN DE CIERRE
-                        $sheet->setCellValueExplicit('B' . $row, $correctivo->retro_cierre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        // CODIFICACIÓN DE CIERRE (formato: código - nombre)
+                        $codificacionCierre = '';
+                        if (!empty($correctivo->cierre_code) && !empty($correctivo->cierre_name)) {
+                            $codificacionCierre = $correctivo->cierre_code . ' - ' . $correctivo->cierre_name;
+                        } elseif (!empty($correctivo->cierre_name)) {
+                            $codificacionCierre = $correctivo->cierre_name;
+                        } elseif (!empty($correctivo->cierre_code)) {
+                            $codificacionCierre = $correctivo->cierre_code;
+                        } elseif (!empty($correctivo->retro_cierre)) {
+                            $codificacionCierre = $correctivo->retro_cierre;
+                        }
+                        $sheet->setCellValueExplicit('B' . $row, $codificacionCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // SEDE
                         $sheet->setCellValueExplicit('C' . $row, $correctivo->sede_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
@@ -1344,7 +1354,7 @@ class CorrectivoGeneralController extends Controller
                         $correctivo->sede_nombre ?? '', // 14. Sede
                         $correctivo->servicio_nombre ?? '', // 15. Servicio
                         $correctivo->area_nombre ?? '', // 16. Area
-                        $correctivo->file ? url('assets/upload_correctivos_generales/' . $correctivo->file) : '', // 17. Archivo
+                        $correctivo->file ? url('storage/correctivos_generales/' . $correctivo->file) : '', // 17. Archivo
                         $formatDate($avance1->date ?? null), // 18. F. Avance 1 (Excel Date)
                         $avance1->title ?? '', // 19. Título Avance 1
                         $avance1->description ?? '', // 20. Desc. Avance 1
