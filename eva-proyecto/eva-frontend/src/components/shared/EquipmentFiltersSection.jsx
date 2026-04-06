@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import httpService from "@/services/httpService";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,30 @@ export function EquipmentFiltersSection({
   // Estados locales para los inputs
   const [equipmentId, setEquipmentId] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [sedes, setSedes] = useState([]);
+  const [selectedSede, setSelectedSede] = useState("TODOS");
+
+  // Cargar sedes dinámicamente desde la BD
+  useEffect(() => {
+    const fetchSedes = async () => {
+      try {
+        const response = await httpService.get('/v1/sedes?per_page=100');
+        if (response.data.success) {
+          const sedesData = response.data.data;
+          if (sedesData && Array.isArray(sedesData.data)) setSedes(sedesData.data);
+          else if (Array.isArray(sedesData)) setSedes(sedesData);
+        }
+      } catch (error) {
+        console.error('Error fetching sedes:', error);
+      }
+    };
+    fetchSedes();
+  }, []);
+
+  // Aplicar filtro de sede cuando cambia la selección
+  useEffect(() => {
+    updateFilters({ sede_id: selectedSede === "TODOS" ? "" : selectedSede });
+  }, [selectedSede]);
 
   // Sincronizar estados locales con filtros del hook
   useEffect(() => {
@@ -111,13 +136,17 @@ export function EquipmentFiltersSection({
             <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">
               Sede Hospitalaria:
             </span>
-            <Select defaultValue="TODOS">
+            <Select value={selectedSede} onValueChange={setSelectedSede}>
               <SelectTrigger className="w-28 sm:w-32 md:w-40 h-6 sm:h-7 md:h-8 text-xs sm:text-sm bg-white/80">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="TODOS">Todas las Sedes</SelectItem>
-                <SelectItem value="PRINCIPAL">Sede Principal</SelectItem>
+                {sedes.map((sede) => (
+                  <SelectItem key={sede.id} value={sede.id.toString()}>
+                    {sede.name || sede.nombre}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

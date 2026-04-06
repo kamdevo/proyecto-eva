@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEquipment } from "../hooks/useEquipment";
 import { useAuth } from "../hooks/useAuth.jsx";
 import PermissionWrapper from "./PermissionWrapper";
@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  FileStack,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,6 +59,10 @@ import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import { LifeModal } from "@/components/modals/life-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
+import AddObservacionModal from "@/components/modals/add-observacion-modal";
+import { ContingenciasModal } from "@/components/modals/contingencias-modal";
+import { CapacitacionesModal } from "@/components/modals/capacitaciones-modal";
+import { MovimientosModal } from "@/components/modals/movimientos-modal";
 import notFoundImg from "../assets/Img/imagenes/not-found.jpg";
 import { EquipmentImageHover } from "./ui/equipment-image-hover";
 import { EquipmentIdBadge } from "./ui/equipment-id-badge";
@@ -110,6 +115,10 @@ function IndustrialDevices() {
   const [darBajaEquipoModalOpen, setDarBajaEquipoModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
+  const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
+  const [contingenciasModalOpen, setContingenciasModalOpen] = useState(false);
+  const [movimientosModalOpen, setMovimientosModalOpen] = useState(false);
+  const [capacitacionesModalOpen, setCapacitacionesModalOpen] = useState(false);
 
   // Estados para filtros avanzados
   const [appliedFilters, setAppliedFilters] = useState({});
@@ -224,6 +233,64 @@ function IndustrialDevices() {
     setSelectedEquipment(null);
   };
 
+  // Abrir documento de calibración más reciente del equipo
+  const handleOpenCalibrationDocument = async (equipmentId) => {
+    try {
+      const response = await httpService.get(`/v1/calibracion`, {
+        params: {
+          equipo_id: equipmentId,
+          per_page: 1,
+          order_by: "fecha_calibracion",
+          order_direction: "desc"
+        }
+      });
+      const data = response.data?.data?.data || response.data?.data || response.data;
+      const calibration = Array.isArray(data) ? data[0] : (data.data ? data.data[0] : null);
+      if (calibration && calibration.file) {
+        const fileName = calibration.file.replace(/^calibraciones\//, "");
+        const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/calibraciones/${fileName}`;
+        window.open(fileUrl, "_blank");
+      } else {
+        toast.warning("No se encontraron registros de calibración con archivo para este equipo");
+      }
+    } catch (error) {
+      console.error("❌ Error al abrir documento de calibración:", error);
+      toast.error(`Error al acceder al documento de calibración: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  // Abrir documento de correctivo más reciente del equipo
+  const handleOpenCorrectiveDocument = async (equipmentId) => {
+    try {
+      const authToken = localStorage.getItem("eva_auth_token") || localStorage.getItem("auth_token");
+      let response;
+      if (authToken) {
+        response = await httpService.get(`/v1/equipos/${equipmentId}/correctivos`);
+      } else {
+        const fetchResponse = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/correctivos`,
+          { headers: { Accept: "application/json", "Content-Type": "application/json" } }
+        );
+        if (!fetchResponse.ok) throw new Error(`Error ${fetchResponse.status}: ${fetchResponse.statusText}`);
+        const publicData = await fetchResponse.json();
+        if (publicData && publicData.length > 0 && publicData[0].file) {
+          window.open(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${publicData[0].file}`, "_blank");
+          return;
+        }
+        throw new Error('No se encontraron registros de correctivo');
+      }
+      const data = response.data;
+      if (data && data.length > 0 && data[0].file) {
+        window.open(`${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/storage/${data[0].file}`, "_blank");
+      } else {
+        toast.warning("No hay documento de correctivo disponible para este equipo");
+      }
+    } catch (error) {
+      console.error("❌ Error al abrir documento de correctivo:", error);
+      toast.error(`Error al acceder al documento de correctivo: ${error.message}`);
+    }
+  };
+
   // Handlers
   const handlePageSizeChange = (newSize) => {
     changePageSize(parseInt(newSize));
@@ -256,117 +323,93 @@ function IndustrialDevices() {
     }
   };
 
+  // Helper: nombre del equipo industrial con ubicación entre paréntesis
+  // Ej: "ASCENSOR (Piso 1)", "CALDERA (Sala de Máquinas)"
+  const getIndustrialDisplayName = (equipment) => {
+    const name = equipment?.equipo?.name || equipment?.name || "Sin nombre";
+    const location =
+      equipment?.ubicacion?.servicio ||
+      equipment?.ubicacion?.area ||
+      equipment?.zona_hospitalaria ||
+      equipment?.piso_servicio ||
+      null;
+    return location ? `${name} (${location})` : name;
+  };
+
   // Handle opening maintenance documents - PREVENTIVO
   const handleOpenMaintenanceDocument = async (equipmentId) => {
-    try{
-      
+    try {
+
       // Casos específicos conocidos con archivos preventivos
       const equiposConocidos = {
         5119: 'SK00602904-PM.pdf', // BOMBA DE INFUSION
         // Agregar más equipos según se encuentren
       };
-      
+
       if (equiposConocidos[equipmentId]) {
         const knownFile = equiposConocidos[equipmentId];
-        const fileUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${knownFile}`;
+        const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${knownFile}`;
         window.open(fileUrl, "_blank");
         return;
       }
-      
-      // Obtener token de autenticación si está disponible
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      
-      const headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      // Fetch maintenance data for the equipment - solo PREVENTIVOS
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://192.168.56.1:8001/api'}/v1/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1&order_by=fecha_mantenimiento&order_direction=desc`,
-        { headers }
-      );
 
-      if (response.status === 401) {
-        // Intentar con endpoint público si existe - solo PREVENTIVOS
-        const publicResponse = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://192.168.56.1:8001/api'}/mantenimiento?equipo_id=${equipmentId}&tipo=preventivo&per_page=1`
-        );
-        
-        if (!publicResponse.ok) {
-          throw new Error('No se pudo acceder a los datos de mantenimiento. Verifique su sesión.');
-        }
-        
-        const publicData = await publicResponse.json();
-        
-        // Procesar respuesta pública...
-        if (publicData && publicData.length > 0) {
-          const maintenance = publicData[0];
-          if (maintenance.file) {
-            // Limpiar nombre del archivo de prefijos redundantes
-            const fileName = maintenance.file.replace(/^mantenimientos\//, "");
-            const fileUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${fileName}`;
-            window.open(fileUrl, "_blank");
-            return;
+      // Usar endpoint de mantenimientos ejecutados (no planes)
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/v1/mantenimientos-ejecutados?equipo_id=${equipmentId}&per_page=100`,
+        {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
         }
-        
-        throw new Error('No se encontraron registros de mantenimiento');
-      }
+      );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Error response:', errorText);
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
 
-      // Verificar diferentes estructuras de respuesta
-      let maintenanceData = null;
-      
+      // Buscar mantenimientos ejecutados con archivos
+      let maintenanceRecords = [];
+
       if (data.success && data.data) {
         if (Array.isArray(data.data.data)) {
-          // Estructura paginada: data.data.data
-          maintenanceData = data.data.data;
+          maintenanceRecords = data.data.data;
         } else if (Array.isArray(data.data)) {
-          // Estructura simple: data.data
-          maintenanceData = data.data;
+          maintenanceRecords = data.data;
         }
       } else if (Array.isArray(data)) {
-        // Respuesta directa como array
-        maintenanceData = data;
+        maintenanceRecords = data;
       }
 
-      if (maintenanceData && maintenanceData.length > 0) {
-        const maintenance = maintenanceData[0];
+      if (maintenanceRecords && maintenanceRecords.length > 0) {
+        // Filtrar solo los que tienen archivo y ordenar por fecha más reciente
+        const recordsWithFiles = maintenanceRecords
+          .filter(record => record.file && record.file.trim() !== '')
+          .sort((a, b) => {
+            const dateA = new Date(a.created_at || a.fecha_mantenimiento || 0);
+            const dateB = new Date(b.created_at || b.fecha_mantenimiento || 0);
+            return dateB.getTime() - dateA.getTime();
+          });
 
-        if (maintenance.file) {
+        if (recordsWithFiles.length > 0) {
+          const latestMaintenance = recordsWithFiles[0];
+
           // Limpiar nombre del archivo de prefijos redundantes
-          const fileName = maintenance.file.replace(/^mantenimientos\//, "");
+          const fileName = latestMaintenance.file.replace(/^mantenimientos\//, "");
 
-          // Construct the file URL - archivos preventivos están en mantenimientos
-          const possibleUrls = [
-            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/mantenimientos/${fileName}`,
-            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_asociados/${fileName}`,
-            `${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${fileName}`
-          ];
-          
-          // Intentar abrir la primera URL (mantenimientos preventivos)
-          window.open(possibleUrls[0], "_blank");
-          
-        } else {
-          toast.warning(
-            "No hay documento de mantenimiento preventivo disponible para este equipo"
-          );
+          // Abrir el documento directamente
+          const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/mantenimientos/${fileName}`;
+
+          window.open(fileUrl, "_blank");
+          return;
         }
-      } else {
-        toast.warning("No se encontraron registros de mantenimiento preventivo para este equipo");
       }
+
+      // Si no se encontró ningún archivo
+      toast.warning("No se encontraron documentos de mantenimiento preventivo para este equipo");
+
     } catch (error) {
       console.error("❌ Error al abrir documento de mantenimiento preventivo:", error);
       toast.error(`Error al acceder al documento de mantenimiento preventivo: ${error.message}`);
@@ -550,18 +593,116 @@ function IndustrialDevices() {
 
                         {/* Título del equipo */}
                         <div className="font-semibold text-slate-900 text-sm mb-1">
-                          {equipment.equipo?.name || "Sin nombre"}
+                          {getIndustrialDisplayName(equipment)}
                         </div>
 
                         {/* Imagen del equipo con efecto hover mejorado */}
                         <EquipmentImageHover
                           equipmentId={equipment.id}
                           equipmentData={equipment.equipo}
-                          equipmentName={equipment.equipo?.name || "Equipo industrial"}
+                          equipmentName={getIndustrialDisplayName(equipment)}
                           className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44"
                           fallbackImage={notFoundImg}
                           showLoader={true}
                         />
+
+                        {/* Documentos Asociados */}
+                        <div className="mt-3 space-y-2">
+                          {equipment.equipo?.invima_id && equipment.registros_invima?.length > 0 && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-[#1d293d] uppercase tracking-wide">
+                                Registro INVIMA
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-[#1d293d] flex-shrink-0" />
+                                <button
+                                  onClick={() => {
+                                    const registro = equipment.registros_invima[0];
+                                    if (registro.archivo_registro_sanitario) {
+                                      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/registros_sanitarios/${registro.archivo_registro_sanitario}`;
+                                      window.open(fileUrl, "_blank");
+                                    }
+                                  }}
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-[#1d293d] hover:text-[#2a3b52] hover:underline truncate"
+                                >
+                                  {equipment.registros_invima[0]?.numero_registro || "Ver Registro"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {equipment.equipo?.manual_id && equipment.manual && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-green-700 uppercase tracking-wide">
+                                Manual
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                <button
+                                  onClick={() => { if (equipment.manual.url) window.open(equipment.manual.url, "_blank"); }}
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-green-600 hover:text-green-800 hover:underline truncate"
+                                >
+                                  {equipment.manual.descripcion || "Ver Manual"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {equipment.equipo?.guia_id && equipment.guia_rapida && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] xs:text-[10px] font-semibold text-purple-700 uppercase tracking-wide">
+                                Guía Rápida
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                <button
+                                  onClick={() => {
+                                    if (equipment.guia_rapida.file) {
+                                      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/guias/${equipment.guia_rapida.file}`;
+                                      window.open(fileUrl, "_blank");
+                                    }
+                                  }}
+                                  className="text-[10px] xs:text-[11px] sm:text-xs text-purple-600 hover:text-purple-800 hover:underline truncate"
+                                >
+                                  {equipment.guia_rapida.name || "Ver Guía"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Botones de Acciones Rápidas */}
+                          <div className="mt-3 pt-3 border-t border-slate-200 flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEquipment(equipment);
+                                setContingenciasModalOpen(true);
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white text-[9px] xs:text-[10px] h-7 px-2 flex items-center gap-1"
+                              title="Contingencias"
+                            >
+                              <AlertTriangle className="w-3 h-3" />
+                              <span className="hidden sm:inline">Contingencias</span>
+                              {(equipment.cuenta_contingencias > 0 || equipment.contingencias_abiertas > 0) && (
+                                <span className="ml-1 bg-white text-red-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                                  {equipment.contingencias_abiertas > 0 ? equipment.contingencias_abiertas : equipment.cuenta_contingencias}
+                                </span>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEquipment(equipment);
+                                setCapacitacionesModalOpen(true);
+                              }}
+                              className="bg-teal-500 hover:bg-teal-600 text-white text-[9px] xs:text-[10px] h-7 px-2 flex items-center gap-1"
+                              title="Capacitaciones"
+                            >
+                              <FileText className="w-3 h-3" />
+                              <span className="hidden sm:inline">Capacitaciones</span>
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </td>
 
@@ -643,6 +784,32 @@ function IndustrialDevices() {
                               {equipment.estado?.estadoequipo || "SIN ESTADO"}
                             </Badge>
                           </div>
+                          {/* Observaciones */}
+                          <div className="mt-3 xs:mt-4 pt-2 xs:pt-3 border-t border-slate-200">
+                            <div className="flex items-center justify-between">
+                              <Badge
+                                variant="outline"
+                                className="bg-[#1d293d]/5 text-[#1d293d] border-[#1d293d]/30 text-[8px] xs:text-[9px] sm:text-xs cursor-pointer hover:bg-[#1d293d]/10"
+                                onClick={() => {
+                                  setSelectedEquipment(equipment);
+                                  setAddObservacionModalOpen(true);
+                                }}
+                              >
+                                Agregar Observación
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-5 w-5 xs:h-6 xs:w-6 p-0 text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5"
+                                onClick={() => {
+                                  setSelectedEquipment(equipment);
+                                  setAddObservacionModalOpen(true);
+                                }}
+                              >
+                                <Plus className="w-3 h-3 xs:w-4 xs:h-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -699,6 +866,22 @@ function IndustrialDevices() {
                             {equipment.estado?.estadoequipo || "SIN ESTADO"}
                           </span>
                         </div>
+
+                        {/* Botón de Movimientos */}
+                        <div className="mt-2 flex justify-center">
+                          <Button
+                            size="sm"
+                            className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
+                            onClick={() => {
+                              setSelectedEquipment(equipment);
+                              setMovimientosModalOpen(true);
+                            }}
+                          >
+                            <FileStack className="w-3 h-3 mr-1" />
+                            Movimientos
+                          </Button>
+                        </div>
+
                         <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100">
                           <span className="font-medium text-slate-700">
                             Propietario:
@@ -758,12 +941,18 @@ function IndustrialDevices() {
                             Última Calibración:
                           </span>
                         </div>
-                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200">
+                        <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200 flex justify-between items-center">
                           {equipment.informacion_adicional?.ultima_calibracion
                             ? new Date(
                                 equipment.informacion_adicional.ultima_calibracion
                               ).toLocaleDateString()
                             : "Sin registro"}
+                          <Link
+                            size={15}
+                            className="cursor-pointer hover:text-amber-600 transition-colors"
+                            onClick={() => handleOpenCalibrationDocument(equipment.id)}
+                            title="Abrir documento de calibración"
+                          />
                         </div>
                         <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
                           <div>
@@ -923,6 +1112,18 @@ function IndustrialDevices() {
                           setSelectedEquipment(eq);
                           setDarBajaEquipoModalOpen(true);
                         }}
+                        onObservationClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setAddObservacionModalOpen(true);
+                        }}
+                        onContingenciasClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setContingenciasModalOpen(true);
+                        }}
+                        onCapacitacionesClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCapacitacionesModalOpen(true);
+                        }}
                         equipmentType="industrial"
                         showCopyButton={true}
                       />
@@ -996,7 +1197,7 @@ function IndustrialDevices() {
                         showCopyButton={true}
                       />
                       <h3 className="font-bold text-slate-900 text-base">
-                        {equipment.equipo?.name || "Sin nombre"}
+                        {getIndustrialDisplayName(equipment)}
                       </h3>
                     </div>
 
@@ -1004,7 +1205,7 @@ function IndustrialDevices() {
                     <EquipmentImageHover
                       equipmentId={equipment.id}
                       equipmentData={equipment.equipo}
-                      equipmentName={equipment.equipo?.name || "Equipo industrial"}
+                      equipmentName={getIndustrialDisplayName(equipment)}
                       className="w-full h-48 rounded-lg"
                       fallbackImage={notFoundImg}
                       showLoader={true}
@@ -1053,6 +1254,33 @@ function IndustrialDevices() {
                       </div>
                     </div>
 
+                    {/* Acciones Rápidas */}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => { setSelectedEquipment(equipment); setContingenciasModalOpen(true); }}
+                        className="bg-red-600 hover:bg-red-700 text-white text-[9px] h-7 px-2 flex items-center gap-1 flex-1"
+                        title="Contingencias"
+                      >
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Contingencias</span>
+                        {(equipment.cuenta_contingencias > 0 || equipment.contingencias_abiertas > 0) && (
+                          <span className="ml-1 bg-white text-red-600 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                            {equipment.contingencias_abiertas > 0 ? equipment.contingencias_abiertas : equipment.cuenta_contingencias}
+                          </span>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => { setSelectedEquipment(equipment); setCapacitacionesModalOpen(true); }}
+                        className="bg-teal-500 hover:bg-teal-600 text-white text-[9px] h-7 px-2 flex items-center gap-1 flex-1"
+                        title="Capacitaciones"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Capacitaciones</span>
+                      </Button>
+                    </div>
+
                     {/* Acciones */}
                     <div className="pt-3 border-t border-slate-200">
                       <RowActionButtons
@@ -1084,6 +1312,18 @@ function IndustrialDevices() {
                         onDecommissionClick={(eq) => {
                           setSelectedEquipment(eq);
                           setDarBajaEquipoModalOpen(true);
+                        }}
+                        onObservationClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setAddObservacionModalOpen(true);
+                        }}
+                        onContingenciasClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setContingenciasModalOpen(true);
+                        }}
+                        onCapacitacionesClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setCapacitacionesModalOpen(true);
                         }}
                         equipmentType="industrial"
                         showCopyButton={true}
@@ -1120,6 +1360,7 @@ function IndustrialDevices() {
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
         equipmentType="industrial"
+        onEquipmentAdded={refresh}
       />
       <CleanNamesModal
         open={cleanNamesModalOpen}
@@ -1134,6 +1375,7 @@ function IndustrialDevices() {
         open={calibrationModalOpen}
         onOpenChange={setCalibrationModalOpen}
         equipoTipoId={2}
+        equipoStatus="activo"
       />
       <CorrectiveModal
         open={correctiveModalOpen}
@@ -1154,12 +1396,18 @@ function IndustrialDevices() {
         open={documentUploadModalOpen}
         onOpenChange={setDocumentUploadModalOpen}
         equipment={selectedEquipment}
+        onDocumentUploaded={() => {
+          refresh();
+        }}
       />
       <LifeModal open={lifeModalOpen} onOpenChange={setLifeModalOpen} />
       <EditEquipmentModal
         open={editEquipmentModalOpen}
         onOpenChange={setEditEquipmentModalOpen}
         equipment={selectedEquipment}
+        onEquipmentUpdated={() => {
+          refresh();
+        }}
       />
       <ViewEquipmentModal
         open={viewEquipmentModalOpen}
@@ -1181,6 +1429,31 @@ function IndustrialDevices() {
         equipment={selectedEquipment}
         equipmentType="industrial"
         onEquipmentAdded={refresh}
+      />
+      <AddObservacionModal
+        isOpen={addObservacionModalOpen}
+        onClose={() => setAddObservacionModalOpen(false)}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.equipo?.name || selectedEquipment?.name || "Equipo sin nombre"}
+        onObservationAdded={() => refresh()}
+      />
+      <ContingenciasModal
+        open={contingenciasModalOpen}
+        onOpenChange={setContingenciasModalOpen}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
+      />
+      <CapacitacionesModal
+        open={capacitacionesModalOpen}
+        onOpenChange={setCapacitacionesModalOpen}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
+      />
+      <MovimientosModal
+        open={movimientosModalOpen}
+        onOpenChange={setMovimientosModalOpen}
+        equipmentId={selectedEquipment?.id}
+        equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
       />
       <DarBajaEquipoModal
         open={darBajaEquipoModalOpen}
