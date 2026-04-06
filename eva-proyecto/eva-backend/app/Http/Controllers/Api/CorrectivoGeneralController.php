@@ -1106,7 +1106,7 @@ class CorrectivoGeneralController extends Controller
                         'AREA',
                         'TIPO',
                         'RESPONSABLE DE MANTENIMIENTO',
-                        'ID',
+                        'ID CORRECTIVO',
                         'NOMBRE EQUIPO',
                         'CÓDIGO EQUIPO',
                         'MARCA',
