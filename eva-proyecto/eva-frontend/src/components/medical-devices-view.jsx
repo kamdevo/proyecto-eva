@@ -995,11 +995,13 @@ export function MedicalDevicesView() {
                           </Badge>
                           <Files
                             onClick={() => {
+                              setSelectedEquipment(device);
                               setCopyEquipmentModalOpen(true);
                             }}
                             size={20}
                             color="#CD410E"
-                            className="cursor-pointer"
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                            title="Copiar equipo"
                           />
                         </div>
                         <div className="text-[9px] xs:text-[10px] sm:text-xs text-slate-600">
@@ -1619,12 +1621,23 @@ export function MedicalDevicesView() {
                   <CardContent className="p-4 space-y-3">
                     {/* ID y Nombre */}
                     <div className="space-y-2">
-                      <EquipmentIdBadge
-                        equipmentId={device.id}
-                        variant="primary"
-                        size="sm"
-                        showCopyButton={true}
-                      />
+                      <div className="flex items-center justify-between">
+                        <EquipmentIdBadge
+                          equipmentId={device.id}
+                          variant="primary"
+                          size="sm"
+                          showCopyButton={true}
+                        />
+                        <Files
+                          onClick={() => {
+                            setSelectedEquipment(device);
+                            setCopyEquipmentModalOpen(true);
+                          }}
+                          size={18}
+                          color="#CD410E"
+                          className="cursor-pointer"
+                        />
+                      </div>
                       <h3 className="font-bold text-slate-900 text-base">
                         {safeRenderText(device.equipo?.name, "Sin nombre")}
                       </h3>
@@ -1842,6 +1855,8 @@ export function MedicalDevicesView() {
       <CopyEquipmentModal
         open={copyEquipmentModalOpen}
         onOpenChange={setCopyEquipmentModalOpen}
+        equipment={selectedEquipment}
+        onEquipmentAdded={refresh}
       />
       <CalibrationModal
         open={calibrationModalOpen}

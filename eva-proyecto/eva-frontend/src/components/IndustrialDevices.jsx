@@ -576,7 +576,10 @@ function IndustrialDevices() {
                             {equipment.equipo?.code || "Sin código"}
                           </Badge>
                           <Files
-                            onClick={setCopyEquipmentModalOpen}
+                            onClick={() => {
+                              setSelectedEquipment(equipment);
+                              setCopyEquipmentModalOpen(true);
+                            }}
                             size={20}
                             color="#CD410E"
                             className="cursor-pointer"
@@ -1176,6 +1179,8 @@ function IndustrialDevices() {
         open={copyEquipmentModalOpen}
         onOpenChange={setCopyEquipmentModalOpen}
         equipment={selectedEquipment}
+        equipmentType="industrial"
+        onEquipmentAdded={refresh}
       />
       <DarBajaEquipoModal
         open={darBajaEquipoModalOpen}

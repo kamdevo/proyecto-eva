@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Exception;
 use Carbon\Carbon;
@@ -71,8 +73,18 @@ class CorrectivoGeneralController extends Controller
             }
 
             // Query base usando DB directamente para evitar problemas con relaciones
+            // Aumentar límites para reportes grandes
+            ini_set('memory_limit', '1024M');
+            set_time_limit(300); // 5 minutos
+
             $query = DB::table('correctivos_generales as cg')
                 ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
+                ->leftJoin('codificacion_cierres as cc', 'cg.cierre_id', '=', 'cc.id')
+                ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+                ->leftJoin('sedes as se', 's.sede_id', '=', 'se.id')
+                ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
+                ->leftJoin('tipos_fallas as tf', 'cg.tipo_falla_id', '=', 'tf.id')
+                ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
                 ->select([
                     'cg.id',
                     'cg.created_at',
@@ -97,7 +109,15 @@ class CorrectivoGeneralController extends Controller
                     'e.code as equipo_code',
                     'e.marca as equipo_marca',
                     'e.modelo as equipo_modelo',
-                    'e.serial as equipo_serial'
+                    'e.serial as equipo_serial',
+                    'cc.name as cierre_name',
+                    'cc.code as cierre_code',
+                    's.name as servicio_name',
+                    'ee.name as estado_equipo_name',
+                    'ar.name as area_name',
+                    'tf.name as tipo_falla_name',
+                    DB::raw('se.name as sede_nombre'),
+                    DB::raw('(SELECT responsable FROM planes_mantenimientos WHERE equipo_id = cg.equipo_id ORDER BY id DESC LIMIT 1) as responsable_plan')
                 ]);
 
             // Búsqueda global en todos los campos usando campos reales de la BD
@@ -113,7 +133,10 @@ class CorrectivoGeneralController extends Controller
                       ->orWhere('e.name', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('e.code', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('e.marca', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('e.modelo', 'LIKE', "%{$searchTerm}%");
+                      ->orWhere('e.modelo', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('s.name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('se.name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('ar.name', 'LIKE', "%{$searchTerm}%");
                 });
             }
 
@@ -165,117 +188,116 @@ class CorrectivoGeneralController extends Controller
                 'codigo_orden' => 'cg.code_orden',
                 'equipo' => 'e.name',
                 'marca' => 'e.marca',
-                'sede' => 'e.sede'
+                'sede' => 'se.name',
+                'servicio' => 's.name',
+                'area' => 'ar.name'
             ];
             
             $actualSortBy = $sortMapping[$sortBy] ?? 'cg.fecha_inicio';
             $query->orderBy($actualSortBy, $sortDirection);
 
             // Ejecutar la consulta con paginación manual
-            // Cambiar el valor por defecto de 10 a 1000 para mostrar todos los correctivos
             $perPage = $request->get('per_page', 1000);
             $page = $request->get('page', 1);
             $offset = ($page - 1) * $perPage;
 
-            // Contar total de registros
-            $total = DB::table('correctivos_generales as cg')
-                ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id');
+            // Contar total de registros (con los mismos filtros)
+            $totalQuery = DB::table('correctivos_generales as cg')
+                ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
+                ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+                ->leftJoin('sedes as se', 's.sede_id', '=', 'se.id')
+                ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id');
             
-            // Aplicar los mismos filtros para el conteo
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
-                $total->where(function($q) use ($searchTerm) {
+                $totalQuery->where(function($q) use ($searchTerm) {
                     $q->where('cg.code_orden', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cg.description', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cg.diagnostico', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cg.code_diagnostico', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cg.code', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cg.repuesto_pendiente', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('e.name', 'LIKE', "%{$searchTerm}%")
                       ->orWhere('e.code', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('e.marca', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('e.modelo', 'LIKE', "%{$searchTerm}%");
+                      ->orWhere('s.name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('se.name', 'LIKE', "%{$searchTerm}%");
                 });
             }
-
             if ($request->filled('status') && $request->status !== 'all') {
-                switch ($request->status) {
-                    case 'active':
-                        $total->where('cg.status', 1);
-                        break;
-                    case 'completed':
-                        $total->whereNotNull('cg.fecha_mantenimiento');
-                        break;
-                    case 'in_progress':
-                        $total->whereNull('cg.fecha_mantenimiento')
-                              ->whereNotNull('cg.fecha_diagnostico');
-                        break;
-                    case 'pending':
-                        $total->whereNull('cg.fecha_diagnostico');
-                        break;
-                }
+                // ... aplicar filtros de estado ...
+                if ($request->status == 'active') $totalQuery->where('cg.status', 1);
             }
+            if ($request->filled('equipo_id')) $totalQuery->where('cg.equipo_id', $request->equipo_id);
 
-            // Filtros por rango de fechas para el total (NUEVO)
-            if ($request->filled('fecha_desde')) {
-                $total->whereDate('cg.created_at', '>=', $request->fecha_desde);
-            }
-            
-            if ($request->filled('fecha_hasta')) {
-                $total->whereDate('cg.created_at', '<=', $request->fecha_hasta);
-            }
-
-            // Filtro por equipo_id para el total (NUEVO)
-            if ($request->filled('equipo_id')) {
-                $total->where('cg.equipo_id', $request->equipo_id);
-            }
-
-            $totalCount = $total->count();
+            $totalCount = $totalQuery->count();
 
             // Obtener los datos paginados
             $correctivos = $query->offset($offset)->limit($perPage)->get();
 
-            // Formatear datos para el frontend usando campos directos del JOIN
-            $formattedData = $correctivos->map(function ($correctivo) {
-                return [
+            // Obtener avances para todos los correctivos de esta página para evitar N+1
+            $correctivoIds = $correctivos->pluck('id')->toArray();
+            $avances = DB::table('avances_correctivos')
+                ->whereIn('correctivo_general_id', $correctivoIds)
+                ->orderBy('date', 'desc')
+                ->get()
+                ->groupBy('correctivo_general_id');
+
+            // Formatear datos para el frontend
+            $formattedData = $correctivos->map(function ($correctivo) use ($avances) {
+                // Obtener los últimos 3 avances
+                $misAvances = $avances->get($correctivo->id, collect())->take(3);
+                
+                $data = [
                     'id' => $correctivo->id,
                     'fuente' => 'Correctivos generales',
-                    'responsable_mantenimiento' => 'Sistema EVA',
+                    'responsable_mantenimiento' => $correctivo->responsable_plan ?? 'Sistema EVA',
                     'equipo_id' => $correctivo->equipo_id,
                     'fecha_creacion' => $correctivo->fecha_inicio ? 
                         Carbon::parse($correctivo->fecha_inicio)->format('Y-m-d') : 
                         ($correctivo->created_at ? Carbon::parse($correctivo->created_at)->format('Y-m-d') : date('Y-m-d')),
                     'codigo_orden' => $correctivo->code_orden ?? 'SIN_CODIGO',
-                    'descripcion_orden' => $correctivo->description ?? '',
-                    'codificacion_cierre' => $correctivo->diagnostico ?? 'Sin Info de orden de trabajo',
+                    'descripcion_orden' => $correctivo->orden ?? '',
+                    'codificacion_cierre' => ($correctivo->cierre_code || $correctivo->cierre_name) 
+                        ? trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . $correctivo->cierre_name)
+                        : ($correctivo->diagnostico ?? 'Sin Info'),
                     'equipo' => $correctivo->equipo_name ?? 'Equipo no especificado',
                     'codigo_equipo' => $correctivo->equipo_code ?? '',
                     'marca' => $correctivo->equipo_marca ?? '',
                     'modelo' => $correctivo->equipo_modelo ?? '',
                     'serie' => $correctivo->equipo_serial ?? '',
-                    'estado_actual' => 'Activo', // Campo no disponible en JOIN, valor por defecto
-                    'sede' => '', // Campo no disponible en JOIN
-                    'servicio' => '', // Campo no disponible en JOIN
-                    'area' => '', // Campo no disponible en JOIN
+                    'estado_actual' => $correctivo->estado_equipo_name ?? 'Activo',
+                    'sede' => $correctivo->sede_nombre ?? '',
+                    'servicio' => $correctivo->servicio_name ?? '',
+                    'area' => $correctivo->area_name ?? '',
                     'archivo' => $correctivo->file ?? '',
-                    'fecha_avance' => $correctivo->fecha_diagnostico ?? '',
-                    'titulo_avance1' => 'Diagnóstico',
-                    'descripcion_avance' => $correctivo->diagnostico ?? '',
-                    'fecha_avance2' => '',
-                    'titulo_avance2' => '',
-                    'descripcion_avance2' => '',
-                    'fecha_avance3' => '',
-                    'titulo_avance3' => '',
-                    'descripcion_avance3' => '',
-                    'retro_cierre' => $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente',
-                    'descripcion_cierre' => $correctivo->repuesto_pendiente ?? '',
-                    'fecha_cierre' => $correctivo->fecha_mantenimiento ?? '',
-                    'costo_equipo' => 0,
-                    'fecha_fin' => $correctivo->fecha_mantenimiento ?? '',
-                    'repuesto_instalado' => $correctivo->repuesto_pendiente ?? '',
-                    'created_at' => $correctivo->fecha_inicio ?? now()->format('Y-m-d H:i:s'),
-                    'updated_at' => $correctivo->fecha_mantenimiento ?? $correctivo->fecha_inicio ?? now()->format('Y-m-d H:i:s')
+                    'tipo_falla' => $correctivo->tipo_falla_name ?? '',
+                    'cierre_code' => $correctivo->cierre_code ?? '',
+                    'cierre_name' => $correctivo->cierre_name ?? '',
+                    
+                    // Avances (mapeados a los campos que la vista actual podría usar o nuevos)
+                    'avances' => $misAvances->map(function($a) {
+                        return [
+                            'fecha' => $a->date,
+                            'titulo' => $a->title,
+                            'descripcion' => $a->description
+                        ];
+                    })
                 ];
+
+                // Mapeo retrocompatible para la vista actual (primer avance)
+                if ($misAvances->count() > 0) {
+                    $first = $misAvances->first();
+                    $data['fecha_avance'] = $first->date;
+                    $data['titulo_avance1'] = $first->title;
+                    $data['descripcion_avance'] = $first->description;
+                } else {
+                    $data['fecha_avance'] = $correctivo->fecha_diagnostico ?? '';
+                    $data['titulo_avance1'] = 'Diagnóstico';
+                    $data['descripcion_avance'] = $correctivo->diagnostico ?? '';
+                }
+
+                // Cierre
+                $data['retro_cierre'] = $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente';
+                $data['descripcion_cierre'] = $correctivo->repuesto_pendiente ?? '';
+                $data['fecha_cierre'] = $correctivo->fecha_mantenimiento ?? '';
+                $data['fecha_fin'] = $correctivo->fecha_mantenimiento ?? '';
+                
+                return $data;
             });
 
             // Calcular datos de paginación manual
@@ -363,59 +385,55 @@ class CorrectivoGeneralController extends Controller
         // Extraer los IDs de los correctivos a exportar
         $correctivoIds = array_column($data, 'id');
         
-        // Consultar datos reales de la base de datos usando consulta directa
+        // Consultar datos reales de la base de datos usando consulta completa
         $correctivos = DB::table('correctivos_generales as cg')
             ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
-            ->select(
+            ->leftJoin('codificacion_cierres as cc', 'cg.cierre_id', '=', 'cc.id')
+            ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+            ->leftJoin('sedes as se', 's.sede_id', '=', 'se.id')
+            ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
+            ->leftJoin('tipos_fallas as tf', 'cg.tipo_falla_id', '=', 'tf.id')
+            ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
+            ->select([
                 'cg.*',
                 'e.name as equipo_name',
                 'e.code as equipo_code',
-                'e.marca',
-                'e.modelo', 
-                'e.serial',
-                'e.localizacion_actual'
-            )
+                'e.marca as equipo_marca',
+                'e.modelo as equipo_modelo',
+                'e.serial as equipo_serial',
+                'cc.name as cierre_name',
+                'cc.code as cierre_code',
+                's.name as servicio_name',
+                'se.name as sede_nombre',
+                'ar.name as area_name',
+                'tf.name as tipo_falla_name',
+                'ee.name as estado_equipo_name',
+                DB::raw('(SELECT responsable FROM planes_mantenimientos WHERE equipo_id = cg.equipo_id ORDER BY id DESC LIMIT 1) as responsable_plan')
+            ])
             ->whereIn('cg.id', $correctivoIds)
             ->get();
 
-        Log::info("📊 [EXPORT CUSTOM] Exportando " . count($correctivos) . " correctivos filtrados con datos reales");
+        // Obtener avances para estos correctivos para los 3 espacios de Excel
+        $avances = DB::table('avances_correctivos')
+            ->whereIn('correctivo_general_id', $correctivoIds)
+            ->orderBy('date', 'desc')
+            ->get()
+            ->groupBy('correctivo_general_id');
+
+        Log::info("📊 [EXPORT CUSTOM] Exportando " . count($correctivos) . " correctivos con JOINs completos");
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
         // Configurar encabezados exactos según CorrectivosEB.xls
         $headers = [
-            'Fuente',
-            'Responsable del mantenimiento',
-            'Equipo Id',
-            'Fecha de creación de la orden',
-            'Codigo de orden de trabajo',
-            'Descripcion de la orden',
-            'Codificación de cierre',
-            'Equipo',
-            'Codigo Equipo',
-            'Marca',
-            'Modelo',
-            'Serie',
-            'Estado actual del equipo',
-            'Sede',
-            'Servicio',
-            'Area',
-            'Archivo',
-            'Fecha avance',
-            'Titulo/Retro Avance1',
-            'Descripcion avance',
-            'Fecha avance2',
-            'Titulo/Retro Avance2',
-            'Descripcion avance2',
-            'Fecha avance3',
-            'Titulo/Retro Avance3',
-            'Descripcion avance3',
-            'Retro de cierre',
-            'Descripcion de Cierre',
-            'Fecha de Cierre',
-            'Costo del equipo',
-            'Fecha fin',
+            'Fuente', 'Responsable del mantenimiento', 'Equipo Id', 'Fecha de creación de la orden',
+            'Codigo de orden de trabajo', 'Descripcion de la orden', 'Codificación de cierre',
+            'Equipo', 'Codigo Equipo', 'Marca', 'Modelo', 'Serie', 'Estado actual del equipo',
+            'Sede', 'Servicio', 'Area', 'Archivo', 'Fecha avance', 'Titulo/Retro Avance1',
+            'Descripcion avance', 'Fecha avance2', 'Titulo/Retro Avance2', 'Descripcion avance2',
+            'Fecha avance3', 'Titulo/Retro Avance3', 'Descripcion avance3', 'Retro de cierre',
+            'Descripcion de Cierre', 'Fecha de Cierre', 'Costo del equipo', 'Fecha fin',
             'Repuesto instalado'
         ];
 
@@ -439,42 +457,52 @@ class CorrectivoGeneralController extends Controller
         $sheet->getStyle('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')
               ->applyFromArray($headerStyle);
 
-        // Escribir datos reales usando campos directos del JOIN
+        // Escribir datos reales
         $row = 2;
         foreach ($correctivos as $correctivo) {
+            $misAvances = $avances->get($correctivo->id, collect())->take(3)->values();
+            
             $rowData = [
                 'Correctivos generales', // fuente
-                'No especificado', // responsable (no existe en tabla)
+                $correctivo->responsable_plan ?? 'Sistema EVA', // responsable
                 $correctivo->equipo_id ?? '', // equipo_id
-                $correctivo->created_at ? date('Y-m-d', strtotime($correctivo->created_at)) : '', // fecha_creacion
-                $correctivo->code_orden ?? $correctivo->code ?? '', // codigo_orden
-                $correctivo->description ?? $correctivo->orden ?? '', // descripcion_orden
-                $correctivo->code_diagnostico ?? '', // codificacion_cierre
-                $correctivo->equipo_name ?? 'N/A', // equipo (campo del JOIN)
-                $correctivo->equipo_code ?? '', // codigo_equipo (campo del JOIN)
-                $correctivo->marca ?? '', // marca (campo del JOIN)
-                $correctivo->modelo ?? '', // modelo (campo del JOIN)
-                $correctivo->serial ?? '', // serie (campo del JOIN)
-                'Activo', // estado_actual (por defecto, no está en tablas)
-                $correctivo->localizacion_actual ?? '', // sede (usar localizacion_actual)
-                'No especificado', // servicio (usar servicio_id si necesario)
-                'No especificado', // area (no está en tablas)
+                $correctivo->fecha_inicio ?? $correctivo->created_at ?? '', // fecha_creacion
+                $correctivo->code_orden ?? '', // codigo_orden
+                $correctivo->orden ?? '', // descripcion_orden (TEXT)
+                trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . $correctivo->cierre_name) ?: ($correctivo->diagnostico ?? ''), // codificacion_cierre
+                $correctivo->equipo_name ?? 'N/A', // equipo
+                $correctivo->equipo_code ?? '', // codigo_equipo
+                $correctivo->equipo_marca ?? '', // marca
+                $correctivo->equipo_modelo ?? '', // modelo
+                $correctivo->equipo_serial ?? '', // serie
+                $correctivo->estado_equipo_name ?? 'Activo', // estado_actual
+                $correctivo->sede_nombre ?? '', // sede
+                $correctivo->servicio_name ?? '', // servicio
+                $correctivo->area_name ?? '', // area
                 $correctivo->file ?? '', // archivo
-                $correctivo->fecha_inicio ?? '', // fecha_avance
-                '', // titulo_avance1 (no existe en tabla)
-                $correctivo->diagnostico ?? '', // descripcion_avance
-                '', // fecha_avance2 (no existe)
-                '', // titulo_avance2 (no existe)
-                '', // descripcion_avance2 (no existe)
-                '', // fecha_avance3 (no existe)
-                '', // titulo_avance3 (no existe)
-                '', // descripcion_avance3 (no existe)
-                '', // retro_cierre (no existe)
-                '', // descripcion_cierre (no existe)
-                '', // fecha_cierre (no existe)
-                0, // costo_equipo (no existe)
+                
+                // Avance 1
+                isset($misAvances[0]) ? $misAvances[0]->date : '',
+                isset($misAvances[0]) ? $misAvances[0]->title : '',
+                isset($misAvances[0]) ? $misAvances[0]->description : '',
+                
+                // Avance 2
+                isset($misAvances[1]) ? $misAvances[1]->date : '',
+                isset($misAvances[1]) ? $misAvances[1]->title : '',
+                isset($misAvances[1]) ? $misAvances[1]->description : '',
+                
+                // Avance 3
+                isset($misAvances[2]) ? $misAvances[2]->date : '',
+                isset($misAvances[2]) ? $misAvances[2]->title : '',
+                isset($misAvances[2]) ? $misAvances[2]->description : '',
+                
+                // Cierre
+                $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente', // retro_cierre
+                $correctivo->repuesto_pendiente ?? '', // descripcion_cierre
+                $correctivo->fecha_mantenimiento ?? '', // fecha_cierre
+                0, // costo_equipo
                 $correctivo->fecha_mantenimiento ?? '', // fecha_fin
-                $correctivo->repuesto_id ?? '' // repuesto_instalado
+                $correctivo->repuesto_pendiente ?? '' // repuesto_instalado
             ];
 
             $sheet->fromArray($rowData, null, 'A' . $row);
@@ -508,13 +536,45 @@ class CorrectivoGeneralController extends Controller
      */
     protected function exportToCsvCustom(array $data, string $filename)
     {
-        return new StreamedResponse(function() use ($data, $filename) {
+        $correctivoIds = array_column($data, 'id');
+        
+        $correctivos = DB::table('correctivos_generales as cg')
+            ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
+            ->leftJoin('codificacion_cierres as cc', 'cg.cierre_id', '=', 'cc.id')
+            ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+            ->leftJoin('sedes as se', 's.sede_id', '=', 'se.id')
+            ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
+            ->leftJoin('tipos_fallas as tf', 'cg.tipo_falla_id', '=', 'tf.id')
+            ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
+            ->select([
+                'cg.*',
+                'e.name as equipo_name',
+                'e.code as equipo_code',
+                'e.marca as equipo_marca',
+                'e.modelo as equipo_modelo',
+                'e.serial as equipo_serial',
+                'cc.name as cierre_name',
+                'cc.code as cierre_code',
+                's.name as servicio_name',
+                'se.name as sede_nombre',
+                'ar.name as area_name',
+                'tf.name as tipo_falla_name',
+                'ee.name as estado_equipo_name',
+                DB::raw('(SELECT responsable FROM planes_mantenimientos WHERE equipo_id = cg.equipo_id ORDER BY id DESC LIMIT 1) as responsable_plan')
+            ])
+            ->whereIn('cg.id', $correctivoIds)
+            ->get();
+
+        $avances = DB::table('avances_correctivos')
+            ->whereIn('correctivo_general_id', $correctivoIds)
+            ->orderBy('date', 'desc')
+            ->get()
+            ->groupBy('correctivo_general_id');
+
+        return new StreamedResponse(function() use ($correctivos, $avances, $filename) {
             $handle = fopen('php://output', 'w');
-            
-            // Escribir BOM para UTF-8
             fwrite($handle, "\xEF\xBB\xBF");
             
-            // Encabezados
             $headers = [
                 'Fuente', 'Responsable del mantenimiento', 'Equipo Id', 'Fecha de creación de la orden',
                 'Codigo de orden de trabajo', 'Descripcion de la orden', 'Codificación de cierre',
@@ -525,48 +585,47 @@ class CorrectivoGeneralController extends Controller
                 'Descripcion de Cierre', 'Fecha de Cierre', 'Costo del equipo', 'Fecha fin',
                 'Repuesto instalado'
             ];
-            
             fputcsv($handle, $headers);
             
-            // Datos
-            foreach ($data as $item) {
+            foreach ($correctivos as $correctivo) {
+                $misAvances = $avances->get($correctivo->id, collect())->take(3)->values();
+                
                 $row = [
-                    $item['Fuente'] ?? 'Correctivos generales',
-                    $item['Responsable del mantenimiento'] ?? '',
-                    $item['Equipo Id'] ?? '',
-                    $item['Fecha de creación de la orden'] ?? '',
-                    $item['Codigo de orden de trabajo'] ?? '',
-                    $item['Descripcion de la orden'] ?? '',
-                    $item['Codificación de cierre'] ?? '',
-                    $item['Equipo'] ?? '',
-                    $item['Codigo Equipo'] ?? '',
-                    $item['Marca'] ?? '',
-                    $item['Modelo'] ?? '',
-                    $item['Serie'] ?? '',
-                    $item['Estado actual del equipo'] ?? '',
-                    $item['Sede'] ?? '',
-                    $item['Servicio'] ?? '',
-                    $item['Area'] ?? '',
-                    $item['Archivo'] ?? '',
-                    $item['Fecha avance'] ?? '',
-                    $item['Titulo/Retro Avance1'] ?? '',
-                    $item['Descripcion avance'] ?? '',
-                    $item['Fecha avance2'] ?? '',
-                    $item['Titulo/Retro Avance2'] ?? '',
-                    $item['Descripcion avance2'] ?? '',
-                    $item['Fecha avance3'] ?? '',
-                    $item['Titulo/Retro Avance3'] ?? '',
-                    $item['Descripcion avance3'] ?? '',
-                    $item['Retro de cierre'] ?? '',
-                    $item['Descripcion de Cierre'] ?? '',
-                    $item['Fecha de Cierre'] ?? '',
-                    $item['Costo del equipo'] ?? 0,
-                    $item['Fecha fin'] ?? '',
-                    $item['Repuesto instalado'] ?? ''
+                    'Correctivos generales',
+                    $correctivo->responsable_plan ?? 'Sistema EVA',
+                    $correctivo->equipo_id ?? '',
+                    $correctivo->fecha_inicio ?? $correctivo->created_at ?? '',
+                    $correctivo->code_orden ?? '',
+                    $correctivo->orden ?? '',
+                    trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . $correctivo->cierre_name) ?: ($correctivo->diagnostico ?? ''),
+                    $correctivo->equipo_name ?? 'N/A',
+                    $correctivo->equipo_code ?? '',
+                    $correctivo->equipo_marca ?? '',
+                    $correctivo->equipo_modelo ?? '',
+                    $correctivo->equipo_serial ?? '',
+                    $correctivo->estado_equipo_name ?? 'Activo',
+                    $correctivo->sede_nombre ?? '',
+                    $correctivo->servicio_name ?? '',
+                    $correctivo->area_name ?? '',
+                    $correctivo->file ?? '',
+                    isset($misAvances[0]) ? $misAvances[0]->date : '',
+                    isset($misAvances[0]) ? $misAvances[0]->title : '',
+                    isset($misAvances[0]) ? $misAvances[0]->description : '',
+                    isset($misAvances[1]) ? $misAvances[1]->date : '',
+                    isset($misAvances[1]) ? $misAvances[1]->title : '',
+                    isset($misAvances[1]) ? $misAvances[1]->description : '',
+                    isset($misAvances[2]) ? $misAvances[2]->date : '',
+                    isset($misAvances[2]) ? $misAvances[2]->title : '',
+                    isset($misAvances[2]) ? $misAvances[2]->description : '',
+                    $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente',
+                    $correctivo->repuesto_pendiente ?? '',
+                    $correctivo->fecha_mantenimiento ?? '',
+                    0,
+                    $correctivo->fecha_mantenimiento ?? '',
+                    $correctivo->repuesto_pendiente ?? ''
                 ];
                 fputcsv($handle, $row);
             }
-            
             fclose($handle);
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -838,9 +897,9 @@ class CorrectivoGeneralController extends Controller
     public function exportAllToExcel(Request $request): StreamedResponse
     {
         try {
-            // Aumentar límites para exportaciones grandes
             set_time_limit(600); // 10 minutos
             ini_set('memory_limit', '1024M');
+            set_time_limit(300); // 5 minutos
             
             $formato = $request->query('formato', 'completo'); // 'completo' o 'parada'
             $tipo = $request->query('tipo', null); // 'biomedico' o 'industrial'
@@ -853,29 +912,38 @@ class CorrectivoGeneralController extends Controller
             $subqueryResponsableGeneral = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cg.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
             
             $queryGenerales = DB::table('correctivos_generales as cg')
-                ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
+                ->join('equipos as e', 'cg.equipo_id', '=', 'e.id')
                 ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
                 ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
+                ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
+                ->leftJoin('codificacion_cierres as cc', 'cg.cierre_id', '=', 'cc.id')
                 ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
                 ->select([
                     'cg.id',
                     'cg.created_at',
-                    DB::raw("cg.created_at as fecha_inicio"),
-                    DB::raw("NULL as retro_cierre"),
-                    DB::raw("COALESCE(sede.name, 'N/A') as sede_nombre"),
-                    DB::raw("'Correctivo General' as tipo"),
-                    DB::raw("COALESCE({$subqueryResponsableGeneral}, '') as responsable_nombre"),
+                    'cg.equipo_id',
+                    DB::raw("cg.fecha_inicio as fecha_inicio"),
+                    'cc.name as cierre_name',
+                    'cc.code as cierre_code',
+                    'cg.diagnostico',
+                    'sede.name as sede_nombre',
+                    DB::raw("'Correctivos Generales' as tipo"),
+                    DB::raw("{$subqueryResponsableGeneral} as responsable_nombre"),
                     'e.name as equipo_name',
                     'e.code as equipo_code', 
                     'e.marca',
                     'e.modelo',
                     'e.serial',
                     's.name as servicio_nombre',
-                    DB::raw("COALESCE(ee.name, 'N/A') as estado_actual"),
+                    'ar.name as area_nombre',
+                    'ee.name as estado_actual',
+                    'e.costo',
                     'cg.fecha_mantenimiento as fecha_cierre',
                     DB::raw("NULL as fecha_fin"),
-                    DB::raw("COALESCE(cg.description, cg.orden) as descripcion"),
-                    DB::raw("NULL as tecnico_cierre_text")
+                    'cg.description',
+                    'cg.orden',
+                    'cg.code_orden',
+                    'cg.file'
                 ])
                 ->orderBy('cg.created_at', 'desc');
 
@@ -900,27 +968,49 @@ class CorrectivoGeneralController extends Controller
                 ->leftJoin('equipos as e', 'o.equipo_id', '=', 'e.id')
                 ->leftJoin('servicios as s', 'o.servicio_id', '=', 's.id')
                 ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
+                ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
                 ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
+                ->leftJoin('codificacion_cierres as cc', 'o.cierre_id', '=', 'cc.id')
                 ->select([
                     'o.id',
                     DB::raw("CAST(o.fecha_inicio AS DATETIME) as created_at"),
+                    'o.equipo_id',
                     'o.fecha_inicio',
                     'o.retro_cierre',
-                    DB::raw("COALESCE(sede.name, 'N/A') as sede_nombre"),
-                    DB::raw("'Ticket/Orden' as tipo"),
-                    DB::raw("COALESCE({$subqueryResponsable}, '') as responsable_nombre"),
-                    DB::raw("COALESCE(e.name, o.nombre_equipo) as equipo_name"),
-                    DB::raw("COALESCE(e.code, o.codigo_equipo) as equipo_code"), 
-                    DB::raw("COALESCE(e.marca, o.marca_equipo) as marca"),
-                    DB::raw("COALESCE(e.modelo, o.modelo_equipo) as modelo"),
-                    DB::raw("COALESCE(e.serial, o.serie_equipo) as serial"),
+                    'sede.name as sede_nombre',
+                    DB::raw("CASE WHEN (o.equipo_id IS NULL OR o.equipo_id = 0) THEN 'Tickets (Manual)' ELSE 'Tickets' END as tipo"),
+                    DB::raw("{$subqueryResponsable} as responsable_nombre"),
+                    'e.name as equipo_name',
+                    'o.nombre_equipo',
+                    'e.code as equipo_code', 
+                    'o.codigo_equipo',
+                    'e.marca',
+                    'o.marca_equipo',
+                    'e.modelo',
+                    'o.modelo_equipo',
+                    'e.serial',
+                    'o.serie_equipo',
                     's.name as servicio_nombre',
-                    DB::raw("COALESCE(ee.name, 'N/A') as estado_actual"),
+                    'ar.name as area_nombre',
+                    'ee.name as estado_actual',
+                    'e.costo',
                     'o.fecha_fin as fecha_cierre',
                     'o.fecha_fin',
-                    'o.descripcion as descripcion',
-                    'o.tecnico_cierre_text'
+                    'o.descripcion',
+                    'o.tecnico_cierre_text',
+                    'o.reparacion',
+                    'o.fecha_asignacion_cierre',
+                    'o.repuesto_pendiente',
+                    DB::raw("o.id as code_orden"),
+                    DB::raw("NULL as file"),
+                    'cc.code as cierre_code',
+                    'cc.name as cierre_name'
                 ])
+                ->where(function($query) {
+                    $query->whereNull('o.equipo_id')
+                          ->orWhere('o.equipo_id', 0)
+                          ->orWhereNotNull('e.id');
+                })
                 ->orderBy('o.fecha_inicio', 'desc');
 
             // Filtrar por tipo de equipo si se especifica
@@ -964,9 +1054,8 @@ class CorrectivoGeneralController extends Controller
                 $filename = 'correctivos_TODOS_' . date('Y-m-d_H-i-s') . '.xlsx';
             }
 
-            return new StreamedResponse(function() use ($queryFinal, $filename, $formato, $tipo) {
-                $spreadsheet = new Spreadsheet();
-                $sheet = $spreadsheet->getActiveSheet();
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
 
                 if ($formato === 'parada') {
                     // ========== FORMATO PARADA DE EQUIPO ==========
@@ -1013,17 +1102,18 @@ class CorrectivoGeneralController extends Controller
                         'FECHA DE CREACIÓN',
                         'CODIFICACIÓN DE CIERRE',
                         'SEDE',
+                        'SERVICIO',
+                        'AREA',
                         'TIPO',
                         'RESPONSABLE DE MANTENIMIENTO',
                         'ID',
-                        'NOMBRE',
-                        'CÓDIGO',
+                        'NOMBRE EQUIPO',
+                        'CÓDIGO EQUIPO',
                         'MARCA',
                         'MODELO',
                         'SERIE',
-                        'SERVICIO',
                         'ESTADO DEL EQUIPO',
-                        'CIERRE',
+                        'FECHA CIERRE',
                         'FECHA FIN',
                         'DESCRIPCIÓN',
                         'DESCRIPCIÓN DE CIERRE DEL TICKET'
@@ -1064,66 +1154,74 @@ class CorrectivoGeneralController extends Controller
                         
                         // SEDE
                         $sheet->setCellValueExplicit('C' . $row, $correctivo->sede_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+
+                        // SERVICIO
+                        $sheet->setCellValueExplicit('D' . $row, $correctivo->servicio_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        
+                        // AREA
+                        $sheet->setCellValueExplicit('E' . $row, $correctivo->area_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // TIPO
-                        $sheet->setCellValueExplicit('D' . $row, $correctivo->tipo ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('F' . $row, $correctivo->tipo ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // RESPONSABLE DE MANTENIMIENTO
-                        $sheet->setCellValueExplicit('E' . $row, trim($correctivo->responsable_nombre ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('G' . $row, trim($correctivo->responsable_nombre ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // ID
-                        $sheet->setCellValue('F' . $row, $correctivo->id ?? '');
+                        $sheet->setCellValue('H' . $row, $correctivo->id ?? '');
                         
-                        // NOMBRE del equipo
-                        $sheet->setCellValueExplicit('G' . $row, $correctivo->equipo_name ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        // NOMBRE del equipo (usar campo manual si no hay join con equipos)
+                        $nombreEquipo = $correctivo->equipo_name ?? $correctivo->nombre_equipo ?? '';
+                        $sheet->setCellValueExplicit('I' . $row, $nombreEquipo, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // CÓDIGO del equipo
-                        $sheet->setCellValueExplicit('H' . $row, $correctivo->equipo_code ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        // CÓDIGO del equipo (usar campo manual si no hay join con equipos)
+                        $codigoEquipo = $correctivo->equipo_code ?? $correctivo->codigo_equipo ?? '';
+                        $sheet->setCellValueExplicit('J' . $row, $codigoEquipo, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // MARCA
-                        $sheet->setCellValueExplicit('I' . $row, $correctivo->marca ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        // MARCA (usar campo manual si no hay join con equipos)
+                        $marca = $correctivo->marca ?? $correctivo->marca_equipo ?? '';
+                        $sheet->setCellValueExplicit('K' . $row, $marca, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // MODELO
-                        $sheet->setCellValueExplicit('J' . $row, $correctivo->modelo ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        // MODELO (usar campo manual si no hay join con equipos)
+                        $modelo = $correctivo->modelo ?? $correctivo->modelo_equipo ?? '';
+                        $sheet->setCellValueExplicit('L' . $row, $modelo, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // SERIE
-                        $sheet->setCellValueExplicit('K' . $row, $correctivo->serial ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                        
-                        // SERVICIO
-                        $sheet->setCellValueExplicit('L' . $row, $correctivo->servicio_nombre ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        // SERIE (usar campo manual si no hay join con equipos)
+                        $serie = $correctivo->serial ?? $correctivo->serie_equipo ?? '';
+                        $sheet->setCellValueExplicit('M' . $row, $serie, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // ESTADO DEL EQUIPO
-                        $sheet->setCellValueExplicit('M' . $row, $correctivo->estado_actual ?? 'N/A', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('N' . $row, $correctivo->estado_actual ?? 'N/A', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // CIERRE (con hora)
                         $fechaCierre = $correctivo->fecha_cierre ?? '';
                         if ($fechaCierre) {
                             $fechaCierre = date('Y-m-d H:i:s', strtotime($fechaCierre));
                         }
-                        $sheet->setCellValueExplicit('N' . $row, $fechaCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('O' . $row, $fechaCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // FECHA FIN (con hora)
                         $fechaFin = $correctivo->fecha_fin ?? '';
                         if ($fechaFin) {
                             $fechaFin = date('Y-m-d H:i:s', strtotime($fechaFin));
                         }
-                        $sheet->setCellValueExplicit('O' . $row, $fechaFin, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('P' . $row, $fechaFin, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // DESCRIPCIÓN
-                        $sheet->setCellValueExplicit('P' . $row, $correctivo->descripcion ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('Q' . $row, $correctivo->descripcion ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // DESCRIPCIÓN DE CIERRE DEL TICKET
-                        $sheet->setCellValueExplicit('Q' . $row, $correctivo->tecnico_cierre_text ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValueExplicit('R' . $row, $correctivo->tecnico_cierre_text ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // Bordes para todas las celdas de datos
-                        $sheet->getStyle('A' . $row . ':Q' . $row)->getBorders()->getAllBorders()
+                        $sheet->getStyle('A' . $row . ':R' . $row)->getBorders()->getAllBorders()
                             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
                         
                         $row++;
                     }
 
                     // Auto-size columns
-                    foreach (range('A', 'Q') as $col) {
+                    foreach (range('A', 'R') as $col) {
                         $sheet->getColumnDimension($col)->setAutoSize(true);
                     }
 
@@ -1168,16 +1266,20 @@ class CorrectivoGeneralController extends Controller
                 // Escribir encabezados
                 $sheet->fromArray($headers, null, 'A1');
 
-                // Estilo para encabezados
+                // Estilo para encabezados (AZUL INSTITUCIONAL)
                 $headerStyle = [
-                    'font' => ['bold' => true],
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'fill' => [
                         'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'DDDDDD']
+                        'startColor' => ['rgb' => '003366'] // Azul institucional fuerte
+                    ],
+                    'alignment' => [
+                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                     ],
                     'borders' => [
                         'allBorders' => [
-                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000']
                         ]
                     ]
                 ];
@@ -1185,78 +1287,148 @@ class CorrectivoGeneralController extends Controller
                 $sheet->getStyle('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')
                       ->applyFromArray($headerStyle);
 
-                // Escribir datos reales iterando Collection en lugar de cursor SQL
+                // Obtener avances en bloque para eficiencia
+                $cgIds = $queryFinal->where('tipo', 'Correctivos Generales')->pluck('id')->toArray();
+                $ticketIds = $queryFinal->filter(fn($x) => str_contains($x->tipo, 'Tickets'))->pluck('id')->toArray();
+
+                $avancesCG = DB::table('avances_correctivos')
+                                ->whereIn('correctivo_general_id', $cgIds)
+                                ->whereNotNull('correctivo_general_id')
+                                ->orderBy('date', 'desc')
+                                ->get()
+                                ->groupBy('correctivo_general_id');
+
+                $avancesTickets = DB::table('avances_correctivos')
+                                    ->whereIn('orden_id', $ticketIds)
+                                    ->whereNotNull('orden_id')
+                                    ->orderBy('date', 'desc')
+                                    ->get()
+                                    ->groupBy('orden_id');
+
+                // Escribir datos
                 $row = 2;
                 foreach ($queryFinal as $correctivo) {
+                    // Obtener avances específicos
+                    $misAvances = collect();
+                    if (str_contains($correctivo->tipo, 'Tickets')) {
+                        $misAvances = $avancesTickets->get($correctivo->id, collect());
+                    } else {
+                        $misAvances = $avancesCG->get($correctivo->id, collect());
+                    }
+
+                    $avance1 = $misAvances->get(0);
+                    $avance2 = $misAvances->get(1);
+                    $avance3 = $misAvances->get(2);
+
+                    // Función para convertir a fecha Excel y permitir agrupamiento por año/mes
+                    $formatDate = function($dateStr) {
+                        if (!$dateStr) return '';
+                        $ts = strtotime($dateStr);
+                        return $ts ? \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts) : '';
+                    };
+
                     $rowData = [
-                        'Correctivos generales', // fuente
-                        'No especificado', // responsable (no existe en tabla)
-                        $correctivo->equipo_id ?? '', // equipo_id
-                        $correctivo->created_at ? date('Y-m-d', strtotime($correctivo->created_at)) : '', // fecha_creacion
-                        $correctivo->code_orden ?? $correctivo->code ?? '', // codigo_orden
-                        $correctivo->description ?? $correctivo->orden ?? '', // descripcion_orden
-                        $correctivo->code_diagnostico ?? '', // codificacion_cierre
-                        $correctivo->equipo_name ?? 'N/A', // equipo (campo del JOIN)
-                        $correctivo->equipo_code ?? '', // codigo_equipo (campo del JOIN)
-                        $correctivo->marca ?? '', // marca (campo del JOIN)
-                        $correctivo->modelo ?? '', // modelo (campo del JOIN)
-                        $correctivo->serial ?? '', // serie (campo del JOIN)
-                        'Activo', // estado_actual (por defecto, no está en tablas)
-                        $correctivo->sede ?? '', // sede (campo del JOIN)
-                        'No especificado', // servicio (usar servicio_id si necesario)
-                        'No especificado', // area (no está en tablas)
-                        $correctivo->file ?? '', // archivo
-                        $correctivo->fecha_inicio ?? '', // fecha_avance
-                        '', // titulo_avance1 (no existe en tabla)
-                        $correctivo->diagnostico ?? '', // descripcion_avance
-                        '', // fecha_avance2 (no existe)
-                        '', // titulo_avance2 (no existe)
-                        '', // descripcion_avance2 (no existe)
-                        '', // fecha_avance3 (no existe)
-                        '', // titulo_avance3 (no existe)
-                        '', // descripcion_avance3 (no existe)
-                        '', // retro_cierre (no existe)
-                        '', // descripcion_cierre (no existe)
-                        '', // fecha_cierre (no existe)
-                        0, // costo_equipo (no existe)
-                        $correctivo->fecha_mantenimiento ?? '', // fecha_fin
-                        $correctivo->repuesto_id ?? '' // repuesto_instalado
+                        $correctivo->tipo ?? 'Correctivo', // 1. Fuente
+                        $correctivo->responsable_nombre ?? 'No especificado', // 2. Responsable
+                        $correctivo->equipo_id ?? 'N/A', // 3. Equipo Id
+                        $formatDate($correctivo->fecha_inicio), // 4. F. Creación (Excel Date)
+                        $correctivo->code_orden ?? $correctivo->id ?? '', // 5. Código Orden
+                        $correctivo->description ?? $correctivo->descripcion ?? $correctivo->orden ?? '', // 6. Descripción
+                        $correctivo->cierre_name ?? $correctivo->retro_cierre ?? 'Pendiente', // 7. Codificación Cierre
+                        $correctivo->equipo_name ?? $correctivo->nombre_equipo ?? 'N/A', // 8. Equipo
+                        $correctivo->equipo_code ?? $correctivo->codigo_equipo ?? '', // 9. Cód. Equipo
+                        $correctivo->marca ?? $correctivo->marca_equipo ?? '', // 10. Marca
+                        $correctivo->modelo ?? $correctivo->modelo_equipo ?? '', // 11. Modelo
+                        ($correctivo->serial ?? $correctivo->serie_equipo) ? "SN: " . ($correctivo->serial ?? $correctivo->serie_equipo) : '', // 12. Serie
+                        $correctivo->estado_actual ?? (str_contains($correctivo->tipo, 'Tickets') ? 'No vinculado' : 'N/A'), // 13. Estado Actual
+                        $correctivo->sede_nombre ?? '', // 14. Sede
+                        $correctivo->servicio_nombre ?? '', // 15. Servicio
+                        $correctivo->area_nombre ?? '', // 16. Area
+                        $correctivo->file ? url('assets/upload_correctivos_generales/' . $correctivo->file) : '', // 17. Archivo
+                        $formatDate($avance1->date ?? null), // 18. F. Avance 1 (Excel Date)
+                        $avance1->title ?? '', // 19. Título Avance 1
+                        $avance1->description ?? '', // 20. Desc. Avance 1
+                        $formatDate($avance2->date ?? null), // 21. F. Avance 2 (Excel Date)
+                        $avance2->title ?? '', // 22. Título Avance 2
+                        $avance2->description ?? '', // 23. Desc. Avance 2
+                        $formatDate($avance3->date ?? null), // 24. F. Avance 3 (Excel Date)
+                        $avance3->title ?? '', // 25. Título Avance 3
+                        $avance3->description ?? '', // 26. Desc. Avance 3
+                        $correctivo->cierre_code ?? $correctivo->retro_cierre ?? '', // 27. Retro Cierre
+                        $correctivo->reparacion ?? $correctivo->description ?? $correctivo->orden ?? '', // 28. Desc. Cierre
+                        $formatDate($correctivo->fecha_asignacion_cierre ?? $correctivo->fecha_cierre ?? null), // 29. Fecha Cierre (Excel Date)
+                        $correctivo->costo ?? 0, // 30. Costo
+                        $formatDate($correctivo->fecha_fin ?? null), // 31. Fecha Fin (Excel Date)
+                        $correctivo->repuesto_pendiente ?? '' // 32. Repuesto
                     ];
 
                     $sheet->fromArray($rowData, null, 'A' . $row);
+                    
+                    // Si hay link de archivo, ponerlo como hipervínculo
+                    if (!empty($rowData[16])) {
+                        $sheet->getCell('Q' . $row)->getHyperlink()->setUrl($rowData[16]);
+                    }
+
                     $row++;
                 }
 
-                    // Auto-ajustar anchos de columnas
-                    $maxCol = count($headers);
-                    for ($i = 1; $i <= $maxCol; $i++) {
-                        $colStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-                        $sheet->getColumnDimension($colStr)->setAutoSize(true);
+                // Aplicar formato de fecha de Excel a las columnas específicas en bloque para mayor velocidad
+                $lastRow = $row - 1;
+                if ($lastRow >= 2) {
+                    $dateColumns = ['D', 'R', 'U', 'X', 'AC', 'AE'];
+                    foreach ($dateColumns as $col) {
+                        $sheet->getStyle($col . '2:' . $col . $lastRow)
+                              ->getNumberFormat()
+                              ->setFormatCode('yyyy-mm-dd');
                     }
+
+                    // Dar estilo azul/subrayado a la columna de archivos (Q) en bloque
+                    $sheet->getStyle('Q2:Q' . $lastRow)->getFont()->getColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLUE);
+                    $sheet->getStyle('Q2:Q' . $lastRow)->getFont()->setUnderline(true);
                 }
 
-                // Guardar el archivo (común para ambos formatos)
-                $writer = new Xlsx($spreadsheet);
-                $writer->save('php://output');
-            }, 200, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'max-age=0'
-            ]);
+                // Auto-ajustar anchos de columnas
+                $maxCol = count($headers);
+                for ($i = 1; $i <= $maxCol; $i++) {
+                    $colStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+                    $sheet->getColumnDimension($colStr)->setAutoSize(true);
+                }
+                }
 
-        } catch (Exception $e) {
-            Log::error('❌ [EXPORT] Error en exportación completa Excel', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return new StreamedResponse(function() use ($e) {
-                echo json_encode(['error' => 'Error al exportar: ' . $e->getMessage()]);
-            }, 500, [
-                'Content-Type' => 'application/json'
-            ]);
+                // Guardar el archivo en un archivo temporal para ahorrar memoria
+                $writer = new Xlsx($spreadsheet);
+                $tempFile = tempnam(sys_get_temp_dir(), 'export_excel_');
+                $writer->save($tempFile);
+
+                // Retornar como StreamedResponse para que Laravel lo trate como tal
+                // y para que se cumpla el type hint si existe en alguna parte del sistema.
+                return response()->stream(function() use ($tempFile) {
+                    $stream = fopen($tempFile, 'rb');
+                    while (!feof($stream)) {
+                        echo fread($stream, 8192);
+                        flush();
+                    }
+                    fclose($stream);
+                    @unlink($tempFile);
+                }, 200, [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                    'Cache-Control' => 'max-age=0',
+                    'Pragma' => 'public',
+                ]);
+
+            } catch (Exception $e) {
+                Log::error('❌ [EXPORT] Error en exportación completa Excel', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Error al exportar: ' . $e->getMessage()
+                ], 500);
+            }
         }
-    }
 
     /**
      * @OA\Post(

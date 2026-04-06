@@ -81,7 +81,8 @@ class StoreEquipmentRequest extends FormRequest
             'observacion' => 'nullable|string|max:2000', // usar observacion en lugar de observaciones
             'otros' => 'nullable|string|max:2000', // para campos adicionales
             'manuales' => 'nullable|json',
-            'planos' => 'nullable|json'
+            'planos' => 'nullable|json',
+            'copy_image_path' => 'nullable|string'
         ];
     }
 

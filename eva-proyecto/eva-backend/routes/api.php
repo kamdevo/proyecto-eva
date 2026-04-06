@@ -4868,6 +4868,40 @@ Route::get('storage/{path}', function($path) {
 // MOVIDA ANTES DE CUALQUIER GRUPO DE MIDDLEWARE
 // ==========================================
 
+// ==========================================
+// ENDPOINT: Validación de unicidad de campos
+// Usado por el modal de agregar/copiar equipo
+// ==========================================
+Route::get('v1/equipos/validate-unique', function(Request $request) {
+    $field = $request->query('field');
+    $value = $request->query('value');
+
+    // Campos permitidos para consultar (whitelist)
+    $allowedFields = ['serial', 'code', 'codigo_antiguo'];
+
+    if (!$field || !in_array($field, $allowedFields)) {
+        return response()->json([
+            'unique'  => true,
+            'message' => 'Campo no válido para validación'
+        ], 200)->header('Access-Control-Allow-Origin', '*');
+    }
+
+    if (!$value || trim($value) === '') {
+        return response()->json(['unique' => true])
+            ->header('Access-Control-Allow-Origin', '*');
+    }
+
+    $exists = DB::table('equipos')
+        ->where($field, trim($value))
+        ->exists();
+
+    return response()->json([
+        'unique'  => !$exists,
+        'field'   => $field,
+        'value'   => $value,
+    ])->header('Access-Control-Allow-Origin', '*');
+});
+
 // RUTA COMPLETAMENTE INDEPENDIENTE SIN MIDDLEWARE
 Route::post('v1/equipos-create', function(Request $request) {
     try {
@@ -4891,11 +4925,30 @@ Route::post('v1/equipos-create', function(Request $request) {
         ]);
         */
 
-        // SOLO MANTENER: Validación de unicidad del número de serie (si se proporciona)
+        // ─── VALIDACIONES COMPLETAS ───────────────────────────────────────────
         $validator = Validator::make($request->all(), [
-            'serial' => 'nullable|string|max:100|unique:equipos,serial',
+            // ✔️ Nombre obligatorio (mín. 3 chars)
+            'name'           => 'required|string|min:3|max:255',
+            // ✔️ Serial único (si se provee)
+            'serial'         => 'nullable|string|max:100|unique:equipos,serial',
+            // ✔️ Código inventario único (mapeado a 'code' en BD)
+            'code'           => 'nullable|string|max:100|unique:equipos,code',
+            // ✔️ Código antiguo único (si tiene valor)
+            'codigo_antiguo' => 'nullable|string|max:100|unique:equipos,codigo_antiguo',
+            // ✔️ Archivo Excel solo .xlsx / .xls
+            'archivo_excel'  => 'nullable|file|mimes:xlsx,xls|max:20480',
+            // Archivo INVIMA solo PDF
+            'archivo_invima' => 'nullable|file|mimes:pdf|max:10240',
         ], [
-            'serial.unique' => 'Ya existe un equipo con este número de serie.',
+            'name.required'            => 'El nombre del equipo es obligatorio.',
+            'name.min'                 => 'El nombre del equipo debe tener al menos 3 caracteres.',
+            'serial.unique'            => 'Ya existe un equipo con este número de serie.',
+            'code.unique'              => 'Ya existe un equipo con este código INV/Activo.',
+            'codigo_antiguo.unique'    => 'Ya existe un equipo con este código antiguo.',
+            'archivo_excel.mimes'      => 'El archivo hoja de vida debe ser Excel (.xlsx o .xls).',
+            'archivo_excel.max'        => 'El archivo Excel no puede superar 20 MB.',
+            'archivo_invima.mimes'     => 'El archivo INVIMA debe ser PDF.',
+            'archivo_invima.max'       => 'El archivo INVIMA no puede superar 10 MB.',
         ]);
 
         if ($validator->fails()) {

@@ -436,6 +436,7 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
         `/v1/correctivos-generales/export-${format}`,
         {
           responseType: "blob",
+          timeout: 300000, // 5 minutos para exportaciones masivas
           headers: {
             Accept:
               format === "excel"
@@ -489,7 +490,7 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
         `/v1/correctivos-generales/export-excel?formato=parada&tipo=${equipmentType}`,
         {
           responseType: "blob",
-          timeout: 120000, // 2 minutos para exportaciones grandes
+          timeout: 300000, // 5 minutos para exportaciones grandes (Parada de Equipo)
           headers: {
             Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           },
@@ -552,6 +553,7 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
         },
         {
           responseType: "blob",
+          timeout: 300000,
           headers: {
             Accept:
               format === "excel"
@@ -861,9 +863,7 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                 </Card>
               )}
 
-              {(selectedCorrective.fecha_avance ||
-                selectedCorrective.fecha_avance2 ||
-                selectedCorrective.fecha_avance3) && (
+              {selectedCorrective.avances && selectedCorrective.avances.length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg text-blue-600">
@@ -871,54 +871,22 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {selectedCorrective.fecha_avance && (
-                      <div className="border-l-4 border-blue-500 pl-4">
+                    {selectedCorrective.avances.map((avance, idx) => (
+                      <div key={idx} className="border-l-4 border-blue-500 pl-4">
                         <div className="flex items-center gap-2 mb-2">
                           <Clock className="h-4 w-4 text-blue-500" />
                           <span className="font-medium">
-                            {selectedCorrective.titulo_avance1}
+                            {avance.titulo}
                           </span>
                           <span className="text-sm text-gray-500">
-                            {selectedCorrective.fecha_avance}
+                            {avance.fecha}
                           </span>
                         </div>
                         <p className="text-gray-700">
-                          {selectedCorrective.descripcion_avance}
+                          {avance.descripcion}
                         </p>
                       </div>
-                    )}
-                    {selectedCorrective.fecha_avance2 && (
-                      <div className="border-l-4 border-blue-500 pl-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-blue-500" />
-                          <span className="font-medium">
-                            {selectedCorrective.titulo_avance2}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {selectedCorrective.fecha_avance2}
-                          </span>
-                        </div>
-                        <p className="text-gray-700">
-                          {selectedCorrective.descripcion_avance2}
-                        </p>
-                      </div>
-                    )}
-                    {selectedCorrective.fecha_avance3 && (
-                      <div className="border-l-4 border-blue-500 pl-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-blue-500" />
-                          <span className="font-medium">
-                            {selectedCorrective.titulo_avance3}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {selectedCorrective.fecha_avance3}
-                          </span>
-                        </div>
-                        <p className="text-gray-700">
-                          {selectedCorrective.descripcion_avance3}
-                        </p>
-                      </div>
-                    )}
+                    ))}
                   </CardContent>
                 </Card>
               )}
@@ -1206,12 +1174,12 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                     <table className="w-full border-collapse table-auto">
                       <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[100px]">
                             <button
                               onClick={() => handleSort("fecha_creacion")}
-                              className="flex items-center gap-1 hover:text-gray-700"
+                              className="flex items-center gap-1 hover:text-gray-900"
                             >
-                              Fecha
+                              F. Creación
                               {sortConfig.key === "fecha_creacion" &&
                                 (sortConfig.direction === "asc" ? (
                                   <SortAsc className="h-3 w-3" />
@@ -1220,12 +1188,12 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                                 ))}
                             </button>
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[110px]">
                             <button
                               onClick={() => handleSort("codigo_orden")}
-                              className="flex items-center gap-1 hover:text-gray-700"
+                              className="flex items-center gap-1 hover:text-gray-900"
                             >
-                              Código
+                              Cód. Orden
                               {sortConfig.key === "codigo_orden" &&
                                 (sortConfig.direction === "asc" ? (
                                   <SortAsc className="h-3 w-3" />
@@ -1234,28 +1202,43 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                                 ))}
                             </button>
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[150px]">
+                            Descripción
+                          </th>
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[130px]">
+                            Cód. Cierre
+                          </th>
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[140px]">
                             Equipo
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Marca/Modelo
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[100px]">
+                            Cód. Equipo
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Estado
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Marca
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Prioridad
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Modelo
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Sede
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Serie
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Responsable
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[150px]">
+                            Ubicación
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Documentos
+                          <th className="border border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[90px]">
+                            Archivo
                           </th>
-                          <th className="border border-gray-200 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Cód. Retro
+                          </th>
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[150px]">
+                            Desc. Cierre
+                          </th>
+                          <th className="border border-gray-200 px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Fecha Cierre
+                          </th>
+                          <th className="border border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             Acciones
                           </th>
                         </tr>
@@ -1266,86 +1249,81 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                             key={item.id}
                             className="hover:bg-gray-50 transition-colors"
                           >
-                            <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-900 whitespace-nowrap">
                               {item.fecha_creacion}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm">
-                              <div className="font-medium text-blue-600">
+                            <td className="border border-gray-200 px-3 py-3 text-xs">
+                              <div className="font-semibold text-blue-600">
                                 {item.codigo_orden}
                               </div>
-                              <div
-                                className="text-xs text-gray-500 truncate max-w-48"
-                                title={item.descripcion_orden}
-                              >
+                            </td>
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-700">
+                              <div className="line-clamp-2" title={item.descripcion_orden}>
                                 {item.descripcion_orden}
                               </div>
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm">
-                              <div className="font-medium text-gray-900">
-                                {item.equipo}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {item.codigo_equipo}
-                              </div>
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-700">
+                              {item.codificacion_cierre}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">
-                              <div>{item.marca}</div>
-                              <div className="text-xs text-gray-500">
-                                {item.modelo}
-                              </div>
+                            <td className="border border-gray-200 px-3 py-3 text-xs font-medium text-gray-900">
+                              {item.equipo}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm">
-                              {getStatusBadge(item)}
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-600">
+                              {item.codigo_equipo}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm">
-                              {getPriorityBadge(item)}
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-900 font-medium">
+                              {item.marca}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm">
-                              <div className="text-gray-900">{item.sede}</div>
-                              <div
-                                className="text-xs text-gray-500 truncate max-w-40"
-                                title={item.servicio}
-                              >
-                                {item.servicio}
-                              </div>
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-700">
+                              {item.modelo}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">
-                              {item.responsable_mantenimiento || "No asignado"}
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-600">
+                              {item.serie}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-center">
+                            <td className="border border-gray-200 px-3 py-3 text-xs">
+                              <div className="font-medium text-gray-900">{item.servicio}</div>
+                              <div className="text-[10px] text-gray-500">{item.sede}</div>
+                              {item.area && (
+                                <div className="text-[10px] text-blue-500 italic">Área: {item.area}</div>
+                              )}
+                            </td>
+                            <td className="border border-gray-200 px-3 py-3 text-center">
                               {item.archivo ? (
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleViewDocument(item.archivo)
-                                  }
-                                  className="h-8 px-3 text-xs"
-                                  title="Ver documento"
+                                  variant="ghost"
+                                  onClick={() => handleViewDocument(item.archivo)}
+                                  className="h-7 px-2 text-blue-600 hover:bg-blue-50"
                                 >
-                                  📄 Ver
+                                  🔗 PDF
                                 </Button>
                               ) : (
-                                <span className="text-gray-400 text-xs">
-                                  Sin documento
-                                </span>
+                                <span className="text-gray-400 text-[10px]">Sin doc</span>
                               )}
                             </td>
-                            <td className="border border-gray-200 px-4 py-3 text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSelectedCorrective(item);
-                                    setViewMode("view");
-                                  }}
-                                  className="h-8 w-8 p-0"
-                                  title="Ver detalles"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-blue-600 font-semibold">
+                              {item.cierre_code || "---"}
+                            </td>
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-700">
+                              <div className="line-clamp-1" title={item.cierre_name}>
+                                {item.cierre_name || "---"}
                               </div>
+                            </td>
+                            <td className="border border-gray-200 px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
+                              {item.fecha_cierre || "Pendiente"}
+                            </td>
+                            <td className="border border-gray-200 px-3 py-3 text-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedCorrective(item);
+                                  setViewMode("view");
+                                }}
+                                className="h-8 w-8 p-0 border-blue-200 text-blue-600"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                             </td>
                           </tr>
                         ))}

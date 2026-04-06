@@ -310,6 +310,19 @@ class EquipmentController extends ApiController
                 $imageName = "equipo_{$timestamp}_" . uniqid() . '.' . $image->getClientOriginalExtension();
                 $imagePath = $image->storeAs('equipos/images', $imageName, 'public');
                 $equipoData['image'] = $imagePath;
+            } elseif ($request->has('copy_image_path')) {
+                // Copiar imagen existente si se solicita
+                $sourcePath = $request->input('copy_image_path');
+                if (Storage::disk('public')->exists($sourcePath)) {
+                    $extension = pathinfo($sourcePath, PATHINFO_EXTENSION);
+                    $timestamp = now()->format('YmdHis');
+                    $newImageName = "equipo_copy_{$timestamp}_" . uniqid() . '.' . $extension;
+                    $newImagePath = 'equipos/images/' . $newImageName;
+                    
+                    if (Storage::disk('public')->copy($sourcePath, $newImagePath)) {
+                        $equipoData['image'] = $newImagePath;
+                    }
+                }
             }
 
             // Manejar subida de archivo Excel/PDF
