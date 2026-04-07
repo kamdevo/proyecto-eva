@@ -876,7 +876,7 @@ export function MedicalDevicesView() {
                         {/* Documentos Asociados */}
                         <div className="mt-3 space-y-2">
                           {/* Registro Sanitario */}
-                          {device.equipo?.invima_id && device.registros_invima?.length > 0 && (
+                          {!!device.equipo?.invima_id && device.registros_invima?.length > 0 && (
                             <div className="space-y-1">
                               <div className="text-[9px] xs:text-[10px] font-semibold text-[#1d293d] uppercase tracking-wide">
                                 Registro INVIMA
@@ -901,7 +901,7 @@ export function MedicalDevicesView() {
                           )}
 
                           {/* Manual Asociado */}
-                          {device.equipo?.manual_id && device.manual && (
+                          {!!device.equipo?.manual_id && device.manual && (
                             <div className="space-y-1">
                               <div className="text-[9px] xs:text-[10px] font-semibold text-green-700 uppercase tracking-wide">
                                 Manual
@@ -924,7 +924,7 @@ export function MedicalDevicesView() {
                           )}
 
                           {/* Guía Rápida Asociada */}
-                          {device.equipo?.guia_id && device.guia_rapida && (
+                          {!!device.equipo?.guia_id && device.guia_rapida && (
                             <div className="space-y-1">
                               <div className="text-[9px] xs:text-[10px] font-semibold text-purple-700 uppercase tracking-wide">
                                 Guía Rápida
@@ -1059,22 +1059,26 @@ export function MedicalDevicesView() {
                                 )}
                               </span>
                             </div>
+                            {device.cuenta_calibraciones > 0 && (
                             <div className="flex items-center gap-1 xs:gap-2">
                               <span className="font-bold text-slate-700">
                                 Calibraciones:
                               </span>
                               <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                                {safeRenderText(device.cuenta_calibraciones, "0")}
+                                {device.cuenta_calibraciones}
                               </Badge>
                             </div>
+                            )}
+                            {device.cuenta_preventivos > 0 && (
                             <div className="flex items-center gap-1 xs:gap-2">
                               <span className="font-bold text-slate-700">
                                 Preventivos:
                               </span>
                               <Badge className="bg-[#1d293d]/10 text-[#1d293d] hover:bg-[#1d293d]/15 text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30">
-                                {safeRenderText(device.cuenta_preventivos, "0")}
+                                {device.cuenta_preventivos}
                               </Badge>
                             </div>
+                            )}
 
                             {/* Purchase Order Section */}
                             <div className="flex items-center gap-1 xs:gap-2">

@@ -119,7 +119,7 @@ export function ViewEquipmentModal({
   const fetchUserHistory = async (equipmentId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/user-history`,
+        `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/user-history`,
         {
           headers: {
             Accept: "application/json",
@@ -151,7 +151,7 @@ export function ViewEquipmentModal({
   const fetchCambiosHdv = async (equipmentId) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/cambios-hdv`,
+        `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/cambios-hdv`,
         {
           headers: {
             Accept: "application/json",
@@ -278,7 +278,7 @@ export function ViewEquipmentModal({
   // Define fetchEquipmentDetailsPublic function first
   const fetchEquipmentDetailsPublic = async (equipmentId) => {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/${equipmentId}/complete-info`,
+      `${import.meta.env.VITE_API_URL || "http://192.168.2.146:8001/api"}/v1/equipos/${equipmentId}/complete-info`,
       {
         headers: {
           Accept: "application/json",
@@ -1061,7 +1061,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/${mant.file}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/mantenimientos/${mant.file.replace(/^mantenimientos\//, '')}`, '_blank')}
                                 className="text-green-600 hover:bg-green-100 h-7 px-2"
                                 title="Ver archivo de mantenimiento"
                               >
@@ -1099,6 +1099,7 @@ export function ViewEquipmentModal({
                       <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Número de Correctivo</th>
                       <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Próxima</th>
                       <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Resultado</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center">Archivo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1109,11 +1110,28 @@ export function ViewEquipmentModal({
                           <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">#{cal.id || safeValue(cal.tipo_calibracion)}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(cal.proxima_calibracion)}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(cal.resultado)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-center">
+                            {cal.file ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/calibraciones/${cal.file.replace(/^calibraciones\//, '')}`, '_blank')}
+                                className="text-blue-600 hover:bg-blue-100 h-7 px-2"
+                                title="Ver archivo de calibración"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                Ver
+                              </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">Sin archivo</span>
+                            )}
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
+                        <td colSpan={5} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
                           No hay calibraciones registradas
                         </td>
                       </tr>
@@ -1179,7 +1197,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${ticket.file_cierre}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/correctivos_generales/${ticket.file_cierre}`, '_blank')}
                                 className="text-gray-800 hover:bg-gray-100 h-7 px-2"
                                 title="Ver orden de trabajo"
                               >
@@ -1270,7 +1288,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${correctivo.file.split('/').pop()}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/correctivos_generales/${correctivo.file.split('/').pop()}`, '_blank')}
                                 className="text-gray-800 hover:bg-gray-100 h-7 px-2"
                                 title="Ver archivo adjunto"
                               >
@@ -1325,7 +1343,7 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/observaciones/${obs.file}`, '_blank')}
+                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/observaciones/${obs.file}`, '_blank')}
                                 className="text-purple-600 hover:bg-purple-100 h-7 px-2"
                                 title="Ver archivo de observación"
                               >

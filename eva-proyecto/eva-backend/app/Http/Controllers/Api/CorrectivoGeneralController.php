@@ -971,12 +971,16 @@ class CorrectivoGeneralController extends Controller
                 ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
                 ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
                 ->leftJoin('codificacion_cierres as cc', 'o.cierre_id', '=', 'cc.id')
+                ->leftJoin('estados as est', 'o.estado_id', '=', 'est.id')
                 ->select([
                     'o.id',
                     DB::raw("CAST(o.fecha_inicio AS DATETIME) as created_at"),
                     'o.equipo_id',
                     'o.fecha_inicio',
                     'o.retro_cierre',
+                    'o.estado_id',
+                    'o.cierre_id',
+                    'est.descripcion as estado_descripcion',
                     'sede.name as sede_nombre',
                     DB::raw("CASE WHEN (o.equipo_id IS NULL OR o.equipo_id = 0) THEN 'Tickets (Manual)' ELSE 'Tickets' END as tipo"),
                     DB::raw("{$subqueryResponsable} as responsable_nombre"),
@@ -1046,6 +1050,13 @@ class CorrectivoGeneralController extends Controller
             \Log::info("📊 [EXPORT] Iniciando stream de datos...");
 
             Log::info("📊 [EXPORT] Total de correctivos a exportar: Consultando...");
+
+            // Precargar mapa de codificacion_cierres para resolver retro_cierre numérico
+            $cierreMap = DB::table('codificacion_cierres')
+                ->get()
+                ->keyBy('id')
+                ->map(fn($c) => ['code' => $c->code ?? '', 'name' => $c->name ?? ''])
+                ->toArray();
 
             if ($formato === 'parada') {
                 $tipoNombre = $tipo === 'industrial' ? 'Industrial' : 'Biomedico';
@@ -1151,14 +1162,32 @@ class CorrectivoGeneralController extends Controller
                         
                         // CODIFICACIÓN DE CIERRE (formato: código - nombre)
                         $codificacionCierre = '';
-                        if (!empty($correctivo->cierre_code) && !empty($correctivo->cierre_name)) {
-                            $codificacionCierre = $correctivo->cierre_code . ' - ' . $correctivo->cierre_name;
-                        } elseif (!empty($correctivo->cierre_name)) {
-                            $codificacionCierre = $correctivo->cierre_name;
-                        } elseif (!empty($correctivo->cierre_code)) {
-                            $codificacionCierre = $correctivo->cierre_code;
-                        } elseif (!empty($correctivo->retro_cierre)) {
-                            $codificacionCierre = $correctivo->retro_cierre;
+                        $esTicket = str_contains($correctivo->tipo ?? '', 'Tickets');
+                        if ($esTicket) {
+                            // Ticket cerrado = tiene cierre_id enlazado a codificacion_cierres
+                            if (!empty($correctivo->cierre_code) || !empty($correctivo->cierre_name)) {
+                                $codificacionCierre = trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . ($correctivo->cierre_name ?? ''));
+                            } elseif (!empty($correctivo->retro_cierre)) {
+                                $rc = $correctivo->retro_cierre;
+                                if (is_numeric($rc) && isset($cierreMap[(int)$rc])) {
+                                    $m = $cierreMap[(int)$rc];
+                                    $codificacionCierre = ($m['code'] ? $m['code'] . ' - ' : '') . $m['name'];
+                                } else {
+                                    $codificacionCierre = $rc;
+                                }
+                            } else {
+                                // Ticket no cerrado → estado actual del ticket
+                                $codificacionCierre = $correctivo->estado_descripcion ?? '';
+                            }
+                        } else {
+                            // Correctivos Generales → codificacion_cierres siempre
+                            if (!empty($correctivo->cierre_code) && !empty($correctivo->cierre_name)) {
+                                $codificacionCierre = $correctivo->cierre_code . ' - ' . $correctivo->cierre_name;
+                            } elseif (!empty($correctivo->cierre_name)) {
+                                $codificacionCierre = $correctivo->cierre_name;
+                            } elseif (!empty($correctivo->cierre_code)) {
+                                $codificacionCierre = $correctivo->cierre_code;
+                            }
                         }
                         $sheet->setCellValueExplicit('B' . $row, $codificacionCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
@@ -1344,7 +1373,35 @@ class CorrectivoGeneralController extends Controller
                         $formatDate($correctivo->fecha_inicio), // 4. F. Creación (Excel Date)
                         $correctivo->code_orden ?? $correctivo->id ?? '', // 5. Código Orden
                         $correctivo->description ?? $correctivo->descripcion ?? $correctivo->orden ?? '', // 6. Descripción
-                        $correctivo->cierre_name ?? $correctivo->retro_cierre ?? 'Pendiente', // 7. Codificación Cierre
+                        (function() use ($correctivo, $cierreMap) { // 7. Codificación Cierre
+                            $esTicket = str_contains($correctivo->tipo ?? '', 'Tickets');
+                            if ($esTicket) {
+                                // Cerrado → tiene cierre enlazado
+                                if (!empty($correctivo->cierre_code) || !empty($correctivo->cierre_name)) {
+                                    return trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . ($correctivo->cierre_name ?? ''));
+                                }
+                                if (!empty($correctivo->retro_cierre)) {
+                                    $rc = $correctivo->retro_cierre;
+                                    if (is_numeric($rc) && isset($cierreMap[(int)$rc])) {
+                                        $m = $cierreMap[(int)$rc];
+                                        return ($m['code'] ? $m['code'] . ' - ' : '') . $m['name'];
+                                    }
+                                    return $rc;
+                                }
+                                // No cerrado → estado del ticket
+                                return $correctivo->estado_descripcion ?? '';
+                            } else {
+                                // Correctivo General → codificacion_cierres
+                                if (!empty($correctivo->cierre_code) && !empty($correctivo->cierre_name)) {
+                                    return $correctivo->cierre_code . ' - ' . $correctivo->cierre_name;
+                                } elseif (!empty($correctivo->cierre_name)) {
+                                    return $correctivo->cierre_name;
+                                } elseif (!empty($correctivo->cierre_code)) {
+                                    return $correctivo->cierre_code;
+                                }
+                                return '';
+                            }
+                        })(),
                         $correctivo->equipo_name ?? $correctivo->nombre_equipo ?? 'N/A', // 8. Equipo
                         $correctivo->equipo_code ?? $correctivo->codigo_equipo ?? '', // 9. Cód. Equipo
                         $correctivo->marca ?? $correctivo->marca_equipo ?? '', // 10. Marca

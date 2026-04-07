@@ -608,7 +608,7 @@ function IndustrialDevices() {
 
                         {/* Documentos Asociados */}
                         <div className="mt-3 space-y-2">
-                          {equipment.equipo?.invima_id && equipment.registros_invima?.length > 0 && (
+                          {!!equipment.equipo?.invima_id && equipment.registros_invima?.length > 0 && (
                             <div className="space-y-1">
                               <div className="text-[9px] xs:text-[10px] font-semibold text-[#1d293d] uppercase tracking-wide">
                                 Registro INVIMA
@@ -631,7 +631,7 @@ function IndustrialDevices() {
                             </div>
                           )}
 
-                          {equipment.equipo?.manual_id && equipment.manual && (
+                          {!!equipment.equipo?.manual_id && equipment.manual && (
                             <div className="space-y-1">
                               <div className="text-[9px] xs:text-[10px] font-semibold text-green-700 uppercase tracking-wide">
                                 Manual
@@ -648,7 +648,7 @@ function IndustrialDevices() {
                             </div>
                           )}
 
-                          {equipment.equipo?.guia_id && equipment.guia_rapida && (
+                          {!!equipment.equipo?.guia_id && equipment.guia_rapida && (
                             <div className="space-y-1">
                               <div className="text-[9px] xs:text-[10px] font-semibold text-purple-700 uppercase tracking-wide">
                                 Guía Rápida
@@ -773,7 +773,7 @@ function IndustrialDevices() {
                               Servicio:
                             </span>
                             <Badge className="bg-[#1d293d]/10 text-[#1d293d] hover:bg-[#1d293d]/15 text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30">
-                              {equipment.ubicacion?.servicios || "SIN SERVICIO"}
+                              {equipment.ubicacion?.servicio || "SIN SERVICIO"}
                             </Badge>
                           </div>
                           <div className="flex items-center gap-1 xs:gap-2">
@@ -781,7 +781,7 @@ function IndustrialDevices() {
                               Estado:
                             </span>
                             <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-[8px] xs:text-[9px] sm:text-xs border border-green-200">
-                              {equipment.estado?.estadoequipo || "SIN ESTADO"}
+                              {equipment.data?.status || "SIN ESTADO"}
                             </Badge>
                           </div>
                           {/* Observaciones */}
@@ -822,7 +822,7 @@ function IndustrialDevices() {
                             Servicio:
                           </span>
                           <span className="ml-1 text-slate-900">
-                            {equipment.ubicacion?.servicios || "Sin servicio"}
+                            {equipment.ubicacion?.servicio || "Sin servicio"}
                           </span>
                         </div>
                         <div>
@@ -846,7 +846,7 @@ function IndustrialDevices() {
                             Clasificación:
                           </span>
                           <span className="ml-1 text-slate-900">
-                            {equipment.estado?.clasificacion ||
+                            {equipment.data?.clasificacion ||
                               "Sin clasificación"}
                           </span>
                         </div>
@@ -855,7 +855,7 @@ function IndustrialDevices() {
                             Riesgo:
                           </span>
                           <span className="ml-1 text-slate-900">
-                            {equipment.estado?.riesgo || "Sin clasificar"}
+                            {equipment.data?.riesgo || "Sin clasificar"}
                           </span>
                         </div>
                         <div>
@@ -863,7 +863,7 @@ function IndustrialDevices() {
                             Estado del equipo:
                           </span>
                           <span className="ml-1 text-slate-900">
-                            {equipment.estado?.estadoequipo || "SIN ESTADO"}
+                            {equipment.data?.status || "SIN ESTADO"}
                           </span>
                         </div>
 
@@ -957,9 +957,57 @@ function IndustrialDevices() {
                         <div className="mt-2 xs:mt-3 pt-1 xs:pt-2 border-t border-slate-100 space-y-1 xs:space-y-2">
                           <div>
                             <span className="font-medium text-teal-700">
-                              Información de tickets
+                              Información de plan de ejecución
                             </span>
                           </div>
+                          {equipment.incluido_en_plan > 0 && (
+                            <div className="space-y-0.5 xs:space-y-1 text-slate-700 bg-emerald-50 p-1 xs:p-2 rounded border border-emerald-300 mb-2">
+                              <div className="font-semibold text-emerald-800 text-[9px] xs:text-[10px] sm:text-xs flex items-center gap-1">
+                                <CheckCircle2 size={14} className="text-emerald-600" />
+                                Incluido en Plan {equipment.anio_vigente || 'Vigente'}
+                              </div>
+                              {equipment.responsable_plan && (
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                  <span className="font-medium">Responsable:</span>{' '}
+                                  <span className="text-emerald-900">{equipment.responsable_plan}</span>
+                                </div>
+                              )}
+                              {equipment.frecuencia_plan && (
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs">
+                                  <span className="font-medium">Frecuencia:</span>{' '}
+                                  <span className="text-emerald-900">{equipment.frecuencia_plan}</span>
+                                </div>
+                              )}
+                              {(equipment.mes_programado1 || equipment.mes_programado2 || equipment.mes_programado3) && (
+                                <div className="text-[8px] xs:text-[9px] sm:text-xs space-y-0.5">
+                                  {equipment.mes_programado1 && (
+                                    <div>
+                                      <span className="font-medium">Fecha 1:</span>{' '}
+                                      <span className="text-emerald-900">
+                                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][equipment.mes_programado1 - 1]}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {equipment.mes_programado2 && (
+                                    <div>
+                                      <span className="font-medium">Fecha 2:</span>{' '}
+                                      <span className="text-emerald-900">
+                                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][equipment.mes_programado2 - 1]}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {equipment.mes_programado3 && (
+                                    <div>
+                                      <span className="font-medium">Fecha 3:</span>{' '}
+                                      <span className="text-emerald-900">
+                                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][equipment.mes_programado3 - 1]}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <div className="space-y-0.5 xs:space-y-1 text-slate-600 bg-teal-50 p-1 xs:p-2 rounded border border-teal-200">
                             <div>
                               <div className="font-medium text-slate-700">
@@ -1057,22 +1105,86 @@ function IndustrialDevices() {
                                   : "Sin registros"}
                               </div>
                             </div>
+                            {equipment.cuenta_calibraciones > 0 && (
                             <div>
                               <div className="font-medium text-slate-700">
                                 Calibraciones:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {equipment.cuenta_calibraciones || 0}{" "}
+                                {equipment.cuenta_calibraciones}{" "}
                                 registros
                               </div>
                             </div>
+                            )}
+                            {equipment.cuenta_preventivos > 0 && (
                             <div>
                               <div className="font-medium text-slate-700">
                                 Preventivos:
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
-                                {equipment.cuenta_preventivos || 0}{" "}
+                                {equipment.cuenta_preventivos}{" "}
                                 mantenimientos
+                              </div>
+                            </div>
+                            )}
+
+                            {/* Purchase Order Section */}
+                            <div className="flex items-center gap-1 xs:gap-2">
+                              <span className="font-medium text-slate-700">
+                                Orden Compra:
+                              </span>
+                              {equipment.orden_compra ? (
+                                <a
+                                  href={`${import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001"}/storage/ordenes_compra/${equipment.orden_compra_file}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#1d293d] hover:text-[#2a3b52] underline text-[8px] xs:text-[9px] sm:text-xs"
+                                >
+                                  {equipment.orden_compra}
+                                </a>
+                              ) : (
+                                <span className="text-[8px] xs:text-[9px] sm:text-xs text-slate-500">
+                                  Sin orden
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 xs:gap-2">
+                              <span className="font-medium text-slate-700">
+                                Tipo Compra:
+                              </span>
+                              <span className="text-[8px] xs:text-[9px] sm:text-xs text-slate-600">
+                                {equipment.tipo_compra || "Sin tipo"}
+                              </span>
+                            </div>
+
+                            {/* Observation Section */}
+                            <div className="mt-3 xs:mt-4 pt-2 xs:pt-3 border-t border-slate-200">
+                              <div className="flex items-center justify-between">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-[#1d293d]/5 text-[#1d293d] border-[#1d293d]/30 text-[8px] xs:text-[9px] sm:text-xs cursor-pointer hover:bg-[#1d293d]/10"
+                                  onClick={() => {
+                                    setSelectedEquipment(equipment);
+                                    setAddObservacionModalOpen(true);
+                                  }}
+                                >
+                                  Agregar Observación
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-5 w-5 xs:h-6 xs:w-6 p-0 text-[#1d293d] hover:text-[#2a3b52] hover:bg-[#1d293d]/5"
+                                  onClick={() => {
+                                    setSelectedEquipment(equipment);
+                                    setAddObservacionModalOpen(true);
+                                  }}
+                                  title={`Agregar observación${equipment.observaciones?.ultima
+                                    ? `\n\nÚltima observación: ${equipment.observaciones.ultima}`
+                                    : '\n\nSin observaciones previas'
+                                    }`}
+                                >
+                                  <Plus className="w-3 h-3 xs:w-4 xs:h-4" />
+                                </Button>
                               </div>
                             </div>
                           </div>
@@ -1239,7 +1351,7 @@ function IndustrialDevices() {
                       <h4 className="font-semibold text-slate-700 text-sm">Ubicación</h4>
                       <div className="space-y-1 text-xs">
                         <p><span className="font-medium">Sede:</span> {equipment.ubicacion?.sede || "Sin sede"}</p>
-                        <p><span className="font-medium">Servicio:</span> {equipment.ubicacion?.servicios || "Sin servicio"}</p>
+                        <p><span className="font-medium">Servicio:</span> {equipment.ubicacion?.servicio || "Sin servicio"}</p>
                         <p><span className="font-medium">Área:</span> {equipment.ubicacion?.area || "Sin área"}</p>
                       </div>
                     </div>
@@ -1249,7 +1361,7 @@ function IndustrialDevices() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-medium text-slate-700">Estado:</span>
                         <Badge className="bg-green-100 text-green-800 border-green-200">
-                          {equipment.estado?.estadoequipo || "Sin estado"}
+                          {equipment.data?.status || "Sin estado"}
                         </Badge>
                       </div>
                     </div>

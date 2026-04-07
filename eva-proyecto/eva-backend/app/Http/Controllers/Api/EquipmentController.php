@@ -1024,13 +1024,44 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT description FROM observaciones
                              WHERE equipo_id = equipos.id
                              ORDER BY id DESC LIMIT 1) AS ultima_observacion'),
+                    // Plan de mantenimiento del año vigente
+                    DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos
+                             WHERE equipo_id = equipos.id
+                             AND anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)) AS incluido_en_plan'),
+                    DB::raw('(SELECT fm.name FROM planes_mantenimientos pm
+                             LEFT JOIN frecuenciam fm ON fm.id = pm.frecuencia_id
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS frecuencia_plan'),
+                    DB::raw('(SELECT pm.mes1 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado1'),
+                    DB::raw('(SELECT pm.mes2 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado2'),
+                    DB::raw('(SELECT pm.mes3 FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS mes_programado3'),
+                    DB::raw('(SELECT pm.responsable FROM planes_mantenimientos pm
+                             WHERE pm.equipo_id = equipos.id
+                             AND pm.anio = (SELECT anio FROM vigencias_mantenimiento LIMIT 1)
+                             LIMIT 1) AS responsable_plan'),
+                    DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) AS anio_vigente'),
                     'invimas.invima as registro_sanitario_invima',
                     // 'invimas.file as archivo_registro_sanitario',
                     'pro.nombre as propietario',
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
                     'ordenes_compra.file as orden_compra_file',
-                    'tipos_compra.tipo_compra as tipo_compra'
+                    'tipos_compra.tipo_compra as tipo_compra',
+                    // Documentos asociados
+                    'manuales.descripcion as manual_descripcion',
+                    'manuales.url as manual_url',
+                    'guias_rapidas.name as guia_name',
+                    'guias_rapidas.file as guia_file'
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
@@ -1044,6 +1075,9 @@ class EquipmentController extends ApiController
                 ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
                 ->leftJoin('ordenes_compra', 'ordenes_compra.id', '=', 'equipos.orden_compra_id')
                 ->leftJoin('tipos_compra', 'tipos_compra.id', '=', 'ordenes_compra.tipo_compra_id')
+                // JOINs para documentos asociados
+                ->leftJoin('manuales', 'manuales.id', '=', 'equipos.manual_id')
+                ->leftJoin('guias_rapidas', 'guias_rapidas.id', '=', 'equipos.guia_id')
                 ->where('equipos.status', '!=', 0)
                 ->where('equipos.tipo_id', 2); // Solo equipos industriales
 
@@ -1138,6 +1172,9 @@ class EquipmentController extends ApiController
                         'series' => $equipo->serial,
                         'image' => $equipo->image ? url('storage/equipos/images/' . $equipo->image) : null,
                         'hasImage' => !empty($equipo->image),
+                        'manual_id' => $equipo->manual_id,
+                        'guia_id' => $equipo->guia_id,
+                        'invima_id' => $equipo->invima_id,
                     ],
 
                     'data' => [
@@ -1176,7 +1213,11 @@ class EquipmentController extends ApiController
                         'ultimo_mantenimiento' => $equipo->ultimo_mantenimiento,
                         'ultima_calibracion' => $equipo->ultima_calibracion,
                         'ultimo_correctivo' => $equipo->ultimo_correctivo,
+                        'ultimo_correctivo_general' => $equipo->ultimo_correctivo_general,
+                        'ultimo_procedimiento_correctivo' => $equipo->ultimo_procedimiento_correctivo,
                         'fecha_inicio_ultimo_ticket' => $equipo->fecha_inicio_ultimo_ticket,
+                        'fecha_ultimo_cierre_ticket' => $equipo->fecha_ultimo_cierre_ticket,
+                        'ultimo_ticket_cerrado' => (bool) ($equipo->ultimo_ticket_cerrado ?? false),
                         'cuenta_archivos' => (int) ($equipo->cuenta_archivos ?? 0),
                     ],
 
@@ -1184,7 +1225,18 @@ class EquipmentController extends ApiController
                         'ultimoMantenimiento' => $equipo->ultimo_mantenimiento,
                         'ultimaCalibración' => $equipo->ultima_calibracion,
                         'ultimoCorrectivo' => $equipo->ultimo_correctivo,
+                        'ultimoCorrectivoGeneral' => $equipo->ultimo_correctivo_general,
+                        'ultimoProcedimientoCorrectivo' => $equipo->ultimo_procedimiento_correctivo,
                     ],
+
+                    // Plan de mantenimiento vigente
+                    'incluido_en_plan' => (int) ($equipo->incluido_en_plan ?? 0),
+                    'frecuencia_plan' => $equipo->frecuencia_plan ?? null,
+                    'responsable_plan' => $equipo->responsable_plan ?? null,
+                    'mes_programado1' => $equipo->mes_programado1 ?? null,
+                    'mes_programado2' => $equipo->mes_programado2 ?? null,
+                    'mes_programado3' => $equipo->mes_programado3 ?? null,
+                    'anio_vigente' => $equipo->anio_vigente ?? null,
 
                     'propietario' => [
                         'nombre' => $equipo->propietario,
@@ -1203,9 +1255,27 @@ class EquipmentController extends ApiController
                     ],
 
                     'tickets' => [
-                        'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket,
+                        'fechaUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
+                        'fechaCreacionUltimoTicket' => $equipo->fecha_inicio_ultimo_ticket ?? null,
+                        'fechaUltimoCierre' => $equipo->fecha_ultimo_cierre_ticket ?? null,
                         'ultimoTicketCerrado' => (bool) ($equipo->ultimo_ticket_cerrado ?? false),
                     ],
+
+                    // Documentos asociados
+                    'manual' => $equipo->manual_descripcion ? [
+                        'id' => $equipo->manual_id,
+                        'descripcion' => $equipo->manual_descripcion,
+                        'url' => $equipo->manual_url,
+                    ] : null,
+                    'guia_rapida' => $equipo->guia_name ? [
+                        'id' => $equipo->guia_id,
+                        'name' => $equipo->guia_name,
+                        'file' => $equipo->guia_file,
+                    ] : null,
+                    'registros_invima' => $equipo->invima_id ? [[
+                        'id' => $equipo->invima_id,
+                        'numero_registro' => null,
+                    ]] : null,
                 ];
             });
 
