@@ -117,7 +117,8 @@ class CorrectivoGeneralController extends Controller
                     'ar.name as area_name',
                     'tf.name as tipo_falla_name',
                     DB::raw('se.name as sede_nombre'),
-                    DB::raw('(SELECT responsable FROM planes_mantenimientos WHERE equipo_id = cg.equipo_id ORDER BY id DESC LIMIT 1) as responsable_plan')
+                    DB::raw('(SELECT responsable FROM planes_mantenimientos WHERE equipo_id = cg.equipo_id ORDER BY id DESC LIMIT 1) as responsable_plan'),
+                    DB::raw('(SELECT COUNT(*) FROM avances_correctivos WHERE correctivo_general_id = cg.id) AS conteo_avances')
                 ]);
 
             // Búsqueda global en todos los campos usando campos reales de la BD
@@ -171,6 +172,15 @@ class CorrectivoGeneralController extends Controller
             // Filtro por equipo_id (específico para Hoja de Vida/Consultas)
             if ($request->filled('equipo_id')) {
                 $query->where('cg.equipo_id', $request->equipo_id);
+            }
+
+            // Filtro por tipo de equipo (biomedico = tipo_id 1, industrial = tipo_id 2)
+            if ($request->filled('tipo') && $request->tipo !== 'all') {
+                if ($request->tipo === 'biomedico') {
+                    $query->where('e.tipo_id', 1);
+                } elseif ($request->tipo === 'industrial') {
+                    $query->where('e.tipo_id', 2);
+                }
             }
 
             // Filtro por año
@@ -270,6 +280,7 @@ class CorrectivoGeneralController extends Controller
                     'cierre_name' => $correctivo->cierre_name ?? '',
                     
                     // Avances (mapeados a los campos que la vista actual podría usar o nuevos)
+                    'conteo_avances' => (int) ($correctivo->conteo_avances ?? 0),
                     'avances' => $misAvances->map(function($a) {
                         return [
                             'fecha' => $a->date,
@@ -714,21 +725,40 @@ class CorrectivoGeneralController extends Controller
             $correctivoId = DB::table('correctivos_generales')->insertGetId($correctivoData);
             Log::info("✅ [CORRECTIVO-GENERAL] Creado con ID: $correctivoId");
 
+            // 1b. Insertar avance inicial en avances_correctivos si se proporcionó diagnóstico
+            if ($request->filled('diagnostico') || $request->filled('code_diagnostico')) {
+                $usuarioId = $request->user() ? $request->user()->id : ($request->input('usuario_id') ?: null);
+                DB::table('avances_correctivos')->insert([
+                    'title'                  => $request->code_diagnostico ?? 'Avance inicial',
+                    'description'            => $request->diagnostico ?? '',
+                    'date'                   => $request->fecha_diagnostico ?? now()->toDateString(),
+                    'correctivo_general_id'  => $correctivoId,
+                    'usuario_id'             => $usuarioId,
+                    'orden_id'               => 0,
+                ]);
+                Log::info("📝 [CORRECTIVO-GENERAL] Avance inicial insertado en avances_correctivos.");
+            }
+
             // 2. Manejo de Archivo Asociado (correctivos_generales_archivos)
             if ($request->hasFile('file_correctivo')) {
                 $file = $request->file('file_correctivo');
-                $filename = md5(time() . '_' . $file->getClientOriginalName()) . '.' . $file->getClientOriginalExtension();
-                // Guardar en: storage/app/public/correctivos_generales (Mapeado a /assets/upload_correctivos_generales/ en servidor si se requiere)
+                $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $file->storeAs('correctivos_generales', $filename, 'public');
-                
-                DB::table('correctivos_generales_archivos')->insert([
+
+                // Determinar tabla según tipo de equipo
+                $tipoEquipo = DB::table('equipos')->where('id', $request->equipo_id)->value('tipo_id');
+                $tablaArchivos = $tipoEquipo == 2
+                    ? 'correctivos_generales_archivos_ind'
+                    : 'correctivos_generales_archivos';
+
+                DB::table($tablaArchivos)->insert([
                     'correctivo_general_id' => $correctivoId,
-                    'file' => $filename,
-                    'titulo' => $request->titulo_archivo ?? 'Documento de Correctivo',
-                    'created_at' => now()
+                    'file'                  => $filename,
+                    'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
+                    'created_at'            => now()
                 ]);
-                
-                // También actualizar el campo 'file' en la tabla principal para compatibilidad con vistas viejas
+
+                // Actualizar campo file en tabla principal para compatibilidad
                 DB::table('correctivos_generales')->where('id', $correctivoId)->update(['file' => $filename]);
             }
 
@@ -806,7 +836,7 @@ class CorrectivoGeneralController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $correctivo = CorrectivoGeneral::with(['equipo', 'responsable'])->findOrFail($id);
+            $correctivo = CorrectivoGeneral::with(['equipo'])->findOrFail($id);
             
             return ResponseFormatter::success($correctivo, 'Correctivo obtenido exitosamente');
 
@@ -845,9 +875,44 @@ class CorrectivoGeneralController extends Controller
                 return ResponseFormatter::error($validator->errors(), 'Error de validación', 422);
             }
 
-            $correctivo->update($request->all());
+            $updateData = $request->only([
+                'status', 'equipo_id', 'file', 'file_orden', 'orden',
+                'fecha_inicio', 'code_orden', 'diagnostico', 'code_diagnostico',
+                'fecha_diagnostico', 'description', 'code', 'fecha_mantenimiento',
+                'repuesto_pendiente', 'repuesto_id', 'cierre_id', 'tipo_falla_id',
+            ]);
 
-            return ResponseFormatter::success($correctivo->load('equipo'), 'Correctivo actualizado exitosamente');
+            // Evitar error de cast: convertir strings vacíos a null en campos enteros
+            foreach (['status', 'equipo_id', 'cierre_id', 'tipo_falla_id'] as $intField) {
+                if (array_key_exists($intField, $updateData) && $updateData[$intField] === '') {
+                    $updateData[$intField] = null;
+                }
+            }
+
+            $correctivo->update($updateData);
+
+            // Manejo de archivo adjunto en update
+            if ($request->hasFile('file_correctivo')) {
+                $file = $request->file('file_correctivo');
+                $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $file->storeAs('correctivos_generales', $filename, 'public');
+
+                $tipoEquipo = DB::table('equipos')->where('id', $correctivo->equipo_id)->value('tipo_id');
+                $tablaArchivos = $tipoEquipo == 2
+                    ? 'correctivos_generales_archivos_ind'
+                    : 'correctivos_generales_archivos';
+
+                DB::table($tablaArchivos)->insert([
+                    'correctivo_general_id' => $correctivo->id,
+                    'file'                  => $filename,
+                    'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
+                    'created_at'            => now()
+                ]);
+
+                $correctivo->update(['file' => $filename]);
+            }
+
+            return ResponseFormatter::success($correctivo->fresh(), 'Correctivo actualizado exitosamente');
 
         } catch (Exception $e) {
             Log::error('Error en CorrectivoGeneralController::update', [
@@ -894,7 +959,7 @@ class CorrectivoGeneralController extends Controller
      *     @OA\Response(response=200, description="Archivo Excel descargado")
      * )
      */
-    public function exportAllToExcel(Request $request): StreamedResponse
+    public function exportAllToExcel(Request $request): StreamedResponse|\Illuminate\Http\JsonResponse
     {
         try {
             set_time_limit(600); // 10 minutos
@@ -912,7 +977,7 @@ class CorrectivoGeneralController extends Controller
             $subqueryResponsableGeneral = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cg.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
             
             $queryGenerales = DB::table('correctivos_generales as cg')
-                ->join('equipos as e', 'cg.equipo_id', '=', 'e.id')
+                ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
                 ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
                 ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
                 ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
@@ -957,7 +1022,30 @@ class CorrectivoGeneralController extends Controller
             if ($limit) {
                 $queryGenerales->limit($limit);
             }
-            
+
+            // Filtros opcionales para exportación filtrada (fecha, búsqueda, estado)
+            if ($request->filled('fecha_desde')) {
+                $queryGenerales->whereDate('cg.created_at', '>=', $request->fecha_desde);
+            }
+            if ($request->filled('fecha_hasta')) {
+                $queryGenerales->whereDate('cg.created_at', '<=', $request->fecha_hasta);
+            }
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $queryGenerales->where(function ($q) use ($searchTerm) {
+                    $q->where('cg.code_orden', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('cg.orden', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('e.name', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+            if ($request->filled('status') && $request->status !== 'all') {
+                if ($request->status === 'completed') {
+                    $queryGenerales->whereNotNull('cg.fecha_mantenimiento');
+                } elseif ($request->status === 'pending') {
+                    $queryGenerales->whereNull('cg.fecha_mantenimiento');
+                }
+            }
+
             $correctivosGenerales = $queryGenerales->get();
 
             // Obtener tickets/órdenes (tabla ordenes - todos son tickets del sistema)
@@ -1033,7 +1121,29 @@ class CorrectivoGeneralController extends Controller
             if ($limit) {
                 $queryTickets->limit($limit);
             }
-            
+
+            // Filtros opcionales para exportación filtrada (fecha, búsqueda, estado)
+            if ($request->filled('fecha_desde')) {
+                $queryTickets->whereDate('o.fecha_inicio', '>=', $request->fecha_desde);
+            }
+            if ($request->filled('fecha_hasta')) {
+                $queryTickets->whereDate('o.fecha_inicio', '<=', $request->fecha_hasta);
+            }
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $queryTickets->where(function ($q) use ($searchTerm) {
+                    $q->where('o.descripcion', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('e.name', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+            if ($request->filled('status') && $request->status !== 'all') {
+                if ($request->status === 'completed') {
+                    $queryTickets->whereNotNull('o.fecha_fin');
+                } elseif ($request->status === 'pending') {
+                    $queryTickets->whereNull('o.fecha_fin');
+                }
+            }
+
             // Cambiar de UNION SQL a manipulación de colecciones para evitar errores 1271 Illegal mix of collations
             $tickets = $queryTickets->get();
             
@@ -1151,13 +1261,20 @@ class CorrectivoGeneralController extends Controller
 
                     // Datos
                     $row = 5;
+                    // Helper: valida fecha antes de formatear (igual que formato completo)
+                    $safeDate = function($dateStr) {
+                        if (!$dateStr) return '';
+                        if (preg_match('/^0{4}-/', $dateStr)) return '';
+                        $ts = strtotime($dateStr);
+                        if (!$ts || $ts <= 0) return '';
+                        if ((int)date('Y', $ts) < 2000) return '';
+                        return date('Y-m-d', $ts);
+                    };
                     // Procesar registros iterando Collection
                     foreach ($queryFinal as $correctivo) {
-                        // FECHA DE CREACIÓN (con hora)
+                        // FECHA DE CREACIÓN
                         $fechaCreacion = $correctivo->fecha_inicio ?? $correctivo->created_at ?? '';
-                        if ($fechaCreacion) {
-                            $fechaCreacion = date('Y-m-d H:i:s', strtotime($fechaCreacion));
-                        }
+                        $fechaCreacion = $safeDate($fechaCreacion);
                         $sheet->setCellValueExplicit('A' . $row, $fechaCreacion, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // CODIFICACIÓN DE CIERRE (formato: código - nombre)
@@ -1232,18 +1349,12 @@ class CorrectivoGeneralController extends Controller
                         // ESTADO DEL EQUIPO
                         $sheet->setCellValueExplicit('N' . $row, $correctivo->estado_actual ?? 'N/A', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // CIERRE (con hora)
-                        $fechaCierre = $correctivo->fecha_cierre ?? '';
-                        if ($fechaCierre) {
-                            $fechaCierre = date('Y-m-d H:i:s', strtotime($fechaCierre));
-                        }
+                        // CIERRE
+                        $fechaCierre = $safeDate($correctivo->fecha_cierre ?? '');
                         $sheet->setCellValueExplicit('O' . $row, $fechaCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // FECHA FIN (con hora)
-                        $fechaFin = $correctivo->fecha_fin ?? '';
-                        if ($fechaFin) {
-                            $fechaFin = date('Y-m-d H:i:s', strtotime($fechaFin));
-                        }
+                        // FECHA FIN
+                        $fechaFin = $safeDate($correctivo->fecha_fin ?? '');
                         $sheet->setCellValueExplicit('P' . $row, $fechaFin, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
                         // DESCRIPCIÓN
@@ -1362,8 +1473,14 @@ class CorrectivoGeneralController extends Controller
                     // Función para convertir a fecha Excel y permitir agrupamiento por año/mes
                     $formatDate = function($dateStr) {
                         if (!$dateStr) return '';
+                        // Ignorar fechas claramente inválidas: "0000-00-00", "0000-00-00 00:00:00", etc.
+                        if (preg_match('/^0{4}-/', $dateStr)) return '';
                         $ts = strtotime($dateStr);
-                        return $ts ? \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts) : '';
+                        // Ignorar timestamps inválidos, negativos (antes de 1970) o del año 1970 (epoch=0)
+                        if (!$ts || $ts <= 0) return '';
+                        // Ignorar años antes de 2000 (datos claramente erróneos de migración)
+                        if ((int)date('Y', $ts) < 2000) return '';
+                        return \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts);
                     };
 
                     $rowData = [
@@ -1429,6 +1546,8 @@ class CorrectivoGeneralController extends Controller
                         $correctivo->repuesto_pendiente ?? '' // 32. Repuesto
                     ];
 
+                    // Sanitizar texto a UTF-8 para evitar caracteres corruptos en Excel
+                    $rowData = array_map(fn($v) => is_string($v) ? $this->cleanText($v) : $v, $rowData);
                     $sheet->fromArray($rowData, null, 'A' . $row);
                     
                     // Si hay link de archivo, ponerlo como hipervínculo
@@ -1439,7 +1558,7 @@ class CorrectivoGeneralController extends Controller
                     $row++;
                 }
 
-                // Aplicar formato de fecha de Excel a las columnas específicas en bloque para mayor velocidad
+                // Aplicar formato de fecha de Excel a las columnas específicas en bloque
                 $lastRow = $row - 1;
                 if ($lastRow >= 2) {
                     $dateColumns = ['D', 'R', 'U', 'X', 'AC', 'AE'];
@@ -1454,11 +1573,22 @@ class CorrectivoGeneralController extends Controller
                     $sheet->getStyle('Q2:Q' . $lastRow)->getFont()->setUnderline(true);
                 }
 
-                // Auto-ajustar anchos de columnas
+                // Columnas de fecha: ancho fijo (nunca entran al autosize para evitar #######)
+                $dateColLetters = ['D', 'R', 'U', 'X', 'AC', 'AE'];
+                $dateColSet = array_flip($dateColLetters);
+
+                // Auto-ajustar anchos para columnas NO fecha
                 $maxCol = count($headers);
                 for ($i = 1; $i <= $maxCol; $i++) {
                     $colStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-                    $sheet->getColumnDimension($colStr)->setAutoSize(true);
+                    if (!isset($dateColSet[$colStr])) {
+                        $sheet->getColumnDimension($colStr)->setAutoSize(true);
+                    }
+                }
+
+                // Ancho fijo para columnas de fecha (14 = suficiente para yyyy-mm-dd)
+                foreach ($dateColLetters as $col) {
+                    $sheet->getColumnDimension($col)->setWidth(14);
                 }
                 }
 
@@ -1551,6 +1681,21 @@ class CorrectivoGeneralController extends Controller
     /**
      * Obtener estadísticas de correctivos
      */
+    /**
+     * Limpiar y normalizar valor de texto a UTF-8 para exportación Excel.
+     * Evita caracteres corruptos (nulos, CR, encoding incorrecto).
+     */
+    private function cleanText($value): string
+    {
+        if (is_null($value)) return '';
+        $text = (string) $value;
+        $text = str_replace(["\0", "\r"], ['', ''], $text);
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1');
+        }
+        return $text;
+    }
+
     public function estadisticas(): JsonResponse
     {
         try {

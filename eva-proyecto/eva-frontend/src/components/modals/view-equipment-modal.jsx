@@ -1043,7 +1043,7 @@ export function ViewEquipmentModal({
                   </thead>
                   <tbody>
                     {displayData.mantenimientos_preventivos && displayData.mantenimientos_preventivos.length > 0 ? (
-                      displayData.mantenimientos_preventivos.slice(0, 10).map((mant, index) => (
+                      displayData.mantenimientos_preventivos.map((mant, index) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">#{mant.id || '-'}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(mant.fecha_mantenimiento || mant.fecha_programada)}</td>
@@ -1095,21 +1095,19 @@ export function ViewEquipmentModal({
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha Calibración</th>
-                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Número de Correctivo</th>
-                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Próxima</th>
-                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Resultado</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">ID Calibración</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha Ejecución</th>
+                      <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Fecha Programada</th>
                       <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-center">Archivo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayData.calibraciones && displayData.calibraciones.length > 0 ? (
-                      displayData.calibraciones.slice(0, 4).map((cal, index) => (
+                      displayData.calibraciones.map((cal, index) => (
                         <tr key={index}>
+                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">{safeValue(cal.description || cal.tipo_calibracion)}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(cal.fecha_calibracion)}</td>
-                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">#{cal.id || safeValue(cal.tipo_calibracion)}</td>
-                          <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(cal.proxima_calibracion)}</td>
-                          <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(cal.resultado)}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(cal.fecha_programada || cal.proxima_calibracion)}</td>
                           <td className="border border-gray-200 px-3 py-2 text-center">
                             {cal.file ? (
                               <Button
@@ -1131,7 +1129,7 @@ export function ViewEquipmentModal({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
+                        <td colSpan={4} className="border border-gray-200 px-3 py-4 text-center italic text-gray-500">
                           No hay calibraciones registradas
                         </td>
                       </tr>
@@ -1165,7 +1163,7 @@ export function ViewEquipmentModal({
                         </td>
                       </tr>
                     ) : equipmentTickets && equipmentTickets.length > 0 ? (
-                      equipmentTickets.slice(0, 10).map((ticket, index) => (
+                      equipmentTickets.map((ticket, index) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">
                             #{ticket.id}
@@ -1330,7 +1328,7 @@ export function ViewEquipmentModal({
                   </thead>
                   <tbody>
                     {displayData.observaciones && displayData.observaciones.length > 0 ? (
-                      displayData.observaciones.slice(0, 10).map((obs, index) => (
+                      displayData.observaciones.map((obs, index) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(obs.created_at || obs.fecha_nota)}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(obs.usuario_nombre || 'Usuario')}</td>
@@ -1385,7 +1383,7 @@ export function ViewEquipmentModal({
                   </thead>
                   <tbody>
                     {displayData.contingencias && displayData.contingencias.length > 0 ? (
-                      displayData.contingencias.slice(0, 10).map((cont, index) => (
+                      displayData.contingencias.map((cont, index) => (
                         <tr key={index} className="hover:bg-orange-50">
                           <td className="border border-orange-200 px-3 py-2 text-sm">
                             {formatDate(cont.fecha || cont.created_at)}
@@ -1451,7 +1449,7 @@ export function ViewEquipmentModal({
                     </thead>
                     <tbody>
                       {displayData.documentos && displayData.documentos.length > 0 ? (
-                        displayData.documentos.slice(0, 6).map((doc, index) => (
+                        displayData.documentos.map((doc, index) => (
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.nombre_archivo)}</td>
                             <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.tipo_documento)}</td>

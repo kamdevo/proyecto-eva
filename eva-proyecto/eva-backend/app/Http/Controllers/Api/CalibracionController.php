@@ -172,7 +172,8 @@ class CalibracionController extends ApiController
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
                 $fileName = time() . '_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('calibraciones', $fileName, 'public');
+                $file->storeAs('calibraciones', $fileName, 'public');
+                $filePath = $fileName;
             }
 
             // Insertar directamente en la tabla calibracion
@@ -297,20 +298,11 @@ class CalibracionController extends ApiController
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'equipo_id' => 'required|exists:equipos,id',
-            'descripcion' => 'required|string|max:500',
-            'fecha' => 'required|date',
-            'fecha_vencimiento' => 'required|date|after:fecha',
-            'tecnico_id' => 'nullable|exists:usuarios,id',
-            'tipo' => 'required|in:interna,externa,verificacion,ajuste',
-            'estado' => 'nullable|in:programada,en_proceso,completada,vencida,no_aplica',
-            'patron_referencia' => 'nullable|string|max:255',
-            'metodo' => 'nullable|string|max:255',
-            'incertidumbre' => 'nullable|string|max:100',
-            'resultado' => 'nullable|in:conforme,no_conforme,condicional',
-            'observaciones' => 'nullable|string',
-            'costo' => 'nullable|numeric|min:0',
-            'certificado' => 'nullable|file|mimes:pdf|max:10240'
+            'equipo_id' => 'sometimes|exists:equipos,id',
+            'description' => 'sometimes|string|max:500',
+            'fecha_calibracion' => 'sometimes|date',
+            'fecha_programada' => 'sometimes|date',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -320,37 +312,34 @@ class CalibracionController extends ApiController
         try {
             DB::beginTransaction();
 
-            $calibracion = Calibracion::findOrFail($id);
-            $calibracionData = $request->except(['certificado']);
+            $calibracion = DB::table('calibracion')->where('id', $id)->first();
+            if (!$calibracion) {
+                return ResponseFormatter::error('Calibración no encontrada', 404);
+            }
 
-            // Manejar actualización de certificado
-            if ($request->hasFile('certificado')) {
-                // Eliminar certificado anterior si existe
-                if ($calibracion->certificado && Storage::disk('public')->exists($calibracion->certificado)) {
-                    Storage::disk('public')->delete($calibracion->certificado);
+            $updateData = [];
+            if ($request->has('equipo_id'))        $updateData['equipo_id']        = $request->equipo_id;
+            if ($request->has('description'))       $updateData['description']       = $request->description;
+            if ($request->has('fecha_calibracion')) $updateData['fecha_calibracion'] = $request->fecha_calibracion;
+            if ($request->has('fecha_programada'))  $updateData['fecha_programada']  = $request->fecha_programada;
+
+            // Manejar actualización de archivo
+            if ($request->hasFile('file')) {
+                if ($calibracion->file && Storage::disk('public')->exists('calibraciones/' . basename($calibracion->file))) {
+                    Storage::disk('public')->delete('calibraciones/' . basename($calibracion->file));
                 }
-
-                $file = $request->file('certificado');
-                $fileName = 'certificados_calibracion/' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $filePath = $file->storeAs('certificados_calibracion', $fileName, 'public');
-                $calibracionData['certificado'] = $filePath;
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $file->storeAs('calibraciones', $fileName, 'public');
+                $updateData['file'] = $fileName;
             }
 
-            $calibracion->update($calibracionData);
-
-            // Cargar relaciones para la respuesta
-            $calibracion->load([
-                'equipo:id,name,code',
-                'tecnico:id,nombre,apellido'
-            ]);
-
-            if ($calibracion->certificado) {
-                $calibracion->certificado_url = Storage::disk('public')->url($calibracion->certificado);
-            }
+            DB::table('calibracion')->where('id', $id)->update($updateData);
+            $updated = DB::table('calibracion')->where('id', $id)->first();
 
             DB::commit();
 
-            return ResponseFormatter::success($calibracion, 'Calibración actualizada exitosamente');
+            return ResponseFormatter::success($updated, 'Calibración actualizada exitosamente');
 
         } catch (\Exception $e) {
             DB::rollBack();

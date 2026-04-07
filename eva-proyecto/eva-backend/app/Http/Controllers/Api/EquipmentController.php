@@ -1960,7 +1960,6 @@ class EquipmentController extends ApiController
                         'proveedores_mantenimiento.name as tecnico_nombre'
                     )
                     ->orderBy('mantenimiento.fecha_mantenimiento', 'desc')
-                    ->limit(10)
                     ->get();
                 $equipoData['mantenimientos_preventivos'] = $mantenimientos;
             } catch (\Exception $e) {
@@ -1968,7 +1967,7 @@ class EquipmentController extends ApiController
                 $equipoData['mantenimientos_preventivos'] = [];
             }
 
-            // 2. Contingencias/Mantenimientos Correctivos (últimos 5)
+            // 2. Contingencias/Mantenimientos Correctivos (todos)
             try {
                 $contingencias = DB::table('contingencias')
                     ->leftJoin('usuarios', 'contingencias.usuario_id', '=', 'usuarios.id')
@@ -1982,7 +1981,6 @@ class EquipmentController extends ApiController
                         'usuarios.apellido as usuario_apellido'
                     )
                     ->orderBy('contingencias.fecha', 'desc')
-                    ->limit(5)
                     ->get();
                 $equipoData['contingencias'] = $contingencias;
             } catch (\Exception $e) {
@@ -1990,7 +1988,7 @@ class EquipmentController extends ApiController
                 $equipoData['contingencias'] = [];
             }
 
-            // 3. Calibraciones (últimas 3)
+            // 3. Calibraciones (todas)
             try {
                 $calibraciones = DB::table('calibracion')
                     ->where('equipo_id', $id)
@@ -2002,7 +2000,6 @@ class EquipmentController extends ApiController
                         DB::raw("'Conforme' as resultado")
                     )
                     ->orderBy('fecha_calibracion', 'desc')
-                    ->limit(3)
                     ->get();
                 $equipoData['calibraciones'] = $calibraciones;
             } catch (\Exception $e) {
@@ -2010,7 +2007,7 @@ class EquipmentController extends ApiController
                 $equipoData['calibraciones'] = [];
             }
 
-            // 4. Documentos Asociados (hasta 6)
+            // 4. Documentos Asociados (todos)
             try {
                 $documentos = DB::table('archivos')
                     ->leftJoin('equipo_archivo', 'archivos.id', '=', 'equipo_archivo.archivo_id')
@@ -2024,7 +2021,6 @@ class EquipmentController extends ApiController
                         'equipo_archivo.created_at'
                     )
                     ->orderBy('equipo_archivo.created_at', 'desc')
-                    ->limit(6)
                     ->get();
                 $equipoData['documentos'] = $documentos;
             } catch (\Exception $e) {
@@ -2032,7 +2028,7 @@ class EquipmentController extends ApiController
                 $equipoData['documentos'] = [];
             }
 
-            // 5. Contactos Técnicos (hasta 4)
+            // 5. Contactos Técnicos (todos)
             try {
                 $contactos = DB::table('contacto')
                     ->leftJoin('equipo_contacto', 'contacto.id', '=', 'equipo_contacto.contacto_id')
@@ -2040,14 +2036,13 @@ class EquipmentController extends ApiController
                     ->where('equipo_contacto.status', 1)
                     ->select('contacto.*')
                     ->orderBy('contacto.nombre')
-                    ->limit(4)
                     ->get();
                 $equipoData['contactos_tecnicos'] = $contactos;
             } catch (\Exception $e) {
                 $equipoData['contactos_tecnicos'] = [];
             }
 
-            // 6. Observaciones del Equipo (últimas 10)
+            // 6. Observaciones del Equipo (todas)
             try {
                 $observaciones = DB::table('observaciones')
                     ->leftJoin('usuarios', 'observaciones.usuario_id', '=', 'usuarios.id')
@@ -2068,7 +2063,6 @@ class EquipmentController extends ApiController
                         DB::raw("CONCAT(usuarios.nombre, ' ', COALESCE(usuarios.apellido, '')) as usuario_nombre_completo")
                     )
                     ->orderBy('observaciones.created_at', 'desc')
-                    ->limit(10)
                     ->get();
                 $equipoData['observaciones'] = $observaciones;
             } catch (\Exception $e) {

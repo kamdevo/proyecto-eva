@@ -60,7 +60,8 @@ class CorrectivoGeneral extends Model
         'repuesto_pendiente',
         'repuesto_id',
         'cierre_id',
-        'tipo_falla_id'
+        'tipo_falla_id',
+        'usuario_id'
     ];
 
     /**

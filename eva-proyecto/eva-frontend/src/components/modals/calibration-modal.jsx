@@ -291,7 +291,8 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
 
     // Usar la URL del backend para acceder a los archivos
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
-    const documentUrl = `${API_BASE_URL}/storage/calibraciones/${fileName}`;
+    const cleanFileName = fileName.replace(/^calibraciones\//, '');
+    const documentUrl = `${API_BASE_URL}/storage/calibraciones/${cleanFileName}`;
 
     console.log('🔍 Abriendo documento:', documentUrl);
 

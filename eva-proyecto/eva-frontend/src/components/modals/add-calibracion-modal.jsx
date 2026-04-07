@@ -19,7 +19,9 @@ const AddCalibracionModal = ({
   equipmentId,
   equipmentName,
   onCalibracionAdded,
+  calibracion = null,
 }) => {
+  const isEditing = !!calibracion;
   const [formData, setFormData] = useState({
     description: "",
     fecha_calibracion: new Date().toISOString().split("T")[0],
@@ -34,15 +36,28 @@ const AddCalibracionModal = ({
   // Reset form when modal opens/closes
   React.useEffect(() => {
     if (isOpen) {
-      setFormData({
-        description: "",
-        fecha_calibracion: new Date().toISOString().split("T")[0],
-        fecha_programada: "",
-        file: null,
-      });
+      if (calibracion) {
+        setFormData({
+          description: calibracion.description || "",
+          fecha_calibracion: calibracion.fecha_calibracion
+            ? new Date(calibracion.fecha_calibracion).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+          fecha_programada: calibracion.fecha_programada
+            ? new Date(calibracion.fecha_programada).toISOString().split("T")[0]
+            : "",
+          file: null,
+        });
+      } else {
+        setFormData({
+          description: "",
+          fecha_calibracion: new Date().toISOString().split("T")[0],
+          fecha_programada: "",
+          file: null,
+        });
+      }
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, calibracion]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -142,7 +157,7 @@ const AddCalibracionModal = ({
     const toastId = 'add-calibracion';
 
     try {
-      toast.loading('Registrando calibración...', { id: toastId });
+      toast.loading(isEditing ? 'Actualizando calibración...' : 'Registrando calibración...', { id: toastId });
       
       const formDataToSend = new FormData();
       formDataToSend.append("equipo_id", equipmentId);
@@ -154,18 +169,26 @@ const AddCalibracionModal = ({
         formDataToSend.append("file", formData.file);
       }
 
-      const response = await httpService.post("/v1/calibracion", formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      let response;
+      if (isEditing) {
+        formDataToSend.append("_method", "PUT");
+        response = await httpService.post(`/v1/calibracion/${calibracion.id}`, formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        response = await httpService.post("/v1/calibracion", formDataToSend, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
 
       if (response.data.success) {
-        toast.success("Calibración agregada exitosamente", { id: toastId });
+        toast.success(isEditing ? "Calibración actualizada exitosamente" : "Calibración agregada exitosamente", { id: toastId });
         if (onCalibracionAdded) onCalibracionAdded();
         onClose();
       }
     } catch (error) {
-      console.error("Error al agregar calibración:", error);
-      toast.error(error.response?.data?.message || "Error al agregar la calibración", { id: toastId });
+      console.error("Error al guardar calibración:", error);
+      toast.error(error.response?.data?.message || "Error al guardar la calibración", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -177,7 +200,7 @@ const AddCalibracionModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-blue-700">
             <Gauge className="h-5 w-5" />
-            Agregar Calibración
+            {isEditing ? "Editar Calibración" : "Agregar Calibración"}
           </DialogTitle>
           {equipmentName && (
             <p className="text-sm text-gray-600">

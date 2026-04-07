@@ -1559,6 +1559,23 @@ Route::prefix('v1')->group(function () {
             ], 500);
         }
     });
+
+    // Delete executed maintenance (preventivo)
+    Route::delete('mantenimientos/{id}', function ($id) {
+        try {
+            $mantenimiento = DB::table('mantenimiento')->where('id', $id)->first();
+            if (!$mantenimiento) {
+                return response()->json(['success' => false, 'message' => 'Mantenimiento no encontrado'], 404);
+            }
+            if ($mantenimiento->file && Storage::disk('public')->exists($mantenimiento->file)) {
+                Storage::disk('public')->delete($mantenimiento->file);
+            }
+            DB::table('mantenimiento')->where('id', $id)->delete();
+            return response()->json(['success' => true, 'message' => 'Mantenimiento eliminado exitosamente']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error al eliminar: ' . $e->getMessage()], 500);
+        }
+    });
     
     // Get spare parts catalog (without auth)
     Route::get('repuestos-catalogo', function (Request $request) {
@@ -4800,6 +4817,147 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     Route::get('correctivos-generales/{id}', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'show']);
     Route::put('correctivos-generales/{id}', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'update']);
     Route::delete('correctivos-generales/{id}', [\App\Http\Controllers\Api\CorrectivoGeneralController::class, 'destroy']);
+
+    // Avances de Correctivos Generales
+    Route::get('correctivos-generales/{id}/avances', function ($id) {
+        $avances = DB::table('avances_correctivos')
+            ->leftJoin('usuarios', 'avances_correctivos.usuario_id', '=', 'usuarios.id')
+            ->select(
+                'avances_correctivos.id',
+                'avances_correctivos.title',
+                'avances_correctivos.description',
+                'avances_correctivos.date',
+                'avances_correctivos.file',
+                'avances_correctivos.usuario_id',
+                DB::raw("CONCAT(COALESCE(usuarios.nombre,''), ' ', COALESCE(usuarios.apellido,'')) as usuario_nombre")
+            )
+            ->where('avances_correctivos.correctivo_general_id', $id)
+            ->orderBy('avances_correctivos.date', 'desc')
+            ->get();
+        return response()->json(['success' => true, 'data' => $avances]);
+    });
+
+    Route::post('correctivos-generales/{id}/avances', function (Request $request, $id) {
+        $correctivo = DB::table('correctivos_generales')->where('id', $id)->first();
+        if (!$correctivo) {
+            return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+        }
+        $usuarioId = null;
+        try { $u = auth('sanctum')->user(); $usuarioId = $u ? $u->id : null; } catch (\Exception $e) {}
+        if (!$usuarioId) $usuarioId = $request->input('usuario_id') ?: null;
+
+        $fileName = null;
+        if ($request->hasFile('archivo')) {
+            $file = $request->file('archivo');
+            $fileName = time() . '_avance_' . $file->getClientOriginalName();
+            $file->storeAs('correctivos_generales', $fileName, 'public');
+        }
+
+        $avanceId = DB::table('avances_correctivos')->insertGetId([
+            'date'                    => $request->fecha ?: now()->toDateString(),
+            'title'                   => $request->titulo,
+            'description'             => $request->descripcion,
+            'file'                    => $fileName,
+            'correctivo_general_id'   => $id,
+            'usuario_id'              => $usuarioId,
+            'orden_id'               => 0,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['id' => $avanceId],
+            'message' => 'Avance agregado exitosamente'
+        ]);
+    });
+
+    // Archivos de Correctivos Generales (múltiples archivos por correctivo)
+    Route::get('correctivos-generales/{id}/archivos', function ($id) {
+        $correctivo = DB::table('correctivos_generales')
+            ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
+            ->where('correctivos_generales.id', $id)
+            ->select('equipos.tipo_id')
+            ->first();
+
+        if (!$correctivo) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $tabla = $correctivo->tipo_id == 2
+            ? 'correctivos_generales_archivos_ind'
+            : 'correctivos_generales_archivos';
+
+        $archivos = DB::table($tabla)
+            ->where('correctivo_general_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $archivos]);
+    });
+
+    Route::post('correctivos-generales/{id}/archivos', function (Request $request, $id) {
+        $correctivo = DB::table('correctivos_generales')
+            ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
+            ->where('correctivos_generales.id', $id)
+            ->select('equipos.tipo_id')
+            ->first();
+
+        if (!$correctivo) {
+            return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+        }
+
+        if (!$request->hasFile('archivo')) {
+            return response()->json(['success' => false, 'message' => 'No se recibió ningún archivo'], 422);
+        }
+
+        $tabla = $correctivo->tipo_id == 2
+            ? 'correctivos_generales_archivos_ind'
+            : 'correctivos_generales_archivos';
+
+        $file = $request->file('archivo');
+        $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+        $file->storeAs('correctivos_generales', $fileName, 'public');
+
+        $archivoId = DB::table($tabla)->insertGetId([
+            'file'                  => $fileName,
+            'titulo'                => $request->input('titulo') ?: $file->getClientOriginalName(),
+            'correctivo_general_id' => $id,
+            'created_at'            => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => ['id' => $archivoId, 'file' => $fileName],
+            'message' => 'Archivo subido exitosamente'
+        ]);
+    });
+
+    Route::delete('correctivos-generales/{id}/archivos/{archivoId}', function (Request $request, $id, $archivoId) {
+        $correctivo = DB::table('correctivos_generales')
+            ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
+            ->where('correctivos_generales.id', $id)
+            ->select('equipos.tipo_id')
+            ->first();
+
+        if (!$correctivo) {
+            return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+        }
+
+        $tabla = $correctivo->tipo_id == 2
+            ? 'correctivos_generales_archivos_ind'
+            : 'correctivos_generales_archivos';
+
+        $archivo = DB::table($tabla)->where('id', $archivoId)->where('correctivo_general_id', $id)->first();
+
+        if ($archivo) {
+            $filePath = public_path('assets/upload_correctivos_generales/' . $archivo->file);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            DB::table($tabla)->where('id', $archivoId)->delete();
+        }
+
+        return response()->json(['success' => true, 'message' => 'Archivo eliminado']);
+    });
 });
 
 // RUTAS DIRECTAS PARA IMÁGENES (FUERA DEL GRUPO v1)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -91,6 +91,16 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
+
+  // Ref mantiene los filtros de fecha activos para que loadCorrectiveData siempre los use,
+  // sin importar desde dónde sea llamada (cambio página, orden, etc.)
+  const dateFiltersRef = useRef({});
+  useEffect(() => {
+    dateFiltersRef.current = {
+      ...(dateFromFilter && { fecha_desde: dateFromFilter }),
+      ...(dateToFilter && { fecha_hasta: dateToFilter }),
+    };
+  }, [dateFromFilter, dateToFilter]);
   const [sortConfig, setSortConfig] = useState({
     key: "fecha_creacion",
     direction: "desc",
@@ -127,6 +137,10 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
           status: status !== "all" ? status : undefined,
           sort_by: sortConfig.key,
           sort_direction: sortConfig.direction,
+          tipo: equipmentType, // filtrar por tipo de equipo según contexto (biomedico/industrial)
+          // Siempre incluir filtros de fecha activos; los filtros explícitos tienen precedencia
+          ...dateFiltersRef.current,
+          ...filters,
         };
 
         // Add date filters
@@ -431,9 +445,9 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
 
       toast.loading('Exportando todos los correctivos...', { id: toastId });
 
-      // Llamada directa al endpoint para exportar TODOS los datos reales
+      // Llamada directa al endpoint para exportar TODOS los datos reales (filtrado por tipo)
       const response = await httpService.get(
-        `/v1/correctivos-generales/export-${format}`,
+        `/v1/correctivos-generales/export-${format}?tipo=${equipmentType}`,
         {
           responseType: "blob",
           timeout: 300000, // 5 minutos para exportaciones masivas

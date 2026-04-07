@@ -29,6 +29,7 @@ import {
   X,
   Search,
   Edit,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -97,6 +98,13 @@ export function EditEquipmentModal({
   // Estados para modales de agregar (Preventivos, Calibraciones, Repuestos)
   const [showAddPreventivoModal, setShowAddPreventivoModal] = useState(false);
   const [showAddCalibracionModal, setShowAddCalibracionModal] = useState(false);
+  const [editingCalibracion, setEditingCalibracion] = useState(null);
+  const [editingCorrectivo, setEditingCorrectivo] = useState(null);
+  const [uploadingArchivoCorrectivoId, setUploadingArchivoCorrectivoId] = useState(null);
+  const [showArchivoModal, setShowArchivoModal] = useState(false);
+  const [archivoModalCorrectivoId, setArchivoModalCorrectivoId] = useState(null);
+  const [archivoModalTitulo, setArchivoModalTitulo] = useState('');
+  const [archivoModalFile, setArchivoModalFile] = useState(null);
   const [showAddRepuestoModal, setShowAddRepuestoModal] = useState(false);
   const [showAddCorrectivoModal, setShowAddCorrectivoModal] = useState(false);
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
@@ -210,9 +218,9 @@ export function EditEquipmentModal({
       // Cargar correctivos generales
       try {
         const correctivosResponse = await httpService.get(
-          `/v1/correctivos?equipo_id=${equipmentId}`
+          `/v1/correctivos-generales?equipo_id=${equipmentId}&per_page=10000`
         );
-        historyData.correctivos = correctivosResponse.data?.data || [];
+        historyData.correctivos = correctivosResponse.data?.data?.correctivos || correctivosResponse.data?.data?.data || correctivosResponse.data?.data || [];
       } catch (err) {
         console.warn("Could not load correctivos:", err.message);
       }
@@ -1335,6 +1343,28 @@ export function EditEquipmentModal({
     
     // Abrir directamente en nueva pestaña
     window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDeletePreventivo = async (id) => {
+    if (!window.confirm("¿Eliminar este mantenimiento preventivo? Esta acción no se puede deshacer.")) return;
+    try {
+      await httpService.delete(`/v1/mantenimientos/${id}`);
+      toast.success("Mantenimiento eliminado");
+      if (equipment?.id) loadEquipmentHistory(equipment.id);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Error al eliminar mantenimiento");
+    }
+  };
+
+  const handleDeleteCalibracion = async (id) => {
+    if (!window.confirm("¿Eliminar esta calibración? Esta acción no se puede deshacer.")) return;
+    try {
+      await httpService.delete(`/v1/calibracion/${id}`);
+      toast.success("Calibración eliminada");
+      if (equipment?.id) loadEquipmentHistory(equipment.id);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Error al eliminar calibración");
+    }
   };
 
   // Función para ver documentos PDF de calibraciones
@@ -4028,62 +4058,79 @@ export function EditEquipmentModal({
                               </div>
 
                               {/* Notas de Avance */}
-                              {(correctivo.notas_avance > 0 || correctivo.last_description) && (
-                                <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
-                                  <div className="font-medium text-gray-700 flex items-center gap-2">
-                                    NOTAS DE AVANCE:
-                                    {correctivo.notas_avance > 0 && (
-                                      <Badge variant="outline" className="text-[10px]">
-                                        {correctivo.notas_avance}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {correctivo.last_description && (
-                                    <div className="text-gray-600 italic">
-                                      Última: "{correctivo.last_description}"
-                                    </div>
-                                  )}
+                              <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
+                                <div className="font-medium text-gray-700 flex items-center gap-2">
+                                  AVANCES:
+                                  <Badge
+                                    variant={correctivo.conteo_avances > 0 ? "default" : "outline"}
+                                    className={`text-[10px] ${correctivo.conteo_avances > 0 ? "bg-blue-600 text-white" : "text-gray-400"}`}
+                                  >
+                                    {correctivo.conteo_avances || 0}
+                                  </Badge>
                                 </div>
-                              )}
+                              </div>
+
+                              {/* Archivos del correctivo */}
+                              <div className="space-y-1 text-xs border-t border-gray-200 pt-2">
+                                <div className="font-medium text-gray-700 mb-1 flex items-center gap-2">
+                                  ARCHIVOS:
+                                </div>
+                                <div className="flex flex-wrap gap-1 items-center">
+                                  {correctivo.archivos && correctivo.archivos.map((arch) => (
+                                    <a
+                                      key={arch.id}
+                                      href={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${arch.file}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={arch.titulo || arch.file}
+                                      className="flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded text-indigo-600 hover:bg-indigo-100 transition-colors max-w-[130px]"
+                                    >
+                                      <FileText className="w-3 h-3 flex-shrink-0" />
+                                      <span className="truncate text-[10px]">{arch.titulo || arch.file}</span>
+                                    </a>
+                                  ))}
+                                  {/* Botón agregar archivo → abre modal */}
+                                  <button
+                                    type="button"
+                                    title="Agregar archivo"
+                                    className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-dashed border-gray-300 rounded text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors text-[10px]"
+                                    onClick={() => {
+                                      setArchivoModalCorrectivoId(correctivo.id);
+                                      setArchivoModalTitulo('');
+                                      setArchivoModalFile(null);
+                                      setShowArchivoModal(true);
+                                    }}
+                                  >
+                                    <Upload className="w-3 h-3" />
+                                    Agregar
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
 
                           {/* Botones de Acción */}
                           <div className="mt-3 pt-3 border-t border-gray-200">
                             <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-blue-600 border-blue-200 hover:bg-blue-50 flex items-center gap-1"
+                                onClick={() => {
+                                  setEditingCorrectivo(correctivo);
+                                  setShowAddCorrectivoModal(true);
+                                }}
+                              >
+                                <Edit className="w-3 h-3" />
+                                Editar
+                              </Button>
 
-                              {(correctivo.file_cierre || correctivo.image || correctivo.file) && (
-                                <Button
-                                  type="button"
-                                  variant="default"
-                                  size="sm"
-                                  className="text-xs bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
-                                  onClick={() => viewCorrectivoDocument(correctivo.file_cierre || correctivo.image || correctivo.file)}
-                                >
-                                  <FileText className="w-3 h-3" />
-                                  Ver Archivo
-                                </Button>
-                              )}
+
                             </div>
                           </div>
 
-                          {/* Archivo relacionado */}
-                          {correctivo.image && (
-                            <div className="mt-3 pt-3 border-t border-gray-200">
-                              <div className="text-xs">
-                                <span className="font-medium">Archivo:</span>{" "}
-                                <Button
-                                  type="button"
-                                  variant="link"
-                                  size="sm"
-                                  className="h-auto p-0 text-xs text-blue-600"
-                                  onClick={() => handleViewCorrectivoFile(correctivo.image)}
-                                >
-                                  {correctivo.image}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
+
                         </div>
                       ))}
                     </div>
@@ -4123,16 +4170,6 @@ export function EditEquipmentModal({
                     </Button>
                   </CardTitle>
                   <div className="flex-1 flex justify-end">
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => setShowAddPreventivoModal(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Agregar
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -4209,6 +4246,16 @@ export function EditEquipmentModal({
                                       title="Editar mantenimiento"
                                     >
                                       <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => handleDeletePreventivo(preventivo.id)}
+                                      title="Eliminar mantenimiento"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   </div>
                                 </td>
@@ -4290,6 +4337,9 @@ export function EditEquipmentModal({
                           <th className="border border-gray-300 p-2 text-xs">
                             ARCHIVO RELACIONADO
                           </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            ACCIONES
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4332,6 +4382,33 @@ export function EditEquipmentModal({
                                   ) : (
                                     "-"
                                   )}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-xs text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setEditingCalibracion(calibracion);
+                                        setShowAddCalibracionModal(true);
+                                      }}
+                                      title="Editar calibración"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => handleDeleteCalibracion(calibracion.id)}
+                                      title="Eliminar calibración"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             )
@@ -4554,9 +4631,13 @@ export function EditEquipmentModal({
 
       <AddCorrectivoModal
         isOpen={showAddCorrectivoModal}
-        onClose={() => setShowAddCorrectivoModal(false)}
+        onClose={() => {
+          setShowAddCorrectivoModal(false);
+          setEditingCorrectivo(null);
+        }}
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
+        correctivo={editingCorrectivo}
         onCorrectivoAdded={() => {
           // Recargar historial del equipo
           if (equipment?.id) {
@@ -4586,9 +4667,13 @@ export function EditEquipmentModal({
       {/* Modal para agregar calibración */}
       <AddCalibracionModal
         isOpen={showAddCalibracionModal}
-        onClose={() => setShowAddCalibracionModal(false)}
+        onClose={() => {
+          setShowAddCalibracionModal(false);
+          setEditingCalibracion(null);
+        }}
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
+        calibracion={editingCalibracion}
         onCalibracionAdded={() => {
           // Recargar historial del equipo
           if (equipment?.id) {
@@ -4596,6 +4681,95 @@ export function EditEquipmentModal({
           }
         }}
       />
+
+      {/* Modal para agregar archivo a correctivo */}
+      <Dialog open={showArchivoModal} onOpenChange={(v) => { if (!uploadingArchivoCorrectivoId) setShowArchivoModal(v); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-700">
+              <Upload className="w-4 h-4" />
+              Agregar Archivo al Correctivo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Label htmlFor="arch-titulo" className="text-sm font-medium">Título</Label>
+              <Input
+                id="arch-titulo"
+                placeholder="Nombre o descripción del archivo"
+                value={archivoModalTitulo}
+                onChange={e => setArchivoModalTitulo(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-sm font-medium">Archivo</Label>
+              {archivoModalFile ? (
+                <div className="flex items-center gap-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-sm">
+                  <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                  <span className="flex-1 truncate text-indigo-700">{archivoModalFile.name}</span>
+                  <button type="button" onClick={() => setArchivoModalFile(null)} className="text-red-400 hover:text-red-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <Upload className="w-6 h-6 text-gray-400" />
+                  <span className="text-sm text-gray-500">Haz clic para seleccionar un archivo</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={e => {
+                      const f = e.target.files[0];
+                      if (f) {
+                        setArchivoModalFile(f);
+                        if (!archivoModalTitulo) setArchivoModalTitulo(f.name.replace(/\.[^.]+$/, ''));
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowArchivoModal(false)}
+                disabled={!!uploadingArchivoCorrectivoId}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                disabled={!archivoModalFile || !!uploadingArchivoCorrectivoId}
+                onClick={async () => {
+                  if (!archivoModalFile || !archivoModalCorrectivoId) return;
+                  setUploadingArchivoCorrectivoId(archivoModalCorrectivoId);
+                  try {
+                    const fd = new FormData();
+                    fd.append('archivo', archivoModalFile);
+                    fd.append('titulo', archivoModalTitulo || archivoModalFile.name);
+                    await httpService.post(`/v1/correctivos-generales/${archivoModalCorrectivoId}/archivos`, fd, {
+                      headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    await loadEquipmentHistory(equipment.id);
+                    setShowArchivoModal(false);
+                    toast.success('Archivo agregado correctamente');
+                  } catch (err) {
+                    console.error('Error subiendo archivo:', err);
+                    toast.error('Error al subir el archivo');
+                  } finally {
+                    setUploadingArchivoCorrectivoId(null);
+                  }
+                }}
+              >
+                {uploadingArchivoCorrectivoId ? 'Subiendo...' : 'Ingresar'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal para agregar repuesto */}
       <AddRepuestoModal

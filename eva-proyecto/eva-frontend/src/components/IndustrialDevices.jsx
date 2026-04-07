@@ -327,13 +327,16 @@ function IndustrialDevices() {
   // Ej: "ASCENSOR (Piso 1)", "CALDERA (Sala de Máquinas)"
   const getIndustrialDisplayName = (equipment) => {
     const name = equipment?.equipo?.name || equipment?.name || "Sin nombre";
-    const location =
-      equipment?.ubicacion?.servicio ||
-      equipment?.ubicacion?.area ||
-      equipment?.zona_hospitalaria ||
-      equipment?.piso_servicio ||
-      null;
-    return location ? `${name} (${location})` : name;
+    const servicio = equipment?.ubicacion?.servicio || null;
+    const area = equipment?.ubicacion?.area || null;
+    const localizacion = equipment?.localizacion_actual || null;
+
+    const parts = [];
+    if (servicio) parts.push(servicio);
+    else if (area) parts.push(area);
+    if (localizacion) parts.push(localizacion);
+
+    return parts.length > 0 ? `${name} (${parts.join(' - ')})` : name;
   };
 
   // Handle opening maintenance documents - PREVENTIVO
@@ -592,7 +595,7 @@ function IndustrialDevices() {
                         </div>
 
                         {/* Título del equipo */}
-                        <div className="font-semibold text-slate-900 text-sm mb-1">
+                        <div className="font-semibold text-slate-900 text-[10px] xs:text-xs leading-tight mb-1 break-words">
                           {getIndustrialDisplayName(equipment)}
                         </div>
 
@@ -866,6 +869,16 @@ function IndustrialDevices() {
                             {equipment.data?.status || "SIN ESTADO"}
                           </span>
                         </div>
+                        {equipment.localizacion_actual && (
+                          <div>
+                            <span className="font-medium text-slate-700">
+                              Localización:
+                            </span>
+                            <span className="ml-1 text-slate-900">
+                              {equipment.localizacion_actual}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Botón de Movimientos */}
                         <div className="mt-2 flex justify-center">

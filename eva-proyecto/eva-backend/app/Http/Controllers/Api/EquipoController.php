@@ -641,6 +641,9 @@ class EquipoController extends Controller
                     DB::raw('(SELECT COUNT(*) 
                              FROM avances_correctivos 
                              WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id) as notas_avance'),
+                    DB::raw('(SELECT COUNT(*) 
+                             FROM avances_correctivos 
+                             WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id) as conteo_avances'),
                     DB::raw('(SELECT description 
                              FROM avances_correctivos 
                              WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id 
@@ -652,6 +655,20 @@ class EquipoController extends Controller
                 ->orderBy('correctivos_generales.fecha_inicio', 'desc')
                 ->limit(50)
                 ->get();
+
+            // Obtener archivos de correctivos (biomédico e industrial) y embeberlos
+            $corIds = $correctivos->pluck('id')->toArray();
+            $tablaArchivos = $equipo->tipo_id == 2
+                ? 'correctivos_generales_archivos_ind'
+                : 'correctivos_generales_archivos';
+            $archivosPorCorrectivo = DB::table($tablaArchivos)
+                ->whereIn('correctivo_general_id', $corIds)
+                ->get()
+                ->groupBy('correctivo_general_id');
+            $correctivos = $correctivos->map(function($c) use ($archivosPorCorrectivo) {
+                $c->archivos = $archivosPorCorrectivo->get($c->id, collect())->values();
+                return $c;
+            });
 
             // Obtener preventivos/mantenimientos
             $preventivos = DB::table('mantenimiento')
