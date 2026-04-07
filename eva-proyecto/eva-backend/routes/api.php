@@ -5234,7 +5234,7 @@ Route::post('v1/equipos-create', function(Request $request) {
             'code' => $request->input('code'),
             'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
             'servicio_id' => $request->input('servicio_id') ?: null,
-            'area_id' => $request->input('area_id') ?: null,
+            'area_id' => $request->input('area_id') ?: 1, // REQUERIDO - NOT NULL sin default
             'propietario_id' => $request->input('propietario_id') ?: null,
             'tipo_id' => $request->input('tipo_id') ?: null,
             'marca' => $request->input('marca'),
@@ -5704,6 +5704,29 @@ Route::get('v1/gestion-tickets', function(Request $request) {
         $equipoId = $request->get('equipo_id');
         if (!empty($equipoId)) {
             $query->where('ordenes.equipo_id', $equipoId);
+        }
+
+        // -------------------------------------------------------
+        // Filtro por empresa del usuario autenticado
+        // Grupo 1 (id_empresa 3,6)  → solo subproceso_id = 1
+        // Grupo 2 (id_empresa 4,7)  → solo subproceso_id = 2 o 3
+        // Grupo 3 (id_empresa 27)   → solo subproceso_id = 1 o 2
+        // Grupo 4 (cualquier otro)  → sin restricción
+        // -------------------------------------------------------
+        $authUser = auth('sanctum')->user();
+        if ($authUser) {
+            $idEmpresa = DB::table('usuarios')
+                ->where('id', $authUser->id)
+                ->value('id_empresa');
+
+            if (in_array($idEmpresa, [3, 6])) {
+                $query->where('ordenes.subproceso_id', 1);
+            } elseif (in_array($idEmpresa, [4, 7])) {
+                $query->whereIn('ordenes.subproceso_id', [2, 3]);
+            } elseif ($idEmpresa == 27) {
+                $query->whereIn('ordenes.subproceso_id', [1, 2]);
+            }
+            // Grupo 4: sin restricción
         }
 
         // Mapear campos de ordenamiento del frontend al backend

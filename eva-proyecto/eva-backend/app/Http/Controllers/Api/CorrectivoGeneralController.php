@@ -725,6 +725,20 @@ class CorrectivoGeneralController extends Controller
             $correctivoId = DB::table('correctivos_generales')->insertGetId($correctivoData);
             Log::info("✅ [CORRECTIVO-GENERAL] Creado con ID: $correctivoId");
 
+            // 1c. Espejo en correctivos_generales_ind para equipos industriales (tipo_id == 2)
+            $tipoEquipoStore = DB::table('equipos')->where('id', $request->equipo_id)->value('tipo_id');
+            if ($tipoEquipoStore == 2) {
+                DB::table('correctivos_generales_ind')->insert([
+                    'description'        => $request->description,
+                    'created_at'         => now(),
+                    'status'             => 1,
+                    'equipo_id'          => $request->equipo_id,
+                    'fecha_mantenimiento'=> $request->fecha_mantenimiento,
+                    'code'               => $request->code_orden,
+                ]);
+                Log::info("🏭 [CORRECTIVO-GENERAL] Espejo insertado en correctivos_generales_ind para equipo industrial ID: {$request->equipo_id}");
+            }
+
             // 1b. Insertar avance inicial en avances_correctivos si se proporcionó diagnóstico
             if ($request->filled('diagnostico') || $request->filled('code_diagnostico')) {
                 $usuarioId = $request->user() ? $request->user()->id : ($request->input('usuario_id') ?: null);

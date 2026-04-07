@@ -112,6 +112,7 @@ export function EditEquipmentModal({
   const [editingPreventivo, setEditingPreventivo] = useState(null);
   const [showEditObservacionModal, setShowEditObservacionModal] = useState(false);
   const [selectedObservacion, setSelectedObservacion] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
   
   // Estados para guardar la información de los manuales, guías y órdenes seleccionados
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
@@ -1346,25 +1347,51 @@ export function EditEquipmentModal({
   };
 
   const handleDeletePreventivo = async (id) => {
-    if (!window.confirm("¿Eliminar este mantenimiento preventivo? Esta acción no se puede deshacer.")) return;
-    try {
-      await httpService.delete(`/v1/mantenimientos/${id}`);
-      toast.success("Mantenimiento eliminado");
-      if (equipment?.id) loadEquipmentHistory(equipment.id);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Error al eliminar mantenimiento");
-    }
+    setConfirmModal({
+      open: true,
+      message: '¿Eliminar este mantenimiento preventivo? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await httpService.delete(`/v1/mantenimientos/${id}`);
+          toast.success('Mantenimiento eliminado');
+          if (equipment?.id) loadEquipmentHistory(equipment.id);
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Error al eliminar mantenimiento');
+        }
+      }
+    });
   };
 
   const handleDeleteCalibracion = async (id) => {
-    if (!window.confirm("¿Eliminar esta calibración? Esta acción no se puede deshacer.")) return;
-    try {
-      await httpService.delete(`/v1/calibracion/${id}`);
-      toast.success("Calibración eliminada");
-      if (equipment?.id) loadEquipmentHistory(equipment.id);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Error al eliminar calibración");
-    }
+    setConfirmModal({
+      open: true,
+      message: '¿Eliminar esta calibración? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await httpService.delete(`/v1/calibracion/${id}`);
+          toast.success('Calibración eliminada');
+          if (equipment?.id) loadEquipmentHistory(equipment.id);
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Error al eliminar calibración');
+        }
+      }
+    });
+  };
+
+  const handleDeleteCorrectivo = async (id) => {
+    setConfirmModal({
+      open: true,
+      message: '¿Eliminar este correctivo? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await httpService.delete(`/v1/correctivos-generales/${id}`);
+          toast.success('Correctivo eliminado');
+          if (equipment?.id) loadEquipmentHistory(equipment.id);
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Error al eliminar correctivo');
+        }
+      }
+    });
   };
 
   // Función para ver documentos PDF de calibraciones
@@ -4125,6 +4152,17 @@ export function EditEquipmentModal({
                                 <Edit className="w-3 h-3" />
                                 Editar
                               </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 flex items-center gap-1"
+                                onClick={() => handleDeleteCorrectivo(correctivo.id)}
+                                title="Eliminar correctivo"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Eliminar
+                              </Button>
 
 
                             </div>
@@ -4681,6 +4719,38 @@ export function EditEquipmentModal({
           }
         }}
       />
+
+      {/* Modal de confirmación genérico */}
+      <Dialog open={confirmModal.open} onOpenChange={(v) => !v && setConfirmModal(m => ({ ...m, open: false }))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Confirmar eliminación
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600 py-2">{confirmModal.message}</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmModal(m => ({ ...m, open: false }))}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={async () => {
+                setConfirmModal(m => ({ ...m, open: false }));
+                if (confirmModal.onConfirm) await confirmModal.onConfirm();
+              }}
+            >
+              Eliminar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal para agregar archivo a correctivo */}
       <Dialog open={showArchivoModal} onOpenChange={(v) => { if (!uploadingArchivoCorrectivoId) setShowArchivoModal(v); }}>
