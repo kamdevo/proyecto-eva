@@ -10,8 +10,9 @@
     hostname.endsWith('.huv.gov.co');
 
   if (isProduction) {
+    var protocol = window.location.protocol; // 'http:' o 'https:'
     window.APP_CONFIG = {
-      API_BASE_URL: 'http://api.eva2.huv.gov.co',
+      API_BASE_URL: protocol + '//api.eva2.huv.gov.co',
       APP_NAME: 'EVA Sistema',
       ENV: 'production'
     };
