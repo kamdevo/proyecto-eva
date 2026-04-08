@@ -1330,19 +1330,24 @@ export function EditEquipmentModal({
   };
 
   // Función para eliminar una observación
-  const deleteObservacion = async (obs) => {
-    if (!window.confirm(`¿Eliminar esta observación del ${new Date(obs.created_at).toLocaleDateString()}?`)) return;
-    try {
-      await axios.delete(`${BASE_URL}/api/observaciones/${obs.id}`);
-      toast.success("Observación eliminada");
-      // Quitar del historial local sin recargar todo
-      setEquipmentHistory((prev) => ({
-        ...prev,
-        observaciones: prev.observaciones.filter((o) => o.id !== obs.id),
-      }));
-    } catch (error) {
-      toast.error("No se pudo eliminar la observación");
-    }
+  const deleteObservacion = (obs) => {
+    const fecha = obs.created_at ? new Date(obs.created_at).toLocaleDateString() : 'sin fecha';
+    setConfirmModal({
+      open: true,
+      message: `¿Eliminar la observación del ${fecha}? Esta acción no se puede deshacer.`,
+      onConfirm: async () => {
+        try {
+          await httpService.delete(`/v1/observaciones/${obs.id}`);
+          toast.success('Observación eliminada');
+          setEquipmentHistory((prev) => ({
+            ...prev,
+            observaciones: prev.observaciones.filter((o) => o.id !== obs.id),
+          }));
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Error al eliminar la observación');
+        }
+      }
+    });
   };
 
   // Función para ver documentos PDF de preventivos

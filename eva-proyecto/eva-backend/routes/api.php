@@ -10104,6 +10104,12 @@ Route::withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
     Route::delete('observaciones/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'destroy']);
 });
 
+// Observaciones v1 routes (PUBLIC - no authentication required)
+Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
+    Route::get('observaciones', [\App\Http\Controllers\Api\ObservacionController::class, 'index']);
+    Route::delete('observaciones/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'destroy']);
+});
+
 // Test route to verify public access
 Route::get('observaciones/test', function () {
     return response()->json([
