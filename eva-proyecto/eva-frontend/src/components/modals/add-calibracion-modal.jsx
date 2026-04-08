@@ -48,10 +48,14 @@ const AddCalibracionModal = ({
           file: null,
         });
       } else {
+        const today = new Date().toISOString().split("T")[0];
+        const parts = today.split('-');
+        const lastDay = new Date(parseInt(parts[0]), parseInt(parts[1]), 0);
+        const lastDayStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
         setFormData({
           description: "",
-          fecha_calibracion: new Date().toISOString().split("T")[0],
-          fecha_programada: "",
+          fecha_calibracion: today,
+          fecha_programada: lastDayStr,
           file: null,
         });
       }
@@ -59,11 +63,31 @@ const AddCalibracionModal = ({
     }
   }, [isOpen, calibracion]);
 
+  const getLastDayOfMonth = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const parts = dateString.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const lastDay = new Date(year, month, 0);
+      const resYear = lastDay.getFullYear();
+      const resMonth = String(lastDay.getMonth() + 1).padStart(2, '0');
+      const resDay = String(lastDay.getDate()).padStart(2, '0');
+      return `${resYear}-${resMonth}-${resDay}`;
+    } catch (e) {
+      return '';
+    }
+  };
+
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Auto-calcular fecha_programada al cambiar fecha_calibracion
+      if (field === 'fecha_calibracion' && value) {
+        updated.fecha_programada = getLastDayOfMonth(value);
+      }
+      return updated;
+    });
 
     // Clear error when user starts typing
     if (errors[field]) {

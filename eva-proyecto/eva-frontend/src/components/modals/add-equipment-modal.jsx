@@ -77,6 +77,7 @@ export function AddEquipmentModal({
     vida_util: "",
 
     // Registro técnico
+    movilidad: "",
     fuente_id: "",
     tecnologia_id: "",
     evaluacion_desempeno: "",
@@ -421,40 +422,9 @@ export function AddEquipmentModal({
   };
 
   // Función para buscar registros INVIMA
-  const searchRegistrosInvima = () => {
-    if (!searchInvima.trim()) {
-      toast.error("Ingrese un término de búsqueda");
-      return;
-    }
-
-    const resultados = registrosInvima.filter(
-      (registro) =>
-        registro.numero_registro
-          .toLowerCase()
-          .includes(searchInvima.toLowerCase()) ||
-        registro.nombre_equipo
-          .toLowerCase()
-          .includes(searchInvima.toLowerCase()) ||
-        registro.fabricante.toLowerCase().includes(searchInvima.toLowerCase())
-    );
-
-    if (resultados.length > 0) {
-      toast.success(`${resultados.length} registro(s) encontrado(s)`);
-      // Si hay un solo resultado, seleccionarlo automáticamente
-      if (resultados.length === 1) {
-        handleInputChange("invima", resultados[0].numero_registro);
-        toast.success(
-          `Registro seleccionado: ${resultados[0].numero_registro}`
-        );
-      }
-    } else {
-      toast.warning("No se encontraron registros");
-    }
-  };
-
   // Filtrar registros INVIMA basado en búsqueda
   const filteredRegistrosInvima = registrosInvima.filter((registro) => {
-    if (!searchInvima.trim()) return true;
+    if (!(searchInvima || "").trim()) return true;
 
     const searchTerm = searchInvima.toLowerCase();
     const numeroRegistro = (registro.numero_registro || "").toLowerCase();
@@ -474,7 +444,7 @@ export function AddEquipmentModal({
     handleInputChange("invima", numeroRegistro);
 
     // Actualizar el campo de búsqueda con el número seleccionado
-    setSearchInvima(numeroRegistro);
+    setSearchInvima(numeroRegistro || "");
 
     // Encontrar el registro completo para mostrar información adicional
     const registroSeleccionado = registrosInvima.find(
@@ -510,64 +480,21 @@ export function AddEquipmentModal({
     }
 
     try {
-      console.log("🔍 Iniciando carga de documento INVIMA:", {
-        registro: registroSeleccionado.numero_registro,
-        archivo: registroSeleccionado.archivo_pdf,
-      });
+      // archivo_pdf contiene solo el nombre del archivo, la carpeta es fija: registros_sanitarios/
+      const base = import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001";
+      const fileUrl = `${base}/storage/registros_sanitarios/${registroSeleccionado.archivo_pdf}`;
 
-      // Construir URL del archivo usando la ruta de storage directa
-      const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/registros_sanitarios/${registroSeleccionado.archivo_pdf}`;
+      console.log("🔗 URL PDF INVIMA:", fileUrl);
 
-      console.log("🔗 URL construida:", fileUrl);
-
-      // Mostrar loading
-      toast.loading("Abriendo ventana de impresión...", {
-        id: "load-invima-pdf",
-      });
-
-      console.log("🖨️ Abriendo PDF con ventana de impresión:", fileUrl);
-
-      // Crear nueva ventana para PDF con auto-impresión
-      const newWindow = window.open(
-        "",
-        "_blank",
-        "width=1200,height=800,scrollbars=yes,resizable=yes"
-      );
-
-      if (newWindow) {
-        // Crear HTML que carga el PDF y abre automáticamente la ventana de impresión
-        newWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>INVIMA ${registroSeleccionado.numero_registro}</title>
-              <meta charset="UTF-8">
-              <style>
-                body { margin: 0; padding: 0; }
-                iframe { width: 100%; height: 100vh; border: none; }
-              </style>
-            </head>
-            <body>
-              <iframe src="${fileUrl}" onload="setTimeout(() => window.print(), 1000)"></iframe>
-            </body>
-          </html>
-        `);
-        newWindow.document.close();
-
-        toast.success(
-          `Ventana de impresión abierta: ${registroSeleccionado.numero_registro}`,
-          { id: "load-invima-pdf" }
-        );
-      } else {
-        throw new Error(
-          "No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador."
-        );
+      const newWindow = window.open(fileUrl, "_blank");
+      if (!newWindow) {
+        throw new Error("No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador.");
       }
+
+      toast.success(`Documento abierto: ${registroSeleccionado.numero_registro}`);
     } catch (error) {
       console.error("❌ Error loading INVIMA PDF:", error);
-      toast.error(`Error al cargar el documento PDF: ${error.message}`, {
-        id: "load-invima-pdf",
-      });
+      toast.error(`Error al cargar el documento PDF: ${error.message}`);
     }
   };
 
@@ -580,120 +507,99 @@ export function AddEquipmentModal({
 
   // Función para manejar nuevo registro INVIMA creado
   const handleInvimaRegistroAdded = (nuevoRegistro) => {
-    // Agregar el nuevo registro a la lista
-    setRegistrosInvima((prev) => [...prev, nuevoRegistro]);
+    // El backend devuelve nombres de columna BD: invima, titulo, marcas, description, file
+    // El frontend usa alias del GET: numero_registro, nombre_equipo, fabricante, modelo, archivo_pdf
+    const registroNormalizado = {
+      id:              nuevoRegistro.id,
+      numero_registro: nuevoRegistro.numero_registro ?? nuevoRegistro.invima,
+      nombre_equipo:   nuevoRegistro.nombre_equipo   ?? nuevoRegistro.titulo,
+      fabricante:      nuevoRegistro.fabricante       ?? nuevoRegistro.marcas,
+      modelo:          nuevoRegistro.modelo           ?? nuevoRegistro.description,
+      archivo_pdf:     nuevoRegistro.archivo_pdf      ?? nuevoRegistro.file,
+    };
 
-    // Seleccionar automáticamente el nuevo registro
-    handleInvimaSelection(nuevoRegistro.numero_registro);
-
-    toast.success(
-      `Registro ${nuevoRegistro.numero_registro} agregado y seleccionado`
-    );
+    // Agregar a la lista y autoseleccionar
+    setRegistrosInvima((prev) => [...prev, registroNormalizado]);
+    handleInputChange("invima", registroNormalizado.numero_registro);
+    setSearchInvima(registroNormalizado.numero_registro || "");
+    setShowInvimaModal(false);
+    toast.success(`Registro ${registroNormalizado.numero_registro} creado y seleccionado`);
   };
 
   // Función para validar formulario
   const validateForm = () => {
     const newErrors = {};
 
-    // TEMPORALMENTE COMENTADO: Campos obligatorios (solo mantener validación de serie única)
-    /*
-    const requiredFields = {
-      name: "Nombre del equipo",
-      serial: "Serie",
-      code: "INV/Activo",
-      marca: "Marca",
-      modelo: "Modelo",
-      codigo_antiguo: "Código antiguo",
-      codigo_inventario: "Código nuevo",
-      servicio_id: "Servicio",
-      centro_costo: "Centro de costo",
-      pais_origen: "País de origen",
-      tadquisicion_id: "Forma de adquisición",
-      garantia: "Garantía",
-      fecha_adquisicion: "Fecha de adquisición",
-      fecha_instalacion: "Fecha de instalación",
-      fecha_recepcion_almacen: "Fecha recepción almacén",
-      fecha_acta_recibo: "Fecha acta de recibo",
-      fecha_inicio_operacion: "Fecha de inicio operación",
-      fecha_fabricacion: "Fecha de fabricación",
-      costo: "Costo",
-      vida_util: "Vida útil",
-      fuente_id: "Fuente de alimentación",
-      tecnologia_id: "Tecnología predominante",
-      evaluacion_desempeno: "Evaluación de desempeño",
-      frecuencia_id: "Frecuencia de mantenimiento",
-      funcionalidad: "Funcionalidad",
-      estadoequipo_id: "Disponibilidad",
-      localizacion_actual: "Localización actual",
-      cbiomedica_id: "Clasificación biomédica",
-      criesgo_id: "Clasificación de riesgo",
-      propietario_id: "Propietario",
-      verificacion_fisica: "Verificación física",
-      archivo_excel: "Archivo Excel hoja de vida",
-    };
+    // 1. Nombre obligatorio (mín. 3 caracteres) — validado también en backend
+    if (!formData.name || formData.name.trim().length < 3) {
+      newErrors.name = "El nombre del equipo es obligatorio y debe tener al menos 3 caracteres";
+    }
 
-    // Validar campos obligatorios
-    Object.entries(requiredFields).forEach(([field, label]) => {
+    // 2. Campos obligatorios del formulario
+    const camposObligatorios = {
+      servicio_id:       "Servicio/Ubicación",
+      tadquisicion_id:   "Forma de adquisición",
+      fuente_id:         "Fuente de alimentación",
+      tecnologia_id:     "Tecnología predominante",
+      frecuencia_id:     "Frecuencia de mantenimiento",
+      funcionalidad:     "Funcionalidad",
+      localizacion_actual: "Localización física actual",
+      propietario_id:    "Propietario del equipo",
+    };
+    Object.entries(camposObligatorios).forEach(([field, label]) => {
       if (!formData[field] || formData[field] === "") {
         newErrors[field] = `${label} es obligatorio`;
       }
     });
-    */
 
-    // SOLO MANTENER: Validación de unicidad del número de serie (si está lleno)
-    // La validación de unicidad ya se maneja en validateUniqueness() llamado por useEffect
+    // 3. Solo para biomédicos (tipo_id = 1)
+    if (String(formData.tipo_id) === "1") {
+      if (!formData.cbiomedica_id || formData.cbiomedica_id === "") {
+        newErrors.cbiomedica_id = "Clasificación biomédica es obligatoria para equipos biomédicos";
+      }
+      if (!formData.criesgo_id || formData.criesgo_id === "") {
+        newErrors.criesgo_id = "Clasificación de riesgo es obligatoria para equipos biomédicos";
+      }
+    }
 
-    // Validaciones específicas
+    // 4. Unicidad: re-propagar errores del validateUniqueness() si existen
+    if (errors.serial)         newErrors.serial         = errors.serial;
+    if (errors.code)           newErrors.code           = errors.code;
+    if (errors.codigo_antiguo) newErrors.codigo_antiguo = errors.codigo_antiguo;
+
+    // 5. Archivo Excel solo .xlsx / .xls
+    if (formData.archivo_excel) {
+      const ext = formData.archivo_excel.name?.split(".").pop()?.toLowerCase();
+      if (!["xlsx", "xls"].includes(ext)) {
+        newErrors.archivo_excel = "Solo se permiten archivos Excel (.xlsx o .xls)";
+      }
+      if (formData.archivo_excel.size > 20 * 1024 * 1024) {
+        newErrors.archivo_excel = "El archivo Excel no puede superar 20 MB";
+      }
+    }
+
+    // 6. Números opcionales
     if (formData.costo && isNaN(parseFloat(formData.costo))) {
       newErrors.costo = "El costo debe ser un número válido";
     }
-
     if (formData.vida_util && isNaN(parseInt(formData.vida_util))) {
       newErrors.vida_util = "La vida útil debe ser un número entero";
     }
 
-    // Validar fechas lógicas
-    const fechas = [
-      "fecha_fabricacion",
-      "fecha_adquisicion",
-      "fecha_recepcion_almacen",
-      "fecha_instalacion",
-      "fecha_inicio_operacion",
-    ];
-    const fechaValues = fechas.map((f) =>
-      formData[f] ? new Date(formData[f]) : null
-    );
-
-    if (fechaValues[0] && fechaValues[1] && fechaValues[0] > fechaValues[1]) {
-      newErrors.fecha_adquisicion =
-        "La fecha de adquisición no puede ser anterior a la fecha de fabricación";
-    }
-
-    // TEMPORALMENTE COMENTADO: Validación específica para INVIMA
-    /*
-    if (formData.invima) {
-      const invimaPattern = /^[A-Z0-9-]+$/;
-      if (!invimaPattern.test(formData.invima)) {
-        newErrors.invima =
-          "El registro INVIMA debe contener solo letras mayúsculas, números y guiones";
-      }
-      if (formData.invima.length < 8) {
-        newErrors.invima =
-          "El registro INVIMA debe tener al menos 8 caracteres";
+    // 7. Fechas lógicas: fabricación no puede ser posterior a adquisición
+    if (formData.fecha_fabricacion && formData.fecha_adquisicion) {
+      if (new Date(formData.fecha_fabricacion) > new Date(formData.fecha_adquisicion)) {
+        newErrors.fecha_adquisicion = "La fecha de adquisición no puede ser anterior a la fecha de fabricación";
       }
     }
-    */
 
-    // Validación de archivo INVIMA
+    // 8. Archivo INVIMA solo PDF
     if (formData.archivo_invima) {
       if (formData.archivo_invima.type !== "application/pdf") {
-        newErrors.archivo_invima =
-          "El archivo de registro INVIMA debe ser un PDF";
+        newErrors.archivo_invima = "El archivo de registro INVIMA debe ser un PDF";
       }
       if (formData.archivo_invima.size > 10 * 1024 * 1024) {
-        // 10MB
-        newErrors.archivo_invima =
-          "El archivo de registro INVIMA no puede exceder 10MB";
+        newErrors.archivo_invima = "El archivo de registro INVIMA no puede exceder 10MB";
       }
     }
 
@@ -704,13 +610,46 @@ export function AddEquipmentModal({
   // Función para enviar formulario
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("Verifique los campos marcados con errores");
+      // Mostrar el primer error específico para que el usuario sepa qué campo falta
+      const erroresActuales = {};
+
+      if (!formData.name || formData.name.trim().length < 3) erroresActuales.name = "Nombre del equipo";
+      if (!formData.servicio_id)       erroresActuales.servicio_id = "Servicio/Ubicación";
+      if (!formData.tadquisicion_id)   erroresActuales.tadquisicion_id = "Forma de adquisición";
+      if (!formData.fuente_id)         erroresActuales.fuente_id = "Fuente de alimentación";
+      if (!formData.tecnologia_id)     erroresActuales.tecnologia_id = "Tecnología predominante";
+      if (!formData.frecuencia_id)     erroresActuales.frecuencia_id = "Frecuencia de mantenimiento";
+      if (!formData.funcionalidad)       erroresActuales.funcionalidad = "Funcionalidad";
+      if (!formData.localizacion_actual) erroresActuales.localizacion_actual = "Localización física";
+      if (!formData.propietario_id)    erroresActuales.propietario_id = "Propietario";
+      if (String(formData.tipo_id) === "1") {
+        if (!formData.cbiomedica_id)   erroresActuales.cbiomedica_id = "Clasificación biomédica";
+        if (!formData.criesgo_id)      erroresActuales.criesgo_id = "Clasificación de riesgo";
+      }
+
+      const camposFaltantes = Object.values(erroresActuales);
+      if (camposFaltantes.length > 0) {
+        toast.error(
+          camposFaltantes.length === 1
+            ? `Campo obligatorio faltante: ${camposFaltantes[0]}`
+            : `Campos obligatorios faltantes: ${camposFaltantes.join(", ")}`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.error("Verifique los campos marcados con errores", { duration: 4000 });
+      }
       return;
     }
 
     try {
       setLoading(true);
-      toast.loading("Registrando equipo...", { id: "submit-equipment" });
+      const tieneArchivo = formData.archivo_excel instanceof File || formData.image instanceof File;
+      toast.loading(
+        tieneArchivo
+          ? "Registrando equipo y subiendo archivo... Esto puede tardar unos segundos."
+          : "Registrando equipo...",
+        { id: "submit-equipment" }
+      );
 
       // Crear FormData para envío con archivos
       const submitData = new FormData();
@@ -872,8 +811,7 @@ export function AddEquipmentModal({
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Nombre del equipo:
-                      {/* <span className="text-destructive">*</span> */} {/* TEMPORALMENTE OPCIONAL */}
+                      Nombre del equipo:<span className="text-destructive">*</span>
                     </Label>
                     <Input
                       placeholder="NOMBRE"
@@ -892,7 +830,7 @@ export function AddEquipmentModal({
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Serie:<span className="text-destructive">*</span>
+                      Serie:
                     </Label>
                     <Input
                       placeholder="SERIE"
@@ -913,7 +851,7 @@ export function AddEquipmentModal({
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      INV/Activo:<span className="text-destructive">*</span>
+                      INV/Activo:
                     </Label>
                     <Input
                       placeholder="CÓDIGO INVENTARIO"
@@ -932,7 +870,7 @@ export function AddEquipmentModal({
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Marca:<span className="text-destructive">*</span>
+                      Marca:
                     </Label>
                     <Input
                       placeholder="MARCA"
@@ -953,7 +891,7 @@ export function AddEquipmentModal({
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Modelo:<span className="text-destructive">*</span>
+                      Modelo:
                     </Label>
                     <Input
                       placeholder="MODELO"
@@ -982,167 +920,97 @@ export function AddEquipmentModal({
                     </div>
 
                     <div className="space-y-3">
-                      {/* Selección de Registro INVIMA */}
-                      <div>
-                        <Label className="text-xs sm:text-sm text-gray-700">
-                          Seleccionar Registro INVIMA:
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <div className="mt-1 invima-select-container">
-                          <Select
-                            value={formData.invima}
-                            onValueChange={handleInvimaSelection}
-                          >
-                            <SelectTrigger
-                              className={`h-7 sm:h-8 md:h-9 text-xs sm:text-sm max-w-full invima-select-trigger ${
-                                errors.invima ? "border-red-500" : ""
-                              }`}
-                            >
-                              <SelectValue
-                                placeholder="Seleccione un registro INVIMA..."
-                                className="truncate max-w-[calc(100%-24px)]"
-                              >
-                                {formData.invima && (
-                                  <span
-                                    className="truncate block max-w-[300px]"
-                                    title={formData.invima}
-                                  >
-                                    {formData.invima}
-                                  </span>
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent className="max-w-[500px]">
-                              {loadingInvima ? (
-                                <SelectItem value="loading" disabled>
-                                  Cargando registros...
-                                </SelectItem>
-                              ) : filteredRegistrosInvima.length > 0 ? (
-                                filteredRegistrosInvima.map((registro) => (
-                                  <SelectItem
-                                    key={registro.id}
-                                    value={registro.numero_registro}
-                                    className="max-w-[480px]"
-                                  >
-                                    <div className="flex flex-col max-w-[460px]">
-                                      <span className="font-medium text-sm truncate">
-                                        {registro.numero_registro}
-                                      </span>
-                                      <span className="text-xs text-gray-500 truncate">
-                                        {registro.nombre_equipo?.length > 60
-                                          ? `${registro.nombre_equipo.substring(
-                                              0,
-                                              60
-                                            )}...`
-                                          : registro.nombre_equipo}{" "}
-                                        - {registro.fabricante}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))
-                              ) : searchInvima.trim() ? (
-                                <SelectItem value="no-results" disabled>
-                                  No se encontraron resultados para "
-                                  {searchInvima}"
-                                </SelectItem>
-                              ) : (
-                                <SelectItem value="no-data" disabled>
-                                  No hay registros disponibles
-                                </SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
+                      {/* Registro seleccionado actualmente */}
+                      {formData.invima ? (
+                        <div className="flex items-start gap-2 p-2 bg-blue-100 border border-blue-300 rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-blue-900 truncate">{formData.invima}</p>
+                            {(() => {
+                              const reg = registrosInvima.find(r => r.numero_registro === formData.invima);
+                              return reg ? (
+                                <p className="text-xs text-blue-700 truncate">{reg.nombre_equipo} — {reg.fabricante}</p>
+                              ) : null;
+                            })()}
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <Button size="sm" type="button" onClick={viewInvimaDocument}
+                              className="bg-blue-600 hover:bg-blue-700 text-white h-6 w-6 p-0"
+                              title="Ver documento PDF">
+                              <FileText className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" type="button" onClick={clearInvimaSelection}
+                              className="bg-red-500 hover:bg-red-600 text-white h-6 w-6 p-0"
+                              title="Limpiar selección">
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Campo de búsqueda + botón agregar */}
+                      {!formData.invima && (
+                        <div>
+                          <Label className="text-xs sm:text-sm text-gray-700">
+                            Buscar Registro INVIMA:
+                          </Label>
+                          <div className="flex gap-2 mt-1">
+                            <Input
+                              placeholder="Número, nombre de equipo o fabricante..."
+                              value={searchInvima}
+                              onChange={(e) => setSearchInvima(e.target.value)}
+                              className={`flex-1 h-8 text-xs sm:text-sm ${errors.invima ? "border-red-500" : ""}`}
+                              autoComplete="off"
+                            />
+                            <Button size="sm" type="button"
+                              onClick={() => setShowInvimaModal(true)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              title="Agregar nuevo registro INVIMA">
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
                           {errors.invima && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {errors.invima}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Búsqueda de Registro INVIMA */}
-                      <div>
-                        <Label className="text-xs sm:text-sm text-gray-700">
-                          Búsqueda Manual:
-                        </Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            placeholder="Buscar por número, equipo o fabricante..."
-                            value={searchInvima}
-                            onChange={(e) => setSearchInvima(e.target.value)}
-                            className="flex-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
-                            readOnly={!!formData.invima}
-                          />
-
-                          {/* Iconos de acción cuando hay selección */}
-                          {formData.invima && (
-                            <>
-                              <Button
-                                size="sm"
-                                type="button"
-                                onClick={viewInvimaDocument}
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                title="Ver documento PDF del registro INVIMA"
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                type="button"
-                                onClick={clearInvimaSelection}
-                                className="bg-red-600 hover:bg-red-700 text-white"
-                                title="Limpiar selección"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <p className="text-red-500 text-xs mt-1">{errors.invima}</p>
                           )}
 
-                          <Button
-                            size="sm"
-                            type="button"
-                            onClick={searchRegistrosInvima}
-                            className="bg-gray-600 hover:bg-gray-700 text-white"
-                            title="Buscar registro INVIMA"
-                          >
-                            <Search className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            type="button"
-                            onClick={() => setShowInvimaModal(true)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            title="Agregar nuevo registro INVIMA"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
+                          {/* Lista inline de resultados */}
+                          {(searchInvima || '').trim().length >= 2 && (
+                            <div className="mt-2 border border-blue-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-white shadow-sm">
+                              {loadingInvima ? (
+                                <div className="px-3 py-2 text-xs text-gray-500">Cargando registros...</div>
+                              ) : filteredRegistrosInvima.length > 0 ? (
+                                filteredRegistrosInvima.slice(0, 12).map((registro) => (
+                                  <button
+                                    key={registro.id}
+                                    type="button"
+                                    onClick={() => handleInvimaSelection(registro.numero_registro)}
+                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-blue-100 last:border-b-0 transition-colors"
+                                  >
+                                    <span className="block text-xs font-semibold text-blue-800">{registro.numero_registro}</span>
+                                    <span className="block text-xs text-gray-500 truncate">
+                                      {registro.nombre_equipo} — {registro.fabricante}
+                                    </span>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="px-3 py-2 text-xs text-gray-500">Sin resultados para "{searchInvima}"</div>
+                              )}
+                            </div>
+                          )}
+                          {(searchInvima || '').trim().length > 0 && (searchInvima || '').trim().length < 2 && (
+                            <p className="text-xs text-gray-400 mt-1">Escribe al menos 2 caracteres para buscar</p>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          💡{" "}
-                          {formData.invima
-                            ? "Registro seleccionado. Use el icono 📄 para ver el documento."
-                            : "Use la búsqueda para filtrar registros o ingrese manualmente"}
-                        </p>
-                      </div>
+                      )}
 
-                      {/* Información sobre archivo PDF */}
-                      <div className="bg-blue-100 p-3 rounded-lg">
-                        <p className="text-xs text-blue-800">
-                          <strong>📄 Archivo PDF:</strong> Para adjuntar el
-                          documento PDF del registro INVIMA, use el botón "+"
-                          para crear un nuevo registro completo con archivo.
-                        </p>
-                      </div>
-
-                      {/* Información adicional */}
-                      <div className="bg-blue-100 p-3 rounded-lg">
-                        <p className="text-xs text-blue-800">
-                          <strong>ℹ️ Información:</strong> El registro sanitario
-                          INVIMA es obligatorio para equipos médicos. Asegúrate
-                          de que el número coincida con el documento PDF
-                          adjunto.
-                        </p>
-                      </div>
+                      {/* Botón agregar cuando ya hay selección */}
+                      {formData.invima && (
+                        <Button size="sm" type="button"
+                          onClick={() => setShowInvimaModal(true)}
+                          variant="outline"
+                          className="text-xs h-7 border-blue-300 text-blue-700 hover:bg-blue-50">
+                          <Plus className="h-3 w-3 mr-1" /> Crear nuevo registro INVIMA
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1166,7 +1034,6 @@ export function AddEquipmentModal({
                   <div>
                     <Label className="text-xs sm:text-sm">
                       Archivo excel hoja de vida:
-                      <span className="text-destructive">*</span>
                     </Label>
                     <div className="flex gap-2 mt-1">
                       <Button
@@ -1202,7 +1069,7 @@ export function AddEquipmentModal({
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs sm:text-sm">
-                        Antiguo:<span className="text-destructive">*</span>
+                        Antiguo:
                       </Label>
                       <Input
                         placeholder="CÓDIGO ANTIGUO"
@@ -1222,7 +1089,7 @@ export function AddEquipmentModal({
                     </div>
                     <div>
                       <Label className="text-xs sm:text-sm">
-                        Nuevo:<span className="text-destructive">*</span>
+                        Nuevo:
                       </Label>
                       <Input
                         placeholder="CÓDIGO INVENTARIO"
@@ -1245,7 +1112,7 @@ export function AddEquipmentModal({
                   <div className="space-y-4">
                     <div>
                       <Label className="text-xs sm:text-sm">
-                        Ubicación:<span className="text-destructive">*</span>
+                        Ubicación:
                       </Label>
                       <div className="grid grid-cols-2 gap-4 mt-2">
                         <div>
@@ -1310,7 +1177,7 @@ export function AddEquipmentModal({
 
                     <div>
                       <Label className="text-xs sm:text-sm">
-                        Sede:<span className="text-destructive">*</span>
+                        Sede:
                       </Label>
                       <SearchableSelect
                         placeholder="SEDE HUV"
@@ -1330,7 +1197,6 @@ export function AddEquipmentModal({
                       <div>
                         <Label className="text-xs sm:text-sm">
                           Centro de costo:
-                          <span className="text-destructive">*</span>
                         </Label>
                         <SearchableSelect
                           placeholder="SELECCIONAR CENTRO DE COSTO"
@@ -1354,7 +1220,6 @@ export function AddEquipmentModal({
                       <div>
                         <Label className="text-xs sm:text-sm">
                           País de origen:
-                          <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           placeholder="PAÍS DE ORIGEN"
@@ -1492,7 +1357,7 @@ export function AddEquipmentModal({
 
                 <div>
                   <Label className="text-xs sm:text-sm">
-                    Garantía:<span className="text-destructive">*</span>
+                    Garantía:
                   </Label>
                   <Input
                     placeholder="GARANTÍA EN AÑOS"
@@ -1535,7 +1400,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de adquisición:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -1557,7 +1421,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de instalación:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -1579,7 +1442,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha recepción almacén:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -1604,7 +1466,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha acta de recibo:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -1626,7 +1487,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de inicio operación:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -1651,7 +1511,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fecha de fabricación:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     type="date"
@@ -1676,7 +1535,7 @@ export function AddEquipmentModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs sm:text-sm">
-                    Costo:<span className="text-destructive">*</span>
+                    Costo:
                   </Label>
                   <Input
                     placeholder="COSTO EN PESOS"
@@ -1693,7 +1552,7 @@ export function AddEquipmentModal({
                 </div>
                 <div>
                   <Label className="text-xs sm:text-sm">
-                    Vida útil:<span className="text-destructive">*</span>
+                    Vida útil:
                   </Label>
                   <Input
                     placeholder="VIDA ÚTIL EN AÑOS"
@@ -1725,6 +1584,31 @@ export function AddEquipmentModal({
             </CardHeader>
             <CardContent className="p-3 sm:p-4 md:p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+                <div>
+                  <Label className="text-xs sm:text-sm">
+                    Fijo o Móvil:
+                  </Label>
+                  <Select
+                    value={formData.movilidad}
+                    onValueChange={(value) => handleInputChange("movilidad", value)}
+                  >
+                    <SelectTrigger
+                      className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
+                        errors.movilidad ? "border-red-500" : ""
+                      }`}
+                    >
+                      <SelectValue placeholder="Seleccionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIJO">Fijo</SelectItem>
+                      <SelectItem value="MOVIL">Móvil</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.movilidad && (
+                    <p className="text-red-500 text-xs mt-1">{errors.movilidad}</p>
+                  )}
+                </div>
+
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Fuente de alimentación:
@@ -1800,7 +1684,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Evaluación de desempeño:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.evaluacion_desempeno}
@@ -1832,7 +1715,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     ¿Se realiza calibración?
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.calibracion ? "true" : "false"}
@@ -1916,7 +1798,6 @@ export function AddEquipmentModal({
               <div>
                 <Label className="text-base font-semibold text-xs sm:text-sm">
                   Estado actual del equipo:
-                  <span className="text-destructive">*</span>
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                   <div>
@@ -1937,11 +1818,15 @@ export function AddEquipmentModal({
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">ACTIVO</SelectItem>
-                        <SelectItem value="2">FUERA DE SERVICIO</SelectItem>
-                        <SelectItem value="5">PENDIENTE POR DAR DE BAJA</SelectItem>
-                        <SelectItem value="6">EQUIPO DADO DE BAJA</SelectItem>
-                        <SelectItem value="10">PENDIENTE POR ENTREGAR</SelectItem>
+                        {catalogs.funcionalidades && catalogs.funcionalidades.length > 0 ? (
+                          catalogs.funcionalidades.map((f) => (
+                            <SelectItem key={f.id} value={f.id.toString()}>
+                              {f.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="0">No disponible</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     {errors.funcionalidad && (
@@ -1953,7 +1838,7 @@ export function AddEquipmentModal({
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Disponibilidad:<span className="text-destructive">*</span>
+                      Disponibilidad:
                     </Label>
                     <Select
                       value={formData.estadoequipo_id}
@@ -2025,7 +1910,7 @@ export function AddEquipmentModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
                   <div>
                     <Label className="font-medium text-xs sm:text-sm">
-                      Manuales:<span className="text-destructive">*</span>
+                      Manuales:
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
@@ -2109,7 +1994,7 @@ export function AddEquipmentModal({
 
                   <div>
                     <Label className="font-medium text-xs sm:text-sm">
-                      Planos:<span className="text-destructive">*</span>
+                      Planos:
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="flex items-center space-x-2">
@@ -2351,7 +2236,6 @@ export function AddEquipmentModal({
                 <div>
                   <Label className="text-xs sm:text-sm">
                     Verificación física:
-                    <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.verificacion_fisica}

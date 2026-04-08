@@ -185,8 +185,30 @@ export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded
 
     } catch (error) {
       console.error('Error creating INVIMA record:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear el registro INVIMA';
-      toast.error(errorMessage, { id: 'submit-invima' });
+
+      // Errores de validación del servidor (422)
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        const serverErrors = error.response.data.errors;
+        const fieldMap = {
+          numero_registro: 'numero_registro',
+          descripcion_detallada: 'descripcion_detallada',
+          titulo: 'titulo',
+          marcas: 'marcas',
+          archivo_pdf: 'archivo_pdf',
+        };
+        const mappedErrors = {};
+        Object.entries(serverErrors).forEach(([field, messages]) => {
+          const key = fieldMap[field] || field;
+          mappedErrors[key] = Array.isArray(messages) ? messages[0] : messages;
+        });
+        setErrors(prev => ({ ...prev, ...mappedErrors }));
+        // Mostrar el primer error encontrado como toast destacado
+        const firstMsg = Object.values(mappedErrors)[0];
+        toast.error(firstMsg || 'Corrija los errores en el formulario.', { id: 'submit-invima' });
+      } else {
+        const errorMessage = error.response?.data?.message || 'Error al crear el registro INVIMA';
+        toast.error(errorMessage, { id: 'submit-invima' });
+      }
     } finally {
       setLoading(false);
     }
@@ -378,6 +400,7 @@ export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded
         {/* Botones */}
         <div className="flex justify-between p-4 border-t">
           <Button
+            type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
@@ -385,6 +408,7 @@ export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded
             Cancelar
           </Button>
           <Button
+            type="button"
             className="bg-blue-600 hover:bg-blue-700 text-white px-8"
             onClick={handleSubmit}
             disabled={loading}

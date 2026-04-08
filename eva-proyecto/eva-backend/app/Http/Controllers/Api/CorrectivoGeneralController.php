@@ -1044,6 +1044,12 @@ class CorrectivoGeneralController extends Controller
             if ($request->filled('fecha_hasta')) {
                 $queryGenerales->whereDate('cg.created_at', '<=', $request->fecha_hasta);
             }
+            if ($request->filled('anio') && $request->anio !== 'all') {
+                $queryGenerales->whereYear('cg.created_at', $request->anio);
+            }
+            if ($request->filled('mes') && $request->mes !== 'all') {
+                $queryGenerales->whereMonth('cg.created_at', $request->mes);
+            }
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
                 $queryGenerales->where(function ($q) use ($searchTerm) {
@@ -1142,6 +1148,12 @@ class CorrectivoGeneralController extends Controller
             }
             if ($request->filled('fecha_hasta')) {
                 $queryTickets->whereDate('o.fecha_inicio', '<=', $request->fecha_hasta);
+            }
+            if ($request->filled('anio') && $request->anio !== 'all') {
+                $queryTickets->whereYear('o.fecha_inicio', $request->anio);
+            }
+            if ($request->filled('mes') && $request->mes !== 'all') {
+                $queryTickets->whereMonth('o.fecha_inicio', $request->mes);
             }
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
@@ -1257,39 +1269,49 @@ class CorrectivoGeneralController extends Controller
                     // Ajustar altura de fila de headers
                     $sheet->getRowDimension('4')->setRowHeight(30);
 
-                    $col = 'A';
-                    foreach ($headers as $header) {
-                        $sheet->setCellValue($col . '4', $header);
-                        $sheet->getStyle($col . '4')->getFont()->setBold(true);
-                        $sheet->getStyle($col . '4')->getFill()
-                            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                            ->getStartColor()->setARGB('FFFFFF00'); // Amarillo
-                        $sheet->getStyle($col . '4')->getBorders()->getAllBorders()
-                            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-                        $sheet->getStyle($col . '4')->getAlignment()
-                            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
-                            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
-                            ->setWrapText(true);
-                        $col++;
-                    }
+                    // Escribir valores de headers en bloque con fromArray
+                    $sheet->fromArray($headers, null, 'A4');
+
+                    // Aplicar estilo de headers en UN solo rango (18 veces menos llamadas)
+                    $sheet->getStyle('A4:R4')->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                            'color' => ['rgb' => '000000'],
+                        ],
+                        'fill' => [
+                            'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'FFD700'], // Amarillo oro
+                        ],
+                        'borders' => [
+                            'allBorders' => [
+                                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                                'color'       => ['rgb' => '000000'],
+                            ],
+                        ],
+                        'alignment' => [
+                            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                            'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                            'wrapText'   => true,
+                        ],
+                    ]);
 
                     // Datos
                     $row = 5;
-                    // Helper: valida fecha antes de formatear (igual que formato completo)
+                    // Helper: igual que formato completo — devuelve fecha Excel para que Excel agrupe por año/mes/día
                     $safeDate = function($dateStr) {
                         if (!$dateStr) return '';
                         if (preg_match('/^0{4}-/', $dateStr)) return '';
                         $ts = strtotime($dateStr);
                         if (!$ts || $ts <= 0) return '';
                         if ((int)date('Y', $ts) < 2000) return '';
-                        return date('Y-m-d', $ts);
+                        return \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts);
                     };
                     // Procesar registros iterando Collection
                     foreach ($queryFinal as $correctivo) {
                         // FECHA DE CREACIÓN
                         $fechaCreacion = $correctivo->fecha_inicio ?? $correctivo->created_at ?? '';
                         $fechaCreacion = $safeDate($fechaCreacion);
-                        $sheet->setCellValueExplicit('A' . $row, $fechaCreacion, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValue('A' . $row, $fechaCreacion);
                         
                         // CODIFICACIÓN DE CIERRE (formato: código - nombre)
                         $codificacionCierre = '';
@@ -1365,11 +1387,11 @@ class CorrectivoGeneralController extends Controller
                         
                         // CIERRE
                         $fechaCierre = $safeDate($correctivo->fecha_cierre ?? '');
-                        $sheet->setCellValueExplicit('O' . $row, $fechaCierre, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValue('O' . $row, $fechaCierre);
                         
                         // FECHA FIN
                         $fechaFin = $safeDate($correctivo->fecha_fin ?? '');
-                        $sheet->setCellValueExplicit('P' . $row, $fechaFin, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        $sheet->setCellValue('P' . $row, $fechaFin);
                         
                         // DESCRIPCIÓN
                         $sheet->setCellValueExplicit('Q' . $row, $correctivo->descripcion ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
@@ -1377,16 +1399,52 @@ class CorrectivoGeneralController extends Controller
                         // DESCRIPCIÓN DE CIERRE DEL TICKET
                         $sheet->setCellValueExplicit('R' . $row, $correctivo->tecnico_cierre_text ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                         
-                        // Bordes para todas las celdas de datos
-                        $sheet->getStyle('A' . $row . ':R' . $row)->getBorders()->getAllBorders()
-                            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-                        
                         $row++;
                     }
 
-                    // Auto-size columns
-                    foreach (range('A', 'R') as $col) {
-                        $sheet->getColumnDimension($col)->setAutoSize(true);
+                    // Aplicar estilos en bloque (una sola operación por tipo) — mucho más rápido que por fila
+                    $lastParadaRow = $row - 1;
+                    if ($lastParadaRow >= 5) {
+                        // Formato fecha en columnas A, O, P
+                        foreach (['A', 'O', 'P'] as $dateCol) {
+                            $sheet->getStyle($dateCol . '5:' . $dateCol . $lastParadaRow)
+                                  ->getNumberFormat()
+                                  ->setFormatCode('yyyy-mm-dd');
+                        }
+                        // Bordes + wrapText en rango completo de datos (antes era por fila — lentísimo)
+                        $sheet->getStyle('A5:R' . $lastParadaRow)->applyFromArray([
+                            'borders' => [
+                                'allBorders' => [
+                                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                                    'color'       => ['rgb' => '000000'],
+                                ],
+                            ],
+                            'alignment' => [
+                                'vertical'  => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP,
+                                'wrapText'  => true,
+                            ],
+                        ]);
+                        // Centrar columnas angostas (fechas, ID, código, estado)
+                        foreach (['A', 'H', 'J', 'N', 'O', 'P'] as $centerCol) {
+                            $sheet->getStyle($centerCol . '5:' . $centerCol . $lastParadaRow)
+                                  ->getAlignment()
+                                  ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                        }
+                    }
+
+                    // Anchos fijos proporcionales al contenido de cada columna
+                    // A=Fecha creación, B=Cod.Cierre, C=Sede, D=Servicio, E=Área
+                    // F=Tipo, G=Responsable, H=ID, I=Nombre equipo, J=Código
+                    // K=Marca, L=Modelo, M=Serie, N=Estado, O=F.Cierre, P=F.Fin
+                    // Q=Descripción, R=Desc.Cierre ticket
+                    $colWidths = [
+                        'A' => 14, 'B' => 35, 'C' => 20, 'D' => 35, 'E' => 20,
+                        'F' => 24, 'G' => 30, 'H' => 10, 'I' => 35, 'J' => 18,
+                        'K' => 18, 'L' => 18, 'M' => 18, 'N' => 18, 'O' => 14,
+                        'P' => 14, 'Q' => 50, 'R' => 50,
+                    ];
+                    foreach ($colWidths as $col => $width) {
+                        $sheet->getColumnDimension($col)->setWidth($width);
                     }
 
                 } else {
@@ -1469,6 +1527,19 @@ class CorrectivoGeneralController extends Controller
                                     ->get()
                                     ->groupBy('orden_id');
 
+                // Definir helper de fecha UNA SOLA VEZ fuera del loop
+                $formatDate = function($dateStr) {
+                        if (!$dateStr) return '';
+                        // Ignorar fechas claramente inválidas: "0000-00-00", "0000-00-00 00:00:00", etc.
+                        if (preg_match('/^0{4}-/', $dateStr)) return '';
+                        $ts = strtotime($dateStr);
+                        // Ignorar timestamps inválidos, negativos (antes de 1970) o del año 1970 (epoch=0)
+                        if (!$ts || $ts <= 0) return '';
+                        // Ignorar años antes de 2000 (datos claramente erróneos de migración)
+                        if ((int)date('Y', $ts) < 2000) return '';
+                        return \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts);
+                };
+
                 // Escribir datos
                 $row = 2;
                 foreach ($queryFinal as $correctivo) {
@@ -1483,19 +1554,6 @@ class CorrectivoGeneralController extends Controller
                     $avance1 = $misAvances->get(0);
                     $avance2 = $misAvances->get(1);
                     $avance3 = $misAvances->get(2);
-
-                    // Función para convertir a fecha Excel y permitir agrupamiento por año/mes
-                    $formatDate = function($dateStr) {
-                        if (!$dateStr) return '';
-                        // Ignorar fechas claramente inválidas: "0000-00-00", "0000-00-00 00:00:00", etc.
-                        if (preg_match('/^0{4}-/', $dateStr)) return '';
-                        $ts = strtotime($dateStr);
-                        // Ignorar timestamps inválidos, negativos (antes de 1970) o del año 1970 (epoch=0)
-                        if (!$ts || $ts <= 0) return '';
-                        // Ignorar años antes de 2000 (datos claramente erróneos de migración)
-                        if ((int)date('Y', $ts) < 2000) return '';
-                        return \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts);
-                    };
 
                     $rowData = [
                         $correctivo->tipo ?? 'Correctivo', // 1. Fuente
@@ -1572,37 +1630,54 @@ class CorrectivoGeneralController extends Controller
                     $row++;
                 }
 
-                // Aplicar formato de fecha de Excel a las columnas específicas en bloque
+                // Aplicar estilos en bloque tras el loop (una llamada por operación)
                 $lastRow = $row - 1;
                 if ($lastRow >= 2) {
-                    $dateColumns = ['D', 'R', 'U', 'X', 'AC', 'AE'];
-                    foreach ($dateColumns as $col) {
+                    // Formato fecha en las 6 columnas de fecha
+                    foreach (['D', 'R', 'U', 'X', 'AC', 'AE'] as $col) {
                         $sheet->getStyle($col . '2:' . $col . $lastRow)
-                              ->getNumberFormat()
-                              ->setFormatCode('yyyy-mm-dd');
+                              ->getNumberFormat()->setFormatCode('yyyy-mm-dd');
                     }
-
-                    // Dar estilo azul/subrayado a la columna de archivos (Q) en bloque
-                    $sheet->getStyle('Q2:Q' . $lastRow)->getFont()->getColor()->setARGB(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLUE);
-                    $sheet->getStyle('Q2:Q' . $lastRow)->getFont()->setUnderline(true);
+                    // Bordes + wrapText + verticalTop en todo el rango de datos
+                    $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+                    $sheet->getStyle('A2:' . $lastColLetter . $lastRow)->applyFromArray([
+                        'borders' => [
+                            'allBorders' => [
+                                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                                'color'       => ['rgb' => '000000'],
+                            ],
+                        ],
+                        'alignment' => [
+                            'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP,
+                            'wrapText' => true,
+                        ],
+                    ]);
+                    // Estilo hipervínculo en columna Q (archivo)
+                    $sheet->getStyle('Q2:Q' . $lastRow)->applyFromArray([
+                        'font' => [
+                            'color'     => ['rgb' => '0563C1'],
+                            'underline' => true,
+                        ],
+                    ]);
                 }
 
-                // Columnas de fecha: ancho fijo (nunca entran al autosize para evitar #######)
-                $dateColLetters = ['D', 'R', 'U', 'X', 'AC', 'AE'];
-                $dateColSet = array_flip($dateColLetters);
-
-                // Auto-ajustar anchos para columnas NO fecha
-                $maxCol = count($headers);
-                for ($i = 1; $i <= $maxCol; $i++) {
-                    $colStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-                    if (!isset($dateColSet[$colStr])) {
-                        $sheet->getColumnDimension($colStr)->setAutoSize(true);
-                    }
-                }
-
-                // Ancho fijo para columnas de fecha (14 = suficiente para yyyy-mm-dd)
-                foreach ($dateColLetters as $col) {
-                    $sheet->getColumnDimension($col)->setWidth(14);
+                // Anchos fijos para todas las columnas (evita setAutoSize que escanea todas las celdas)
+                // A=Fuente, B=Responsable, C=EquipoId, D=F.Creación, E=CódOrden, F=Descripción
+                // G=Cod.Cierre, H=Equipo, I=CódEquipo, J=Marca, K=Modelo, L=Serie
+                // M=Estado, N=Sede, O=Servicio, P=Area, Q=Archivo
+                // R=F.Av1, S=TítAv1, T=DescAv1  U=F.Av2, V=TítAv2, W=DescAv2
+                // X=F.Av3, Y=TítAv3, Z=DescAv3  AA=Retro, AB=DescCierre, AC=F.Cierre
+                // AD=Costo, AE=F.Fin, AF=Repuesto
+                $fixedWidths = [
+                    'A'=>18, 'B'=>28, 'C'=>12, 'D'=>14, 'E'=>18, 'F'=>40,
+                    'G'=>32, 'H'=>30, 'I'=>16, 'J'=>16, 'K'=>16, 'L'=>18,
+                    'M'=>18, 'N'=>20, 'O'=>30, 'P'=>18, 'Q'=>32,
+                    'R'=>14, 'S'=>22, 'T'=>35, 'U'=>14, 'V'=>22, 'W'=>35,
+                    'X'=>14, 'Y'=>22, 'Z'=>35, 'AA'=>24, 'AB'=>38, 'AC'=>14,
+                    'AD'=>12, 'AE'=>14, 'AF'=>22,
+                ];
+                foreach ($fixedWidths as $col => $width) {
+                    $sheet->getColumnDimension($col)->setWidth($width);
                 }
                 }
 

@@ -1329,6 +1329,22 @@ export function EditEquipmentModal({
     newWindow.document.close();
   };
 
+  // Función para eliminar una observación
+  const deleteObservacion = async (obs) => {
+    if (!window.confirm(`¿Eliminar esta observación del ${new Date(obs.created_at).toLocaleDateString()}?`)) return;
+    try {
+      await axios.delete(`${BASE_URL}/api/observaciones/${obs.id}`);
+      toast.success("Observación eliminada");
+      // Quitar del historial local sin recargar todo
+      setEquipmentHistory((prev) => ({
+        ...prev,
+        observaciones: prev.observaciones.filter((o) => o.id !== obs.id),
+      }));
+    } catch (error) {
+      toast.error("No se pudo eliminar la observación");
+    }
+  };
+
   // Función para ver documentos PDF de preventivos
   const viewPreventivoDocument = (filename) => {
     if (!filename) {
@@ -3938,6 +3954,15 @@ export function EditEquipmentModal({
                                     }}
                                   >
                                     Editar
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-6 text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => deleteObservacion(obs)}
+                                  >
+                                    Eliminar
                                   </Button>
                                 </div>
                               </div>

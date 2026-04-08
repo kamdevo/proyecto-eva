@@ -5086,27 +5086,45 @@ Route::post('v1/equipos-create', function(Request $request) {
         // ─── VALIDACIONES COMPLETAS ───────────────────────────────────────────
         $validator = Validator::make($request->all(), [
             // ✔️ Nombre obligatorio (mín. 3 chars)
-            'name'           => 'required|string|min:3|max:255',
-            // ✔️ Serial único (si se provee)
-            'serial'         => 'nullable|string|max:100|unique:equipos,serial',
-            // ✔️ Código inventario único (mapeado a 'code' en BD)
-            'code'           => 'nullable|string|max:100|unique:equipos,code',
-            // ✔️ Código antiguo único (si tiene valor)
-            'codigo_antiguo' => 'nullable|string|max:100|unique:equipos,codigo_antiguo',
-            // ✔️ Archivo Excel solo .xlsx / .xls
-            'archivo_excel'  => 'nullable|file|mimes:xlsx,xls|max:20480',
-            // Archivo INVIMA solo PDF
-            'archivo_invima' => 'nullable|file|mimes:pdf|max:10240',
+            'name'               => 'required|string|min:3|max:255',
+            // ✔️ Obligatorios del formulario
+            'servicio_id'        => 'required|integer|exists:servicios,id',
+            'tadquisicion_id'    => 'required|integer',
+            'fuente_id'          => 'required|integer',
+            'tecnologia_id'      => 'required|integer',
+            'frecuencia_id'      => 'required|integer',
+            'funcionalidad'      => 'required|integer',
+            'localizacion_actual'=> 'required|string|max:255',
+            'propietario_id'     => 'required|integer',
+            // ✔️ Opcionales
+            'movilidad'          => 'nullable|string|max:50',
+            'estadoequipo_id'    => 'nullable|integer',
+            // ✔️ Únicos opcionales
+            'serial'             => 'nullable|string|max:100|unique:equipos,serial',
+            'code'               => 'nullable|string|max:100|unique:equipos,code',
+            'codigo_antiguo'     => 'nullable|string|max:100|unique:equipos,codigo_antiguo',
+            // ✔️ Archivos
+            'archivo_excel'      => 'nullable|file|mimes:xlsx,xls|max:20480',
+            'archivo_invima'     => 'nullable|file|mimes:pdf|max:10240',
         ], [
-            'name.required'            => 'El nombre del equipo es obligatorio.',
-            'name.min'                 => 'El nombre del equipo debe tener al menos 3 caracteres.',
-            'serial.unique'            => 'Ya existe un equipo con este número de serie.',
-            'code.unique'              => 'Ya existe un equipo con este código INV/Activo.',
-            'codigo_antiguo.unique'    => 'Ya existe un equipo con este código antiguo.',
-            'archivo_excel.mimes'      => 'El archivo hoja de vida debe ser Excel (.xlsx o .xls).',
-            'archivo_excel.max'        => 'El archivo Excel no puede superar 20 MB.',
-            'archivo_invima.mimes'     => 'El archivo INVIMA debe ser PDF.',
-            'archivo_invima.max'       => 'El archivo INVIMA no puede superar 10 MB.',
+            'name.required'              => 'El nombre del equipo es obligatorio.',
+            'name.min'                   => 'El nombre del equipo debe tener al menos 3 caracteres.',
+            'servicio_id.required'       => 'El servicio/ubicación es obligatorio.',
+            'servicio_id.exists'         => 'El servicio seleccionado no existe.',
+            'tadquisicion_id.required'   => 'La forma de adquisición es obligatoria.',
+            'fuente_id.required'         => 'La fuente de alimentación es obligatoria.',
+            'tecnologia_id.required'     => 'La tecnología predominante es obligatoria.',
+            'frecuencia_id.required'     => 'La frecuencia de mantenimiento es obligatoria.',
+            'funcionalidad.required'     => 'La funcionalidad del equipo es obligatoria.',
+            'localizacion_actual.required'=> 'La localización física actual es obligatoria.',
+            'propietario_id.required'    => 'El propietario del equipo es obligatorio.',
+            'serial.unique'              => 'Ya existe un equipo con este número de serie.',
+            'code.unique'                => 'Ya existe un equipo con este código INV/Activo.',
+            'codigo_antiguo.unique'      => 'Ya existe un equipo con este código antiguo.',
+            'archivo_excel.mimes'        => 'El archivo hoja de vida debe ser Excel (.xlsx o .xls).',
+            'archivo_excel.max'          => 'El archivo Excel no puede superar 20 MB.',
+            'archivo_invima.mimes'       => 'El archivo INVIMA debe ser PDF.',
+            'archivo_invima.max'         => 'El archivo INVIMA no puede superar 10 MB.',
         ]);
 
         if ($validator->fails()) {
@@ -5117,6 +5135,25 @@ Route::post('v1/equipos-create', function(Request $request) {
             ], 422)->header('Access-Control-Allow-Origin', '*');
         }
 
+        // Validación condicional: biomédicos requieren cbiomedica_id y criesgo_id
+        $tipoId = (int) $request->input('tipo_id', 1);
+        if ($tipoId === 1) {
+            $extraErrors = [];
+            if (!$request->filled('cbiomedica_id')) {
+                $extraErrors['cbiomedica_id'] = ['La clasificación biomédica es obligatoria para equipos biomédicos.'];
+            }
+            if (!$request->filled('criesgo_id')) {
+                $extraErrors['criesgo_id'] = ['La clasificación de riesgo es obligatoria para equipos biomédicos.'];
+            }
+            if (!empty($extraErrors)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors'  => $extraErrors,
+                ], 422)->header('Access-Control-Allow-Origin', '*');
+            }
+        }
+
         // PROCESAMIENTO COMPLETO DE ARCHIVOS (COPIADO DEL ORIGINAL)
         
         // Procesar imagen (va a carpeta images)
@@ -5125,27 +5162,34 @@ Route::post('v1/equipos-create', function(Request $request) {
             $image = $request->file('image');
             $extension = $image->getClientOriginalExtension();
             $imageName = 'equipo_' . time() . '_' . uniqid() . '.' . $extension;
-            $imagePath = $image->storeAs('equipos/images', $imageName, 'public');
+            $image->storeAs('equipos/images', $imageName, 'public');
+            $imagePath = $imageName; // Solo el nombre de archivo en la BD
             \Log::info('Imagen procesada', ['path' => $imagePath]);
+        } elseif ($request->input('copy_image_path')) {
+            // Imagen copiada del equipo origen (modal copiar equipo)
+            $srcRelative = $request->input('copy_image_path'); // ej: equipos/images/foto.jpg
+            $srcPath = storage_path('app/public/' . $srcRelative);
+            if (file_exists($srcPath)) {
+                $extension = pathinfo($srcPath, PATHINFO_EXTENSION);
+                $imageName = 'equipo_copy_' . time() . '_' . uniqid() . '.' . $extension;
+                $destPath = storage_path('app/public/equipos/images/' . $imageName);
+                if (!is_dir(dirname($destPath))) {
+                    mkdir(dirname($destPath), 0775, true);
+                }
+                copy($srcPath, $destPath);
+                $imagePath = $imageName; // Solo el nombre de archivo en la BD
+                \Log::info('Imagen copiada del equipo origen', ['src' => $srcPath, 'dest' => $destPath]);
+            }
         }
 
         // Procesar archivo Excel (va a carpeta archivos)
         $archivoExcelPath = null;
         if ($request->hasFile('archivo_excel')) {
             $archivo = $request->file('archivo_excel');
-            $extension = $archivo->getClientOriginalExtension();
-
-            if (in_array(strtolower($extension), ['xlsx', 'xls'])) {
-                // Archivos Excel van a /archivos
-                $archivoName = 'excel_' . time() . '_' . uniqid() . '.' . $extension;
-                $archivoExcelPath = $archivo->storeAs('equipos/archivos', $archivoName, 'public');
-                \Log::info('Archivo Excel procesado', ['path' => $archivoExcelPath]);
-            } else {
-                // Otros documentos van a /documentos
-                $archivoName = 'documento_' . time() . '_' . uniqid() . '.' . $extension;
-                $archivoExcelPath = $archivo->storeAs('equipos/documentos', $archivoName, 'public');
-                \Log::info('Documento procesado', ['path' => $archivoExcelPath]);
-            }
+            $archivoName = $archivo->getClientOriginalName(); // Mantener nombre original
+            $archivo->storeAs('equipos/archivos', $archivoName, 'public');
+            $archivoExcelPath = $archivoName; // Solo el nombre, no la ruta completa
+            \Log::info('Archivo Excel procesado', ['nombre' => $archivoName]);
         }
 
         // Procesar archivo INVIMA (va a carpeta registros_sanitarios)
@@ -5234,9 +5278,9 @@ Route::post('v1/equipos-create', function(Request $request) {
             'code' => $request->input('code'),
             'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
             'servicio_id' => $request->input('servicio_id') ?: null,
-            'area_id' => $request->input('area_id') ?: 1, // REQUERIDO - NOT NULL sin default
-            'propietario_id' => $request->input('propietario_id') ?: null,
-            'tipo_id' => $request->input('tipo_id') ?: null,
+            'area_id' => $request->input('area_id') ?: 0,
+            'propietario_id' => $request->input('propietario_id') ?: 0,
+            'tipo_id' => $request->input('tipo_id') ?: 0,
             'marca' => $request->input('marca'),
             'modelo' => $request->input('modelo'),
             'descripcion' => $request->input('descripcion'),
@@ -5281,10 +5325,10 @@ Route::post('v1/equipos-create', function(Request $request) {
             'orden_compra_id' => $request->input('orden_compra_id') ?: 1, // REQUERIDO
             'baja_id' => $request->input('baja_id') ?: 1, // REQUERIDO
             'estado_mantenimiento' => 0, // SIEMPRE 0 por defecto
-            'estadoequipo_id' => $request->input('estadoequipo_id') ?: 1, // REQUERIDO
+            'estadoequipo_id' => $request->input('funcionalidad') ?: 1, // Funcionalidad → estadoequipo_id
+            'disponibilidad_id' => $request->input('estadoequipo_id') ?: null, // Disponibilidad → disponibilidad_id
             'guia_id' => $request->input('guia_id') ?: 1, // REQUERIDO
             'manual_id' => $request->input('manual_id') ?: 1, // REQUERIDO
-            'disponibilidad_id' => $request->input('disponibilidad_id') ?: 1, // REQUERIDO
 
             // Campos de archivos
             'image' => $imagePath,
@@ -6627,19 +6671,10 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             // Procesar archivo Excel (va a carpeta archivos)
             if ($request->hasFile('archivo_excel')) {
                 $archivo = $request->file('archivo_excel');
-                $extension = $archivo->getClientOriginalExtension();
-
-                if (in_array(strtolower($extension), ['xlsx', 'xls'])) {
-                    // Archivos Excel van a /archivos
-                    $archivoName = 'excel_' . time() . '_' . uniqid() . '.' . $extension;
-                    $archivoExcelPath = $archivo->storeAs('equipos/archivos', $archivoName, 'public');
-                    \Log::info('Archivo Excel procesado', ['path' => $archivoExcelPath]);
-                } else {
-                    // Otros documentos van a /documentos (mantener compatibilidad)
-                    $archivoName = 'documento_' . time() . '_' . uniqid() . '.' . $extension;
-                    $archivoExcelPath = $archivo->storeAs('equipos/documentos', $archivoName, 'public');
-                    \Log::info('Documento procesado', ['path' => $archivoExcelPath]);
-                }
+                $archivoName = $archivo->getClientOriginalName(); // Mantener nombre original
+                $archivo->storeAs('equipos/archivos', $archivoName, 'public');
+                $archivoExcelPath = $archivoName; // Solo el nombre, no la ruta completa
+                \Log::info('Archivo Excel procesado', ['nombre' => $archivoName]);
             }
 
             // Procesar archivo INVIMA (va a carpeta registros_sanitarios)
@@ -9164,6 +9199,18 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'marcas' => 'required|string|max:255',
                 'archivo_pdf' => 'nullable|mimes:pdf|max:10240', // 10MB max
                 'estado' => 'nullable|string|in:vigente,vencido,suspendido'
+            ], [
+                'numero_registro.required' => 'El número de registro es obligatorio.',
+                'numero_registro.unique'   => 'El registro sanitario ingresado ya existe en el sistema. Búsquelo en el listado.',
+                'numero_registro.max'      => 'El número de registro no puede superar 255 caracteres.',
+                'descripcion_detallada.required' => 'La descripción detallada es obligatoria.',
+                'titulo.required'          => 'El título es obligatorio.',
+                'titulo.max'               => 'El título no puede superar 255 caracteres.',
+                'marcas.required'          => 'Las marcas son obligatorias.',
+                'marcas.max'               => 'Las marcas no pueden superar 255 caracteres.',
+                'archivo_pdf.mimes'        => 'El archivo debe ser un PDF.',
+                'archivo_pdf.max'          => 'El archivo PDF no puede superar 10 MB.',
+                'estado.in'                => 'El estado debe ser: vigente, vencido o suspendido.',
             ]);
 
             // Procesar archivo PDF si existe
@@ -9171,7 +9218,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             if ($request->hasFile('archivo_pdf')) {
                 $archivo = $request->file('archivo_pdf');
                 $archivoName = 'registro_invima_' . time() . '_' . uniqid() . '.pdf';
-                $archivoPdfPath = $archivo->storeAs('invimas', $archivoName, 'public');
+                $archivo->storeAs('registros_sanitarios', $archivoName, 'public');
+                $archivoPdfPath = $archivoName; // guardar solo el nombre, no la ruta completa
                 \Log::info('Archivo PDF INVIMA procesado', ['path' => $archivoPdfPath]);
             }
 
@@ -9458,13 +9506,14 @@ Route::get('v1/test/modal-equipment-data', function () {
                 ['id' => 4, 'name' => 'Leasing'],
                 ['id' => 5, 'name' => 'Alquiler']
             ],
-            'disponibilidades' => [
-                ['id' => 1, 'name' => 'ACTIVO'],
-                ['id' => 2, 'name' => 'FUERA DE SERVICIO'],
-                ['id' => 5, 'name' => 'PENDIENTE POR DAR DE BAJA'],
-                ['id' => 6, 'name' => 'EQUIPO DADO DE BAJA'],
-                ['id' => 10, 'name' => 'PENDIENTE POR ENTREGAR']
-            ]
+            'disponibilidades' => DB::table('estadoequipos')
+                ->where('tipoestado_id', 2)
+                ->where('status', 1)
+                ->get(['id', 'name']),
+            'funcionalidades' => DB::table('estadoequipos')
+                ->where('tipoestado_id', 1)
+                ->where('status', 1)
+                ->get(['id', 'name'])
         ];
 
         return response()->json([
@@ -10052,6 +10101,7 @@ Route::withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
     Route::post('observaciones/equipo/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'actualizarObservacionEquipo']);
     Route::put('observaciones/equipo/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'actualizarObservacionEquipo']);
     Route::get('observaciones/equipo/{equipoId}', [\App\Http\Controllers\Api\ObservacionController::class, 'obtenerObservacionesEquipo']);
+    Route::delete('observaciones/{id}', [\App\Http\Controllers\Api\ObservacionController::class, 'destroy']);
 });
 
 // Test route to verify public access
