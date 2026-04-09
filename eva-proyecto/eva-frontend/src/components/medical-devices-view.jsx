@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -125,7 +125,7 @@ export function MedicalDevicesView() {
   } = useEquipment("biomedical");
 
   // Global search context
-  const { registerSearchCallback, setResultCount } = useEquipmentSearch();
+  const { registerSearchCallback, unregisterSearchCallback, setResultCount } = useEquipmentSearch();
 
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -428,12 +428,17 @@ export function MedicalDevicesView() {
     }
   };
 
-  // Register search callback for global search
+  // Keep search function in a ref so the registered callback is always up-to-date
+  const searchRef = useRef(search);
+  useEffect(() => { searchRef.current = search; }, [search]);
+
+  // Register search callback once on mount, cleanup on unmount
   useEffect(() => {
     registerSearchCallback((searchTerm) => {
-      search(searchTerm);
+      searchRef.current(searchTerm);
     });
-  }, [registerSearchCallback, search]);
+    return () => unregisterSearchCallback();
+  }, [registerSearchCallback, unregisterSearchCallback]);
 
   // Update result count when devices change
   useEffect(() => {

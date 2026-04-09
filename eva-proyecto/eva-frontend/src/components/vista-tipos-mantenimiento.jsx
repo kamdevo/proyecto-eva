@@ -2,17 +2,8 @@
 
 import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -21,13 +12,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Search, Settings, Wrench, Eye, ArrowUpDown, ArrowUp, ArrowDown, Clock, CheckCircle, XCircle } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  Plus,
+  Search,
+  Wrench,
+  Eye,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  Settings2,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
 import UIModalMantenimiento from "@/components/modals/ui-modal-mantenimiento";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 
@@ -42,8 +53,11 @@ export default function VistaTiposMantenimiento() {
 
   // Estados del Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("add"); // "add", "edit", "view"
+  const [modalMode, setModalMode] = useState("add");
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Estado para confirmar eliminación
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const [mantenimientosData, setMantenimientosData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,19 +132,23 @@ export default function VistaTiposMantenimiento() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (confirm("¿Estás seguro de eliminar este registro?")) {
-      try {
-        const loadingToast = toast.loading("Eliminando...");
-        const response = await httpService.delete(`/v1/tipos-mantenimiento/${id}`);
-        if (response.data.success) {
-          toast.success("Registro eliminado correctamente", { id: loadingToast });
-          fetchData();
-        }
-      } catch (error) {
-        console.error("Error al eliminar:", error);
-        toast.error("Error al eliminar el registro");
+  const handleDeleteRequest = (item) => {
+    setItemToDelete(item);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const loadingToast = toast.loading("Eliminando...");
+      const response = await httpService.delete(`/v1/tipos-mantenimiento/${itemToDelete.id}`);
+      if (response.data.success) {
+        toast.success("Registro eliminado correctamente", { id: loadingToast });
+        setItemToDelete(null);
+        fetchData();
       }
+    } catch (error) {
+      console.error("Error al eliminar:", error);
+      toast.error("Error al eliminar el registro");
+      setItemToDelete(null);
     }
   };
 
@@ -147,11 +165,11 @@ export default function VistaTiposMantenimiento() {
   // Función para obtener icono de ordenamiento
   const getSortIcon = (field) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-4 h-4 text-slate-400" />;
+      return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
     }
     return sortDirection === 'asc'
-      ? <ArrowUp className="w-4 h-4 text-blue-600" />
-      : <ArrowDown className="w-4 h-4 text-blue-600" />;
+      ? <ArrowUp className="w-3.5 h-3.5 text-amber-500" />
+      : <ArrowDown className="w-3.5 h-3.5 text-amber-500" />;
   };
 
   // Aplicar búsqueda funcional
@@ -177,233 +195,233 @@ export default function VistaTiposMantenimiento() {
     return 0;
   });
 
-  const totalItems = filteredData.length; // Assuming totalItems is based on filtered data
+  const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const currentItems = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading && mantenimientosData.length === 0) {
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-6 w-96" />
-        <Card className="mt-8">
-          <div className="p-6">
-            <Skeleton className="h-8 w-64" />
-          </div>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <Skeleton className="h-10 w-96" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 uppercase">
-      {/* Header Responsivo */}
-      <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo y título */}
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 bg-white/20 rounded-lg">
-                <Wrench className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg lg:text-xl font-semibold uppercase">Tipos de Mantenimiento</h1>
-                <p className="text-xs lg:text-sm text-slate-200">Administración de categorías</p>
-              </div>
-              <div className="sm:hidden">
-                <h1 className="text-lg font-semibold uppercase">Mantenimientos</h1>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
 
-            {/* Barra de búsqueda - Desktop */}
-            <div className="hidden md:block relative max-w-md flex-1 mx-8">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Buscar por nombre o código..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white/20 w-full rounded-lg"
-              />
-            </div>
+      {/* ── PAGE HEADER ── */}
+      <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-amber-600">
+            <Wrench className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mt-1">
+              Tipos de Mantenimiento
+            </h1>
+            <p className="text-slate-500 mt-2 max-w-lg text-sm">
+              Administración de categorías y subcategorías de mantenimiento del sistema EVA.
+            </p>
+          </div>
+        </div>
 
-            {/* Botón menú móvil (opcional, si se desea) */}
-            <div className="md:hidden">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/10"
-                onClick={() => {}} // Reservado para filtros móviles si es necesario
-              >
-                <Search className="w-5 h-5 text-white" />
-              </Button>
-            </div>
+        {/* Summary Stat Card */}
+        <div className="bg-white border border-gray-100 p-5 rounded-3xl shadow-sm flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
+          <div className="bg-amber-100 p-3 rounded-2xl">
+            <Settings2 className="h-8 w-8 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Tipos</p>
+            <p className="text-3xl font-bold text-slate-900">{totalItems}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Barra de Controles y Búsqueda */}
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
+          <div className="relative flex-grow w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+            <Input
+              placeholder="Buscar por nombre o código..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 h-12 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 text-sm shadow-inner"
+            />
+          </div>
+
+          {/* Items por página */}
+          <div className="flex items-center gap-2 text-sm text-slate-500 shrink-0">
+            <span className="hidden sm:inline">Mostrar</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-20 h-12 bg-slate-50 border-none rounded-2xl shadow-inner">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            onClick={handleOpenAdd}
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12 shadow-lg shadow-amber-100 transition-all font-bold w-full lg:w-auto shrink-0"
+          >
+            <Plus className="w-5 h-5 font-bold" />
+            Agregar Tipo
+          </Button>
+        </div>
+
+        {/* Tabla de Resultados */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr className="bg-white/50">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 w-32">
+                    <button onClick={() => handleSort('codigo')} className="flex items-center gap-1.5 hover:text-amber-600 transition-colors">
+                      Código {getSortIcon('codigo')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                    <button onClick={() => handleSort('nombre')} className="flex items-center gap-1.5 hover:text-amber-600 transition-colors">
+                      Tipo de Mantenimiento {getSortIcon('nombre')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 w-40">
+                    Subcategorías
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right w-40">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
+                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : currentItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Wrench className="h-16 w-16 text-slate-100" />
+                        <span className="text-slate-400 font-medium italic">No se encontraron registros</span>
+                        {searchTerm && (
+                          <span className="text-xs text-slate-300">Intenta con otro término de búsqueda</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  currentItems.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-mono font-bold rounded-lg border border-amber-100/50">
+                          {item.codigo}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold border border-amber-100/50 group-hover:scale-110 transition-transform">
+                            <Wrench className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-slate-700 uppercase tracking-wide">{item.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {item.subcategories?.length > 0 ? (
+                          <Badge className="bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 gap-1 px-2.5 py-1 rounded-lg font-bold text-xs">
+                            {item.subcategories.length} subcategorías
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-slate-300 italic">Sin subcategorías</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 transition-opacity">
+                          <button
+                            onClick={() => handleOpenView(item)}
+                            className="p-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition-colors shadow-sm"
+                            title="Ver detalles"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEdit(item)}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRequest(item)}
+                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="bg-slate-50/50 px-6 py-5 border-t border-slate-100">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => setCurrentPage(page)}
+              showInfo={true}
+            />
           </div>
         </div>
       </div>
 
-      {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto p-4 lg:p-6">
-        <Card className="shadow-lg">
-          <CardContent className="p-0">
-            {/* Controles superiores */}
-            <div className="p-4 lg:p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-                  <Button
-                    onClick={handleOpenAdd}
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2 w-full sm:w-auto justify-center"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Agregar Tipo</span>
-                  </Button>
-                </div>
-
-                <div className="flex items-center space-x-2 text-sm text-gray-500 whitespace-nowrap">
-                  <span>Mostrar</span>
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-20 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span>entradas</span>
-                </div>
+      {/* AlertDialog para confirmar eliminación */}
+      <AlertDialog
+        open={!!itemToDelete}
+        onOpenChange={() => setItemToDelete(null)}
+      >
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 bg-red-50 rounded-2xl text-red-600">
+                <Trash2 className="w-6 h-6" />
               </div>
+              <AlertDialogTitle className="text-xl font-bold text-slate-900">¿Confirmar Eliminación?</AlertDialogTitle>
             </div>
-
-            {/* Tabla */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="w-[120px] font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('codigo')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
-                      >
-                        Código
-                        {getSortIcon('codigo')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="min-w-[250px] font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('nombre')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
-                      >
-                        Tipo de Mantenimiento
-                        {getSortIcon('nombre')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900">Subcategorías</TableHead>
-                    <TableHead className="text-center font-semibold text-gray-900 w-32">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center py-10 px-4">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          <p className="text-gray-500 text-sm">Cargando datos...</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : currentItems.length > 0 ? (
-                    currentItems.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100">
-                        <TableCell className="font-medium text-blue-600 text-sm px-4">{item.codigo}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-gray-900 text-sm">{item.nombre}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {item.subcategories?.length > 0 ? (
-                            <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-blue-100 gap-1 px-2 py-0.5 rounded-md font-medium">
-                              {item.subcategories.length}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1.5 px-4">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-8 h-8 p-0 text-blue-600 hover:bg-blue-50 bg-blue-500/30"
-                              title="Visualizar"
-                              onClick={() => handleOpenView(item)}
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenEdit(item)}
-                              className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-md"
-                              title="Editar"
-                            >
-                              <Edit className="w-3.5 h-3.5 text-white" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleDelete(item.id)}
-                              className="w-8 h-8 p-0 bg-red-400 hover:bg-red-600 rounded-md"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-white" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center text-gray-400 italic">
-                        No se encontraron registros activos.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Paginación */}
-            <div className="p-4 border-t border-gray-50 bg-gray-50/30">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-                showInfo={true}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <AlertDialogDescription className="text-slate-500 leading-relaxed">
+              Estás a punto de eliminar permanentemente el tipo de mantenimiento <span className="font-bold text-slate-800">{itemToDelete?.nombre}</span>.
+              Esta acción es irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3 mt-4">
+            <AlertDialogCancel onClick={() => setItemToDelete(null)} className="h-12 rounded-xl text-slate-500 border-slate-200">
+              Conservar Registro
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              Sí, Eliminar Definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal CRUD */}
       <UIModalMantenimiento

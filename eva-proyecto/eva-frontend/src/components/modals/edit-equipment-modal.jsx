@@ -4173,6 +4173,16 @@ export function EditEquipmentModal({
                     </Button>
                   </CardTitle>
                   <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => setShowAddPreventivoModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar
+                    </Button>
                   </div>
                 </div>
               </CardHeader>

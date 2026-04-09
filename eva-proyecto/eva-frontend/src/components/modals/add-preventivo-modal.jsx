@@ -23,6 +23,7 @@ const AddPreventivoModal = ({
   equipmentName,
   onPreventivoAdded,
   preventivo = null, // Para edición
+  isIndustrial = false, // Para equipos industriales (mantenimiento_ind)
 }) => {
   const formatDate = (dateString) => {
     if (!dateString) return "";
@@ -172,7 +173,7 @@ const AddPreventivoModal = ({
       newErrors.description = "El código preventivo es obligatorio";
     }
 
-    if (!formData.proveedor_mantenimiento_id) {
+    if (!isIndustrial && !formData.proveedor_mantenimiento_id) {
       newErrors.proveedor_mantenimiento_id = "El proveedor es obligatorio";
     }
 
@@ -205,16 +206,20 @@ const AddPreventivoModal = ({
       const formDataToSend = new FormData();
       formDataToSend.append("equipo_id", equipmentId);
       formDataToSend.append("description", formData.description);
-      formDataToSend.append("proveedor_mantenimiento_id", formData.proveedor_mantenimiento_id);
-      formDataToSend.append("observacion", formData.observacion || "");
       formDataToSend.append("fecha_mantenimiento", formData.fecha_mantenimiento);
       formDataToSend.append("fecha_programada", formData.fecha_programada);
-      
-      if (formData.repuesto_id) {
-        formDataToSend.append("repuesto_id", formData.repuesto_id);
-        formDataToSend.append("repuesto_pendiente", "si");
-      } else {
-        formDataToSend.append("repuesto_pendiente", "no");
+
+      // Solo biomédico envía estos campos
+      if (!isIndustrial) {
+        formDataToSend.append("proveedor_mantenimiento_id", formData.proveedor_mantenimiento_id);
+        formDataToSend.append("observacion", formData.observacion || "");
+        
+        if (formData.repuesto_id) {
+          formDataToSend.append("repuesto_id", formData.repuesto_id);
+          formDataToSend.append("repuesto_pendiente", "si");
+        } else {
+          formDataToSend.append("repuesto_pendiente", "no");
+        }
       }
       
       if (formData.file) {
@@ -282,7 +287,8 @@ const AddPreventivoModal = ({
             )}
           </div>
 
-          {/* Proveedor */}
+          {/* Proveedor - Solo biomédico */}
+          {!isIndustrial && (
           <div className="space-y-2">
             <Label htmlFor="proveedor_mantenimiento_id" className="required">
               Proveedor Mantenimiento
@@ -300,8 +306,10 @@ const AddPreventivoModal = ({
               <p className="text-sm text-red-500">{errors.proveedor_mantenimiento_id}</p>
             )}
           </div>
+          )}
 
-          {/* Observaciones */}
+          {/* Observaciones - Solo biomédico */}
+          {!isIndustrial && (
           <div className="space-y-2">
             <Label htmlFor="observacion">Observaciones</Label>
             <Textarea
@@ -318,6 +326,7 @@ const AddPreventivoModal = ({
               <p className="text-sm text-red-500">{errors.observacion}</p>
             )}
           </div>
+          )}
 
           {/* Fecha de Ejecución */}
           <div className="space-y-2">
@@ -424,7 +433,8 @@ const AddPreventivoModal = ({
             </div>
           </div>
 
-          {/* Repuesto Pendiente */}
+          {/* Repuesto Pendiente - Solo biomédico */}
+          {!isIndustrial && (
           <div className="space-y-2">
             <Label htmlFor="repuesto_id">Repuesto Pendiente (ID)</Label>
             <Input
@@ -440,6 +450,7 @@ const AddPreventivoModal = ({
               Opcional: Si hay un repuesto pendiente por instalar, ingrese su ID
             </p>
           </div>
+          )}
 
           <DialogFooter className="gap-2">
             <Button

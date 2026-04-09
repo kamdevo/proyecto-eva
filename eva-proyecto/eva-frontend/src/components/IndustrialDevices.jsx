@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEquipment } from "../hooks/useEquipment";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -95,7 +95,7 @@ function IndustrialDevices() {
   } = useEquipment("industrial");
 
   // Global search context
-  const { registerSearchCallback, setResultCount } = useEquipmentSearch();
+  const { registerSearchCallback, unregisterSearchCallback, setResultCount } = useEquipmentSearch();
 
   // Estados para modales
   const [filterModalOpen, setFilterModalOpen] = useState(false);
@@ -170,12 +170,17 @@ function IndustrialDevices() {
     }
   };
 
-  // Register search callback for global search
+  // Keep search function in a ref so the registered callback is always up-to-date
+  const searchRef = useRef(search);
+  useEffect(() => { searchRef.current = search; }, [search]);
+
+  // Register search callback once on mount, cleanup on unmount
   useEffect(() => {
     registerSearchCallback((searchTerm) => {
-      search(searchTerm);
+      searchRef.current(searchTerm);
     });
-  }, [registerSearchCallback, search]);
+    return () => unregisterSearchCallback();
+  }, [registerSearchCallback, unregisterSearchCallback]);
 
   // Update result count when devices change
   useEffect(() => {
@@ -538,16 +543,50 @@ function IndustrialDevices() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-8">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-                      <span className="ml-2 text-slate-600">
-                        Cargando equipos industriales...
-                      </span>
-                    </div>
-                  </td>
-                </tr>
+                // Skeleton rows while loading
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2 sm:space-y-3">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="w-full h-24 xs:h-28 sm:h-32 md:h-36 lg:h-40 xl:h-44 rounded-lg" />
+                      </div>
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2">
+                        <Skeleton className="h-6 w-20" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200">
+                      <div className="space-y-2">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    </td>
+                    <td className="p-1 xs:p-2 sm:p-3 md:p-4">
+                      <div className="flex flex-col gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Skeleton
+                            key={i}
+                            className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 md:w-9 md:h-9"
+                          />
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : hasError ? (
                 <tr>
                   <td colSpan="6" className="text-center py-8">

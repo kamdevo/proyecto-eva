@@ -2,17 +2,8 @@
 
 import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -21,12 +12,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Edit, Trash2, Plus, Search, Package, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  Plus,
+  Search,
+  Package,
+  Eye,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  Boxes,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
 import UIModalMateriales from "@/components/modals/ui-modal-materiales";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 
@@ -41,8 +53,11 @@ export default function VistaMateriales() {
 
   // Estados del Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("add"); // "add", "edit", "view"
+  const [modalMode, setModalMode] = useState("add");
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Estado para confirmar eliminación
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const [materialesData, setMaterialesData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,19 +133,23 @@ export default function VistaMateriales() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (confirm("¿Estás seguro de eliminar este material?")) {
-      try {
-        const loadingToast = toast.loading("Eliminando...");
-        const response = await httpService.delete(`/v1/materiales/${id}`);
-        if (response.data.success) {
-          toast.success("Material eliminado correctamente", { id: loadingToast });
-          fetchData();
-        }
-      } catch (error) {
-        console.error("Error al eliminar:", error);
-        toast.error("Error al eliminar el material");
+  const handleDeleteRequest = (item) => {
+    setItemToDelete(item);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const loadingToast = toast.loading("Eliminando material...");
+      const response = await httpService.delete(`/v1/materiales/${itemToDelete.id}`);
+      if (response.data.success) {
+        toast.success("Material eliminado correctamente", { id: loadingToast });
+        setItemToDelete(null);
+        fetchData();
       }
+    } catch (error) {
+      console.error("Error al eliminar:", error);
+      toast.error("Error al eliminar el material");
+      setItemToDelete(null);
     }
   };
 
@@ -147,11 +166,11 @@ export default function VistaMateriales() {
   // Función para obtener icono de ordenamiento
   const getSortIcon = (field) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-4 h-4 text-slate-400" />;
+      return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
     }
     return sortDirection === 'asc'
-      ? <ArrowUp className="w-4 h-4 text-blue-600" />
-      : <ArrowDown className="w-4 h-4 text-blue-600" />;
+      ? <ArrowUp className="w-3.5 h-3.5 text-violet-500" />
+      : <ArrowDown className="w-3.5 h-3.5 text-violet-500" />;
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -165,249 +184,249 @@ export default function VistaMateriales() {
     }).format(value);
   };
 
-  if (loading && materialesData.length === 0) {
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-6 w-96" />
-        <Card className="mt-8">
-          {/* CardHeader is not imported, so I'll just use a div for the skeleton */}
-          <div className="p-6">
-            <Skeleton className="h-8 w-64" />
-          </div>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <Skeleton className="h-10 w-96" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 uppercase">
-      {/* Header Responsivo */}
-      <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo y título */}
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 bg-white/20 rounded-lg">
-                <Package className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg lg:text-xl font-semibold uppercase">Gestión de Materiales</h1>
-                <p className="text-xs lg:text-sm text-slate-200">Administración de inventario</p>
-              </div>
-              <div className="sm:hidden">
-                <h1 className="text-lg font-semibold uppercase">Materiales</h1>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
 
-            {/* Barra de búsqueda - Desktop */}
-            <div className="hidden md:block relative max-w-md flex-1 mx-8">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Buscar material..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white/20 w-full rounded-lg"
-              />
-            </div>
+      {/* ── PAGE HEADER ── */}
+      <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-violet-600">
+            <Package className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mt-1">
+              Gestión de Materiales
+            </h1>
+            <p className="text-slate-500 mt-2 max-w-lg text-sm">
+              Administración de inventario y materiales del sistema EVA.
+            </p>
+          </div>
+        </div>
 
-            <div className="md:hidden">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/10"
-                onClick={() => {}} 
-              >
-                <Search className="w-5 h-5 text-white" />
-              </Button>
-            </div>
+        {/* Summary Stat Card */}
+        <div className="bg-white border border-gray-100 p-5 rounded-3xl shadow-sm flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
+          <div className="bg-violet-100 p-3 rounded-2xl">
+            <Boxes className="h-8 w-8 text-violet-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Materiales</p>
+            <p className="text-3xl font-bold text-slate-900">{totalItems}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Barra de Controles y Búsqueda */}
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
+          <div className="relative flex-grow w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+            <Input
+              placeholder="Buscar material por nombre o código..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 h-12 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 text-sm shadow-inner"
+            />
+          </div>
+
+          {/* Items por página */}
+          <div className="flex items-center gap-2 text-sm text-slate-500 shrink-0">
+            <span className="hidden sm:inline">Mostrar</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-20 h-12 bg-slate-50 border-none rounded-2xl shadow-inner">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            onClick={handleOpenAdd}
+            className="bg-violet-600 hover:bg-violet-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12 shadow-lg shadow-violet-100 transition-all font-bold w-full lg:w-auto shrink-0"
+          >
+            <Plus className="w-5 h-5 font-bold" />
+            Agregar Material
+          </Button>
+        </div>
+
+        {/* Tabla de Resultados */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr className="bg-white/50">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 w-36">
+                    <button onClick={() => handleSort('codigo')} className="flex items-center gap-1.5 hover:text-violet-600 transition-colors">
+                      Código {getSortIcon('codigo')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                    <button onClick={() => handleSort('nombre')} className="flex items-center gap-1.5 hover:text-violet-600 transition-colors">
+                      Nombre {getSortIcon('nombre')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 hidden lg:table-cell">
+                    Descripción
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right w-36">
+                    <button onClick={() => handleSort('precio_unitario')} className="flex items-center gap-1.5 hover:text-violet-600 transition-colors ml-auto">
+                      Precio Unit. {getSortIcon('precio_unitario')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center w-24">
+                    <button onClick={() => handleSort('cantidad')} className="flex items-center gap-1.5 hover:text-violet-600 transition-colors mx-auto">
+                      Stock {getSortIcon('cantidad')}
+                    </button>
+                  </th>
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right w-40">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
+                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : materialesData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Package className="h-16 w-16 text-slate-100" />
+                        <span className="text-slate-400 font-medium italic">No se encontraron materiales</span>
+                        {searchTerm && (
+                          <span className="text-xs text-slate-300">Intenta con otro término de búsqueda</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  materialesData.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 bg-violet-50 text-violet-700 text-xs font-mono font-bold rounded-lg border border-violet-100/50">
+                          {item.codigo}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-600 font-bold border border-violet-100/50 group-hover:scale-110 transition-transform">
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-slate-700 uppercase tracking-wide">{item.nombre}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden lg:table-cell">
+                        <span className="text-xs text-slate-400 line-clamp-1" title={item.descripcion}>
+                          {item.descripcion || <span className="italic">Sin descripción</span>}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="font-mono text-sm font-semibold text-slate-700">
+                          {formatCurrency(item.precio_unitario || 0)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge className={`px-2.5 py-1 rounded-lg font-bold text-xs ${
+                          item.cantidad > 5
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100"
+                            : "bg-rose-50 text-rose-700 border border-rose-100 hover:bg-rose-100"
+                        }`}>
+                          {item.cantidad}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 transition-opacity">
+                          <button
+                            onClick={() => handleOpenView(item)}
+                            className="p-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition-colors shadow-sm"
+                            title="Ver detalles"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEdit(item)}
+                            className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRequest(item)}
+                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="bg-slate-50/50 px-6 py-5 border-t border-slate-100">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => setCurrentPage(page)}
+              showInfo={true}
+            />
           </div>
         </div>
       </div>
 
-      {/* Contenido principal */}
-      <div className="max-w-7xl mx-auto p-4 lg:p-6">
-        <Card className="shadow-lg">
-          <CardContent className="p-0">
-            {/* Controles superiores */}
-            <div className="p-4 lg:p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-                  <Button
-                    onClick={handleOpenAdd}
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2 w-full sm:w-auto justify-center"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Agregar Material</span>
-                  </Button>
-                </div>
-
-                <div className="flex items-center space-x-2 text-sm text-gray-500 whitespace-nowrap">
-                  <span>Mostrar</span>
-                  <Select
-                    value={itemsPerPage.toString()}
-                    onValueChange={(value) => {
-                      setItemsPerPage(Number(value));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="w-20 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span>entradas</span>
-                </div>
+      {/* AlertDialog para confirmar eliminación */}
+      <AlertDialog
+        open={!!itemToDelete}
+        onOpenChange={() => setItemToDelete(null)}
+      >
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 bg-red-50 rounded-2xl text-red-600">
+                <Trash2 className="w-6 h-6" />
               </div>
+              <AlertDialogTitle className="text-xl font-bold text-slate-900">¿Confirmar Eliminación?</AlertDialogTitle>
             </div>
-
-            {/* Tabla */}
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className="w-[150px] font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('codigo')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
-                      >
-                        Código
-                        {getSortIcon('codigo')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="min-w-[200px] font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('nombre')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2"
-                      >
-                        Nombre
-                        {getSortIcon('nombre')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-900">Descripción</TableHead>
-                    <TableHead className="w-[120px] font-semibold text-gray-900 text-right">
-                      <button
-                        onClick={() => handleSort('precio_unitario')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2 ml-auto"
-                      >
-                        Precio Unit.
-                        {getSortIcon('precio_unitario')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="w-[100px] font-semibold text-gray-900 text-center">
-                      <button
-                        onClick={() => handleSort('cantidad')}
-                        className="flex items-center gap-2 hover:text-blue-600 transition-colors py-2 mx-auto"
-                      >
-                        Stock
-                        {getSortIcon('cantidad')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center font-semibold text-gray-900 w-32">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center py-10 px-4">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          <p className="text-gray-500 text-sm">Cargando materiales...</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : materialesData.length > 0 ? (
-                    materialesData.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-gray-50/50 transition-colors border-b border-gray-100">
-                        <TableCell className="font-medium text-blue-600 text-sm px-4">{item.codigo}</TableCell>
-                        <TableCell>
-                          <span className="font-semibold text-gray-900 text-sm">{item.nombre}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs text-gray-500 line-clamp-1" title={item.descripcion}>
-                            {item.descripcion || "Sin descripción"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {formatCurrency(item.precio_unitario || 0)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={item.cantidad > 5 ? "secondary" : "destructive"} className="px-2 py-0.5 rounded-md font-medium">
-                            {item.cantidad}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-1.5 px-4">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="w-8 h-8 p-0 text-blue-600 hover:bg-blue-50 bg-blue-500/30"
-                              title="Ver Detalles"
-                              onClick={() => handleOpenView(item)}
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenEdit(item)}
-                              className="w-8 h-8 p-0 bg-blue-500 hover:bg-blue-600 rounded-md"
-                              title="Editar"
-                            >
-                              <Edit className="w-3.5 h-3.5 text-white" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleDelete(item.id)}
-                              className="w-8 h-8 p-0 bg-red-400 hover:bg-red-600 rounded-md"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-white" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center text-gray-400 italic">
-                        No se encontraron materiales.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Paginación */}
-            <div className="p-4 border-t border-gray-50 bg-gray-50/30">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-                showInfo={true}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <AlertDialogDescription className="text-slate-500 leading-relaxed">
+              Estás a punto de eliminar permanentemente el material <span className="font-bold text-slate-800">{itemToDelete?.nombre}</span>.
+              Esta acción es irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3 mt-4">
+            <AlertDialogCancel onClick={() => setItemToDelete(null)} className="h-12 rounded-xl text-slate-500 border-slate-200">
+              Conservar Registro
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              Sí, Eliminar Definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Modal CRUD */}
       <UIModalMateriales

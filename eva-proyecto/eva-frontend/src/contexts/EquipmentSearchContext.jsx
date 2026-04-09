@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useRef } from "react";
 
 const EquipmentSearchContext = createContext();
 
@@ -15,30 +15,33 @@ export const useEquipmentSearch = () => {
 export const EquipmentSearchProvider = ({ children }) => {
   const [searchValue, setSearchValue] = useState("");
   const [resultCount, setResultCount] = useState(0);
-  const [searchCallback, setSearchCallback] = useState(null);
+  // Use ref for callback to avoid re-renders and infinite loops
+  const searchCallbackRef = useRef(null);
 
-  // Register search callback from equipment components
+  // Register search callback from equipment components (stable reference)
   const registerSearchCallback = useCallback((callback) => {
-    setSearchCallback(() => callback);
+    searchCallbackRef.current = callback;
   }, []);
 
-  // Trigger search
-  const triggerSearch = useCallback(
-    (searchTerm) => {
-      if (searchCallback) {
-        searchCallback(searchTerm);
-      }
-    },
-    [searchCallback]
-  );
+  // Unregister when component unmounts
+  const unregisterSearchCallback = useCallback(() => {
+    searchCallbackRef.current = null;
+  }, []);
+
+  // Trigger search (stable — reads from ref, no dependency on callback state)
+  const triggerSearch = useCallback((searchTerm) => {
+    if (searchCallbackRef.current) {
+      searchCallbackRef.current(searchTerm);
+    }
+  }, []);
 
   // Clear search
   const clearSearch = useCallback(() => {
     setSearchValue("");
-    if (searchCallback) {
-      searchCallback("");
+    if (searchCallbackRef.current) {
+      searchCallbackRef.current("");
     }
-  }, [searchCallback]);
+  }, []);
 
   const value = {
     searchValue,
@@ -46,6 +49,7 @@ export const EquipmentSearchProvider = ({ children }) => {
     resultCount,
     setResultCount,
     registerSearchCallback,
+    unregisterSearchCallback,
     triggerSearch,
     clearSearch,
   };

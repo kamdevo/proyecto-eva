@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,15 +14,21 @@ const GlobalEquipmentSearch = () => {
     triggerSearch,
     clearSearch,
   } = useEquipmentSearch();
-  const [localSearch, setLocalSearch] = useState(searchValue || "");
+  const [localSearch, setLocalSearch] = useState("");
+  const debounceTimerRef = useRef(null);
+  const isExternalUpdate = useRef(false);
 
-  // Sync with context search value
+  // Sync local input only when context value changes externally (e.g. clearSearch from another component)
   useEffect(() => {
+    if (isExternalUpdate.current) {
+      isExternalUpdate.current = false;
+      return;
+    }
     setLocalSearch(searchValue || "");
   }, [searchValue]);
 
   // Check if current page is equipment related (only biomedical and industrial)
-  const isEquipmentPage = () => {
+  const isEquipmentPage = useCallback(() => {
     const equipmentPaths = [
       "/equipos-biomedicos",
       "/equipos-industriales",
@@ -31,7 +37,6 @@ const GlobalEquipmentSearch = () => {
       "/equipos/industriales",
     ];
 
-    // Check for exact matches or if the path starts with these specific equipment paths
     return equipmentPaths.some((path) => {
       return (
         location.pathname === path ||
@@ -42,23 +47,42 @@ const GlobalEquipmentSearch = () => {
             location.pathname.length === path.length))
       );
     });
-  };
+  }, [location.pathname]);
 
-  // Handle search input with debouncing
+  // Handle search input with debouncing (400ms)
   const handleSearchChange = (value) => {
     setLocalSearch(value);
-    setSearchValue(value);
 
-    // Trigger search immediately for now (can add debouncing later if needed)
-    triggerSearch(value);
+    // Clear any pending debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce the actual search trigger
+    debounceTimerRef.current = setTimeout(() => {
+      isExternalUpdate.current = true;
+      setSearchValue(value);
+      triggerSearch(value);
+    }, 400);
   };
 
-  // Clear search
+  // Clear search immediately (no debounce needed)
   const handleClearSearch = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     setLocalSearch("");
-    setSearchValue("");
     clearSearch();
   };
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Only render if on equipment page
   if (!isEquipmentPage()) {
