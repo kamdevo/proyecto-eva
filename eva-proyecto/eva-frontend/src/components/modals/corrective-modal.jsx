@@ -1087,7 +1087,7 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
             <Separator />
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden flex flex-col space-y-6 p-8">
+          <div className="flex-1 overflow-hidden flex flex-col space-y-3 px-4 py-3">
             {/* Search and Filters */}
             <Card className="flex-shrink-0">
               <CardContent className="pt-4">
@@ -1319,8 +1319,8 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
                               {item.cierre_code || "---"}
                             </td>
                             <td className="border border-gray-200 px-3 py-3 text-xs text-gray-700">
-                              <div className="line-clamp-1" title={item.cierre_name}>
-                                {item.cierre_name || "---"}
+                              <div className="line-clamp-1" title={item.descripcion_cierre || item.cierre_name}>
+                                {item.descripcion_cierre || item.cierre_name || "---"}
                               </div>
                             </td>
                             <td className="border border-gray-200 px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
@@ -1359,7 +1359,7 @@ export function CorrectiveModal({ open, onOpenChange, equipmentType = "biomedico
             />
           </div>
 
-          <div className="flex justify-end p-8 border-t gap-4 flex-shrink-0">
+          <div className="flex justify-end px-4 py-2 border-t gap-4 flex-shrink-0">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cerrar
             </Button>

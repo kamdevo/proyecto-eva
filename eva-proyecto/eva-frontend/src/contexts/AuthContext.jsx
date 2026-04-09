@@ -117,7 +117,32 @@ export const AuthProvider = ({ children }) => {
 
   // Inicializar autenticación al cargar la aplicación
   useEffect(() => {
-    initializeAuth();
+    // Timeout de seguridad: si la inicialización tarda más de 10s, forzar fin de loading
+    const safetyTimeout = setTimeout(() => {
+      if (state.isLoading) {
+        console.warn("⚠️ [AuthContext] Timeout de inicialización alcanzado, forzando fin de loading");
+        // Intentar usar datos locales como fallback
+        const storedUser = localStorage.getItem("eva_user");
+        if (storedUser) {
+          try {
+            const localUser = JSON.parse(storedUser);
+            dispatch({
+              type: AUTH_ACTIONS.SET_USER,
+              payload: { user: localUser },
+            });
+            return;
+          } catch (e) { /* ignore parse error */ }
+        }
+        dispatch({
+          type: AUTH_ACTIONS.SET_LOADING,
+          payload: { isLoading: false },
+        });
+      }
+    }, 10000);
+
+    initializeAuth().finally(() => clearTimeout(safetyTimeout));
+
+    return () => clearTimeout(safetyTimeout);
   }, []);
 
   // Escuchar eventos de autenticación
@@ -174,9 +199,11 @@ export const AuthProvider = ({ children }) => {
               });
             } catch (parseError) {
               console.warn(
-                "⚠️ [AuthContext] Error al parsear usuario local:",
+                "⚠️ [AuthContext] Error al parsear usuario local, limpiando datos corruptos:",
                 parseError
               );
+              localStorage.removeItem("eva_user");
+              localStorage.removeItem("eva_auth_token");
               dispatch({
                 type: AUTH_ACTIONS.SET_LOADING,
                 payload: { isLoading: false },
@@ -197,9 +224,11 @@ export const AuthProvider = ({ children }) => {
             });
           } catch (parseError) {
             console.warn(
-              "⚠️ [AuthContext] Error al parsear usuario de respaldo:",
+              "⚠️ [AuthContext] Error al parsear usuario de respaldo, limpiando datos corruptos:",
               parseError
             );
+            localStorage.removeItem("eva_user");
+            localStorage.removeItem("eva_auth_token");
             dispatch({
               type: AUTH_ACTIONS.SET_LOADING,
               payload: { isLoading: false },

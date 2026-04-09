@@ -355,7 +355,12 @@ export default function GestionTickets() {
             <div><span className="font-medium">Modelo:</span> {ticket.modelo_final}</div>
             <div><span className="font-medium">Serie:</span> {ticket.serie_final}</div>
             {ticket.equipo_id && (
-              <div><span className="font-medium text-blue-600">🔗 ID Equipo:</span> {ticket.equipo_id}</div>
+              <div className="flex items-center gap-1">
+                <span className="font-medium text-blue-600">🔗 ID Equipo:</span> {ticket.equipo_id}
+                {ticket.repuesto_pendiente && (
+                  <Wrench className="h-3 w-3 text-red-600" />
+                )}
+              </div>
             )}
             {ticket.repuesto_pendiente && (
               <div><span className="font-medium text-orange-600">⚠️ RP</span> Repuesto pendiente</div>
@@ -646,9 +651,14 @@ export default function GestionTickets() {
                           <div className="truncate"><span className="font-medium">Última Localización:</span> {ticket.localizacion_actual || 'N/A'}</div>
                           <div className="truncate"><span className="font-medium">Responsable Mant.:</span> {ticket.responsable_mantenimiento || 'N/A'}</div>
                           <div className="truncate"><span className="font-medium">Estado Equipo:</span> {ticket.estado_equipo_nombre || 'N/A'}</div>
-                          <div className="flex flex-wrap gap-1 text-xs">
+                          <div className="flex flex-wrap gap-1 text-xs items-center">
                             {ticket.equipo_id && (
                               <span className="text-blue-600 font-medium bg-blue-100 px-1 rounded">🔗ID:{ticket.equipo_id}</span>
+                            )}
+                            {ticket.repuesto_pendiente && (
+                              <span className="text-red-600 bg-red-50 px-1 rounded flex items-center gap-0.5" title="Repuesto pendiente">
+                                <Wrench className="h-3 w-3" />
+                              </span>
                             )}
                           </div>
                         </div>

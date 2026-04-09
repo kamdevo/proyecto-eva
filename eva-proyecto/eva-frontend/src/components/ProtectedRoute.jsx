@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -6,6 +6,22 @@ import { Loader2 } from "lucide-react";
 const ProtectedRoute = ({ children, requireAuth = true }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const [timedOut, setTimedOut] = useState(false);
+
+  // Timeout de seguridad para el estado de loading
+  useEffect(() => {
+    if (!isLoading) {
+      setTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setTimedOut(true), 12000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  // Si el loading se atascó, redirigir al login
+  if (isLoading && timedOut) {
+    return <Navigate to="/" replace />;
+  }
 
   // Mostrar loading mientras se verifica la autenticación
   if (isLoading) {

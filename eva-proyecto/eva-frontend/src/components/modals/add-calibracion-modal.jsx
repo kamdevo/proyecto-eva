@@ -114,6 +114,9 @@ const AddCalibracionModal = ({
         "image/jpg",
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/csv",
       ];
 
       if (!allowedTypes.includes(file.type)) {
@@ -346,12 +349,12 @@ const AddCalibracionModal = ({
                             handleFileChange(e.target.files[0]);
                           }
                         }}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.csv"
                       />
                     </label>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    PDF, Word, JPG, PNG (máx. 10MB)
+                    PDF, Word, Excel, JPG, PNG (máx. 10MB)
                   </p>
                 </>
               )}

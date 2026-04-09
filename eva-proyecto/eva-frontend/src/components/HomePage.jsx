@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import videoHome from "@/assets/video-home.mp4";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -226,8 +227,9 @@ export default function EvaDashboard() {
                   autoPlay
                   loop
                   muted
+                  playsInline
                   controls
-                  src="http://eva.huv.gov.co/assets/upload_guias/CUIDADO Y LIMPIEZA.mp4"
+                  src={videoHome}
                   alt="Medical professionals working"
                   className="rounded-lg shadow-lg w-full h-auto object-cover"
                 />

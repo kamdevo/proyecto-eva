@@ -48,6 +48,30 @@ class CalibracionController extends ApiController
     public function index(Request $request)
     {
         try {
+            // Si se filtra por equipo_id, verificar si es industrial para consultar la tabla correcta
+            if ($request->has('equipo_id')) {
+                $equipoId = $request->equipo_id;
+                $tipoEquipo = DB::table('equipos')->where('id', $equipoId)->value('tipo_id');
+
+                if ($tipoEquipo == 2) {
+                    // Equipo industrial: consultar calibracion_ind
+                    $query = DB::table('calibracion_ind')
+                        ->where('equipo_id', $equipoId)
+                        ->orderBy('fecha_calibracion', 'desc');
+
+                    if ($request->has('search')) {
+                        $search = $request->search;
+                        $query->where('description', 'like', "%{$search}%");
+                    }
+
+                    $perPage = $request->get('per_page', 15);
+                    $calibraciones = $query->paginate($perPage);
+
+                    return ResponseFormatter::success($calibraciones, 'Lista de calibraciones industriales obtenida');
+                }
+            }
+
+            // Equipos biomédicos o consulta general: usar tabla calibracion (Eloquent)
             $query = Calibracion::with([
                 'equipo:id,name,code,marca,modelo,serial,servicio_id,area_id',
                 'equipo.servicio.sede:id,name',
@@ -157,7 +181,7 @@ class CalibracionController extends ApiController
             'description' => 'required|string|max:500',
             'fecha_calibracion' => 'required|date',
             'fecha_programada' => 'required|date',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,xls,xlsx,csv|max:10240'
         ]);
 
         if ($validator->fails()) {
@@ -177,16 +201,21 @@ class CalibracionController extends ApiController
             }
 
             // Insertar directamente en la tabla calibracion
-            $calibracionId = DB::table('calibracion')->insertGetId([
+            $calibracionData = [
                 'equipo_id' => $request->equipo_id,
                 'description' => $request->description,
                 'fecha_calibracion' => $request->fecha_calibracion,
                 'fecha_programada' => $request->fecha_programada,
                 'file' => $filePath,
                 'created_at' => now(),
-            ]);
+            ];
 
-            $calibracion = DB::table('calibracion')->where('id', $calibracionId)->first();
+            // Determinar tabla según tipo de equipo
+            $tipoEquipo = DB::table('equipos')->where('id', $request->equipo_id)->value('tipo_id');
+            $tabla = ($tipoEquipo == 2) ? 'calibracion_ind' : 'calibracion';
+
+            $calibracionId = DB::table($tabla)->insertGetId($calibracionData);
+            $calibracion = DB::table($tabla)->where('id', $calibracionId)->first();
 
             DB::commit();
 
@@ -302,7 +331,7 @@ class CalibracionController extends ApiController
             'description' => 'sometimes|string|max:500',
             'fecha_calibracion' => 'sometimes|date',
             'fecha_programada' => 'sometimes|date',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,xls,xlsx,csv|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -312,9 +341,23 @@ class CalibracionController extends ApiController
         try {
             DB::beginTransaction();
 
+            // Determinar tabla según tipo de equipo
+            $equipoId = $request->input('equipo_id');
+            $tipoEquipo = null;
+
+            // Buscar primero en calibracion, luego en calibracion_ind
             $calibracion = DB::table('calibracion')->where('id', $id)->first();
-            if (!$calibracion) {
-                return ResponseFormatter::error('Calibración no encontrada', 404);
+            if ($calibracion) {
+                $tabla = 'calibracion';
+                $equipoId = $calibracion->equipo_id;
+            } else {
+                $calibracion = DB::table('calibracion_ind')->where('id', $id)->first();
+                if ($calibracion) {
+                    $tabla = 'calibracion_ind';
+                    $equipoId = $calibracion->equipo_id;
+                } else {
+                    return ResponseFormatter::error('Calibración no encontrada', 404);
+                }
             }
 
             $updateData = [];
@@ -334,8 +377,8 @@ class CalibracionController extends ApiController
                 $updateData['file'] = $fileName;
             }
 
-            DB::table('calibracion')->where('id', $id)->update($updateData);
-            $updated = DB::table('calibracion')->where('id', $id)->first();
+            DB::table($tabla)->where('id', $id)->update($updateData);
+            $updated = DB::table($tabla)->where('id', $id)->first();
 
             DB::commit();
 
@@ -387,22 +430,23 @@ class CalibracionController extends ApiController
     public function destroy($id)
     {
         try {
-            $calibracion = Calibracion::findOrFail($id);
-
-            // Solo permitir eliminar si no está completada
-            if ($calibracion->estado === 'completada') {
-                return ResponseFormatter::error(
-                    'No se puede eliminar una calibración completada',
-                    400
-                );
+            // Buscar en calibracion o calibracion_ind
+            $calibracion = DB::table('calibracion')->where('id', $id)->first();
+            $tabla = 'calibracion';
+            if (!$calibracion) {
+                $calibracion = DB::table('calibracion_ind')->where('id', $id)->first();
+                $tabla = 'calibracion_ind';
+            }
+            if (!$calibracion) {
+                return ResponseFormatter::error('Calibración no encontrada', 404);
             }
 
-            // Eliminar certificado si existe
-            if ($calibracion->certificado && Storage::disk('public')->exists($calibracion->certificado)) {
-                Storage::disk('public')->delete($calibracion->certificado);
+            // Eliminar archivo si existe
+            if ($calibracion->file && Storage::disk('public')->exists('calibraciones/' . basename($calibracion->file))) {
+                Storage::disk('public')->delete('calibraciones/' . basename($calibracion->file));
             }
 
-            $calibracion->delete();
+            DB::table($tabla)->where('id', $id)->delete();
 
             return ResponseFormatter::success(null, 'Calibración eliminada exitosamente');
 

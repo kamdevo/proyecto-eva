@@ -595,7 +595,7 @@ function IndustrialDevices() {
                         </div>
 
                         {/* Título del equipo */}
-                        <div className="font-semibold text-slate-900 text-[10px] xs:text-xs leading-tight mb-1 break-words">
+                        <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-tight mb-1 break-words">
                           {getIndustrialDisplayName(equipment)}
                         </div>
 

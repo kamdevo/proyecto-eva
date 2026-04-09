@@ -8,6 +8,7 @@ import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
 import { TicketsProvider } from "./contexts/TicketsContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { useLocation } from "react-router-dom";
 
 // Componentes críticos (no lazy)
@@ -79,6 +80,7 @@ function AppContent() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       {/* Rutas standalone sin sidebar/navbar */}
+      <ErrorBoundary>
       {isStandalonePage ? (
         <Routes>
           <Route
@@ -125,7 +127,9 @@ function AppContent() {
       ) : (
         /* Rutas con sidebar/navbar (layout principal) */
         <SidebarProvider>
-          <Navbar />
+          <ErrorBoundary>
+            <Navbar />
+          </ErrorBoundary>
           <SidebarInset>
             <div className="pt-16">
               <Routes>
@@ -388,6 +392,7 @@ function AppContent() {
           </SidebarInset>
         </SidebarProvider>
       )}
+      </ErrorBoundary>
     </Suspense>
   );
 }
@@ -395,19 +400,20 @@ function AppContent() {
 // Componente principal que envuelve todo en Router
 export default function App() {
   return (
-    <Router>
-      <ToastProvider>
-        <AuthProvider>
-          <PermissionAuthProvider>
-            <EquipmentSearchProvider>
-              <TicketsProvider>
-                <AppContent />
-              </TicketsProvider>
-            </EquipmentSearchProvider>
-          </PermissionAuthProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </Router>
-
+    <ErrorBoundary>
+      <Router>
+        <ToastProvider>
+          <AuthProvider>
+            <PermissionAuthProvider>
+              <EquipmentSearchProvider>
+                <TicketsProvider>
+                  <AppContent />
+                </TicketsProvider>
+              </EquipmentSearchProvider>
+            </PermissionAuthProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }

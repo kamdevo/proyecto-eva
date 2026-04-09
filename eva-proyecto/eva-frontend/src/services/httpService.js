@@ -165,14 +165,10 @@ const refreshToken = async () => {
 // Función para manejar errores de autenticación
 const handleAuthenticationError = () => {
   setAuthToken(null);
+  localStorage.removeItem("eva_user");
 
-  // Redirigir al login si no estamos ya ahí
-  if (
-    window.location.pathname !== "/" &&
-    window.location.pathname !== "/login"
-  ) {
-    window.location.href = "/";
-  }
+  // Emitir evento para que AuthContext maneje la redirección via React
+  window.dispatchEvent(new CustomEvent("auth:logout"));
 };
 
 // Función para mostrar notificaciones de error usando nuestro sistema de toasts

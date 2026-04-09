@@ -170,16 +170,295 @@ class CorrectivoGeneralController extends Controller
             }
 
             // Filtro por equipo_id (específico para Hoja de Vida/Consultas)
+            // Si es equipo industrial, consultar de correctivos_generales_ind
             if ($request->filled('equipo_id')) {
-                $query->where('cg.equipo_id', $request->equipo_id);
+                $eqId = $request->equipo_id;
+                $tipoEquipoIndex = DB::table('equipos')->where('id', $eqId)->value('tipo_id');
+
+                if ($tipoEquipoIndex == 2) {
+                    // Equipo industrial: consultar directamente de correctivos_generales_ind
+                    $indQuery = DB::table('correctivos_generales_ind as cg')
+                        ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
+                        ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+                        ->leftJoin('sedes as se', 's.sede_id', '=', 'se.id')
+                        ->select([
+                            'cg.id',
+                            'cg.created_at',
+                            'cg.status',
+                            'cg.equipo_id',
+                            'cg.file',
+                            'cg.description',
+                            'cg.code',
+                            'cg.fecha_mantenimiento',
+                            'e.name as equipo_name',
+                            'e.code as equipo_code',
+                            'e.marca as equipo_marca',
+                            'e.modelo as equipo_modelo',
+                            'e.serial as equipo_serial',
+                            's.name as servicio_name',
+                            DB::raw('se.name as sede_nombre'),
+                        ])
+                        ->where('cg.equipo_id', $eqId)
+                        ->orderBy('cg.fecha_mantenimiento', 'desc');
+
+                    $perPage = $request->get('per_page', 1000);
+                    $indResults = $indQuery->paginate($perPage);
+
+                    return ResponseFormatter::success($indResults, 'Correctivos industriales obtenidos');
+                }
+
+                $query->where('cg.equipo_id', $eqId);
             }
 
             // Filtro por tipo de equipo (biomedico = tipo_id 1, industrial = tipo_id 2)
-            if ($request->filled('tipo') && $request->tipo !== 'all') {
+            // Para industrial: consultar SOLO correctivos_generales_ind (no la tabla principal)
+            if ($request->filled('tipo') && $request->tipo === 'industrial' && !$request->filled('equipo_id')) {
+                $indQuery = DB::table('correctivos_generales_ind as cgi')
+                    ->leftJoin('equipos as ei', 'cgi.equipo_id', '=', 'ei.id')
+                    ->leftJoin('servicios as si', 'ei.servicio_id', '=', 'si.id')
+                    ->leftJoin('sedes as sei', 'si.sede_id', '=', 'sei.id')
+                    ->leftJoin('areas as ari', 'ei.area_id', '=', 'ari.id')
+                    ->leftJoin('estadoequipos as eei', 'ei.estadoequipo_id', '=', 'eei.id')
+                    ->select([
+                        'cgi.id',
+                        DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento) as created_at"),
+                        'cgi.status',
+                        'cgi.equipo_id',
+                        'cgi.file',
+                        DB::raw("NULL as file_orden"),
+                        DB::raw("cgi.description as orden"),
+                        DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento) as fecha_inicio"),
+                        DB::raw("cgi.code as code_orden"),
+                        DB::raw("NULL as diagnostico"),
+                        DB::raw("NULL as code_diagnostico"),
+                        DB::raw("NULL as fecha_diagnostico"),
+                        'cgi.description',
+                        'cgi.code',
+                        'cgi.fecha_mantenimiento',
+                        DB::raw("NULL as repuesto_pendiente"),
+                        DB::raw("NULL as repuesto_id"),
+                        DB::raw("NULL as cierre_id"),
+                        DB::raw("NULL as tipo_falla_id"),
+                        'ei.name as equipo_name',
+                        'ei.code as equipo_code',
+                        'ei.marca as equipo_marca',
+                        'ei.modelo as equipo_modelo',
+                        'ei.serial as equipo_serial',
+                        DB::raw("NULL as cierre_name"),
+                        DB::raw("NULL as cierre_code"),
+                        'si.name as servicio_name',
+                        DB::raw("sei.name as sede_nombre"),
+                        DB::raw("ari.name as area_name"),
+                        DB::raw("NULL as tipo_falla_name"),
+                        DB::raw("eei.name as estado_equipo_name"),
+                        DB::raw("(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cgi.equipo_id ORDER BY pm.id DESC LIMIT 1) as responsable_plan"),
+                        DB::raw("0 as conteo_avances"),
+                        DB::raw("'ind' as fuente_tabla"),
+                    ]);
+
+                if ($request->filled('search')) {
+                    $searchTerm = $request->search;
+                    $indQuery->where(function($q) use ($searchTerm) {
+                        $q->where('cgi.code', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('cgi.description', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('ei.name', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('ei.code', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('si.name', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('sei.name', 'LIKE', "%{$searchTerm}%");
+                    });
+                }
+                if ($request->filled('fecha_desde')) {
+                    $indQuery->where(function($q) use ($request) {
+                        $q->whereDate('cgi.created_at', '>=', $request->fecha_desde)
+                          ->orWhere(function($q2) use ($request) {
+                              $q2->whereNull('cgi.created_at')
+                                 ->whereDate('cgi.fecha_mantenimiento', '>=', $request->fecha_desde);
+                          });
+                    });
+                }
+                if ($request->filled('fecha_hasta')) {
+                    $indQuery->where(function($q) use ($request) {
+                        $q->whereDate('cgi.created_at', '<=', $request->fecha_hasta)
+                          ->orWhere(function($q2) use ($request) {
+                              $q2->whereNull('cgi.created_at')
+                                 ->whereDate('cgi.fecha_mantenimiento', '<=', $request->fecha_hasta);
+                          });
+                    });
+                }
+                if ($request->filled('anio') && $request->anio !== 'all') {
+                    $indQuery->where(function($q) use ($request) {
+                        $q->whereYear('cgi.created_at', $request->anio)
+                          ->orWhere(function($q2) use ($request) {
+                              $q2->whereNull('cgi.created_at')
+                                 ->whereYear('cgi.fecha_mantenimiento', $request->anio);
+                          });
+                    });
+                }
+                if ($request->filled('status') && $request->status !== 'all') {
+                    if ($request->status == 'completed') {
+                        $indQuery->whereNotNull('cgi.fecha_mantenimiento');
+                    } elseif ($request->status == 'pending') {
+                        $indQuery->whereNull('cgi.fecha_mantenimiento');
+                    }
+                }
+
+                $indQuery->orderBy(DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento)"), 'desc');
+
+                $perPage = $request->get('per_page', 1000);
+                $page = $request->get('page', 1);
+                $offset = ($page - 1) * $perPage;
+
+                // También obtener tickets industriales de la tabla ordenes
+                $ticketsIndQuery = DB::table('ordenes as o')
+                    ->leftJoin('equipos as eo', 'o.equipo_id', '=', 'eo.id')
+                    ->leftJoin('servicios as so', 'o.servicio_id', '=', 'so.id')
+                    ->leftJoin('sedes as seo', 'so.sede_id', '=', 'seo.id')
+                    ->leftJoin('areas as aro', 'eo.area_id', '=', 'aro.id')
+                    ->leftJoin('estadoequipos as eeo', 'eo.estadoequipo_id', '=', 'eeo.id')
+                    ->leftJoin('codificacion_cierres as cco', 'o.cierre_id', '=', 'cco.id')
+                    ->leftJoin('estados as esto', 'o.estado_id', '=', 'esto.id')
+                    ->select([
+                        'o.id',
+                        DB::raw("CAST(o.fecha_inicio AS DATETIME) as created_at"),
+                        'o.equipo_id',
+                        'o.fecha_inicio',
+                        DB::raw("NULL as code"),
+                        'o.descripcion as orden',
+                        'o.fecha_fin as fecha_mantenimiento',
+                        DB::raw("NULL as file"),
+                        DB::raw("o.id as code_orden"),
+                        'eo.name as equipo_name',
+                        'eo.code as equipo_code',
+                        'eo.marca as equipo_marca',
+                        'eo.modelo as equipo_modelo',
+                        'eo.serial as equipo_serial',
+                        'so.name as servicio_name',
+                        DB::raw("seo.name as sede_nombre"),
+                        DB::raw("aro.name as area_name"),
+                        DB::raw("eeo.name as estado_equipo_name"),
+                        DB::raw("(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = o.equipo_id ORDER BY pm.id DESC LIMIT 1) as responsable_plan"),
+                        'cco.code as cierre_code',
+                        'cco.name as cierre_name',
+                        'esto.descripcion as estado_descripcion',
+                        'o.reparacion',
+                        'o.tecnico_cierre_text',
+                        DB::raw("'ticket' as fuente_tabla"),
+                    ])
+                    ->where(function($q) {
+                        $q->where('eo.tipo_id', 2)
+                          ->orWhere('o.subproceso_id', 2);
+                    })
+                    ->where(function($q) {
+                        $q->whereNull('o.equipo_id')
+                          ->orWhere('o.equipo_id', 0)
+                          ->orWhereNotNull('eo.id');
+                    });
+
+                if ($request->filled('search')) {
+                    $searchTerm = $request->search;
+                    $ticketsIndQuery->where(function($q) use ($searchTerm) {
+                        $q->where('o.descripcion', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('eo.name', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('eo.code', 'LIKE', "%{$searchTerm}%");
+                    });
+                }
+                if ($request->filled('fecha_desde')) {
+                    $ticketsIndQuery->whereDate('o.fecha_inicio', '>=', $request->fecha_desde);
+                }
+                if ($request->filled('fecha_hasta')) {
+                    $ticketsIndQuery->whereDate('o.fecha_inicio', '<=', $request->fecha_hasta);
+                }
+                if ($request->filled('anio') && $request->anio !== 'all') {
+                    $ticketsIndQuery->whereYear('o.fecha_inicio', $request->anio);
+                }
+                if ($request->filled('status') && $request->status !== 'all') {
+                    if ($request->status == 'completed') {
+                        $ticketsIndQuery->whereNotNull('o.fecha_fin');
+                    } elseif ($request->status == 'pending') {
+                        $ticketsIndQuery->whereNull('o.fecha_fin');
+                    }
+                }
+
+                $ticketsInd = $ticketsIndQuery->get();
+
+                // Obtener todos los _ind (sin paginación) para combinar con tickets
+                $allInd = $indQuery->get();
+
+                // Combinar _ind + tickets, ordenar y paginar
+                $combined = collect($allInd)->concat($ticketsInd)
+                    ->sortByDesc('created_at')
+                    ->values();
+
+                $totalCount = $combined->count();
+                $correctivos = $combined->slice($offset, $perPage)->values();
+
+                // Formatear resultados combinados (_ind + tickets)
+                $formattedData = $correctivos->map(function ($correctivo) {
+                    $esTicket = isset($correctivo->fuente_tabla) && $correctivo->fuente_tabla === 'ticket';
+
+                    $data = [
+                        'id' => $correctivo->id,
+                        'fuente' => $esTicket ? 'Tickets' : 'Correctivos industriales',
+                        'responsable_mantenimiento' => $correctivo->responsable_plan ?? 'Sistema EVA',
+                        'equipo_id' => $correctivo->equipo_id,
+                        'fecha_creacion' => $correctivo->fecha_inicio
+                            ? Carbon::parse($correctivo->fecha_inicio)->format('Y-m-d')
+                            : ($correctivo->fecha_mantenimiento
+                                ? Carbon::parse($correctivo->fecha_mantenimiento)->format('Y-m-d')
+                                : ''),
+                        'codigo_orden' => $correctivo->code_orden ?? $correctivo->code ?? 'SIN_CODIGO',
+                        'descripcion_orden' => $correctivo->orden ?? '',
+                        'codificacion_cierre' => $esTicket
+                            ? (trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . ($correctivo->cierre_name ?? '')) ?: ($correctivo->estado_descripcion ?? ''))
+                            : ($correctivo->fecha_mantenimiento ? 'Completado' : 'Sin Info'),
+                        'equipo' => $correctivo->equipo_name ?? 'Equipo no especificado',
+                        'codigo_equipo' => $correctivo->equipo_code ?? '',
+                        'marca' => $correctivo->equipo_marca ?? '',
+                        'modelo' => $correctivo->equipo_modelo ?? '',
+                        'serie' => $correctivo->equipo_serial ?? '',
+                        'estado_actual' => $correctivo->estado_equipo_name ?? 'Activo',
+                        'sede' => $correctivo->sede_nombre ?? '',
+                        'servicio' => $correctivo->servicio_name ?? '',
+                        'area' => $correctivo->area_name ?? '',
+                        'archivo' => $correctivo->file ?? '',
+                        'tipo_falla' => '',
+                        'cierre_code' => $correctivo->cierre_code ?? '',
+                        'cierre_name' => $correctivo->cierre_name ?? '',
+                        'conteo_avances' => 0,
+                        'avances' => [],
+                        'fecha_avance' => '',
+                        'titulo_avance1' => '',
+                        'descripcion_avance' => '',
+                        'retro_cierre' => $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente',
+                        'descripcion_cierre' => $esTicket
+                            ? ($correctivo->reparacion ?? $correctivo->tecnico_cierre_text ?? '')
+                            : ($correctivo->description ?? ''),
+                        'fecha_cierre' => $correctivo->fecha_mantenimiento ?? '',
+                        'fecha_fin' => $correctivo->fecha_mantenimiento ?? '',
+                    ];
+                    return $data;
+                });
+
+                $lastPage = ceil($totalCount / $perPage);
+                $from = $totalCount > 0 ? $offset + 1 : 0;
+                $to = min($offset + $perPage, $totalCount);
+
+                return ResponseFormatter::success([
+                    'correctivos' => $formattedData,
+                    'pagination' => [
+                        'current_page' => (int)$page,
+                        'last_page' => $lastPage,
+                        'per_page' => (int)$perPage,
+                        'total' => $totalCount,
+                        'from' => $from,
+                        'to' => $to
+                    ]
+                ], 'Correctivos industriales obtenidos exitosamente');
+            }
+
+            if ($request->filled('tipo') && $request->tipo !== 'all' && !$request->filled('equipo_id')) {
                 if ($request->tipo === 'biomedico') {
                     $query->where('e.tipo_id', 1);
-                } elseif ($request->tipo === 'industrial') {
-                    $query->where('e.tipo_id', 2);
                 }
             }
 
@@ -233,6 +512,9 @@ class CorrectivoGeneralController extends Controller
                 if ($request->status == 'active') $totalQuery->where('cg.status', 1);
             }
             if ($request->filled('equipo_id')) $totalQuery->where('cg.equipo_id', $request->equipo_id);
+            if ($request->filled('tipo') && $request->tipo === 'biomedico') {
+                $totalQuery->where('e.tipo_id', 1);
+            }
 
             $totalCount = $totalQuery->count();
 
@@ -304,7 +586,7 @@ class CorrectivoGeneralController extends Controller
 
                 // Cierre
                 $data['retro_cierre'] = $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente';
-                $data['descripcion_cierre'] = $correctivo->repuesto_pendiente ?? '';
+                $data['descripcion_cierre'] = $correctivo->description ?? '';
                 $data['fecha_cierre'] = $correctivo->fecha_mantenimiento ?? '';
                 $data['fecha_fin'] = $correctivo->fecha_mantenimiento ?? '';
                 
@@ -468,6 +750,17 @@ class CorrectivoGeneralController extends Controller
         $sheet->getStyle('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')
               ->applyFromArray($headerStyle);
 
+        // Helper de fecha: rechaza años < 2000 o > año actual
+        $sanitizeDate = function($dateStr) {
+            if (!$dateStr) return '';
+            if (preg_match('/^0{4}-/', $dateStr)) return '';
+            $ts = strtotime($dateStr);
+            if (!$ts || $ts <= 0) return '';
+            $year = (int)date('Y', $ts);
+            if ($year < 2000 || $year > (int)date('Y')) return '';
+            return $dateStr;
+        };
+
         // Escribir datos reales
         $row = 2;
         foreach ($correctivos as $correctivo) {
@@ -477,7 +770,7 @@ class CorrectivoGeneralController extends Controller
                 'Correctivos generales', // fuente
                 $correctivo->responsable_plan ?? 'Sistema EVA', // responsable
                 $correctivo->equipo_id ?? '', // equipo_id
-                $correctivo->fecha_inicio ?? $correctivo->created_at ?? '', // fecha_creacion
+                $sanitizeDate($correctivo->fecha_inicio ?? $correctivo->created_at ?? ''), // fecha_creacion
                 $correctivo->code_orden ?? '', // codigo_orden
                 $correctivo->orden ?? '', // descripcion_orden (TEXT)
                 trim(($correctivo->cierre_code ? $correctivo->cierre_code . ' - ' : '') . $correctivo->cierre_name) ?: ($correctivo->diagnostico ?? ''), // codificacion_cierre
@@ -493,26 +786,26 @@ class CorrectivoGeneralController extends Controller
                 $correctivo->file ?? '', // archivo
                 
                 // Avance 1
-                isset($misAvances[0]) ? $misAvances[0]->date : '',
+                $sanitizeDate(isset($misAvances[0]) ? $misAvances[0]->date : ''),
                 isset($misAvances[0]) ? $misAvances[0]->title : '',
                 isset($misAvances[0]) ? $misAvances[0]->description : '',
                 
                 // Avance 2
-                isset($misAvances[1]) ? $misAvances[1]->date : '',
+                $sanitizeDate(isset($misAvances[1]) ? $misAvances[1]->date : ''),
                 isset($misAvances[1]) ? $misAvances[1]->title : '',
                 isset($misAvances[1]) ? $misAvances[1]->description : '',
                 
                 // Avance 3
-                isset($misAvances[2]) ? $misAvances[2]->date : '',
+                $sanitizeDate(isset($misAvances[2]) ? $misAvances[2]->date : ''),
                 isset($misAvances[2]) ? $misAvances[2]->title : '',
                 isset($misAvances[2]) ? $misAvances[2]->description : '',
                 
                 // Cierre
                 $correctivo->fecha_mantenimiento ? 'Completado' : 'Pendiente', // retro_cierre
                 $correctivo->repuesto_pendiente ?? '', // descripcion_cierre
-                $correctivo->fecha_mantenimiento ?? '', // fecha_cierre
+                $sanitizeDate($correctivo->fecha_mantenimiento ?? ''), // fecha_cierre
                 0, // costo_equipo
-                $correctivo->fecha_mantenimiento ?? '', // fecha_fin
+                $sanitizeDate($correctivo->fecha_mantenimiento ?? ''), // fecha_fin
                 $correctivo->repuesto_pendiente ?? '' // repuesto_instalado
             ];
 
@@ -722,58 +1015,76 @@ class CorrectivoGeneralController extends Controller
                 $correctivoData['repuesto_id'] = $request->repuesto_id;
             }
 
-            $correctivoId = DB::table('correctivos_generales')->insertGetId($correctivoData);
-            Log::info("✅ [CORRECTIVO-GENERAL] Creado con ID: $correctivoId");
-
-            // 1c. Espejo en correctivos_generales_ind para equipos industriales (tipo_id == 2)
+            // Determinar si es equipo industrial
             $tipoEquipoStore = DB::table('equipos')->where('id', $request->equipo_id)->value('tipo_id');
+
             if ($tipoEquipoStore == 2) {
-                DB::table('correctivos_generales_ind')->insert([
+                // Equipo industrial: guardar SOLO en correctivos_generales_ind
+                $correctivoIndId = DB::table('correctivos_generales_ind')->insertGetId([
                     'description'        => $request->description,
                     'created_at'         => now(),
                     'status'             => 1,
                     'equipo_id'          => $request->equipo_id,
                     'fecha_mantenimiento'=> $request->fecha_mantenimiento,
                     'code'               => $request->code_orden,
+                    'file'               => null,
                 ]);
-                Log::info("🏭 [CORRECTIVO-GENERAL] Espejo insertado en correctivos_generales_ind para equipo industrial ID: {$request->equipo_id}");
+                $correctivoId = $correctivoIndId;
+                Log::info("🏭 [CORRECTIVO-GENERAL] Industrial creado en correctivos_generales_ind con ID: $correctivoIndId");
+
+                // Archivo para industrial
+                if ($request->hasFile('file_correctivo')) {
+                    $file = $request->file('file_correctivo');
+                    $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                    $file->storeAs('correctivos_generales', $filename, 'public');
+
+                    DB::table('correctivos_generales_archivos_ind')->insert([
+                        'correctivo_general_id' => $correctivoIndId,
+                        'file'                  => $filename,
+                        'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
+                        'created_at'            => now()
+                    ]);
+                    DB::table('correctivos_generales_ind')->where('id', $correctivoIndId)->update(['file' => $filename]);
+                }
+            } else {
+                // Equipo biomédico: guardar en correctivos_generales
+                $correctivoId = DB::table('correctivos_generales')->insertGetId($correctivoData);
+                Log::info("✅ [CORRECTIVO-GENERAL] Biomédico creado con ID: $correctivoId");
             }
 
-            // 1b. Insertar avance inicial en avances_correctivos si se proporcionó diagnóstico
-            if ($request->filled('diagnostico') || $request->filled('code_diagnostico')) {
-                $usuarioId = $request->user() ? $request->user()->id : ($request->input('usuario_id') ?: null);
-                DB::table('avances_correctivos')->insert([
-                    'title'                  => $request->code_diagnostico ?? 'Avance inicial',
-                    'description'            => $request->diagnostico ?? '',
-                    'date'                   => $request->fecha_diagnostico ?? now()->toDateString(),
-                    'correctivo_general_id'  => $correctivoId,
-                    'usuario_id'             => $usuarioId,
-                    'orden_id'               => 0,
-                ]);
-                Log::info("📝 [CORRECTIVO-GENERAL] Avance inicial insertado en avances_correctivos.");
-            }
+            // Las siguientes secciones solo aplican para equipos biomédicos
+            // (industrial ya maneja archivo arriba)
+            if ($tipoEquipoStore != 2) {
+                // 1b. Insertar avance inicial en avances_correctivos si se proporcionó diagnóstico
+                if ($request->filled('diagnostico') || $request->filled('code_diagnostico')) {
+                    $usuarioId = $request->user() ? $request->user()->id : ($request->input('usuario_id') ?: null);
+                    DB::table('avances_correctivos')->insert([
+                        'title'                  => $request->code_diagnostico ?? 'Avance inicial',
+                        'description'            => $request->diagnostico ?? '',
+                        'date'                   => $request->fecha_diagnostico ?? now()->toDateString(),
+                        'correctivo_general_id'  => $correctivoId,
+                        'usuario_id'             => $usuarioId,
+                        'orden_id'               => 0,
+                    ]);
+                    Log::info("📝 [CORRECTIVO-GENERAL] Avance inicial insertado en avances_correctivos.");
+                }
 
-            // 2. Manejo de Archivo Asociado (correctivos_generales_archivos)
-            if ($request->hasFile('file_correctivo')) {
-                $file = $request->file('file_correctivo');
-                $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                $file->storeAs('correctivos_generales', $filename, 'public');
+                // 2. Manejo de Archivo Asociado (correctivos_generales_archivos)
+                if ($request->hasFile('file_correctivo')) {
+                    $file = $request->file('file_correctivo');
+                    $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                    $file->storeAs('correctivos_generales', $filename, 'public');
 
-                // Determinar tabla según tipo de equipo
-                $tipoEquipo = DB::table('equipos')->where('id', $request->equipo_id)->value('tipo_id');
-                $tablaArchivos = $tipoEquipo == 2
-                    ? 'correctivos_generales_archivos_ind'
-                    : 'correctivos_generales_archivos';
+                    DB::table('correctivos_generales_archivos')->insert([
+                        'correctivo_general_id' => $correctivoId,
+                        'file'                  => $filename,
+                        'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
+                        'created_at'            => now()
+                    ]);
 
-                DB::table($tablaArchivos)->insert([
-                    'correctivo_general_id' => $correctivoId,
-                    'file'                  => $filename,
-                    'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
-                    'created_at'            => now()
-                ]);
-
-                // Actualizar campo file en tabla principal para compatibilidad
-                DB::table('correctivos_generales')->where('id', $correctivoId)->update(['file' => $filename]);
+                    // Actualizar campo file en tabla principal para compatibilidad
+                    DB::table('correctivos_generales')->where('id', $correctivoId)->update(['file' => $filename]);
+                }
             }
 
             // 3. Manejo de Repuesto Instalado (equipo_repuestos)
@@ -875,7 +1186,49 @@ class CorrectivoGeneralController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         try {
-            $correctivo = CorrectivoGeneral::findOrFail($id);
+            // Buscar en tabla principal o en tabla industrial
+            $correctivo = CorrectivoGeneral::find($id);
+            $esIndustrial = false;
+
+            if (!$correctivo) {
+                // Buscar en correctivos_generales_ind
+                $indRecord = DB::table('correctivos_generales_ind')->where('id', $id)->first();
+                if (!$indRecord) {
+                    return ResponseFormatter::error(null, 'Correctivo no encontrado', 404);
+                }
+                $esIndustrial = true;
+            } else {
+                $tipoEquipo = DB::table('equipos')->where('id', $correctivo->equipo_id)->value('tipo_id');
+                $esIndustrial = ($tipoEquipo == 2);
+            }
+
+            if ($esIndustrial && !$correctivo) {
+                // Actualizar directamente en correctivos_generales_ind
+                $updateData = array_filter($request->only([
+                    'description', 'status', 'equipo_id', 'file',
+                    'fecha_mantenimiento', 'code',
+                ]), fn($v) => $v !== null);
+
+                DB::table('correctivos_generales_ind')->where('id', $id)->update($updateData);
+
+                // Manejo de archivo para industrial
+                if ($request->hasFile('file_correctivo')) {
+                    $file = $request->file('file_correctivo');
+                    $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                    $file->storeAs('correctivos_generales', $filename, 'public');
+
+                    DB::table('correctivos_generales_archivos_ind')->insert([
+                        'correctivo_general_id' => $id,
+                        'file'                  => $filename,
+                        'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
+                        'created_at'            => now()
+                    ]);
+                    DB::table('correctivos_generales_ind')->where('id', $id)->update(['file' => $filename]);
+                }
+
+                $updated = DB::table('correctivos_generales_ind')->where('id', $id)->first();
+                return ResponseFormatter::success($updated, 'Correctivo industrial actualizado exitosamente');
+            }
             
             $validator = Validator::make($request->all(), [
                 'responsable_mantenimiento' => 'sometimes|string|max:255',
@@ -905,18 +1258,13 @@ class CorrectivoGeneralController extends Controller
 
             $correctivo->update($updateData);
 
-            // Manejo de archivo adjunto en update
+            // Manejo de archivo adjunto en update (biomédico)
             if ($request->hasFile('file_correctivo')) {
                 $file = $request->file('file_correctivo');
                 $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $file->storeAs('correctivos_generales', $filename, 'public');
 
-                $tipoEquipo = DB::table('equipos')->where('id', $correctivo->equipo_id)->value('tipo_id');
-                $tablaArchivos = $tipoEquipo == 2
-                    ? 'correctivos_generales_archivos_ind'
-                    : 'correctivos_generales_archivos';
-
-                DB::table($tablaArchivos)->insert([
+                DB::table('correctivos_generales_archivos')->insert([
                     'correctivo_general_id' => $correctivo->id,
                     'file'                  => $filename,
                     'titulo'                => $request->titulo_archivo ?? 'Documento de Correctivo',
@@ -950,8 +1298,21 @@ class CorrectivoGeneralController extends Controller
     public function destroy($id): JsonResponse
     {
         try {
-            $correctivo = CorrectivoGeneral::findOrFail($id);
-            $correctivo->delete();
+            // Buscar primero en correctivos_generales, luego en correctivos_generales_ind
+            $correctivo = CorrectivoGeneral::find($id);
+            if ($correctivo) {
+                $correctivo->delete();
+            } else {
+                $indRecord = DB::table('correctivos_generales_ind')->where('id', $id)->first();
+                if (!$indRecord) {
+                    return ResponseFormatter::error(null, 'Correctivo no encontrado', 404);
+                }
+                // Eliminar archivos asociados de la tabla industrial
+                DB::table('correctivos_generales_archivos_ind')
+                    ->where('correctivo_general_id', $id)
+                    ->delete();
+                DB::table('correctivos_generales_ind')->where('id', $id)->delete();
+            }
 
             return ResponseFormatter::success(null, 'Correctivo eliminado exitosamente');
 
@@ -1030,7 +1391,9 @@ class CorrectivoGeneralController extends Controller
             if ($tipo === 'biomedico') {
                 $queryGenerales->where('e.tipo_id', 1);
             } elseif ($tipo === 'industrial') {
-                $queryGenerales->where('e.tipo_id', 2);
+                // Para industrial: NO usar tabla correctivos_generales, usar SOLO correctivos_generales_ind
+                // Se anula la query principal y se reemplaza abajo
+                $queryGenerales->whereRaw('1 = 0'); // Vaciar resultados de la query principal
             }
             
             if ($limit) {
@@ -1067,6 +1430,74 @@ class CorrectivoGeneralController extends Controller
             }
 
             $correctivosGenerales = $queryGenerales->get();
+
+            // Para industrial: incluir también registros de correctivos_generales_ind
+            if ($tipo === 'industrial') {
+                $subqueryResponsableInd = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cgi.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
+                
+                $queryInd = DB::table('correctivos_generales_ind as cgi')
+                    ->leftJoin('equipos as e', 'cgi.equipo_id', '=', 'e.id')
+                    ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
+                    ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
+                    ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
+                    ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
+                    ->select([
+                        'cgi.id',
+                        DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento) as created_at"),
+                        'cgi.equipo_id',
+                        DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento) as fecha_inicio"),
+                        DB::raw("NULL as cierre_name"),
+                        DB::raw("NULL as cierre_code"),
+                        DB::raw("NULL as diagnostico"),
+                        'sede.name as sede_nombre',
+                        DB::raw("'Correctivos Industriales' as tipo"),
+                        DB::raw("{$subqueryResponsableInd} as responsable_nombre"),
+                        'e.name as equipo_name',
+                        'e.code as equipo_code',
+                        'e.marca',
+                        'e.modelo',
+                        'e.serial',
+                        's.name as servicio_nombre',
+                        'ar.name as area_nombre',
+                        'ee.name as estado_actual',
+                        'e.costo',
+                        'cgi.fecha_mantenimiento as fecha_cierre',
+                        DB::raw("NULL as fecha_fin"),
+                        'cgi.description',
+                        DB::raw("cgi.description as orden"),
+                        DB::raw("cgi.code as code_orden"),
+                        'cgi.file'
+                    ])
+                    ->orderBy('cgi.created_at', 'desc');
+
+                if ($request->filled('fecha_desde')) {
+                    $queryInd->whereDate('cgi.created_at', '>=', $request->fecha_desde);
+                }
+                if ($request->filled('fecha_hasta')) {
+                    $queryInd->whereDate('cgi.created_at', '<=', $request->fecha_hasta);
+                }
+                if ($request->filled('anio') && $request->anio !== 'all') {
+                    $queryInd->whereYear('cgi.created_at', $request->anio);
+                }
+                if ($request->filled('search')) {
+                    $searchTerm = $request->search;
+                    $queryInd->where(function ($q) use ($searchTerm) {
+                        $q->where('cgi.code', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('cgi.description', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('e.name', 'LIKE', "%{$searchTerm}%");
+                    });
+                }
+                if ($request->filled('status') && $request->status !== 'all') {
+                    if ($request->status === 'completed') {
+                        $queryInd->whereNotNull('cgi.fecha_mantenimiento');
+                    } elseif ($request->status === 'pending') {
+                        $queryInd->whereNull('cgi.fecha_mantenimiento');
+                    }
+                }
+
+                $correctivosInd = $queryInd->get();
+                $correctivosGenerales = $correctivosInd; // Solo _ind para industrial
+            }
 
             // Obtener tickets/órdenes (tabla ordenes - todos son tickets del sistema)
             // Subquery para obtener el responsable del plan de mantenimiento más reciente
@@ -1303,7 +1734,8 @@ class CorrectivoGeneralController extends Controller
                         if (preg_match('/^0{4}-/', $dateStr)) return '';
                         $ts = strtotime($dateStr);
                         if (!$ts || $ts <= 0) return '';
-                        if ((int)date('Y', $ts) < 2000) return '';
+                        $year = (int)date('Y', $ts);
+                        if ($year < 2000 || $year > (int)date('Y')) return '';
                         return \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts);
                     };
                     // Procesar registros iterando Collection
@@ -1535,8 +1967,9 @@ class CorrectivoGeneralController extends Controller
                         $ts = strtotime($dateStr);
                         // Ignorar timestamps inválidos, negativos (antes de 1970) o del año 1970 (epoch=0)
                         if (!$ts || $ts <= 0) return '';
-                        // Ignorar años antes de 2000 (datos claramente erróneos de migración)
-                        if ((int)date('Y', $ts) < 2000) return '';
+                        $year = (int)date('Y', $ts);
+                        // Ignorar años antes de 2000 o posteriores al año actual (datos erróneos)
+                        if ($year < 2000 || $year > (int)date('Y')) return '';
                         return \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts);
                 };
 

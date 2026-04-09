@@ -5893,8 +5893,9 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             $ticket->modelo_final = $ticket->equipo_modelo ?: $ticket->modelo_equipo ?: 'N/A';
             $ticket->serie_final = $ticket->equipo_serie ?: $ticket->serie_equipo ?: 'N/A';
 
-            // Indicador de repuesto pendiente
-            $ticket->repuesto_pendiente = false;
+            // Indicador de repuesto pendiente (usar valor real de la base de datos)
+            $condicion = strtolower(trim($ticket->repuesto_pendiente_condicion ?? ''));
+            $ticket->repuesto_pendiente = !empty($condicion) && $condicion !== 'no';
 
             return $ticket;
         });
@@ -9804,6 +9805,8 @@ Route::get('v1/test/modal-equipment-data', function () {
 // Calibraciones (sin autenticación)
 Route::prefix('v1')->withoutMiddleware(['auth:sanctum', 'auth'])->group(function () {
     Route::apiResource('calibracion', \App\Http\Controllers\Api\CalibracionController::class);
+    // Alias plural para que el frontend pueda llamar /v1/calibraciones?equipo_id=X
+    Route::get('calibraciones', [\App\Http\Controllers\Api\CalibracionController::class, 'index']);
     
     // Export equipment counts (cantidades/estadísticas desde tabla equipos_indicador) ✅
     Route::get('/export/equipment-counts', [App\Http\Controllers\Api\EquipmentCountsExportController::class, 'export']);

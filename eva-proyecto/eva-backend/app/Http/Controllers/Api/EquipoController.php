@@ -632,29 +632,42 @@ class EquipoController extends Controller
             Log::info("Obteniendo historial del equipo ID: {$id}");
 
             // Obtener correctivos generales con información completa
-            $correctivos = DB::table('correctivos_generales')
-                ->leftJoin('codificacion_cierres', 'codificacion_cierres.id', '=', 'correctivos_generales.cierre_id')
-                ->select([
-                    'correctivos_generales.*',
-                    'codificacion_cierres.name as descripcion_codigo',
-                    'codificacion_cierres.code as codigo_cierre',
-                    DB::raw('(SELECT COUNT(*) 
-                             FROM avances_correctivos 
-                             WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id) as notas_avance'),
-                    DB::raw('(SELECT COUNT(*) 
-                             FROM avances_correctivos 
-                             WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id) as conteo_avances'),
-                    DB::raw('(SELECT description 
-                             FROM avances_correctivos 
-                             WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id 
-                             ORDER BY date DESC 
-                             LIMIT 1) as last_description')
-                ])
-                ->where('correctivos_generales.equipo_id', $id)
-                ->where('correctivos_generales.status', 1)
-                ->orderBy('correctivos_generales.fecha_inicio', 'desc')
-                ->limit(50)
-                ->get();
+            $tablaCorrectivos = $equipo->tipo_id == 2 ? 'correctivos_generales_ind' : 'correctivos_generales';
+            
+            if ($equipo->tipo_id == 2) {
+                // Industrial: tabla simplificada sin joins complejos
+                $correctivos = DB::table($tablaCorrectivos)
+                    ->where('equipo_id', $id)
+                    ->where('status', 1)
+                    ->orderBy('fecha_mantenimiento', 'desc')
+                    ->limit(50)
+                    ->get();
+            } else {
+                // Biomédico: con joins y subqueries
+                $correctivos = DB::table('correctivos_generales')
+                    ->leftJoin('codificacion_cierres', 'codificacion_cierres.id', '=', 'correctivos_generales.cierre_id')
+                    ->select([
+                        'correctivos_generales.*',
+                        'codificacion_cierres.name as descripcion_codigo',
+                        'codificacion_cierres.code as codigo_cierre',
+                        DB::raw('(SELECT COUNT(*) 
+                                 FROM avances_correctivos 
+                                 WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id) as notas_avance'),
+                        DB::raw('(SELECT COUNT(*) 
+                                 FROM avances_correctivos 
+                                 WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id) as conteo_avances'),
+                        DB::raw('(SELECT description 
+                                 FROM avances_correctivos 
+                                 WHERE avances_correctivos.correctivo_general_id = correctivos_generales.id 
+                                 ORDER BY date DESC 
+                                 LIMIT 1) as last_description')
+                    ])
+                    ->where('correctivos_generales.equipo_id', $id)
+                    ->where('correctivos_generales.status', 1)
+                    ->orderBy('correctivos_generales.fecha_inicio', 'desc')
+                    ->limit(50)
+                    ->get();
+            }
 
             // Obtener archivos de correctivos (biomédico e industrial) y embeberlos
             $corIds = $correctivos->pluck('id')->toArray();
@@ -678,8 +691,9 @@ class EquipoController extends Controller
                 ->limit(50)
                 ->get();
 
-            // Obtener calibraciones
-            $calibraciones = DB::table('calibracion')
+            // Obtener calibraciones (industrial usa calibracion_ind)
+            $tablaCalibraciones = $equipo->tipo_id == 2 ? 'calibracion_ind' : 'calibracion';
+            $calibraciones = DB::table($tablaCalibraciones)
                 ->where('equipo_id', $id)
                 ->where('status', 1)
                 ->orderBy('fecha_calibracion', 'desc')
