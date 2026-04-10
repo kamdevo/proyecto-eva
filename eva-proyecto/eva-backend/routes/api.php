@@ -15889,5 +15889,73 @@ Route::middleware('auth:sanctum')->group(function () {
         }
         return response()->json(['success' => true, 'data' => $equipo]);
     });
+
+    // =============================================
+    // ESPECIFICACIONES TÉCNICAS
+    // =============================================
+
+    // Catálogo de especificaciones activas
+    Route::get('v1/especificaciones', function () {
+        $especificaciones = DB::table('especificacion')
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get();
+        return response()->json(['success' => true, 'data' => $especificaciones]);
+    });
+
+    // Especificaciones de un equipo
+    Route::get('v1/equipo-especificaciones/{equipoId}', function ($equipoId) {
+        $items = DB::table('equipo_especificacion as ee')
+            ->join('especificacion as e', 'ee.especificacion_id', '=', 'e.id')
+            ->where('ee.equipo_id', $equipoId)
+            ->where('ee.status', 1)
+            ->select('ee.*', 'e.name as especificacion_nombre')
+            ->orderBy('ee.created_at', 'desc')
+            ->get();
+        return response()->json(['success' => true, 'data' => $items]);
+    });
+
+    // Crear especificación de equipo
+    Route::post('v1/equipo-especificaciones', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'equipo_id' => 'required|integer|exists:equipos,id',
+            'especificacion_id' => 'required|integer|exists:especificacion,id',
+            'valor' => 'required|string',
+            'file' => 'nullable|file|max:10240',
+        ]);
+
+        $fileName = null;
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $fileName = md5(uniqid() . time()) . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('assets/upload_archivos'), $fileName);
+        }
+
+        $id = DB::table('equipo_especificacion')->insertGetId([
+            'equipo_id' => $request->equipo_id,
+            'especificacion_id' => $request->especificacion_id,
+            'valor' => $request->valor,
+            'file' => $fileName,
+            'status' => 1,
+            'created_at' => now(),
+        ]);
+
+        $item = DB::table('equipo_especificacion as ee')
+            ->join('especificacion as e', 'ee.especificacion_id', '=', 'e.id')
+            ->where('ee.id', $id)
+            ->select('ee.*', 'e.name as especificacion_nombre')
+            ->first();
+
+        return response()->json(['success' => true, 'data' => $item, 'message' => 'Especificación técnica agregada'], 201);
+    });
+
+    // Eliminar especificación de equipo
+    Route::delete('v1/equipo-especificaciones/{id}', function ($id) {
+        $deleted = DB::table('equipo_especificacion')->where('id', $id)->update(['status' => 0]);
+        if (!$deleted) {
+            return response()->json(['success' => false, 'message' => 'No encontrado'], 404);
+        }
+        return response()->json(['success' => true, 'message' => 'Especificación eliminada']);
+    });
 });
 

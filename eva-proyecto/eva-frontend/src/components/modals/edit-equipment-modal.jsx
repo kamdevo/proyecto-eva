@@ -42,6 +42,7 @@ import AddPreventivoModal from "./add-preventivo-modal";
 import AddCalibracionModal from "./add-calibracion-modal";
 import AddRepuestoModal from "./add-repuesto-modal";
 import AddCorrectivoModal from "./add-correctivo-modal";
+import AddEspecificacionModal from "./add-especificacion-modal";
 import EditObservacionModal from "./edit-observacion-modal";
 export function EditEquipmentModal({
   open = false,
@@ -64,6 +65,7 @@ export function EditEquipmentModal({
     preventivos: false,
     calibraciones: false,
     repuestos: false,
+    especificaciones: false,
   });
   const [equipmentHistory, setEquipmentHistory] = useState({
     correctivos: [],
@@ -107,6 +109,8 @@ export function EditEquipmentModal({
   const [archivoModalFile, setArchivoModalFile] = useState(null);
   const [showAddRepuestoModal, setShowAddRepuestoModal] = useState(false);
   const [showAddCorrectivoModal, setShowAddCorrectivoModal] = useState(false);
+  const [showAddEspecificacionModal, setShowAddEspecificacionModal] = useState(false);
+  const [equipoEspecificaciones, setEquipoEspecificaciones] = useState([]);
   const [showGuideSearchModal, setShowGuideSearchModal] = useState(false);
   const [showOrderSearchModal, setShowOrderSearchModal] = useState(false);
   const [editingPreventivo, setEditingPreventivo] = useState(null);
@@ -118,6 +122,18 @@ export function EditEquipmentModal({
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
   const [selectedGuideInfo, setSelectedGuideInfo] = useState(null);
   const [selectedOrderInfo, setSelectedOrderInfo] = useState(null);
+
+  // Función para cargar especificaciones técnicas del equipo
+  const loadEquipoEspecificaciones = async (equipmentId) => {
+    try {
+      const resp = await httpService.get(`/v1/equipo-especificaciones/${equipmentId}`);
+      const data = resp?.data?.data || resp?.data || [];
+      setEquipoEspecificaciones(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Error cargando especificaciones:", e);
+      setEquipoEspecificaciones([]);
+    }
+  };
 
   // Función para cargar el historial del equipo
   const loadEquipmentHistory = async (equipmentId) => {
@@ -358,6 +374,7 @@ export function EditEquipmentModal({
           // Step 3: Load equipment history (correctivos, preventivos, calibraciones, repuestos)
           console.log("📋 Step 3: Loading equipment history...");
           await loadEquipmentHistory(equipment.id);
+          loadEquipoEspecificaciones(equipment.id);
 
           // Step 4: Initialize form data after all data is ready
           console.log("📝 Step 4: Initializing form data...");
@@ -2198,7 +2215,7 @@ export function EditEquipmentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-5xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[calc(100%-2rem)] sm:max-w-7xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-blue-700 border-b border-blue-200 pb-2">
             Editar - Equipo biomédico
@@ -4428,6 +4445,135 @@ export function EditEquipmentModal({
               )}
             </Card>
 
+            {/* ESPECIFICACIONES TÉCNICAS */}
+            <Card>
+              <CardHeader className="bg-indigo-50 py-3">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex-1"></div>
+                  <CardTitle className="text-sm font-medium text-indigo-700 flex items-center gap-2">
+                    ESPECIFICACIONES TÉCNICAS
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          especificaciones: !prev.especificaciones,
+                        }))
+                      }
+                    >
+                      <Plus
+                        className={`h-4 w-4 transition-transform ${
+                          expandedSections?.especificaciones ? "rotate-45" : ""
+                        }`}
+                      />
+                    </Button>
+                  </CardTitle>
+                  <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-3"
+                      onClick={() => setShowAddEspecificacionModal(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              {expandedSections?.especificaciones && (
+                <CardContent className="p-3 sm:p-4 md:p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 p-2 text-xs">
+                            Especificación
+                          </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            Valor
+                          </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            Acciones
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {equipoEspecificaciones.length > 0 ? (
+                          equipoEspecificaciones.map((esp) => (
+                            <tr key={esp.id}>
+                              <td className="border border-gray-300 p-2 text-xs">
+                                {esp.especificacion_nombre || "-"}
+                              </td>
+                              <td className="border border-gray-300 p-2 text-xs">
+                                {esp.valor || "-"}
+                              </td>
+                              <td className="border border-gray-300 p-2 text-xs text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  {esp.file && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50"
+                                      onClick={() => {
+                                        const url = `${API_CONFIG.baseURL?.replace('/api', '')}/assets/upload_archivos/${esp.file}`;
+                                        window.open(url, "_blank");
+                                      }}
+                                      title="Ver archivo"
+                                    >
+                                      <FileText className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={async () => {
+                                      setConfirmModal({
+                                        open: true,
+                                        message: "¿Está seguro de eliminar esta especificación técnica?",
+                                        onConfirm: async () => {
+                                          try {
+                                            await httpService.delete(`/v1/equipo-especificaciones/${esp.id}`);
+                                            toast.success("Especificación eliminada");
+                                            loadEquipoEspecificaciones(equipment.id);
+                                          } catch (e) {
+                                            toast.error("Error al eliminar especificación");
+                                          }
+                                        },
+                                      });
+                                    }}
+                                    title="Eliminar especificación"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              className="border border-gray-300 p-2 text-xs text-center text-gray-500"
+                              colSpan="3"
+                            >
+                              No hay especificaciones técnicas registradas
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+
             {/* REPUESTOS/ACCESORIOS */}
             <Card>
               <CardHeader className="bg-purple-50 py-3">
@@ -4609,6 +4755,19 @@ export function EditEquipmentModal({
         onOpenChange={setShowOrderSearchModal}
         onSelectOrder={handleOrderSelection}
         currentOrderId={formData.orden_compra_id}
+      />
+
+      {/* Modal para agregar especificación técnica */}
+      <AddEspecificacionModal
+        isOpen={showAddEspecificacionModal}
+        onClose={() => setShowAddEspecificacionModal(false)}
+        equipmentId={equipment?.id}
+        equipmentName={equipment?.name || equipment?.equipo?.name}
+        onEspecificacionAdded={() => {
+          if (equipment?.id) {
+            loadEquipoEspecificaciones(equipment.id);
+          }
+        }}
       />
 
       {/* Modal para agregar Correctivo General */}
