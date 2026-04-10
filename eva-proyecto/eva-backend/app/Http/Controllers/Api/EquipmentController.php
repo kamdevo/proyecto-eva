@@ -405,7 +405,7 @@ class EquipmentController extends ApiController
                 },
                 'contingencias' => function ($query) {
                     $query->with('usuarioReporta:id,nombre,apellido')
-                        ->where('estado', '!=', 'Cerrado')
+                        ->where('estado_id', '!=', 4)
                         ->orderBy('fecha', 'desc');
                 },
                 'calibraciones' => function ($query) {
@@ -576,7 +576,7 @@ class EquipmentController extends ApiController
 
             // Verificar si tiene contingencias activas
             $contingenciasActivas = $equipo->contingencias()
-                ->where('estado', '!=', 'Cerrado')
+                ->where('estado_id', '!=', 4)
                 ->count();
 
             if ($contingenciasActivas > 0) {
@@ -719,7 +719,7 @@ class EquipmentController extends ApiController
                 'area:id,name',
                 'clasificacionRiesgo:id,name',
                 'contingencias' => function ($query) {
-                    $query->where('estado', '!=', 'Cerrado');
+                    $query->where('estado_id', '!=', 4);
                 }
             ])
                 ->whereHas('clasificacionRiesgo', function ($query) {
@@ -728,7 +728,7 @@ class EquipmentController extends ApiController
                 ->where(function ($query) {
                     $query->where('fecha_mantenimiento', '<', now()->subDays(30))
                         ->orWhereHas('contingencias', function ($q) {
-                            $q->where('estado', '!=', 'Cerrado')
+                            $q->where('estado_id', '!=', 4)
                                 ->where('severidad', 'Alta');
                         });
                 })

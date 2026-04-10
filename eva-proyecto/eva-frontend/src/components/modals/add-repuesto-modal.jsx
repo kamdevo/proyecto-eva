@@ -34,6 +34,7 @@ const AddRepuestoModal = ({
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [repuestoFreeText, setRepuestoFreeText] = useState("");
 
   // Cargar repuestos desde la BD
   const { repuestos, loading: repuestosLoading } = useRepuestos();
@@ -48,6 +49,7 @@ const AddRepuestoModal = ({
         fecha: new Date().toISOString().split("T")[0],
         file: null,
       });
+      setRepuestoFreeText("");
       setErrors({});
     }
   }, [isOpen]);
@@ -122,7 +124,7 @@ const AddRepuestoModal = ({
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.repuesto_id) {
+    if (!formData.repuesto_id && !repuestoFreeText.trim()) {
       newErrors.repuesto_id = "El repuesto es obligatorio";
     }
 
@@ -158,7 +160,11 @@ const AddRepuestoModal = ({
       
       const formDataToSend = new FormData();
       formDataToSend.append("equipo_id", equipmentId);
-      formDataToSend.append("repuesto_id", formData.repuesto_id);
+      if (formData.repuesto_id) {
+        formDataToSend.append("repuesto_id", formData.repuesto_id);
+      } else if (repuestoFreeText.trim()) {
+        formDataToSend.append("repuesto_nombre", repuestoFreeText.trim());
+      }
       formDataToSend.append("cantidad_entregada", formData.cantidad_entregada);
       formDataToSend.append("fecha", formData.fecha);
       formDataToSend.append("observacion", formData.observacion);
@@ -208,8 +214,16 @@ const AddRepuestoModal = ({
             <SearchableSelect
               options={repuestos}
               value={formData.repuesto_id}
-              onChange={(value) => handleInputChange("repuesto_id", value)}
-              placeholder={repuestosLoading ? "Cargando repuestos..." : "Buscar y seleccionar repuesto"}
+              onChange={(value) => {
+                handleInputChange("repuesto_id", value);
+                if (value) setRepuestoFreeText("");
+              }}
+              allowFreeInput={true}
+              onFreeInputChange={(text) => {
+                setRepuestoFreeText(text);
+                if (text) handleInputChange("repuesto_id", "");
+              }}
+              placeholder={repuestosLoading ? "Cargando repuestos..." : "Buscar o escribir nombre del repuesto"}
               disabled={repuestosLoading}
               className={errors.repuesto_id ? "border-red-500" : ""}
             />

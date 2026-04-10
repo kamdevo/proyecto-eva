@@ -178,7 +178,7 @@ class ContingenciaController extends ApiController
                 'observacion' => $observacionCompleta,
                 'fecha' => $request->fecha,
                 'usuario_id' => $request->usuario_reporta,
-                'estado_id' => $request->estado === 'Cerrado' ? 2 : 1,
+                'estado_id' => $this->mapEstadoToId($request->estado),
             ];
 
             // Manejar archivo adjunto
@@ -338,7 +338,7 @@ class ContingenciaController extends ApiController
                 'observacion' => $observacionCompleta,
                 'fecha' => $request->fecha,
                 'usuario_id' => $request->usuario_reporta,
-                'estado_id' => $request->estado === 'Cerrado' ? 2 : 1,
+                'estado_id' => $this->mapEstadoToId($request->estado),
             ];
 
             // Manejar actualización de archivo
@@ -355,7 +355,7 @@ class ContingenciaController extends ApiController
             }
 
             // Si se está cerrando la contingencia, agregar fecha de cierre
-            if ($request->estado === 'Cerrado' && $contingencia->estado !== 'Cerrado') {
+            if ($request->estado === 'Cerrado' && $contingencia->estado_id !== 4) {
                 $contingenciaData['fecha_cierre'] = now();
             }
 
@@ -468,12 +468,12 @@ class ContingenciaController extends ApiController
 
             $contingencia = Contingencia::findOrFail($id);
 
-            if ($contingencia->estado === 'Cerrado') {
+            if ($contingencia->estado_id === 4) {
                 return ResponseFormatter::error('La contingencia ya está cerrada', 400);
             }
 
             $updateData = [
-                'estado' => 'Cerrado',
+                'estado_id' => 4,
                 'fecha_cierre' => now(),
                 'solucion' => $request->solucion,
                 'observaciones_cierre' => $request->observaciones_cierre,
@@ -535,7 +535,7 @@ class ContingenciaController extends ApiController
                 'usuarioReporta:id,nombre,apellido',
                 'usuarioAsignado:id,nombre,apellido'
             ])
-            ->where('estado', '!=', 'Cerrado')
+            ->where('estado_id', '!=', 4)
             ->orderBy('severidad', 'desc')
             ->orderBy('fecha', 'asc')
             ->get();
@@ -567,7 +567,7 @@ class ContingenciaController extends ApiController
                 'usuarioAsignado:id,nombre,apellido'
             ])
             ->whereIn('severidad', ['Alta', 'Crítica'])
-            ->where('estado', '!=', 'Cerrado')
+            ->where('estado_id', '!=', 4)
             ->orderBy('fecha', 'asc')
             ->get();
 
@@ -588,9 +588,9 @@ class ContingenciaController extends ApiController
 
             $stats = [
                 'total_reportadas' => Contingencia::whereYear('fecha', $year)->count(),
-                'total_cerradas' => Contingencia::where('estado', 'Cerrado')
+                'total_cerradas' => Contingencia::where('estado_id', 4)
                     ->whereYear('fecha', $year)->count(),
-                'total_abiertas' => Contingencia::where('estado', '!=', 'Cerrado')->count(),
+                'total_abiertas' => Contingencia::where('estado_id', '!=', 4)->count(),
                 'por_severidad' => Contingencia::whereYear('fecha', $year)
                     ->groupBy('severidad')
                     ->selectRaw('severidad, count(*) as total')
@@ -600,8 +600,8 @@ class ContingenciaController extends ApiController
                     ->selectRaw('tipo, count(*) as total')
                     ->get(),
                 'por_estado' => Contingencia::whereYear('fecha', $year)
-                    ->groupBy('estado')
-                    ->selectRaw('estado, count(*) as total')
+                    ->groupBy('estado_id')
+                    ->selectRaw('estado_id, count(*) as total')
                     ->get(),
                 'por_mes' => Contingencia::whereYear('fecha', $year)
                     ->groupBy(DB::raw('MONTH(fecha)'))
@@ -609,7 +609,7 @@ class ContingenciaController extends ApiController
                     ->orderBy('mes')
                     ->get(),
                 'tiempo_promedio_resolucion' => $this->getTiempoPromedioResolucion($year),
-                'costo_total_reparaciones' => Contingencia::where('estado', 'Cerrado')
+                'costo_total_reparaciones' => Contingencia::where('estado_id', 4)
                     ->whereYear('fecha', $year)->sum('costo_reparacion'),
                 'equipos_mas_contingencias' => $this->getEquiposMasContingencias($year)
             ];
@@ -693,9 +693,21 @@ class ContingenciaController extends ApiController
     /**
      * Métodos auxiliares privados
      */
+    private function mapEstadoToId($estado)
+    {
+        $map = [
+            'Abierto' => 1,
+            'Asignado' => 2,
+            'Diagnostico' => 3,
+            'Cerrado' => 4,
+            'Esperando cierre' => 5,
+        ];
+        return $map[$estado] ?? 1;
+    }
+
     private function getTiempoPromedioResolucion($year)
     {
-        $contingenciasCerradas = Contingencia::where('estado', 'Cerrado')
+        $contingenciasCerradas = Contingencia::where('estado_id', 4)
             ->whereYear('fecha', $year)
             ->whereNotNull('fecha_cierre')
             ->get();

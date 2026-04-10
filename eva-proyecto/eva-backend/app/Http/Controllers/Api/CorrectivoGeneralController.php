@@ -1088,6 +1088,23 @@ class CorrectivoGeneralController extends Controller
             }
 
             // 3. Manejo de Repuesto Instalado (equipo_repuestos)
+            // Si viene repuesto_nombre en lugar de repuesto_id, crear o buscar el repuesto
+            if ($request->filled('repuesto_nombre') && !$request->filled('repuesto_id')) {
+                $nombre = trim($request->repuesto_nombre);
+                $existente = DB::table('repuestos')->whereRaw('LOWER(name) = ?', [strtolower($nombre)])->first();
+                if ($existente) {
+                    $request->merge(['repuesto_id' => $existente->id]);
+                } else {
+                    $nuevoId = DB::table('repuestos')->insertGetId([
+                        'name' => $nombre,
+                        'cantidad' => 0,
+                        'status' => 1,
+                        'created_at' => now(),
+                    ]);
+                    $request->merge(['repuesto_id' => $nuevoId]);
+                }
+            }
+
             if ($request->filled('repuesto_id')) {
                 $repuestoData = [
                     'equipo_id' => $request->equipo_id,

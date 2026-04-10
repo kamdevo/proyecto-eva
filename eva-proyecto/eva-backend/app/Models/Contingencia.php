@@ -136,7 +136,7 @@ class Contingencia extends Model
     {
         return $query->where('status', 1)
                     ->orWhere('activo', 1)
-                    ->orWhere('estado', 1);
+                    ->orWhere('estado_id', 1);
     }
 
     /**

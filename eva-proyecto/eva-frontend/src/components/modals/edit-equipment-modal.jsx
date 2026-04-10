@@ -4201,9 +4201,6 @@ export function EditEquipmentModal({
                           <th className="border border-gray-300 p-2 text-xs">
                             información relacionada
                           </th>
-                          <th className="border border-gray-300 p-2 text-xs">
-                            acciones
-                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4214,37 +4211,29 @@ export function EditEquipmentModal({
                             (preventivo, index) => (
                               <tr key={preventivo.id || index}>
                                 <td className="border border-gray-300 p-2 text-xs">
-                                  {preventivo.id || "-"}
+                                  {preventivo.description || "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs">
                                   {preventivo.fecha_mantenimiento
-                                    ? new Date(
-                                        preventivo.fecha_mantenimiento
-                                      ).toLocaleDateString()
+                                    ? (() => { const p = preventivo.fecha_mantenimiento.toString().split(/[ T]/)[0].split("-"); return `${p[2]}/${p[1]}/${p[0]}`; })()
                                     : preventivo.fecha_programada
-                                    ? new Date(
-                                        preventivo.fecha_programada
-                                      ).toLocaleDateString()
+                                    ? (() => { const p = preventivo.fecha_programada.toString().split(/[ T]/)[0].split("-"); return `${p[2]}/${p[1]}/${p[0]}`; })()
                                     : "-"}
-                                </td>
-                                <td className="border border-gray-300 p-2 text-xs">
-                                  {preventivo.description ||
-                                    preventivo.observacion ||
-                                    "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs text-center">
                                   <div className="flex items-center justify-center gap-2">
                                     {(preventivo.file || preventivo.archivo) && (
                                       <Button
                                         type="button"
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className="h-7 px-2 text-[10px]"
+                                        className="h-7 w-7 p-0 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                                         onClick={() =>
                                           viewPreventivoDocument(preventivo.file || preventivo.archivo)
                                         }
+                                        title="Ver archivo"
                                       >
-                                        Ver
+                                        <FileText className="h-3.5 w-3.5" />
                                       </Button>
                                     )}
                                     <Button
@@ -4279,7 +4268,7 @@ export function EditEquipmentModal({
                           <tr>
                             <td
                               className="border border-gray-300 p-2 text-xs text-center text-gray-500"
-                              colSpan="4"
+                              colSpan="3"
                             >
                               No hay mantenimientos preventivos registrados
                             </td>
@@ -4367,16 +4356,12 @@ export function EditEquipmentModal({
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs">
                                   {calibracion.fecha_calibracion
-                                    ? new Date(
-                                        calibracion.fecha_calibracion
-                                      ).toLocaleDateString()
+                                    ? (() => { const p = calibracion.fecha_calibracion.toString().split(/[ T]/)[0].split("-"); return `${p[2]}/${p[1]}/${p[0]}`; })()
                                     : "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs">
                                   {calibracion.fecha_programada
-                                    ? new Date(
-                                        calibracion.fecha_programada
-                                      ).toLocaleDateString()
+                                    ? (() => { const p = calibracion.fecha_programada.toString().split(/[ T]/)[0].split("-"); return `${p[2]}/${p[1]}/${p[0]}`; })()
                                     : "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs">

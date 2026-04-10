@@ -1612,6 +1612,23 @@ Route::prefix('v1')->group(function () {
     // Create new equipment spare part/accessory installation
     Route::post('equipo-repuestos', function (Request $request) {
         try {
+            // Si viene repuesto_nombre en lugar de repuesto_id, crear o buscar el repuesto
+            if ($request->filled('repuesto_nombre') && !$request->filled('repuesto_id')) {
+                $nombre = trim($request->repuesto_nombre);
+                $existente = DB::table('repuestos')->whereRaw('LOWER(name) = ?', [strtolower($nombre)])->first();
+                if ($existente) {
+                    $request->merge(['repuesto_id' => $existente->id]);
+                } else {
+                    $nuevoId = DB::table('repuestos')->insertGetId([
+                        'name' => $nombre,
+                        'cantidad' => 0,
+                        'status' => 1,
+                        'created_at' => now(),
+                    ]);
+                    $request->merge(['repuesto_id' => $nuevoId]);
+                }
+            }
+
             $validator = Validator::make($request->all(), [
                 'equipo_id' => 'required|integer|exists:equipos,id',
                 'repuesto_id' => 'required|integer|exists:repuestos,id',

@@ -220,7 +220,7 @@ class DashboardController extends ApiController
                     ->get(),
                 'contingencias_criticas' => Contingencia::with(['equipo:id,name,code'])
                     ->where('severidad', 'Alta')
-                    ->where('estado', '!=', 'Cerrado')
+                    ->where('estado_id', '!=', 4)
                     ->orderBy('fecha', 'desc')
                     ->limit(10)
                     ->get(),
@@ -342,7 +342,7 @@ class DashboardController extends ApiController
 
     private function getContingenciasPorSeveridad()
     {
-        return Contingencia::where('estado', '!=', 'Cerrado')
+        return Contingencia::where('estado_id', '!=', 4)
             ->groupBy('severidad')
             ->selectRaw('severidad, count(*) as total')
             ->get();
@@ -416,7 +416,7 @@ class DashboardController extends ApiController
                 ],
                 'contingencias' => [
                     'reportadas' => Contingencia::where('fecha', '>=', $fechaInicio)->count(),
-                    'resueltas' => Contingencia::where('estado', 'Cerrado')
+                    'resueltas' => Contingencia::where('estado_id', 4)
                         ->where('fecha_cierre', '>=', $fechaInicio)->count(),
                     'tiempo_promedio_resolucion' => $this->getTiempoPromedioResolucion($fechaInicio)
                 ]
@@ -431,7 +431,7 @@ class DashboardController extends ApiController
 
     private function getTiempoPromedioResolucion($fechaInicio)
     {
-        $contingencias = Contingencia::where('estado', 'Cerrado')
+        $contingencias = Contingencia::where('estado_id', 4)
             ->where('fecha_cierre', '>=', $fechaInicio)
             ->whereNotNull('fecha_cierre')
             ->get();

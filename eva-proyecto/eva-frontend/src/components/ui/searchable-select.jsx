@@ -7,6 +7,8 @@ const SearchableSelect = ({
   value,
   onValueChange,
   onChange, // ← AGREGAR SOPORTE PARA onChange TAMBIÉN
+  allowFreeInput = false, // Permite escribir libremente sin seleccionar un registro
+  onFreeInputChange, // Callback para cuando el usuario escribe texto libre
   disabled = false,
   loading = false,
   className,
@@ -14,6 +16,7 @@ const SearchableSelect = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [open, setOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [freeText, setFreeText] = useState(""); // Texto libre ingresado
   const inputRef = useRef(null);
 
   // Normalize text to remove accents/tildes for search
@@ -71,6 +74,19 @@ const SearchableSelect = ({
     if (callback) {
       callback(selectedValue);
     }
+    setFreeText("");
+    if (onFreeInputChange) onFreeInputChange("");
+    setOpen(false);
+    setSearchTerm("");
+    setIsSearching(false);
+  };
+
+  const handleSelectFreeText = (text) => {
+    // Limpiar el valor de selección existente
+    const callback = onChange || onValueChange;
+    if (callback) callback("");
+    setFreeText(text);
+    if (onFreeInputChange) onFreeInputChange(text);
     setOpen(false);
     setSearchTerm("");
     setIsSearching(false);
@@ -79,6 +95,10 @@ const SearchableSelect = ({
   const handleOpenChange = (newOpen) => {
     setOpen(newOpen);
     if (!newOpen) {
+      // Si allowFreeInput y hay texto escrito sin seleccionar, guardarlo como texto libre
+      if (allowFreeInput && searchTerm.trim() && !selectedOption) {
+        handleSelectFreeText(searchTerm.trim());
+      }
       setSearchTerm("");
       setIsSearching(false);
     } else {
@@ -103,9 +123,9 @@ const SearchableSelect = ({
       {/* Search Input */}
       <Input
         ref={inputRef}
-        placeholder={selectedOption ? (selectedOption.label || selectedOption.nombre || selectedOption.name) : placeholder}
+        placeholder={selectedOption ? (selectedOption.label || selectedOption.nombre || selectedOption.name) : (freeText || placeholder)}
         value={
-          isSearching ? searchTerm : selectedOption ? (selectedOption.label || selectedOption.nombre || selectedOption.name) : ""
+          isSearching ? searchTerm : selectedOption ? (selectedOption.label || selectedOption.nombre || selectedOption.name) : (freeText || "")
         }
         onChange={handleInputChange}
         onFocus={() => {
@@ -120,6 +140,16 @@ const SearchableSelect = ({
       {/* Dropdown */}
       {open && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+          {/* Opción de texto libre */}
+          {allowFreeInput && searchTerm.trim() && (
+            <div
+              className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm text-blue-600 font-medium border-b border-gray-100 flex items-center gap-2"
+              onClick={() => handleSelectFreeText(searchTerm.trim())}
+            >
+              <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Escribir</span>
+              {searchTerm.trim()}
+            </div>
+          )}
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option) => (
               <div
@@ -131,9 +161,11 @@ const SearchableSelect = ({
               </div>
             ))
           ) : (
-            <div className="px-3 py-2 text-sm text-gray-500">
-              No se encontraron resultados
-            </div>
+            !allowFreeInput && (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                No se encontraron resultados
+              </div>
+            )
           )}
         </div>
       )}

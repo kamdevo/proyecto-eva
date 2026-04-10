@@ -89,6 +89,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
   // Files
   const [correctivoFile, setCorrectivoFile] = useState(null);
   const [repuestoFile, setRepuestoFile] = useState(null);
+  const [repuestoFreeText, setRepuestoFreeText] = useState("");
 
   // Avances
   const [avances, setAvances] = useState([]);
@@ -404,6 +405,14 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
       // Repuesto Instalado
       if (formData.repuesto_id_instalado && formData.repuesto_id_instalado !== "none") {
         data.append('repuesto_id', formData.repuesto_id_instalado);
+        data.append('cantidad_entregada', formData.cantidad_instalado);
+        data.append('fecha_repuesto', formData.fecha_instalacion);
+        data.append('observacion_repuesto', formData.observacion_repuesto);
+        if (repuestoFile) {
+          data.append('file_repuesto', repuestoFile);
+        }
+      } else if (repuestoFreeText.trim()) {
+        data.append('repuesto_nombre', repuestoFreeText.trim());
         data.append('cantidad_entregada', formData.cantidad_instalado);
         data.append('fecha_repuesto', formData.fecha_instalacion);
         data.append('observacion_repuesto', formData.observacion_repuesto);
@@ -800,10 +809,18 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
               <div className="space-y-2 md:col-span-2">
                 <Label>Seleccionar Repuesto</Label>
                 <SearchableSelect
-                  placeholder="Selecciona un repuesto..."
+                  placeholder="Selecciona o escribe un repuesto..."
                   options={options.repuestos}
                   value={formData.repuesto_id_instalado}
-                  onValueChange={(val) => handleInputChange('repuesto_id_instalado', val)}
+                  onValueChange={(val) => {
+                    handleInputChange('repuesto_id_instalado', val);
+                    if (val) setRepuestoFreeText("");
+                  }}
+                  allowFreeInput={true}
+                  onFreeInputChange={(text) => {
+                    setRepuestoFreeText(text);
+                    if (text) handleInputChange('repuesto_id_instalado', "");
+                  }}
                 />
               </div>
               <div className="space-y-2">
