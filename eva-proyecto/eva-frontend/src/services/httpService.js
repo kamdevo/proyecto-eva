@@ -21,6 +21,24 @@ const httpService = axios.create({
 // Variable para almacenar el token de autenticación
 let authToken = null;
 
+// Mutex para evitar múltiples refresh simultáneos
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const onTokenRefreshed = (token) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
+
+const onRefreshFailed = (error) => {
+  refreshSubscribers.forEach((cb) => cb(null, error));
+  refreshSubscribers = [];
+};
+
+const addRefreshSubscriber = (cb) => {
+  refreshSubscribers.push(cb);
+};
+
 // Inicializar token desde localStorage al cargar el módulo
 const initializeTokenFromStorage = () => {
   const storedToken = localStorage.getItem("eva_auth_token");
@@ -89,16 +107,38 @@ httpService.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
+      // Si ya hay un refresh en curso, encolar esta petición
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          addRefreshSubscriber((token, err) => {
+            if (err || !token) {
+              return reject(err || new Error("Token refresh failed"));
+            }
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(httpService(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
+
       try {
         // Intentar refrescar el token
-        await refreshToken();
+        const newToken = await refreshToken();
+        isRefreshing = false;
+
+        // Notificar a las peticiones encoladas
+        onTokenRefreshed(newToken);
 
         // Reintentar la petición original
-        if (authToken) {
-          originalRequest.headers.Authorization = `Bearer ${authToken}`;
+        if (newToken) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return httpService(originalRequest);
         }
       } catch (refreshError) {
+        isRefreshing = false;
+        // Notificar fallo a peticiones encoladas
+        onRefreshFailed(refreshError);
         // Si falla el refresh, redirigir al login
         handleAuthenticationError();
         return Promise.reject(refreshError);

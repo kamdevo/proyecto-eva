@@ -68,6 +68,9 @@ export const AuthProvider = ({ children }) => {
     
     if (!isLoading && originalUser) {
       initPermissions();
+    } else if (!isLoading && !originalUser) {
+      // Auth terminó de cargar pero no hay usuario — desbloquear loading
+      setLoading(false);
     }
   }, [originalUser, isAuthenticated, isLoading]);
 

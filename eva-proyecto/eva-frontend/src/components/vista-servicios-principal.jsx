@@ -133,117 +133,129 @@ export default function VistaServiciosPrincipal() {
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#f8f9fa]">
+    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
 
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div className="bg-slate-900 text-white px-6 py-5 shadow-lg">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-xl">
-              <Settings className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-wide uppercase">Gestión de Servicios</h1>
-              <p className="text-xs text-slate-400">Administra todos los servicios del hospital</p>
-            </div>
+      {/* ── PAGE HEADER (White Editorial Style) ── */}
+      <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-blue-600">
+            <Settings className="w-8 h-8" />
           </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mt-1">
+              Gestión de Servicios
+            </h1>
+            <p className="text-slate-500 mt-2 max-w-lg text-sm">
+              Administración centralizada de servicios hospitalarios del sistema EVA.
+            </p>
+          </div>
+        </div>
 
-          {/* Buscador integrado */}
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+        {/* Summary Stat Card */}
+        <div className="bg-white border border-gray-100 p-5 rounded-3xl shadow-sm flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
+          <div className="bg-blue-100 p-3 rounded-2xl">
+            <Building2 className="h-8 w-8 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Servicios</p>
+            <p className="text-3xl font-bold text-slate-900">{totalItems}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Barra de Controles y Búsqueda */}
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
+          <div className="relative flex-grow w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Buscar por nombre, código, zona, sede..."
               value={inputSearch}
               onChange={(e) => setInputSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && triggerSearch()}
-              className="w-full pl-9 pr-9 py-2.5 bg-white/10 border border-white/20 text-white placeholder-white/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-11 pr-10 py-3 h-12 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 text-sm shadow-inner outline-none"
             />
             <button
               onClick={triggerSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
             >
               <Search className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* ── Barra de controles ─────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 pt-5 space-y-4">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-3">
-            <Button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2.5 px-6 shadow-lg shadow-blue-100 transition-all font-semibold"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo Servicio
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span>Mostrar</span>
+          {/* Items por página */}
+          <div className="flex items-center gap-2 text-sm text-slate-500 shrink-0">
+            <span className="hidden sm:inline">Mostrar</span>
             <Select
               value={itemsPerPage.toString()}
               onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}
             >
-              <SelectTrigger className="w-20 rounded-xl border-slate-100 bg-slate-50">
+              <SelectTrigger className="w-20 h-12 bg-slate-50 border-none rounded-2xl shadow-inner">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="25">25</SelectItem>
                 <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
-            <span>entradas</span>
           </div>
+
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12 shadow-lg shadow-blue-100 transition-all font-bold w-full lg:w-auto shrink-0"
+          >
+            <Plus className="w-5 h-5 font-bold" />
+            Nuevo Servicio
+          </Button>
         </div>
 
-        {/* ── Tabla ──────────────────────────────────────────── */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Tabla de Resultados */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-separate border-spacing-0 text-sm">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <tr className="bg-white/50">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
                     <button onClick={() => handleSort("s.name")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Servicio {getSortIcon("s.name")}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
                     <button onClick={() => handleSort("s.code")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Código {getSortIcon("s.code")}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
                     <button onClick={() => handleSort("zona_nombre")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Zona {getSortIcon("zona_nombre")}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
                     <button onClick={() => handleSort("sede_nombre")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Sede {getSortIcon("sede_nombre")}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
                     Piso / Centro
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
                     <button onClick={() => handleSort("total_equipos")} className="flex items-center justify-center gap-1.5 hover:text-blue-600 transition-colors w-full">
                       Equipos {getSortIcon("total_equipos")}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
                     <button onClick={() => handleSort("total_usuarios")} className="flex items-center justify-center gap-1.5 hover:text-blue-600 transition-colors w-full">
                       Usuarios {getSortIcon("total_usuarios")}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
                     Estado
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">
+                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right w-40">
                     Acciones
                   </th>
                 </tr>
@@ -252,31 +264,42 @@ export default function VistaServiciosPrincipal() {
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="h-56 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-300" />
-                      <p className="text-slate-400 mt-3 text-sm">Cargando servicios...</p>
+                    <td colSpan={9} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : servicios.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="h-56 text-center">
-                      <Building2 className="w-12 h-12 mx-auto text-slate-200 mb-3" />
-                      <p className="text-slate-400 font-medium text-sm">No se encontraron servicios</p>
-                      {searchTerm && (
-                        <p className="text-slate-300 text-xs mt-1">Intenta con otro término de búsqueda</p>
-                      )}
+                    <td colSpan={9} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Building2 className="h-16 w-16 text-slate-100" />
+                        <span className="text-slate-400 font-medium italic">No se encontraron servicios</span>
+                        {searchTerm && (
+                          <span className="text-xs text-slate-300">Intenta con otro término de búsqueda</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   servicios.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={s.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
 
                       {/* Servicio */}
                       <td className="px-6 py-4">
-                        <div className="font-bold text-sm text-slate-900">{s.name}</div>
-                        {s.description && (
-                          <div className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{s.description}</div>
-                        )}
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100/50 group-hover:scale-110 transition-transform">
+                            <Settings className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-700 uppercase tracking-wide text-sm">{s.name}</span>
+                            {s.description && (
+                              <div className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{s.description}</div>
+                            )}
+                          </div>
+                        </div>
                       </td>
 
                       {/* Código */}
@@ -346,24 +369,24 @@ export default function VistaServiciosPrincipal() {
 
                       {/* Acciones */}
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2 transition-opacity">
                           <button
                             onClick={() => handleView(s)}
-                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors"
+                            className="p-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100 transition-colors shadow-sm"
                             title="Ver detalle"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleEdit(s)}
-                            className="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-colors"
+                            className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
                             title="Editar"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(s)}
-                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors"
+                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
                             title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -377,8 +400,7 @@ export default function VistaServiciosPrincipal() {
             </table>
           </div>
 
-          {/* Paginación */}
-          <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-100">
+          <div className="bg-slate-50/50 px-6 py-5 border-t border-slate-100">
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}

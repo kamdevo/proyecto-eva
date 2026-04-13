@@ -8,18 +8,21 @@ const ProtectedRoute = ({ children, requireAuth = true }) => {
   const location = useLocation();
   const [timedOut, setTimedOut] = useState(false);
 
-  // Timeout de seguridad para el estado de loading
+  // Timeout de seguridad para el estado de loading (aumentado a 20s)
   useEffect(() => {
     if (!isLoading) {
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout(() => setTimedOut(true), 12000);
+    const timer = setTimeout(() => setTimedOut(true), 20000);
     return () => clearTimeout(timer);
   }, [isLoading]);
 
-  // Si el loading se atascó, redirigir al login
+  // Si el loading se atascó, limpiar sesión y redirigir al login
   if (isLoading && timedOut) {
+    console.warn("⚠️ [ProtectedRoute] Timeout de carga alcanzado, limpiando sesión");
+    localStorage.removeItem("eva_auth_token");
+    localStorage.removeItem("eva_user");
     return <Navigate to="/" replace />;
   }
 

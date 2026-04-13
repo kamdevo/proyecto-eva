@@ -76,10 +76,9 @@ export default function EquipmentSearchModal({
       let url = '';
       if (ticketType === 'biomedico') {
         url = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/medical-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
-      } else if (ticketType === 'industrial') {
+      } else if (ticketType === 'industrial' || ticketType === 'infraestructura') {
         url = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos/industrial-devices-complete?per_page=${itemsPerPage}&page=${currentPage}`;
       } else {
-        // Para infraestructura, usar endpoint general
         url = `${import.meta.env.VITE_API_URL || "http://192.168.56.1:8001/api"}/v1/equipos?per_page=${itemsPerPage}&page=${currentPage}`;
       }
       
