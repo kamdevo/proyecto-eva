@@ -624,7 +624,9 @@ export function ViewEquipmentModal({
     
     try {
       if (typeof date === "string" && date.includes("-")) {
-        return new Date(date).toLocaleDateString("es-ES");
+        // Si es solo fecha (YYYY-MM-DD), agregar T00:00:00 para interpretar como local
+        const d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(date + 'T00:00:00') : new Date(date);
+        return d.toLocaleDateString("es-ES");
       }
       if (typeof date === "number") {
         return new Date(date).toLocaleDateString("es-ES");

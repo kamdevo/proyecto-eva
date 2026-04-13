@@ -11,7 +11,7 @@ import httpService from '../../services/httpService';
 import { useAuth } from '../../hooks/useAuth';
 import Pagination from '../common/Pagination';
 
-const PreventiveModal = ({ isOpen, onOpenChange, equipoId }) => {
+const PreventiveModal = ({ isOpen, onOpenChange, equipoId, onSuccess }) => {
   const [preventiveData, setPreventiveData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

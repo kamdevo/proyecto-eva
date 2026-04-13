@@ -51,6 +51,22 @@ import AddRepuestoModal from "./add-repuesto-modal";
 import AddCorrectivoModal from "./add-correctivo-modal";
 import AddEspecificacionModal from "./add-especificacion-modal";
 import EditObservacionModal from "./edit-observacion-modal";
+
+// Parsear fecha como local (evita desfase de timezone con fechas ISO date-only)
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  const s = String(dateStr);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00');
+  return new Date(s);
+};
+
+// Normalizar fecha a YYYY-MM-DD para inputs type="date"
+const toDateInputValue = (val) => {
+  if (!val) return "";
+  const s = String(val).split(/[ T]/)[0];
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+};
+
 export function EditEquipmentModal({
   open = false,
   onOpenChange,
@@ -444,15 +460,14 @@ export function EditEquipmentModal({
         return equipmentData.numero_invima || equipmentData.invima || "";
       })(),
 
-      // Fechas y especificaciones temporales
-      fecha_fabricacion: equipmentData.fecha_fabricacion || "",
-      fecha_instalacion: equipmentData.fecha_instalacion || "",
-      fecha_ad: equipmentData.fecha_ad || "",
-      fecha_vencimiento_garantia:
-        equipmentData.fecha_vencimiento_garantia || "",
-      fecha_acta_recibo: equipmentData.fecha_acta_recibo || "",
-      fecha_inicio_operacion: equipmentData.fecha_inicio_operacion || "",
-      fecha_recepcion_almacen: equipmentData.fecha_recepcion_almacen || "",
+      // Fechas y especificaciones temporales (normalizar a YYYY-MM-DD)
+      fecha_fabricacion: toDateInputValue(equipmentData.fecha_fabricacion),
+      fecha_instalacion: toDateInputValue(equipmentData.fecha_instalacion),
+      fecha_ad: toDateInputValue(equipmentData.fecha_ad),
+      fecha_vencimiento_garantia: toDateInputValue(equipmentData.fecha_vencimiento_garantia),
+      fecha_acta_recibo: toDateInputValue(equipmentData.fecha_acta_recibo),
+      fecha_inicio_operacion: toDateInputValue(equipmentData.fecha_inicio_operacion),
+      fecha_recepcion_almacen: toDateInputValue(equipmentData.fecha_recepcion_almacen),
       vida_util: equipmentData.vida_util || "",
 
       // Ubicación y movilidad
@@ -1295,7 +1310,7 @@ export function EditEquipmentModal({
 
   // Función para eliminar una observación
   const deleteObservacion = (obs) => {
-    const fecha = obs.created_at ? new Date(obs.created_at).toLocaleDateString() : 'sin fecha';
+    const fecha = obs.created_at ? parseLocalDate(obs.created_at)?.toLocaleDateString() : 'sin fecha';
     setConfirmModal({
       open: true,
       message: `¿Eliminar la observación del ${fecha}? Esta acción no se puede deshacer.`,
@@ -1918,8 +1933,8 @@ export function EditEquipmentModal({
 
     // Validación de fechas
     if (formData.fecha_fabricacion && formData.fecha_instalacion) {
-      const fechaFabricacion = new Date(formData.fecha_fabricacion);
-      const fechaInstalacion = new Date(formData.fecha_instalacion);
+      const fechaFabricacion = parseLocalDate(formData.fecha_fabricacion);
+      const fechaInstalacion = parseLocalDate(formData.fecha_instalacion);
 
       if (fechaInstalacion < fechaFabricacion) {
         newErrors.fecha_instalacion =
@@ -3959,9 +3974,9 @@ export function EditEquipmentModal({
                               <div className="flex justify-between items-start mb-1">
                                 <span className="font-medium text-gray-600">
                                   {obs.created_at
-                                    ? new Date(
+                                    ? parseLocalDate(
                                         obs.created_at
-                                      ).toLocaleDateString()
+                                      )?.toLocaleDateString()
                                     : "Fecha no disponible"}
                                 </span>
                                 <div className="flex gap-2">

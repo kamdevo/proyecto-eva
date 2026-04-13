@@ -58,6 +58,15 @@ import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import { prefetchEquipment } from "@/services/equipmentPrefetchCache";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import { LifeModal } from "@/components/modals/life-modal";
+
+// Parsear fecha como local (evita desfase de timezone con fechas ISO date-only)
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  const s = String(dateStr);
+  // Si es solo fecha (YYYY-MM-DD), agregar T00:00:00 para interpretar como local
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00');
+  return new Date(s);
+};
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
 import AddObservacionModal from "@/components/modals/add-observacion-modal";
@@ -977,9 +986,9 @@ function IndustrialDevices() {
                         </div>
                         <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
                           {equipment.informacion_adicional?.ultimo_mantenimiento
-                            ? new Date(
+                            ? parseLocalDate(
                                 equipment.informacion_adicional.ultimo_mantenimiento
-                              ).toLocaleDateString()
+                              )?.toLocaleDateString()
                             : "Sin registro"}
                           <Link
                             size={15}
@@ -997,9 +1006,9 @@ function IndustrialDevices() {
                         </div>
                         <div className="text-slate-600 bg-amber-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-amber-200 flex justify-between items-center">
                           {equipment.informacion_adicional?.ultima_calibracion
-                            ? new Date(
+                            ? parseLocalDate(
                                 equipment.informacion_adicional.ultima_calibracion
-                              ).toLocaleDateString()
+                              )?.toLocaleDateString()
                             : "Sin registro"}
                           <Link
                             size={15}
@@ -1070,9 +1079,9 @@ function IndustrialDevices() {
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {equipment.informacion_adicional
                                   ?.ultimo_correctivo_general
-                                  ? new Date(
+                                  ? parseLocalDate(
                                       equipment.informacion_adicional.ultimo_correctivo_general
-                                    ).toLocaleDateString()
+                                    )?.toLocaleDateString()
                                   : "Sin registro"}
                               </div>
                             </div>
@@ -1099,9 +1108,9 @@ function IndustrialDevices() {
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {equipment.informacion_adicional
                                   ?.ultimo_procedimiento_correctivo
-                                  ? new Date(
+                                  ? parseLocalDate(
                                       equipment.informacion_adicional.ultimo_procedimiento_correctivo
-                                    ).toLocaleDateString()
+                                    )?.toLocaleDateString()
                                   : "Sin registro"}
                               </div>
                             </div>
@@ -1127,9 +1136,9 @@ function IndustrialDevices() {
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {equipment.informacion_adicional
                                   ?.fecha_inicio_ultimo_ticket
-                                  ? new Date(
+                                  ? parseLocalDate(
                                       equipment.informacion_adicional.fecha_inicio_ultimo_ticket
-                                    ).toLocaleDateString()
+                                    )?.toLocaleDateString()
                                   : "Sin registro"}
                               </div>
                             </div>
@@ -1155,7 +1164,7 @@ function IndustrialDevices() {
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {equipment.informacion_adicional?.fecha_ultimo_cierre_ticket
-                                  ? new Date(equipment.informacion_adicional.fecha_ultimo_cierre_ticket).toLocaleDateString()
+                                  ? parseLocalDate(equipment.informacion_adicional.fecha_ultimo_cierre_ticket)?.toLocaleDateString()
                                   : "Sin registros"}
                               </div>
                             </div>
@@ -1537,12 +1546,14 @@ function IndustrialDevices() {
       <PreventiveModal
         isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
+        onSuccess={refresh}
       />
       <CalibrationModal
         open={calibrationModalOpen}
         onOpenChange={setCalibrationModalOpen}
         equipoTipoId={2}
         equipoStatus="activo"
+        onSuccess={refresh}
       />
       <CorrectiveModal
         open={correctiveModalOpen}

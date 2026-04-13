@@ -258,7 +258,11 @@ const EquipmentModalReplicaPDF = ({ data }) => {
     if (!dateString || dateString === null || dateString === undefined || dateString === '') return fallback;
     try {
       if (typeof dateString === 'string' && dateString.includes('-')) {
-        return new Date(dateString).toLocaleDateString('es-ES');
+        // Si es solo fecha (YYYY-MM-DD), agregar T00:00:00 para interpretar como local
+        const d = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
+          ? new Date(dateString + 'T00:00:00')
+          : new Date(dateString);
+        return d.toLocaleDateString('es-ES');
       }
       if (typeof dateString === 'number') {
         return new Date(dateString).toLocaleDateString('es-ES');
@@ -390,7 +394,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableCellHeader}>Año Fabricación</Text>
-            <Text style={styles.tableCellData}>{formatDate(data?.fecha_fabricacion, new Date(data?.fecha_fabricacion || Date.now()).getFullYear())}</Text>
+            <Text style={styles.tableCellData}>{formatDate(data?.fecha_fabricacion, (() => { const f = data?.fecha_fabricacion; if (!f) return new Date().getFullYear(); const s = String(f); const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s); return d.getFullYear(); })())}</Text>
             <Text style={styles.tableCellHeader}>Garantía</Text>
             <Text style={styles.tableCellData}>{safeValue(data?.garantia)} años</Text>
           </View>

@@ -904,7 +904,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
                     {ticket.avances.map((avance, index) => (
                       <div key={avance.id || index} className="border-l-2 border-gray-300 pl-3 py-2 bg-gray-50">
                         <p className="text-sm text-gray-900">
-                          <span className="font-medium">{avance.fecha || avance.created_at ? new Date(avance.fecha || avance.created_at).toLocaleString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                          <span className="font-medium">{avance.fecha || avance.date || avance.created_at ? new Date(avance.fecha || avance.date || avance.created_at).toLocaleString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</span>
                           {' - '}
                           {avance.descripcion || avance.observacion || avance.description}
                         </p>

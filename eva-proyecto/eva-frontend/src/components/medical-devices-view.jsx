@@ -78,6 +78,14 @@ import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import AddObservacionModal from "@/components/modals/add-observacion-modal";
 import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
+
+// Parsear fecha como local (evita desfase de timezone con fechas ISO date-only)
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  const s = String(dateStr);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00');
+  return new Date(s);
+};
 import { ContingenciasModal } from "@/components/modals/contingencias-modal";
 import { CapacitacionesModal } from "@/components/modals/capacitaciones-modal";
 import { MovimientosModal } from "@/components/modals/movimientos-modal";
@@ -1318,9 +1326,9 @@ export function MedicalDevicesView() {
                         </div>
                         <div className="text-slate-600 bg-green-50 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-green-200 flex justify-between items-center">
                           {device.mantenimiento?.ultimoMantenimiento
-                            ? new Date(
+                            ? parseLocalDate(
                               device.mantenimiento.ultimoMantenimiento
-                            ).toLocaleDateString()
+                            )?.toLocaleDateString()
                             : "Sin registros"}
                           <Link
                             size={15}
@@ -1510,7 +1518,7 @@ export function MedicalDevicesView() {
                               </div>
                               <div className="text-[8px] xs:text-[9px] sm:text-xs">
                                 {device.mantenimiento?.ultimaCalibración
-                                  ? new Date(device.mantenimiento.ultimaCalibración).toLocaleDateString()
+                                  ? parseLocalDate(device.mantenimiento.ultimaCalibración)?.toLocaleDateString()
                                   : "Sin registros"}
                               </div>
                             </div>
@@ -1863,6 +1871,7 @@ export function MedicalDevicesView() {
       <PreventiveModal
         isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
+        onSuccess={refresh}
       />
       <CopyEquipmentModal
         open={copyEquipmentModalOpen}
@@ -1875,6 +1884,7 @@ export function MedicalDevicesView() {
         onOpenChange={setCalibrationModalOpen}
         equipoTipoId={1}
         equipoStatus="activo"
+        onSuccess={refresh}
       />
       <CorrectiveModal
         open={correctiveModalOpen}

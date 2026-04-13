@@ -528,7 +528,7 @@ const TicketPDF = ({ ticket }) => {
               ticket.avances.map((avance, index) => (
                 <View key={index} style={{marginBottom: 4, paddingLeft: 5, borderLeft: '1px solid #E5E7EB'}}>
                   <Text style={styles.fieldValue}>
-                    {formatDateTime(avance.fecha || avance.created_at)} - {avance.descripcion || avance.observacion}
+                    {formatDateTime(avance.fecha || avance.date || avance.created_at)} - {avance.descripcion || avance.observacion || avance.description || avance.title}
                   </Text>
                   {avance.usuario_nombre && (
                     <Text style={{fontSize: 6, color: '#6B7280', marginTop: 1}}>Por: {avance.usuario_nombre}</Text>
