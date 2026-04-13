@@ -4288,7 +4288,7 @@ export function EditEquipmentModal({
                       <thead>
                         <tr className="bg-gray-100">
                           <th className="border border-gray-300 p-2 text-xs">
-                            nro mantenimiento
+                            Descripción
                           </th>
                           <th className="border border-gray-300 p-2 text-xs">
                             fecha de ejecución
