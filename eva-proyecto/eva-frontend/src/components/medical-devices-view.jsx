@@ -73,6 +73,7 @@ import { DocumentListModal } from "@/components/modals/document-list-modal";
 import { DocumentUploadModal } from "@/components/modals/document-upload-modal";
 import { EditEquipmentModal } from "@/components/modals/edit-equipment-modal";
 import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
+import { prefetchEquipment } from "@/services/equipmentPrefetchCache";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import AddObservacionModal from "@/components/modals/add-observacion-modal";
@@ -839,6 +840,7 @@ export function MedicalDevicesView() {
                   <tr
                     key={device.id}
                     className="border-b"
+                    onMouseEnter={() => prefetchEquipment(device.id)}
                   >
                     {/* Equipment Column */}
                     <td className="p-1 xs:p-2 sm:p-3 md:p-4 border-r border-slate-200 align-top">
@@ -1625,6 +1627,7 @@ export function MedicalDevicesView() {
                 initial="hidden"
                 animate="visible"
                 whileHover="hover"
+                onMouseEnter={() => prefetchEquipment(device.id)}
               >
                 <Card className="overflow-hidden border-l-4 border-l-teal-500">
                   <CardContent className="p-4 space-y-3">

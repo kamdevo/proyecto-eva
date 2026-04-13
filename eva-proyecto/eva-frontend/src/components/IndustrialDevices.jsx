@@ -55,6 +55,7 @@ import { DocumentListModal } from "@/components/modals/document-list-modal";
 import { DocumentUploadModal } from "@/components/modals/document-upload-modal";
 import { EditEquipmentModal } from "@/components/modals/edit-equipment-modal";
 import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
+import { prefetchEquipment } from "@/services/equipmentPrefetchCache";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
 import { LifeModal } from "@/components/modals/life-modal";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
@@ -619,6 +620,7 @@ function IndustrialDevices() {
                   <tr
                     key={equipment.id}
                     className="border-b"
+                    onMouseEnter={() => prefetchEquipment(equipment.id)}
                   >
                     {/* Equipment Column */}
                     <td className="p-4 border-r border-slate-200 align-top">
@@ -1349,6 +1351,7 @@ function IndustrialDevices() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
+                onMouseEnter={() => prefetchEquipment(equipment.id)}
               >
                 <Card className="overflow-hidden border-l-4 border-l-orange-500">
                   <CardContent className="p-4 space-y-3">

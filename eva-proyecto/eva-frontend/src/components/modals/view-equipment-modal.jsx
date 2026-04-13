@@ -34,6 +34,7 @@ import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import EquipmentModalReplicaPDF from "../pdf/equipment-modal-replica-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import { prefetchEquipmentData } from "@/services/equipmentPrefetchCache";
 import { ManualSearchModal } from "./manual-search-modal";
 import { QuickGuideSearchModal } from "./quick-guide-search-modal";
 import TicketDetailsComplete from "./ticket-details-complete";
@@ -309,7 +310,16 @@ export function ViewEquipmentModal({
     setError(null);
 
     try {
-      // Try authenticated request first
+      // Try prefetch cache first (instant if already prefetched on hover)
+      const cachedData = await prefetchEquipmentData(equipmentId);
+      if (cachedData) {
+        setEquipmentDetails(cachedData);
+        await fetchUserHistory(equipmentId);
+        await fetchCambiosHdv(equipmentId);
+        return;
+      }
+
+      // Fallback: authenticated request
       const authToken =
         localStorage.getItem("eva_auth_token") ||
         localStorage.getItem("auth_token");
@@ -321,7 +331,6 @@ export function ViewEquipmentModal({
           );
           if (response.data?.success) {
             setEquipmentDetails(response.data.data);
-            // Load user history and cambios HDV after equipment details
             await fetchUserHistory(equipmentId);
             await fetchCambiosHdv(equipmentId);
             return;

@@ -1,0 +1,132 @@
+import httpService from "@/services/httpService";
+
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const pendingRequests = new Map();
+
+function isValid(entry) {
+  return entry && Date.now() - entry.timestamp < CACHE_TTL;
+}
+
+export function invalidateEquipmentCache(equipmentId) {
+  cache.delete(`options`);
+  if (equipmentId) {
+    cache.delete(`equip-${equipmentId}`);
+    cache.delete(`history-${equipmentId}`);
+    cache.delete(`especificaciones-${equipmentId}`);
+  }
+}
+
+async function fetchWithDedup(key, fetcher) {
+  const cached = cache.get(key);
+  if (isValid(cached)) return cached.data;
+
+  if (pendingRequests.has(key)) return pendingRequests.get(key);
+
+  const promise = fetcher().then((data) => {
+    cache.set(key, { data, timestamp: Date.now() });
+    pendingRequests.delete(key);
+    return data;
+  }).catch((err) => {
+    pendingRequests.delete(key);
+    throw err;
+  });
+
+  pendingRequests.set(key, promise);
+  return promise;
+}
+
+export async function prefetchDropdownOptions() {
+  return fetchWithDedup("options", async () => {
+    const resp = await httpService.get("/v1/equipos/filter-options");
+    if (resp.data?.success) {
+      return {
+        sedes: resp.data.data.sedes || [],
+        servicios: resp.data.data.servicios || [],
+        areas: resp.data.data.areas || [],
+        propietarios: resp.data.data.propietarios || [],
+        fuentes: resp.data.data.fuentes || [],
+        tecnologias: resp.data.data.tecnologias || [],
+        frecuencias: resp.data.data.frecuencias || [],
+        clasificacionesBiomedicas: resp.data.data.clasificaciones || [],
+        clasificacionesRiesgo: resp.data.data.riesgos || [],
+        tiposAdquisicion: resp.data.data.tipos_adquisicion || [],
+        estadosEquipo: resp.data.data.estados || [],
+        tipos: resp.data.data.tipos_equipos || resp.data.data.tipos || [],
+        disponibilidades: resp.data.data.disponibilidades || [],
+        invimas: resp.data.data.invimas || resp.data.data.registros_invima || [],
+        ordenesCompra: resp.data.data.ordenes_compra || [],
+        bajas: resp.data.data.bajas || [],
+        guias: resp.data.data.guias || [],
+        manuales: resp.data.data.manuales || [],
+        necesidades: resp.data.data.necesidades || [],
+      };
+    }
+    return null;
+  });
+}
+
+export async function prefetchEquipmentData(equipmentId) {
+  return fetchWithDedup(`equip-${equipmentId}`, async () => {
+    const resp = await httpService.get(`/v1/equipos/${equipmentId}/complete-info`);
+    if (resp.data?.success) return resp.data.data;
+    return null;
+  });
+}
+
+export async function prefetchEquipmentHistory(equipmentId) {
+  return fetchWithDedup(`history-${equipmentId}`, async () => {
+    try {
+      const resp = await httpService.get(`/v1/equipos/${equipmentId}/equipment-history`);
+      if (resp.data?.success) return resp.data.data;
+    } catch { /* fall through */ }
+
+    try {
+      const resp = await httpService.get(`/v1/equipos/${equipmentId}/historial`);
+      if (resp.data?.success) return resp.data.data;
+    } catch { /* fall through */ }
+
+    // Individual fallback
+    const historyData = { correctivos: [], preventivos: [], calibraciones: [], repuestos: [], observaciones: [] };
+    const requests = [
+      httpService.get(`/v1/correctivos-generales?equipo_id=${equipmentId}&per_page=10000`).then(r => {
+        historyData.correctivos = r.data?.data?.correctivos || r.data?.data?.data || r.data?.data || [];
+      }).catch(() => {}),
+      httpService.get(`/v1/mantenimientos?equipo_id=${equipmentId}&tipo=preventivo`).then(r => {
+        historyData.preventivos = r.data?.data || [];
+      }).catch(() => {}),
+      httpService.get(`/v1/calibraciones?equipo_id=${equipmentId}&per_page=10000`).then(r => {
+        historyData.calibraciones = r.data?.data?.data || r.data?.data || [];
+      }).catch(() => {}),
+      httpService.get(`/v1/repuestos?equipo_id=${equipmentId}`).then(r => {
+        historyData.repuestos = r.data?.data || [];
+      }).catch(() => {}),
+      httpService.get(`/v1/observaciones?equipo_id=${equipmentId}`).then(r => {
+        historyData.observaciones = r.data?.data || [];
+      }).catch(() => {}),
+    ];
+    await Promise.all(requests);
+    return historyData;
+  });
+}
+
+export async function prefetchEspecificaciones(equipmentId) {
+  return fetchWithDedup(`especificaciones-${equipmentId}`, async () => {
+    const resp = await httpService.get(`/v1/equipo-especificaciones/${equipmentId}`);
+    const data = resp?.data?.data || resp?.data || [];
+    return Array.isArray(data) ? data : [];
+  });
+}
+
+/**
+ * Prefetch all data for an equipment on hover.
+ * Fires all requests in parallel silently.
+ */
+export function prefetchEquipment(equipmentId) {
+  if (!equipmentId) return;
+  // Fire and forget — all run in parallel
+  prefetchDropdownOptions().catch(() => {});
+  prefetchEquipmentData(equipmentId).catch(() => {});
+  prefetchEquipmentHistory(equipmentId).catch(() => {});
+  prefetchEspecificaciones(equipmentId).catch(() => {});
+}

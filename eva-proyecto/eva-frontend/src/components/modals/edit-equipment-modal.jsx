@@ -33,6 +33,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import {
+  prefetchDropdownOptions,
+  prefetchEquipmentData,
+  prefetchEquipmentHistory,
+  prefetchEspecificaciones,
+  invalidateEquipmentCache,
+} from "@/services/equipmentPrefetchCache";
 import { API_CONFIG } from "@/config/api";
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
 import { ManualSearchModal } from "./manual-search-modal";
@@ -302,101 +309,41 @@ export function EditEquipmentModal({
       if (!open || !equipment?.id) return;
 
       setLoading(true);
-      console.log("🚀 Starting modal data loading sequence...");
 
       try {
-        // Step 1: Load dropdown options first
-        console.log("📋 Step 1: Loading dropdown options...");
-        const optionsResponse = await httpService.get(
-          "/v1/equipos/filter-options"
-        );
+        // Load all data in parallel using prefetch cache
+        const [options, equipmentData, historyData, especificacionesData] = await Promise.all([
+          prefetchDropdownOptions(),
+          prefetchEquipmentData(equipment.id),
+          prefetchEquipmentHistory(equipment.id),
+          prefetchEspecificaciones(equipment.id),
+        ]);
 
-        if (optionsResponse.data.success) {
-          const options = {
-            sedes: optionsResponse.data.data.sedes || [],
-            servicios: optionsResponse.data.data.servicios || [],
-            areas: optionsResponse.data.data.areas || [],
-            propietarios: optionsResponse.data.data.propietarios || [],
-            fuentes: optionsResponse.data.data.fuentes || [],
-            tecnologias: optionsResponse.data.data.tecnologias || [],
-            frecuencias: optionsResponse.data.data.frecuencias || [],
-            clasificacionesBiomedicas:
-              optionsResponse.data.data.clasificaciones || [],
-            clasificacionesRiesgo: optionsResponse.data.data.riesgos || [],
-            tiposAdquisicion: optionsResponse.data.data.tipos_adquisicion || [],
-            estadosEquipo: optionsResponse.data.data.estados || [],
-            tipos:
-              optionsResponse.data.data.tipos_equipos ||
-              optionsResponse.data.data.tipos ||
-              [],
-            disponibilidades: optionsResponse.data.data.disponibilidades || [],
-            invimas:
-              optionsResponse.data.data.invimas ||
-              optionsResponse.data.data.registros_invima ||
-              [],
-            ordenesCompra: optionsResponse.data.data.ordenes_compra || [],
-            bajas: optionsResponse.data.data.bajas || [],
-            guias: optionsResponse.data.data.guias || [],
-            manuales: optionsResponse.data.data.manuales || [],
-            necesidades: optionsResponse.data.data.necesidades || [],
-          };
-
+        if (options) {
           setDropdownOptions(options);
-          console.log(
-            "✅ Dropdown options loaded:",
-            Object.keys(options).map(
-              (key) => `${key}: ${options[key].length} items`
-            )
-          );
-
-          // Debug específico para algunos dropdowns importantes
-          console.log("🔍 Debug fuentes:", options.fuentes?.slice(0, 3));
-          console.log(
-            "🔍 Debug tecnologias:",
-            options.tecnologias?.slice(0, 3)
-          );
-          console.log(
-            "🔍 Debug frecuencias:",
-            options.frecuencias?.slice(0, 3)
-          );
         }
 
-        // Step 2: Load equipment data after dropdown options are ready
-        console.log("🔧 Step 2: Loading equipment data...");
-        const equipmentResponse = await httpService.get(
-          `/v1/equipos/${equipment.id}/complete-info`
-        );
+        if (historyData) {
+          setEquipmentHistory(historyData);
+        }
 
-        if (equipmentResponse.data.success) {
-          console.log("✅ Equipment data loaded successfully");
-          setCompleteEquipmentData(equipmentResponse.data.data);
+        if (especificacionesData) {
+          setEquipoEspecificaciones(especificacionesData);
+        }
 
-          // Step 3: Load equipment history (correctivos, preventivos, calibraciones, repuestos)
-          console.log("📋 Step 3: Loading equipment history...");
-          await loadEquipmentHistory(equipment.id);
-          loadEquipoEspecificaciones(equipment.id);
-
-          // Step 4: Initialize form data after all data is ready
-          console.log("📝 Step 4: Initializing form data...");
-          // Small delay to ensure dropdown options state is updated
+        if (equipmentData) {
+          setCompleteEquipmentData(equipmentData);
           setTimeout(() => {
-            initializeFormData(equipmentResponse.data.data);
-          }, 100);
+            initializeFormData(equipmentData);
+          }, 50);
         } else {
-          console.error(
-            "❌ Error fetching complete equipment data:",
-            equipmentResponse.data.message
-          );
-          // Fallback to basic equipment data
           initializeFormDataFromBasic(equipment);
         }
       } catch (error) {
-        console.error("❌ Error in modal data loading:", error);
-        // Fallback to basic equipment data
+        console.error("Error in modal data loading:", error);
         initializeFormDataFromBasic(equipment);
       } finally {
         setLoading(false);
-        console.log("🏁 Modal data loading sequence completed");
       }
     };
 
@@ -2078,6 +2025,7 @@ export function EditEquipmentModal({
 
         if (response.data.success) {
           toast.success("Equipo e imagen actualizados exitosamente");
+          invalidateEquipmentCache(equipment.id);
           onEquipmentUpdated && onEquipmentUpdated();
           onOpenChange(false);
         } else {
@@ -2171,6 +2119,7 @@ export function EditEquipmentModal({
 
         if (response.data.success) {
           toast.success("Equipo actualizado exitosamente");
+          invalidateEquipmentCache(equipment.id);
           onEquipmentUpdated && onEquipmentUpdated();
           onOpenChange(false);
         } else {
@@ -3767,6 +3716,135 @@ export function EditEquipmentModal({
               </CardContent>
             </Card>
 
+            {/* ESPECIFICACIONES TÉCNICAS */}
+            <Card>
+              <CardHeader className="bg-indigo-50 py-3">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex-1"></div>
+                  <CardTitle className="text-sm font-medium text-indigo-700 flex items-center gap-2">
+                    ESPECIFICACIONES TÉCNICAS
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          especificaciones: !prev.especificaciones,
+                        }))
+                      }
+                    >
+                      <Plus
+                        className={`h-4 w-4 transition-transform ${
+                          expandedSections?.especificaciones ? "rotate-45" : ""
+                        }`}
+                      />
+                    </Button>
+                  </CardTitle>
+                  <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-3"
+                      onClick={() => setShowAddEspecificacionModal(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              {expandedSections?.especificaciones && (
+                <CardContent className="p-3 sm:p-4 md:p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 p-2 text-xs">
+                            Especificación
+                          </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            Valor
+                          </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            Acciones
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {equipoEspecificaciones.length > 0 ? (
+                          equipoEspecificaciones.map((esp) => (
+                            <tr key={esp.id}>
+                              <td className="border border-gray-300 p-2 text-xs">
+                                {esp.especificacion_nombre || "-"}
+                              </td>
+                              <td className="border border-gray-300 p-2 text-xs">
+                                {esp.valor || "-"}
+                              </td>
+                              <td className="border border-gray-300 p-2 text-xs text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  {esp.file && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50"
+                                      onClick={() => {
+                                        const url = `${API_CONFIG.baseURL?.replace('/api', '')}/assets/upload_archivos/${esp.file}`;
+                                        window.open(url, "_blank");
+                                      }}
+                                      title="Ver archivo"
+                                    >
+                                      <FileText className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={async () => {
+                                      setConfirmModal({
+                                        open: true,
+                                        message: "¿Está seguro de eliminar esta especificación técnica?",
+                                        onConfirm: async () => {
+                                          try {
+                                            await httpService.delete(`/v1/equipo-especificaciones/${esp.id}`);
+                                            toast.success("Especificación eliminada");
+                                            loadEquipoEspecificaciones(equipment.id);
+                                          } catch (e) {
+                                            toast.error("Error al eliminar especificación");
+                                          }
+                                        },
+                                      });
+                                    }}
+                                    title="Eliminar especificación"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              className="border border-gray-300 p-2 text-xs text-center text-gray-500"
+                              colSpan="3"
+                            >
+                              No hay especificaciones técnicas registradas
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+
             {/* COMPONENTES */}
             <Card>
               <CardHeader className="bg-gray-100 py-3">
@@ -4435,135 +4513,6 @@ export function EditEquipmentModal({
                               colSpan="4"
                             >
                               No hay calibraciones registradas
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-
-            {/* ESPECIFICACIONES TÉCNICAS */}
-            <Card>
-              <CardHeader className="bg-indigo-50 py-3">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex-1"></div>
-                  <CardTitle className="text-sm font-medium text-indigo-700 flex items-center gap-2">
-                    ESPECIFICACIONES TÉCNICAS
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() =>
-                        setExpandedSections((prev) => ({
-                          ...prev,
-                          especificaciones: !prev.especificaciones,
-                        }))
-                      }
-                    >
-                      <Plus
-                        className={`h-4 w-4 transition-transform ${
-                          expandedSections?.especificaciones ? "rotate-45" : ""
-                        }`}
-                      />
-                    </Button>
-                  </CardTitle>
-                  <div className="flex-1 flex justify-end">
-                    <Button
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-7 px-3"
-                      onClick={() => setShowAddEspecificacionModal(true)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Agregar
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              {expandedSections?.especificaciones && (
-                <CardContent className="p-3 sm:p-4 md:p-6">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-gray-300 p-2 text-xs">
-                            Especificación
-                          </th>
-                          <th className="border border-gray-300 p-2 text-xs">
-                            Valor
-                          </th>
-                          <th className="border border-gray-300 p-2 text-xs">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {equipoEspecificaciones.length > 0 ? (
-                          equipoEspecificaciones.map((esp) => (
-                            <tr key={esp.id}>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                {esp.especificacion_nombre || "-"}
-                              </td>
-                              <td className="border border-gray-300 p-2 text-xs">
-                                {esp.valor || "-"}
-                              </td>
-                              <td className="border border-gray-300 p-2 text-xs text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                  {esp.file && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 w-7 p-0 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50"
-                                      onClick={() => {
-                                        const url = `${API_CONFIG.baseURL?.replace('/api', '')}/assets/upload_archivos/${esp.file}`;
-                                        window.open(url, "_blank");
-                                      }}
-                                      title="Ver archivo"
-                                    >
-                                      <FileText className="h-3.5 w-3.5" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={async () => {
-                                      setConfirmModal({
-                                        open: true,
-                                        message: "¿Está seguro de eliminar esta especificación técnica?",
-                                        onConfirm: async () => {
-                                          try {
-                                            await httpService.delete(`/v1/equipo-especificaciones/${esp.id}`);
-                                            toast.success("Especificación eliminada");
-                                            loadEquipoEspecificaciones(equipment.id);
-                                          } catch (e) {
-                                            toast.error("Error al eliminar especificación");
-                                          }
-                                        },
-                                      });
-                                    }}
-                                    title="Eliminar especificación"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td
-                              className="border border-gray-300 p-2 text-xs text-center text-gray-500"
-                              colSpan="3"
-                            >
-                              No hay especificaciones técnicas registradas
                             </td>
                           </tr>
                         )}
