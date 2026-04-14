@@ -36,6 +36,7 @@ import HospitalTicketModal from "@/components/modals/hospital-ticket-modal";
 import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleton";
 import httpService from "@/services/httpService";
 import { useSedes } from "@/hooks/useRoles";
+import { useAuth } from "@/hooks/useAuth";
 // import EquiposModal from "@/components/modals/EquiposModal";
 // import PersonalModal from "@/components/modals/PersonalModal";
 // import ParticipantesModal from "@/components/modals/ParticipantesModal";
@@ -44,6 +45,13 @@ import { useSedes } from "@/hooks/useRoles";
 export default function GestionTickets() {
   // Hook para obtener sedes de la BD
   const { sedes, loading: sedesLoading } = useSedes();
+  const { user } = useAuth();
+
+  // Determinar qué subprocesos puede ver el usuario según su empresa
+  // (misma lógica que el backend en gestion-tickets)
+  const userEmpresaId = user?.id_empresa ? parseInt(user.id_empresa) : null;
+  const canSeeIndustrial = ![3, 6].includes(userEmpresaId);
+  const canSeeInfraestructura = ![3, 6].includes(userEmpresaId);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -398,6 +406,7 @@ export default function GestionTickets() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {canSeeIndustrial && (
             <Button
               onClick={handleExportIndustrialStats}
               className="bg-orange-600 hover:bg-orange-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm w-full sm:w-auto transition-colors rounded-xl"
@@ -405,6 +414,8 @@ export default function GestionTickets() {
               <Download className="h-4 w-4" />
               <span>Exportar Industriales</span>
             </Button>
+            )}
+            {canSeeInfraestructura && (
             <Button
               onClick={handleExportInfraestructuraStats}
               className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2 px-4 py-2 text-sm w-full sm:w-auto transition-colors rounded-xl"
@@ -412,6 +423,7 @@ export default function GestionTickets() {
               <Download className="h-4 w-4" />
               <span>Exportar Infraestructura</span>
             </Button>
+            )}
           </div>
         </div>
 

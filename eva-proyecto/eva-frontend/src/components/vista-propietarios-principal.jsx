@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Edit, Trash2, Plus, Eye, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { cachedGet, invalidateConfigCache } from "@/services/configDataCache";
 
 // Importar modales
 import UIModalAgregarPropietario from "@/components/modals/ui-modal-agregar-propietario";
@@ -78,21 +79,13 @@ export default function VistaPropietariosPrincipal() {
   const fetchPropietarios = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8001/api'}/v1/propietarios?per_page=${itemsPerPage}&page=${currentPage}&search=${searchTerm}&sort_by=${sortField}&sort_direction=${sortDirection}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Error al cargar propietarios');
-      }
-
-      const result = await response.json();
+      const result = await cachedGet('/v1/propietarios', {
+        per_page: itemsPerPage,
+        page: currentPage,
+        search: searchTerm,
+        sort_by: sortField,
+        sort_direction: sortDirection
+      });
       
       if (result.success) {
         setPropietariosData(result.data || []);
@@ -210,6 +203,7 @@ export default function VistaPropietariosPrincipal() {
   ];
 
   const handleRefresh = () => {
+    invalidateConfigCache('/v1/propietarios');
     fetchPropietarios();
   };
 
@@ -236,25 +230,60 @@ export default function VistaPropietariosPrincipal() {
 
   if (isLoading && propietariosData.length === 0) {
     return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-6 w-96" />
-        <Card className="mt-8">
-          <div className="p-6">
-            <Skeleton className="h-8 w-64" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 animate-in fade-in duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-8">
+          {/* Header */}
+          <div className="text-center lg:text-left space-y-3">
+            <Skeleton className="h-10 w-52 rounded-xl mx-auto lg:mx-0" />
+            <Skeleton className="h-5 w-72 rounded-lg mx-auto lg:mx-0" />
           </div>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <Skeleton className="h-10 w-96" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="h-12 w-full" />
+
+          {/* Search bar */}
+          <div className="flex justify-center lg:justify-end">
+            <Skeleton className="h-12 w-full lg:w-96 rounded-xl" />
+          </div>
+
+          {/* Add button */}
+          <div className="flex justify-center">
+            <Skeleton className="h-14 w-14 lg:h-16 lg:w-16 rounded-full" />
+          </div>
+
+          {/* Info bar */}
+          <Card className="rounded-xl shadow-sm border-0 bg-white/70">
+            <CardContent className="p-4 lg:p-6">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-4 w-48 rounded" />
+                <Skeleton className="h-10 w-32 rounded-lg" />
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Table */}
+          <Card className="rounded-xl shadow-lg border-0 overflow-hidden bg-white/80">
+            <CardContent className="p-0">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200 p-4 flex gap-6">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-48 flex-1" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              {/* Rows */}
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-6 p-4 border-b border-gray-100 animate-pulse">
+                  <Skeleton className="h-5 w-10 rounded" />
+                  <Skeleton className="h-4 w-48 flex-1 rounded" />
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }

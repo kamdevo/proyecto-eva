@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
+import { cachedGet, invalidateConfigCache } from "../services/configDataCache";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -37,6 +38,7 @@ import {
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
+import ConfigPageSkeleton from "@/components/skeletons/ConfigPageSkeleton";
 import UIModalSedes from "@/components/modals/ui-modal-sedes";
 import { toast } from "sonner";
 
@@ -69,22 +71,20 @@ export default function VistaSedes() {
   const fetchData = async (search = searchTerm) => {
     try {
       setLoading(true);
-      const response = await httpService.get("/v1/sedes", {
-        params: {
+      const res = await cachedGet("/v1/sedes", {
           ...(search ? { search } : {}),
           page: currentPage,
           per_page: itemsPerPage,
           sort_by: sortField,
           sort_order: sortDirection,
-        },
       });
-      if (response.data.success) {
-        if (response.data.data.data) {
-          setSedesData(response.data.data.data);
-          setTotalItems(response.data.data.total);
+      if (res.success) {
+        if (res.data.data) {
+          setSedesData(res.data.data);
+          setTotalItems(res.data.total);
         } else {
-          setSedesData(response.data.data);
-          setTotalItems(response.data.data.length);
+          setSedesData(res.data);
+          setTotalItems(res.data.length);
         }
       }
     } catch (error) {
@@ -125,6 +125,7 @@ export default function VistaSedes() {
       }
       if (response.data.success) {
         toast.success(selectedItem ? "Sede actualizada correctamente" : "Sede creada correctamente", { id: loadingToast });
+        invalidateConfigCache('/v1/sedes');
         fetchData();
         setIsModalOpen(false);
       }
@@ -145,6 +146,7 @@ export default function VistaSedes() {
       if (response.data.success) {
         toast.success("Sede eliminada correctamente", { id: loadingToast });
         setSedeToDelete(null);
+        invalidateConfigCache('/v1/sedes');
         fetchData();
       }
     } catch (error) {
@@ -182,6 +184,10 @@ export default function VistaSedes() {
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  if (loading && sedesData.length === 0) {
+    return <ConfigPageSkeleton columns={3} rows={6} accentColor="emerald" />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
@@ -282,14 +288,13 @@ export default function VistaSedes() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={3} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
-                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-5 w-12 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-48 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : sedesData.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="h-64 text-center">

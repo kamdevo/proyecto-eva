@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Edit, Trash2, Plus, Search, Settings, Loader2, Package, MapPin, Building, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { toast } from "sonner"
+import { cachedGet, invalidateConfigCache } from "@/services/configDataCache";
 
 // Importar modales
 import UIModalAgregarArea from "@/components/modals/ui-modal-agregar-area"
@@ -16,6 +17,7 @@ import UIModalEditarArea from "@/components/modals/ui-modal-editar-area"
 import UIModalEliminarArea from "@/components/modals/ui-modal-eliminar-area"
 import Pagination from "@/components/common/Pagination"
 import { Skeleton } from "@/components/ui/skeleton";
+import ConfigPageSkeleton from "@/components/skeletons/ConfigPageSkeleton";
 
 export default function VistaAreasPrincipal() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -38,8 +40,7 @@ export default function VistaAreasPrincipal() {
   const fetchAreas = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${import.meta.env.VITE_API_URL || window.APP_CONFIG?.API_BASE_URL + '/api' || 'http://192.168.2.146:8001/api'}/v1/areas`)
-      const data = await response.json()
+      const data = await cachedGet('/v1/areas', {})
       
       if (data.success) {
         setAreasData(data.data || [])
@@ -53,6 +54,11 @@ export default function VistaAreasPrincipal() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const refreshAreas = () => {
+    invalidateConfigCache('/v1/areas');
+    fetchAreas();
   }
 
   const handleEdit = (area) => {
@@ -113,28 +119,7 @@ export default function VistaAreasPrincipal() {
   const currentData = filteredData.slice(startIndex, endIndex)
 
   if (loading && areasData.length === 0) {
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-6 w-96" />
-        <Card className="mt-8">
-          <div className="p-6">
-            <Skeleton className="h-8 w-64" />
-          </div>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <Skeleton className="h-10 w-96" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <ConfigPageSkeleton columns={5} rows={6} accentColor="blue" />;
   }
 
   return (
@@ -245,14 +230,15 @@ export default function VistaAreasPrincipal() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={5} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-                        <span className="text-slate-400 font-medium tracking-wide">Cargando áreas...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-4 w-32 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-28 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4"><div className="h-5 w-24 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="h-5 w-12 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : currentData.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="h-64 text-center">
@@ -331,7 +317,7 @@ export default function VistaAreasPrincipal() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         servicios={servicios}
-        onSuccess={fetchAreas}
+        onSuccess={refreshAreas}
       />
 
       <UIModalEditarArea 
@@ -339,14 +325,14 @@ export default function VistaAreasPrincipal() {
         onClose={() => setIsEditModalOpen(false)} 
         area={selectedArea}
         servicios={servicios}
-        onSuccess={fetchAreas}
+        onSuccess={refreshAreas}
       />
 
       <UIModalEliminarArea 
         isOpen={isDeleteModalOpen} 
         onClose={() => setIsDeleteModalOpen(false)} 
         area={selectedArea}
-        onSuccess={fetchAreas}
+        onSuccess={refreshAreas}
       />
     </div>
   )

@@ -34,7 +34,7 @@ import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import EquipmentModalReplicaPDF from "../pdf/equipment-modal-replica-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
-import { prefetchEquipmentData } from "@/services/equipmentPrefetchCache";
+import { prefetchEquipmentData, prefetchUserHistory, prefetchEquipmentTickets, prefetchCambiosHdv } from "@/services/equipmentPrefetchCache";
 import { ManualSearchModal } from "./manual-search-modal";
 import { QuickGuideSearchModal } from "./quick-guide-search-modal";
 import TicketDetailsComplete from "./ticket-details-complete";
@@ -310,12 +310,17 @@ export function ViewEquipmentModal({
     setError(null);
 
     try {
-      // Try prefetch cache first (instant if already prefetched on hover)
-      const cachedData = await prefetchEquipmentData(equipmentId);
+      // Load all data in parallel from cache (instant if prefetched on hover)
+      const [cachedData, userHistoryData, cambiosHdvData] = await Promise.all([
+        prefetchEquipmentData(equipmentId),
+        prefetchUserHistory(equipmentId).catch(() => []),
+        prefetchCambiosHdv(equipmentId).catch(() => []),
+      ]);
+
       if (cachedData) {
         setEquipmentDetails(cachedData);
-        await fetchUserHistory(equipmentId);
-        await fetchCambiosHdv(equipmentId);
+        setUserHistory(userHistoryData || []);
+        setCambiosHdv(cambiosHdvData || []);
         return;
       }
 
@@ -331,8 +336,8 @@ export function ViewEquipmentModal({
           );
           if (response.data?.success) {
             setEquipmentDetails(response.data.data);
-            await fetchUserHistory(equipmentId);
-            await fetchCambiosHdv(equipmentId);
+            setUserHistory(userHistoryData || []);
+            setCambiosHdv(cambiosHdvData || []);
             return;
           }
         } catch (authError) {
@@ -368,7 +373,39 @@ export function ViewEquipmentModal({
       
       setImageError(false); // Reset image error state
       fetchEquipmentDetails(equipment.id);
-      fetchEquipmentTickets(equipment.id); // ✅ Usar endpoint de gestión de tickets
+      // Cargar tickets desde cache (en paralelo con el resto)
+      setLoadingTickets(true);
+      prefetchEquipmentTickets(equipment.id)
+        .then(tickets => {
+          const ticketsConDescripcion = (tickets || []).map(ticket => {
+            let descripcionCompleta = '';
+            if (ticket.descripcion_problema || ticket.descripcion) {
+              descripcionCompleta += `REPORTE: ${ticket.descripcion_problema || ticket.descripcion}`;
+              if (ticket.fecha_inicio) {
+                const fecha = new Date(ticket.fecha_inicio).toLocaleString('es-CO', {
+                  year: 'numeric', month: '2-digit', day: '2-digit',
+                  hour: '2-digit', minute: '2-digit'
+                });
+                descripcionCompleta += ` (Fecha: ${fecha})`;
+              }
+            }
+            if (ticket.diagnostico) {
+              if (descripcionCompleta) descripcionCompleta += ' | ';
+              descripcionCompleta += `DIAGNÓSTICO: ${ticket.diagnostico}`;
+            }
+            if (ticket.reparacion) {
+              if (descripcionCompleta) descripcionCompleta += ' | ';
+              descripcionCompleta += `TRABAJO REALIZADO: ${ticket.reparacion}`;
+            }
+            return {
+              ...ticket,
+              descripcion_completa: descripcionCompleta || ticket.descripcion_problema || ticket.descripcion || 'Sin descripción'
+            };
+          });
+          setEquipmentTickets(ticketsConDescripcion);
+        })
+        .catch(() => setEquipmentTickets([]))
+        .finally(() => setLoadingTickets(false));
     }
   }, [open, equipment?.id, fetchEquipmentDetails]);
 

@@ -40,7 +40,7 @@ import { useAuth } from "@/hooks/useAuth";
 import httpService from "@/services/httpService";
 import { toast } from "sonner";
 
-export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTipoId = null, equipoStatus = null }) {
+export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTipoId = null, equipoStatus = null, onSuccess }) {
   const { hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
   const [calibraciones, setCalibraciones] = useState([]);
@@ -276,6 +276,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
       setSelectedFile(null);
       setViewMode('list');
       loadCalibraciones(currentPage, searchTerm);
+      onSuccess?.();
     } catch (err) {
       console.error('Error saving calibration:', err);
       setError('Error al guardar la calibración');

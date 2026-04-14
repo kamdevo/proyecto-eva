@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
+import { cachedGet, invalidateConfigCache } from "../services/configDataCache";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +39,7 @@ import {
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
+import ConfigPageSkeleton from "@/components/skeletons/ConfigPageSkeleton";
 import UIModalMateriales from "@/components/modals/ui-modal-materiales";
 import { toast } from "sonner";
 
@@ -71,18 +73,16 @@ export default function VistaMateriales() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await httpService.get("/v1/materiales", {
-        params: {
+      const res = await cachedGet("/v1/materiales", {
           search: searchTerm,
           page: currentPage,
           per_page: itemsPerPage,
           sort_by: sortField,
           sort_order: sortDirection
-        }
       });
-      if (response.data.success) {
-        setMaterialesData(response.data.data.data);
-        setTotalItems(response.data.data.total);
+      if (res.success) {
+        setMaterialesData(res.data.data);
+        setTotalItems(res.data.total);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
@@ -124,6 +124,7 @@ export default function VistaMateriales() {
 
       if (response.data.success) {
         toast.success(selectedItem ? "Actualizado correctamente" : "Creado correctamente", { id: loadingToast });
+        invalidateConfigCache('/v1/materiales');
         fetchData();
         setIsModalOpen(false);
       }
@@ -144,6 +145,7 @@ export default function VistaMateriales() {
       if (response.data.success) {
         toast.success("Material eliminado correctamente", { id: loadingToast });
         setItemToDelete(null);
+        invalidateConfigCache('/v1/materiales');
         fetchData();
       }
     } catch (error) {
@@ -183,6 +185,10 @@ export default function VistaMateriales() {
       minimumFractionDigits: 0
     }).format(value);
   };
+
+  if (loading && materialesData.length === 0) {
+    return <ConfigPageSkeleton columns={6} rows={6} accentColor="violet" />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
@@ -296,14 +302,16 @@ export default function VistaMateriales() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
-                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-5 w-16 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-32 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4 hidden lg:table-cell"><div className="h-4 w-44 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4 text-right"><div className="h-4 w-20 bg-slate-100 rounded ml-auto" /></td>
+                      <td className="px-6 py-4 text-center"><div className="h-5 w-12 bg-slate-100 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-4 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : materialesData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="h-64 text-center">

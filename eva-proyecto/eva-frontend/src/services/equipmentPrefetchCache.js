@@ -14,6 +14,9 @@ export function invalidateEquipmentCache(equipmentId) {
     cache.delete(`equip-${equipmentId}`);
     cache.delete(`history-${equipmentId}`);
     cache.delete(`especificaciones-${equipmentId}`);
+    cache.delete(`user-history-${equipmentId}`);
+    cache.delete(`tickets-${equipmentId}`);
+    cache.delete(`cambios-hdv-${equipmentId}`);
   }
 }
 
@@ -129,4 +132,35 @@ export function prefetchEquipment(equipmentId) {
   prefetchEquipmentData(equipmentId).catch(() => {});
   prefetchEquipmentHistory(equipmentId).catch(() => {});
   prefetchEspecificaciones(equipmentId).catch(() => {});
+  prefetchUserHistory(equipmentId).catch(() => {});
+  prefetchEquipmentTickets(equipmentId).catch(() => {});
+  prefetchCambiosHdv(equipmentId).catch(() => {});
+}
+
+export async function prefetchUserHistory(equipmentId) {
+  return fetchWithDedup(`user-history-${equipmentId}`, async () => {
+    const resp = await httpService.get(`/v1/equipos/${equipmentId}/user-history`);
+    if (resp.data?.success) return resp.data.data || [];
+    return [];
+  });
+}
+
+export async function prefetchEquipmentTickets(equipmentId) {
+  return fetchWithDedup(`tickets-${equipmentId}`, async () => {
+    const resp = await httpService.get('/v1/gestion-tickets', {
+      params: { equipo_id: equipmentId, per_page: 10, page: 1 }
+    });
+    if (resp.data?.success && resp.data?.data?.data) {
+      return Array.isArray(resp.data.data.data) ? resp.data.data.data : [];
+    }
+    return [];
+  });
+}
+
+export async function prefetchCambiosHdv(equipmentId) {
+  return fetchWithDedup(`cambios-hdv-${equipmentId}`, async () => {
+    const resp = await httpService.get(`/v1/equipos/${equipmentId}/cambios-hdv`);
+    if (resp.data?.success) return resp.data.data || [];
+    return [];
+  });
 }

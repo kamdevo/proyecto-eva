@@ -1437,7 +1437,8 @@ Route::prefix('v1')->group(function () {
             $validator = Validator::make($request->all(), [
                 'equipo_id' => 'required|integer|exists:equipos,id',
                 'description' => 'required|string|max:100',
-                'proveedor_mantenimiento_id' => 'required|integer',
+                'proveedor_mantenimiento_id' => 'nullable|integer',
+                'proveedor_nombre' => 'nullable|string|max:100',
                 'fecha_mantenimiento' => 'required|date',
                 'fecha_programada' => 'required|date',
                 'observacion' => 'nullable|string',
@@ -1454,6 +1455,22 @@ Route::prefix('v1')->group(function () {
                 ], 422);
             }
             
+            // Resolver proveedor: si viene nombre libre, buscar o crear
+            $proveedorId = $request->proveedor_mantenimiento_id;
+            if (!$proveedorId && $request->filled('proveedor_nombre')) {
+                $existing = DB::table('proveedores_mantenimiento')
+                    ->whereRaw('LOWER(name) = ?', [strtolower(trim($request->proveedor_nombre))])
+                    ->first();
+                if ($existing) {
+                    $proveedorId = $existing->id;
+                } else {
+                    $proveedorId = DB::table('proveedores_mantenimiento')->insertGetId([
+                        'name' => trim($request->proveedor_nombre),
+                        'status' => 1
+                    ]);
+                }
+            }
+            
             // Procesar archivo si existe
             $filePath = null;
             if ($request->hasFile('file')) {
@@ -1465,7 +1482,7 @@ Route::prefix('v1')->group(function () {
             $mantenimientoId = DB::table('mantenimiento')->insertGetId([
                 'equipo_id' => $request->equipo_id,
                 'description' => $request->description,
-                'proveedor_mantenimiento_id' => $request->proveedor_mantenimiento_id,
+                'proveedor_mantenimiento_id' => $proveedorId,
                 'observacion' => $request->observacion,
                 'fecha_mantenimiento' => $request->fecha_mantenimiento,
                 'fecha_programada' => $request->fecha_programada,
@@ -1498,7 +1515,8 @@ Route::prefix('v1')->group(function () {
             $validator = Validator::make($request->all(), [
                 'equipo_id' => 'required|integer|exists:equipos,id',
                 'description' => 'required|string|max:100',
-                'proveedor_mantenimiento_id' => 'required|integer',
+                'proveedor_mantenimiento_id' => 'nullable|integer',
+                'proveedor_nombre' => 'nullable|string|max:100',
                 'fecha_mantenimiento' => 'required|date',
                 'fecha_programada' => 'required|date',
                 'observacion' => 'nullable|string',
@@ -1515,6 +1533,22 @@ Route::prefix('v1')->group(function () {
                 ], 422);
             }
             
+            // Resolver proveedor: si viene nombre libre, buscar o crear
+            $proveedorId = $request->proveedor_mantenimiento_id;
+            if (!$proveedorId && $request->filled('proveedor_nombre')) {
+                $existing = DB::table('proveedores_mantenimiento')
+                    ->whereRaw('LOWER(name) = ?', [strtolower(trim($request->proveedor_nombre))])
+                    ->first();
+                if ($existing) {
+                    $proveedorId = $existing->id;
+                } else {
+                    $proveedorId = DB::table('proveedores_mantenimiento')->insertGetId([
+                        'name' => trim($request->proveedor_nombre),
+                        'status' => 1
+                    ]);
+                }
+            }
+            
             $mantenimiento = DB::table('mantenimiento')->where('id', $id)->first();
             if (!$mantenimiento) {
                 return response()->json([
@@ -1526,7 +1560,7 @@ Route::prefix('v1')->group(function () {
             $updateData = [
                 'equipo_id' => $request->equipo_id,
                 'description' => $request->description,
-                'proveedor_mantenimiento_id' => $request->proveedor_mantenimiento_id,
+                'proveedor_mantenimiento_id' => $proveedorId,
                 'observacion' => $request->observacion,
                 'fecha_mantenimiento' => $request->fecha_mantenimiento,
                 'fecha_programada' => $request->fecha_programada,

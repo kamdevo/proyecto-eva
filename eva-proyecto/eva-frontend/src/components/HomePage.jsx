@@ -94,7 +94,7 @@ export default function EvaDashboard() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gray-50 p-6 overflow-x-hidden">
+    <div className="flex flex-col min-h-screen w-full bg-[#F2F8FE] p-6 overflow-x-hidden">
       <div className="flex flex-1">
         {/* Overlay para móviles */}
         {sidebarOpen && isMobile && (

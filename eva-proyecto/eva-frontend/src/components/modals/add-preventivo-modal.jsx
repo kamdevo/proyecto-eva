@@ -69,13 +69,16 @@ const AddPreventivoModal = ({
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [proveedorFreeText, setProveedorFreeText] = useState("");
 
   // Cargar proveedores desde la BD
-  const { proveedores, loading: proveedoresLoading } = useProveedoresMantenimiento();
+  const { proveedores, loading: proveedoresLoading, refresh: refreshProveedores } = useProveedoresMantenimiento();
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
+      refreshProveedores(); // Refrescar lista para incluir proveedores recién creados
+      setProveedorFreeText("");
       if (preventivo) {
         // En modo edición, cargamos los datos del preventivo seleccionado
         // Usamos substring(0, 10) para asegurar formato YYYY-MM-DD
@@ -173,7 +176,7 @@ const AddPreventivoModal = ({
       newErrors.description = "El código preventivo es obligatorio";
     }
 
-    if (!isIndustrial && !formData.proveedor_mantenimiento_id) {
+    if (!isIndustrial && !formData.proveedor_mantenimiento_id && !proveedorFreeText.trim()) {
       newErrors.proveedor_mantenimiento_id = "El proveedor es obligatorio";
     }
 
@@ -211,7 +214,11 @@ const AddPreventivoModal = ({
 
       // Solo biomédico envía estos campos
       if (!isIndustrial) {
-        formDataToSend.append("proveedor_mantenimiento_id", formData.proveedor_mantenimiento_id);
+        if (formData.proveedor_mantenimiento_id) {
+          formDataToSend.append("proveedor_mantenimiento_id", formData.proveedor_mantenimiento_id);
+        } else if (proveedorFreeText.trim()) {
+          formDataToSend.append("proveedor_nombre", proveedorFreeText.trim());
+        }
         formDataToSend.append("observacion", formData.observacion || "");
         
         if (formData.repuesto_id) {
@@ -296,8 +303,16 @@ const AddPreventivoModal = ({
             <SearchableSelect
               options={proveedores}
               value={formData.proveedor_mantenimiento_id}
-              onChange={(value) => handleInputChange("proveedor_mantenimiento_id", value)}
-              placeholder="Seleccione un proveedor"
+              onChange={(value) => {
+                handleInputChange("proveedor_mantenimiento_id", value);
+                if (value) setProveedorFreeText("");
+              }}
+              allowFreeInput={true}
+              onFreeInputChange={(text) => {
+                setProveedorFreeText(text);
+                if (text) handleInputChange("proveedor_mantenimiento_id", "");
+              }}
+              placeholder={proveedoresLoading ? "Cargando proveedores..." : "Buscar o escribir nombre del proveedor"}
               loading={proveedoresLoading}
               disabled={proveedoresLoading}
               className={errors.proveedor_mantenimiento_id ? "border-red-500" : ""}

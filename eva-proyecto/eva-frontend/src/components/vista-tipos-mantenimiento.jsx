@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import httpService from "../services/httpService";
+import { cachedGet, invalidateConfigCache } from "../services/configDataCache";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +39,7 @@ import {
 
 // Importar componentes comunes
 import Pagination from "@/components/common/Pagination";
+import ConfigPageSkeleton from "@/components/skeletons/ConfigPageSkeleton";
 import UIModalMantenimiento from "@/components/modals/ui-modal-mantenimiento";
 import { toast } from "sonner";
 
@@ -70,11 +72,9 @@ export default function VistaTiposMantenimiento() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await httpService.get("/v1/tipos-mantenimiento", {
-        params: { search: searchTerm }
-      });
-      if (response.data.success) {
-        setMantenimientosData(response.data.data);
+      const res = await cachedGet("/v1/tipos-mantenimiento", { search: searchTerm });
+      if (res.success) {
+        setMantenimientosData(res.data);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
@@ -123,6 +123,7 @@ export default function VistaTiposMantenimiento() {
 
       if (response.data.success) {
         toast.success(selectedItem ? "Actualizado correctamente" : "Creado correctamente", { id: loadingToast });
+        invalidateConfigCache('/v1/tipos-mantenimiento');
         fetchData();
         setIsModalOpen(false);
       }
@@ -143,6 +144,7 @@ export default function VistaTiposMantenimiento() {
       if (response.data.success) {
         toast.success("Registro eliminado correctamente", { id: loadingToast });
         setItemToDelete(null);
+        invalidateConfigCache('/v1/tipos-mantenimiento');
         fetchData();
       }
     } catch (error) {
@@ -198,6 +200,10 @@ export default function VistaTiposMantenimiento() {
   const totalItems = filteredData.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const currentItems = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  if (loading && mantenimientosData.length === 0) {
+    return <ConfigPageSkeleton columns={4} rows={6} accentColor="amber" />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
@@ -301,14 +307,14 @@ export default function VistaTiposMantenimiento() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={4} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
-                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-5 w-16 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-40 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4"><div className="h-5 w-24 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : currentItems.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="h-64 text-center">

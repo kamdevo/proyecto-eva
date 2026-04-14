@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import { cachedGet, invalidateConfigCache } from "@/services/configDataCache";
 import Pagination from "@/components/common/Pagination";
+import ConfigPageSkeleton from "@/components/skeletons/ConfigPageSkeleton";
 
 // Modales
 import UIModalAgregarServicio  from "@/components/modals/ui-modal-agregar-servicio";
@@ -80,8 +82,7 @@ export default function VistaServiciosPrincipal() {
       if (searchTerm) params.search = searchTerm;
 
       console.log('🌐 [SERVICIOS] Fetching data...', { currentPage, itemsPerPage, searchTerm });
-      const response = await httpService.get("/v1/servicios", { params });
-      const res      = response.data;
+      const res = await cachedGet("/v1/servicios", params);
 
       // Estructuras posibles: res.data.data (paginator) o res.data (array)
       let rawItems = [];
@@ -128,10 +129,14 @@ export default function VistaServiciosPrincipal() {
     setIsEditModalOpen(false);
     setIsDeleteModalOpen(false);
     setSelectedService(null);
-    if (refresh) fetchServicios();
+    if (refresh) { invalidateConfigCache('/v1/servicios'); fetchServicios(); }
   };
 
   // ── Render ────────────────────────────────────────────────
+  if (loading && servicios.length === 0) {
+    return <ConfigPageSkeleton columns={9} rows={7} accentColor="blue" />;
+  }
+
   return (
     <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
 
@@ -263,14 +268,19 @@ export default function VistaServiciosPrincipal() {
 
               <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={9} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-4 w-32 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4"><div className="h-5 w-16 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="h-5 w-20 bg-slate-100 rounded-full" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-4 text-center"><div className="h-5 w-10 bg-slate-100 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-4 text-center"><div className="h-5 w-10 bg-slate-100 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-4 text-center"><div className="h-5 w-16 bg-slate-100 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-4 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : servicios.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="h-64 text-center">

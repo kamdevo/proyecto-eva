@@ -127,6 +127,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId, onSuccess }) => {
         setViewMode('list');
         resetForm();
         loadPreventiveData(currentPage, searchTerm, statusFilter, sortField, sortOrder);
+        onSuccess?.();
       } else {
         toast.error(response.message || 'Error al crear el mantenimiento preventivo');
       }
@@ -148,6 +149,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId, onSuccess }) => {
         setViewMode('list');
         resetForm();
         loadPreventiveData(currentPage, searchTerm, statusFilter, sortField, sortOrder);
+        onSuccess?.();
       } else {
         toast.error(response.message || 'Error al actualizar el mantenimiento preventivo');
       }
@@ -171,6 +173,7 @@ const PreventiveModal = ({ isOpen, onOpenChange, equipoId, onSuccess }) => {
       if (response.success) {
         toast.success('Mantenimiento preventivo eliminado exitosamente');
         loadPreventiveData(currentPage, searchTerm, statusFilter, sortField, sortOrder);
+        onSuccess?.();
       } else {
         toast.error(response.message || 'Error al eliminar el mantenimiento preventivo');
       }
