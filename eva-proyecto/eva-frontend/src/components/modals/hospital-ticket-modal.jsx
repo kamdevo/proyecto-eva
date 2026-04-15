@@ -346,7 +346,7 @@ export default function HospitalTicketModal({
       return;
     }
 
-    if (!formData.equipo) {
+    if (!formData.equipo && ticketType !== "infraestructura") {
       toast.error("Campo obligatorio", {
         description: "Debe especificar o seleccionar un equipo."
       });
@@ -410,7 +410,7 @@ export default function HospitalTicketModal({
       ? getEmpresaNombre(formData.empresaAsignada)
       : "No especificado";
 
-    const message = `Tipo: ${ticketType.toUpperCase()}\nSede: ${sedeTexto}\nServicio: ${servicioTexto}\nÁrea: ${areaTexto}\nEquipo: ${formData.equipo || "No especificado"}\nEmpresa: ${empresaTexto}\n\nCampos completados: ${filledFields.join(", ")}`;
+    const message = `Tipo: ${ticketType.toUpperCase()}\nSede: ${sedeTexto}\nServicio: ${servicioTexto}\nÁrea: ${areaTexto}${ticketType !== "infraestructura" ? `\nEquipo: ${formData.equipo || "No especificado"}` : ""}\nEmpresa: ${empresaTexto}\n\nCampos completados: ${filledFields.join(", ")}`;
 
     setConfirmMessage(message);
     setShowConfirmDialog(true);
@@ -442,11 +442,11 @@ export default function HospitalTicketModal({
       const ticketData = {
         descripcion: formData.descripcionProblema || "Ticket creado desde el sistema",
         subproceso_id: ticketType === "biomedico" ? 1 : ticketType === "industrial" ? 2 : 3,
-        nombre_equipo: formData.equipo || "No especificado",
-        codigo_equipo: formData.numeroInventario || null,
-        serie_equipo: formData.serie || null,
-        marca_equipo: formData.marca || null,
-        modelo_equipo: formData.modelo || null,
+        nombre_equipo: ticketType === "infraestructura" ? "N/A - Infraestructura" : (formData.equipo || "No especificado"),
+        codigo_equipo: ticketType === "infraestructura" ? null : (formData.numeroInventario || null),
+        serie_equipo: ticketType === "infraestructura" ? null : (formData.serie || null),
+        marca_equipo: ticketType === "infraestructura" ? null : (formData.marca || null),
+        modelo_equipo: ticketType === "infraestructura" ? null : (formData.modelo || null),
         reportante_id: currentUser?.id || currentUser?.user_id || 1,
         servicio_id: formData.servicio || null,
         area_id: formData.area || null,
@@ -752,7 +752,8 @@ export default function HospitalTicketModal({
               </div>
             </div>
 
-            {/* Información del Equipo */}
+            {/* Información del Equipo - No aplica para infraestructura */}
+            {ticketType !== "infraestructura" && (
             <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
               <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
@@ -951,6 +952,37 @@ export default function HospitalTicketModal({
                 </div>
               </div>
             </div>
+            )}
+
+            {/* Evidencia para infraestructura (sin sección de equipo) */}
+            {ticketType === "infraestructura" && (
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                <Upload className="w-4 h-4 mr-2 text-green-600" />
+                Evidencia
+              </h3>
+              <div className="bg-gray-50 p-4 rounded-lg border border-dashed border-gray-300">
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <Input
+                    type="file"
+                    id="file_diagnostico"
+                    className="max-w-xs cursor-pointer"
+                    onChange={(e) => handleInputChange("file_diagnostico", e.target.files[0])}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Soporta: PDF, Word, Imágenes, ZIP (Límite amplio: 50MB+)
+                  </p>
+                  {formData.file_diagnostico && (
+                    <div className="text-xs font-medium text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">
+                      <FileText className="w-3 h-3 mr-1" />
+                      {formData.file_diagnostico.name}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            )}
 
             {/* Campos de Tipo de Mantenimiento para Industrial/Infraestructura */}
             {(ticketType === "industrial" || ticketType === "infraestructura") && (
