@@ -3414,9 +3414,7 @@ Route::post('v1/manuales', function (Request $request) {
         $id = DB::table('manuales')->insertGetId([
             'descripcion' => $request->descripcion,
             'url' => $request->url,
-            'status' => 1,
-            'created_at' => now(),
-            'updated_at' => now()
+            'status' => 1
         ]);
         
         \Log::info('📖 [MANUALES] Manual creado exitosamente. ID: ' . $id);
@@ -3503,8 +3501,7 @@ Route::put('v1/manuales/{id}', function (Request $request, $id) {
             ->where('id', $id)
             ->update([
                 'descripcion' => $request->descripcion,
-                'url' => $request->url,
-                'updated_at' => now()
+                'url' => $request->url
             ]);
             
         \Log::info('📖 [MANUALES] Manual actualizado exitosamente. ID: ' . $id);

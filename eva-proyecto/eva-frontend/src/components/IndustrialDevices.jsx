@@ -1191,7 +1191,9 @@ function IndustrialDevices() {
                             </div>
                             )}
 
-                            {/* Purchase Order Section */}
+                            {/* Purchase Order Section - Ocultar para equipos en comodato (tadquisicion_id=3) */}
+                            {String(equipment.tadquisicion_id) !== "3" && (
+                            <>
                             <div className="flex items-center gap-1 xs:gap-2">
                               <span className="font-medium text-slate-700">
                                 Orden Compra:
@@ -1219,6 +1221,8 @@ function IndustrialDevices() {
                                 {equipment.tipo_compra || "Sin tipo"}
                               </span>
                             </div>
+                            </>
+                            )}
 
                             {/* Observation Section */}
                             <div className="mt-3 xs:mt-4 pt-2 xs:pt-3 border-t border-slate-200">
