@@ -30,9 +30,7 @@ class ResponseFormatter
             'data' => $data,
             'timestamp' => now()->toISOString(),
             'status_code' => $code
-        ], $code)->header('Access-Control-Allow-Origin', '*')
-               ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-               ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ], $code);
     }
 
     /**
@@ -51,9 +49,7 @@ class ResponseFormatter
             'errors' => $errors,
             'timestamp' => now()->toISOString(),
             'status_code' => $code
-        ], $code)->header('Access-Control-Allow-Origin', '*')
-               ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-               ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ], $code);
     }
 
     /**
@@ -127,9 +123,7 @@ class ResponseFormatter
             ],
             'timestamp' => now()->toISOString(),
             'status_code' => 200
-        ], 200)->header('Access-Control-Allow-Origin', '*')
-               ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-               ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ], 200);
     }
 
     /**
@@ -173,9 +167,7 @@ class ResponseFormatter
             'meta' => $meta,
             'timestamp' => now()->toISOString(),
             'status_code' => $code
-        ], $code)->header('Access-Control-Allow-Origin', '*')
-               ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-               ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ], $code);
     }
 
     /**

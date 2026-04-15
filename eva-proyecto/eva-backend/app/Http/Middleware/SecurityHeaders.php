@@ -51,14 +51,7 @@ class SecurityHeaders
         $response->headers->remove('Server');
         $response->headers->remove('X-Powered-By');
 
-        // CORS Headers for API
-        if ($request->is('api/*')) {
-            $response->headers->set('Access-Control-Allow-Origin', config('app.frontend_url', '*'));
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-            $response->headers->set('Access-Control-Allow-Credentials', 'true');
-            $response->headers->set('Access-Control-Max-Age', '86400');
-        }
+        // CORS es manejado exclusivamente por HandleCors + config/cors.php
 
         return $response;
     }

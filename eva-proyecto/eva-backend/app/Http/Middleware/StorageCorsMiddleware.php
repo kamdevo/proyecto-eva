@@ -15,19 +15,8 @@ class StorageCorsMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Lista de orígenes permitidos para archivos de storage
-        $allowedOrigins = [
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5175',
-            'http://localhost:3000',
-            'http://localhost:4173',
-            'http://127.0.0.1:5173',
-            'http://127.0.0.1:5174',
-            'http://127.0.0.1:5175',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:4173',
-        ];
+        // Usar los orígenes de config/cors.php como fuente única de verdad
+        $allowedOrigins = config('cors.allowed_origins', []);
 
         $origin = $request->headers->get('Origin');
 
@@ -38,10 +27,11 @@ class StorageCorsMiddleware
             $response = $next($request);
         }
 
-        // Agregar headers CORS para storage
-        if (in_array($origin, $allowedOrigins) || app()->environment('local')) {
-            $response->headers->set('Access-Control-Allow-Origin', $origin ?: '*');
-            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        // Agregar headers CORS para storage solo si el origen está permitido
+        $isAllowed = in_array('*', $allowedOrigins) || in_array($origin, $allowedOrigins);
+        if ($origin && $isAllowed) {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, OPTIONS');
             $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
             $response->headers->set('Access-Control-Allow-Credentials', 'true');
             $response->headers->set('Access-Control-Max-Age', '86400');

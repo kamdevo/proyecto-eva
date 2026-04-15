@@ -125,10 +125,7 @@ class InfraestructuraTicketExportController extends Controller
                 [
                     'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                    'Cache-Control' => 'max-age=0',
-                    'Access-Control-Allow-Origin' => '*',
-                    'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers' => 'Content-Type, Authorization'
+                    'Cache-Control' => 'max-age=0'
                 ]
             );
 

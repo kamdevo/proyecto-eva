@@ -200,6 +200,11 @@ const AddPreventivoModal = ({
       return;
     }
 
+    if (!equipmentId) {
+      toast.error("Error: No se pudo identificar el equipo. Cierre el modal e intente de nuevo.");
+      return;
+    }
+
     setIsSubmitting(true);
     const toastId = 'add-preventivo';
 
@@ -253,7 +258,14 @@ const AddPreventivoModal = ({
       }
     } catch (error) {
       console.error("Error al guardar preventivo:", error);
-      toast.error(error.response?.data?.message || "Error al procesar el mantenimiento", { id: toastId });
+      // Mostrar errores de validación específicos si existen
+      const validationErrors = error.response?.data?.errors;
+      if (validationErrors) {
+        const errorMessages = Object.values(validationErrors).flat().join(", ");
+        toast.error(errorMessages || "Error de validación", { id: toastId });
+      } else {
+        toast.error(error.response?.data?.message || "Error al procesar el mantenimiento", { id: toastId });
+      }
     } finally {
       setIsSubmitting(false);
     }

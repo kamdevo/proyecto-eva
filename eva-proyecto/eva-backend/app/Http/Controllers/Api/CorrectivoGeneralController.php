@@ -828,10 +828,7 @@ class CorrectivoGeneralController extends Controller
         }, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $filename . '.xlsx"',
-            'Cache-Control' => 'max-age=0',
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+            'Cache-Control' => 'max-age=0'
         ]);
     }
 
@@ -934,10 +931,7 @@ class CorrectivoGeneralController extends Controller
         }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
-            'Cache-Control' => 'max-age=0',
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+            'Cache-Control' => 'max-age=0'
         ]);
     }
 

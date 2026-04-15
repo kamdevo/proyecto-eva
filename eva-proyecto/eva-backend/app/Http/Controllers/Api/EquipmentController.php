@@ -1293,9 +1293,7 @@ class EquipmentController extends ApiController
                 'success' => true,
                 'message' => 'Equipos industriales obtenidos exitosamente',
                 'data' => $responseData
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Error en getIndustrialDevicesComplete: ' . $e->getMessage());
@@ -1612,9 +1610,7 @@ class EquipmentController extends ApiController
                     'message' => 'IDs de equipos obtenidos exitosamente',
                     'ids' => $allIds,
                     'total' => count($allIds)
-                ])->header('Access-Control-Allow-Origin', '*')
-                  ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                  ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                ]);
             }
 
             // Debug: Log resultados de la consulta
@@ -1746,9 +1742,7 @@ class EquipmentController extends ApiController
                 'success' => true,
                 'message' => 'Equipos médicos obtenidos exitosamente',
                 'data' => $responseData
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -2164,9 +2158,7 @@ class EquipmentController extends ApiController
                 'success' => true,
                 'message' => 'Información completa del equipo obtenida exitosamente',
                 'data' => $equipoData
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Error en getCompleteInfo: ' . $e->getMessage());
@@ -2191,10 +2183,7 @@ class EquipmentController extends ApiController
                 return response()->json([
                     'success' => false,
                     'message' => 'Equipo no encontrado'
-                ], 404)
-                ->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                ], 404);
             }
 
             $userHistory = [];
@@ -2286,10 +2275,7 @@ class EquipmentController extends ApiController
                 'data' => $userHistory,
                 'message' => 'Historial de usuarios obtenido exitosamente',
                 'total' => count($userHistory)
-            ])
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Error en getUserHistory: ' . $e->getMessage());
@@ -2297,10 +2283,7 @@ class EquipmentController extends ApiController
                 'success' => false,
                 'message' => 'Error al obtener historial de usuarios: ' . $e->getMessage(),
                 'data' => []
-            ], 500)
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     }
 
@@ -2397,17 +2380,13 @@ class EquipmentController extends ApiController
                 'success' => true,
                 'message' => 'Opciones de filtros obtenidas exitosamente',
                 'data' => $options
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener opciones de filtros: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     }
 
@@ -2465,17 +2444,13 @@ class EquipmentController extends ApiController
                 'success' => true,
                 'message' => 'Estadísticas de equipos médicos obtenidas exitosamente',
                 'data' => $stats
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener estadísticas: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     }
 
@@ -2537,17 +2512,13 @@ class EquipmentController extends ApiController
                 'success' => true,
                 'message' => 'Estadísticas de equipos industriales obtenidas exitosamente',
                 'data' => $stats
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener estadísticas de equipos industriales: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     }
 
@@ -3061,10 +3032,7 @@ class EquipmentController extends ApiController
                 return response()->json([
                     'success' => false,
                     'message' => 'Equipo no encontrado'
-                ], 404)
-                ->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                ], 404);
             }
 
             // Obtener cambios de hoja de vida del equipo con información del usuario
@@ -3105,10 +3073,7 @@ class EquipmentController extends ApiController
                 'message' => 'Historial de cambios obtenido exitosamente',
                 'data' => $historialFormateado,
                 'total' => $historialFormateado->count()
-            ])
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Error en getCambiosHdv: ' . $e->getMessage());
@@ -3116,10 +3081,7 @@ class EquipmentController extends ApiController
                 'success' => false,
                 'message' => 'Error al obtener historial de cambios: ' . $e->getMessage(),
                 'data' => []
-            ], 500)
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     }
 }

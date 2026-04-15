@@ -227,10 +227,7 @@ class EquipmentListExportController extends Controller
                 [
                     'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                    'Cache-Control' => 'max-age=0',
-                    'Access-Control-Allow-Origin' => '*',
-                    'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
-                    'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+                    'Cache-Control' => 'max-age=0'
                 ]
             );
             

@@ -33,10 +33,16 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
 
-    'allowed_origins' => env('APP_ENV') === 'production'
-        ? explode(',', env('CORS_ALLOWED_ORIGINS', ''))
-        : [
-            // Desarrollo - Servidores locales
+    'allowed_origins' => array_merge(
+        // Orígenes desde .env (separados por coma)
+        array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', ''))),
+        // Producción HUV - SIEMPRE incluidos independientemente de APP_ENV
+        [
+            'http://eva2.huv.gov.co',
+            'https://eva2.huv.gov.co',
+        ],
+        // Desarrollo - Servidores locales
+        env('APP_ENV') !== 'production' ? [
             'http://localhost:3000',      // React dev server (Create React App)
             'http://localhost:5173',      // Vite dev server
             'http://localhost:5174',      // Vite dev server (puerto actual)
@@ -92,7 +98,8 @@ return [
             // Dominios de staging/testing
             'https://eva-staging.local',
             'https://eva-test.local',
-        ],
+        ] : []
+    ),
 
     'allowed_origins_patterns' => [
         // Patrones para desarrollo

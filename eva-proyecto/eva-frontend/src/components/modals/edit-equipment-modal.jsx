@@ -4776,6 +4776,7 @@ export function EditEquipmentModal({
         }}
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
+        isIndustrial={equipment?.tipo_id == 2}
         onPreventivoAdded={() => {
           // Recargar historial del equipo
           if (equipment?.id) {

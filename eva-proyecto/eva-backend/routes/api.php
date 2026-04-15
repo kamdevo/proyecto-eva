@@ -122,7 +122,6 @@ Route::prefix('v1')->group(function () {
 
 // ENDPOINT FINAL CORREGIDO PARA CREAR EQUIPOS
 Route::post("v1/equipos-final", function(Request $request) {
-    header("Access-Control-Allow-Origin: *");
     
     try {
         $validator = Validator::make($request->all(), [
@@ -186,7 +185,6 @@ Route::post("v1/equipos-final", function(Request $request) {
 
 // ENDPOINT DIRECTO SIN MIDDLEWARE PARA CREAR EQUIPOS
 Route::post("v1/equipos-simple", function(Request $request) {
-    header("Access-Control-Allow-Origin: *");
     
     try {
         $validator = Validator::make($request->all(), [
@@ -279,9 +277,7 @@ Route::get('v1/test/cors', function () {
         'message' => 'CORS funcionando correctamente',
         'timestamp' => now(),
         'server' => 'Laravel ' . app()->version()
-    ])->header('Access-Control-Allow-Origin', '*')
-      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    ]);
 });
 
 // Análisis enfocado para el modal de equipos
@@ -393,14 +389,12 @@ Route::get('v1/test/modal-analysis', function () {
                     }, [])
                 ]
             ]
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'error' => $e->getMessage()
-        ], 500)->header('Access-Control-Allow-Origin', '*');
+        ], 500);
     }
 });
 
@@ -480,17 +474,13 @@ Route::get('v1/test/database-analysis', function () {
             'success' => true,
             'message' => 'Análisis completo de base de datos realizado',
             'data' => $analysis
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'error' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
-        ], 500)->header('Access-Control-Allow-Origin', '*')
-                 ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ], 500);
     }
 });
 
@@ -1445,12 +1435,25 @@ Route::prefix('v1')->group(function () {
                 'repuesto_id' => 'nullable|string|max:100',
                 'repuesto_pendiente' => 'nullable|in:si,no',
                 'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            ], [
+                'equipo_id.required' => 'El ID del equipo es obligatorio.',
+                'equipo_id.integer' => 'El ID del equipo debe ser un número válido.',
+                'equipo_id.exists' => 'El equipo seleccionado no existe en el sistema.',
+                'description.required' => 'El código preventivo es obligatorio.',
+                'description.max' => 'El código preventivo no puede superar 100 caracteres.',
+                'fecha_mantenimiento.required' => 'La fecha de ejecución es obligatoria.',
+                'fecha_mantenimiento.date' => 'La fecha de ejecución no tiene un formato válido.',
+                'fecha_programada.required' => 'La fecha programada es obligatoria.',
+                'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
+                'file.mimes' => 'El archivo debe ser PDF, Word o imagen (jpg, png).',
+                'file.max' => 'El archivo no puede superar 10MB.',
             ]);
             
             if ($validator->fails()) {
+                $errorMessages = implode(' ', $validator->errors()->all());
                 return response()->json([
                     'success' => false,
-                    'message' => 'Errores de validación',
+                    'message' => $errorMessages,
                     'errors' => $validator->errors()
                 ], 422);
             }
@@ -1469,6 +1472,10 @@ Route::prefix('v1')->group(function () {
                         'status' => 1
                     ]);
                 }
+            }
+            // Fallback: columna NOT NULL en BD, usar 0 si no hay proveedor
+            if (!$proveedorId) {
+                $proveedorId = 0;
             }
             
             // Procesar archivo si existe
@@ -1523,12 +1530,25 @@ Route::prefix('v1')->group(function () {
                 'repuesto_id' => 'nullable|string|max:100',
                 'repuesto_pendiente' => 'nullable|in:si,no',
                 'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            ], [
+                'equipo_id.required' => 'El ID del equipo es obligatorio.',
+                'equipo_id.integer' => 'El ID del equipo debe ser un número válido.',
+                'equipo_id.exists' => 'El equipo seleccionado no existe en el sistema.',
+                'description.required' => 'El código preventivo es obligatorio.',
+                'description.max' => 'El código preventivo no puede superar 100 caracteres.',
+                'fecha_mantenimiento.required' => 'La fecha de ejecución es obligatoria.',
+                'fecha_mantenimiento.date' => 'La fecha de ejecución no tiene un formato válido.',
+                'fecha_programada.required' => 'La fecha programada es obligatoria.',
+                'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
+                'file.mimes' => 'El archivo debe ser PDF, Word o imagen (jpg, png).',
+                'file.max' => 'El archivo no puede superar 10MB.',
             ]);
             
             if ($validator->fails()) {
+                $errorMessages = implode(' ', $validator->errors()->all());
                 return response()->json([
                     'success' => false,
-                    'message' => 'Errores de validación',
+                    'message' => $errorMessages,
                     'errors' => $validator->errors()
                 ], 422);
             }
@@ -1555,6 +1575,11 @@ Route::prefix('v1')->group(function () {
                     'success' => false,
                     'message' => 'Mantenimiento no encontrado'
                 ], 404);
+            }
+            
+            // Fallback: columna NOT NULL en BD, usar valor existente o 0
+            if (!$proveedorId) {
+                $proveedorId = $mantenimiento->proveedor_mantenimiento_id ?? 0;
             }
             
             $updateData = [
@@ -1893,9 +1918,7 @@ Route::prefix('v1')->group(function () {
                 return response()->json([
                     'success' => false,
                     'message' => 'No hay preventivos para exportar'
-                ], 400, [
-                    'Access-Control-Allow-Origin' => '*'
-                ]);
+                ], 400);
             }
             
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -1968,19 +1991,14 @@ Route::prefix('v1')->group(function () {
                 $writer->save('php://output');
             }, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Access-Control-Allow-Origin' => '*',
-                'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"'
             ]);
         } catch (\Exception $e) {
             \Log::error('❌ [EXPORT] Error exportando preventivos filtrados: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al exportar: ' . $e->getMessage()
-            ], 500, [
-                'Access-Control-Allow-Origin' => '*'
-            ]);
+            ], 500);
         }
     });
     
@@ -2875,9 +2893,7 @@ Route::get('v1/test/db', function () {
         ], 500);
     }
 
-    return $response->header('Access-Control-Allow-Origin', '*')
-                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                   ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    return $response;
 });
 
 // Test endpoint de catálogos (adaptado a BD actual)
@@ -2902,9 +2918,7 @@ Route::get('v1/test/catalogs', function () {
         ], 500);
     }
 
-    return $response->header('Access-Control-Allow-Origin', '*')
-                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                   ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    return $response;
 });
 
 // Endpoints de prueba adicionales para equipos (sin autenticación)
@@ -2921,14 +2935,12 @@ Route::get('v1/test/equipos/filter-options', function () {
             'success' => true,
             'message' => 'Opciones de filtros obtenidas exitosamente (test)',
             'data' => $options
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'message' => 'Error al obtener opciones de filtros: ' . $e->getMessage()
-        ], 500)->header('Access-Control-Allow-Origin', '*');
+        ], 500);
     }
 });
 
@@ -2949,14 +2961,12 @@ Route::get('v1/test/equipos/estadisticas', function () {
             'success' => true,
             'message' => 'Estadísticas obtenidas exitosamente (test)',
             'data' => $stats
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'message' => 'Error al obtener estadísticas: ' . $e->getMessage()
-        ], 500)->header('Access-Control-Allow-Origin', '*');
+        ], 500);
     }
 });
 
@@ -3042,9 +3052,7 @@ Route::get('v1/test/modal-data', function () {
         ], 500);
     }
 
-    return $response->header('Access-Control-Allow-Origin', '*')
-                   ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                   ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    return $response;
 });
 
 // Endpoint de verificación de datos de equipos
@@ -3179,9 +3187,7 @@ Route::get('v1/test/verify-equipment-data/{id?}', function ($id = null) {
                     'estado_general' => $porcentajeCompletitud >= 70 ? 'BUENO' : ($porcentajeCompletitud >= 50 ? 'REGULAR' : 'MALO')
                 ]
             ]
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
@@ -3283,9 +3289,7 @@ Route::get('v1/test/seed-basic-data', function () {
                 'conteos_finales' => $counts,
                 'errores' => $errors
             ]
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
@@ -5030,8 +5034,7 @@ Route::get('storage/equipos/images/{filename}', function($filename) {
 
             return response()->file($imagePath, [
                 'Content-Type' => $mimeType,
-                'Cache-Control' => 'public, max-age=3600',
-                'Access-Control-Allow-Origin' => '*'
+                'Cache-Control' => 'public, max-age=3600'
             ]);
         }
 
@@ -5060,8 +5063,7 @@ Route::get('storage/{path}', function($path) {
 
             return response()->file($fullPath, [
                 'Content-Type' => $mimeType,
-                'Cache-Control' => 'public, max-age=3600',
-                'Access-Control-Allow-Origin' => '*'
+                'Cache-Control' => 'public, max-age=3600'
             ]);
         }
 
@@ -5092,12 +5094,12 @@ Route::get('v1/equipos/validate-unique', function(Request $request) {
         return response()->json([
             'unique'  => true,
             'message' => 'Campo no válido para validación'
-        ], 200)->header('Access-Control-Allow-Origin', '*');
+        ], 200);
     }
 
     if (!$value || trim($value) === '') {
         return response()->json(['unique' => true])
-            ->header('Access-Control-Allow-Origin', '*');
+            ;
     }
 
     $exists = DB::table('equipos')
@@ -5108,7 +5110,7 @@ Route::get('v1/equipos/validate-unique', function(Request $request) {
         'unique'  => !$exists,
         'field'   => $field,
         'value'   => $value,
-    ])->header('Access-Control-Allow-Origin', '*');
+    ]);
 });
 
 // RUTA COMPLETAMENTE INDEPENDIENTE SIN MIDDLEWARE
@@ -5183,7 +5185,7 @@ Route::post('v1/equipos-create', function(Request $request) {
                 'success' => false,
                 'message' => 'Errores de validación',
                 'errors' => $validator->errors()
-            ], 422)->header('Access-Control-Allow-Origin', '*');
+            ], 422);
         }
 
         // Validación condicional: biomédicos requieren cbiomedica_id y criesgo_id
@@ -5201,7 +5203,7 @@ Route::post('v1/equipos-create', function(Request $request) {
                     'success' => false,
                     'message' => 'Errores de validación',
                     'errors'  => $extraErrors,
-                ], 422)->header('Access-Control-Allow-Origin', '*');
+                ], 422);
             }
         }
 
@@ -5440,7 +5442,7 @@ Route::post('v1/equipos-create', function(Request $request) {
             'success' => true,
             'message' => 'Equipo creado exitosamente',
             'data' => $equipoCreado
-        ], 201)->header('Access-Control-Allow-Origin', '*');
+        ], 201);
 
     } catch (\Exception $e) {
         // DEBUGGING: Log completo del error
@@ -5458,7 +5460,7 @@ Route::post('v1/equipos-create', function(Request $request) {
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]
-        ], 500)->header('Access-Control-Allow-Origin', '*');
+        ], 500);
     }
     
 }); // Sin withoutMiddleware - ruta independiente
@@ -5469,7 +5471,6 @@ Route::post('v1/equipos-create', function(Request $request) {
 
 // Endpoint público para repuestos instalados
 Route::get('v1/repuestos', function(Request $request) {
-    header('Access-Control-Allow-Origin: *');
     header('Content-Type: application/json');
     
     try {
@@ -6628,9 +6629,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                     'mime_type' => $mimeType,
                     'size' => strlen($imageContent)
                 ]
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Accept');
+            ]);
 
         } catch (\Exception $e) {
             \Log::error('Error serving equipment image', [
@@ -6916,18 +6915,14 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'success' => true,
                 'message' => 'Equipo creado exitosamente',
                 'data' => ['id' => $equipoId, ...$equipoData]
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Errores de validación',
                 'errors' => $e->errors()
-            ], 422)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 422);
 
         } catch (\Exception $e) {
             \Log::error('Error al crear equipo', ['error' => $e->getMessage()]);
@@ -6935,9 +6930,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear equipo: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     });*/
 
@@ -9185,9 +9178,6 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             return response()->file($filePath, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="' . $filename . '"',
-                'Access-Control-Allow-Origin' => '*',
-                'Access-Control-Allow-Methods' => 'GET',
-                'Access-Control-Allow-Headers' => 'Content-Type, Accept, Origin',
                 'Cache-Control' => 'public, max-age=3600'
             ]);
 
@@ -9208,10 +9198,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
 
         return response()->file($filePath, [
-            'Content-Type' => 'application/pdf',
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET',
-            'Access-Control-Allow-Headers' => 'Content-Type, Accept, Origin'
+            'Content-Type' => 'application/pdf'
         ]);
     });
 
@@ -9226,17 +9213,13 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             return response()->json([
                 'success' => true,
                 'data' => $registros
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener registros INVIMA: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     });
 
@@ -9292,27 +9275,21 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'success' => true,
                 'message' => 'Registro INVIMA creado exitosamente',
                 'data' => array_merge($registroData, ['id' => $registroId])
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Datos de validación incorrectos',
                 'errors' => $e->errors()
-            ], 422)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 422);
 
         } catch (Exception $e) {
             \Log::error('Error creando registro INVIMA', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear registro INVIMA: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     });
 
@@ -9331,12 +9308,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             // Crear respuesta con headers CORS
             $response = response($file, 200)
                 ->header('Content-Type', $mimeType)
-                ->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-                ->header('Access-Control-Allow-Credentials', 'true')
-                ->header('Cross-Origin-Resource-Policy', 'cross-origin')
-                ->header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+                ;
 
             return $response;
 
@@ -9354,9 +9326,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 return response()->json([
                     'success' => false,
                     'message' => 'Equipo no encontrado'
-                ], 404)->header('Access-Control-Allow-Origin', '*')
-                        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                ], 404);
             }
 
             $files = [];
@@ -9397,17 +9367,13 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'success' => true,
                 'data' => $files,
                 'equipo_id' => $id
-            ])->header('Access-Control-Allow-Origin', '*')
-              ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-              ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener archivos: ' . $e->getMessage()
-            ], 500)->header('Access-Control-Allow-Origin', '*')
-                    ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+            ], 500);
         }
     });
 
@@ -9432,8 +9398,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
                 return response()->file($imagePath, [
                     'Content-Type' => $mimeType,
-                    'Cache-Control' => 'public, max-age=3600',
-                    'Access-Control-Allow-Origin' => '*'
+                    'Cache-Control' => 'public, max-age=3600'
                 ]);
             }
 
@@ -9468,8 +9433,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
                 return response()->file($fullPath, [
                     'Content-Type' => $mimeType,
-                    'Cache-Control' => 'public, max-age=3600',
-                    'Access-Control-Allow-Origin' => '*'
+                    'Cache-Control' => 'public, max-age=3600'
                 ]);
             }
 
@@ -9572,17 +9536,13 @@ Route::get('v1/test/modal-equipment-data', function () {
             'success' => true,
             'message' => 'Datos para modal de agregar equipo obtenidos (versión pública)',
             'data' => $data
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'message' => 'Error al obtener datos: ' . $e->getMessage()
-        ], 500)->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        ], 500);
     }
 
     // Ruta para eliminar equipos
@@ -10708,7 +10668,7 @@ Route::post('v1/test/create-equipment-with-checkboxes', function (Request $reque
                 'manual_parsed' => json_decode($equipo->manual, true),
                 'plano_parsed' => json_decode($equipo->plano, true)
             ]
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
 
     } catch (\Exception $e) {
         DB::rollBack();
@@ -10824,7 +10784,7 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
                     'plano' => $updatedEquipo->plano,
                     'fecha_cambio' => $updatedEquipo->fecha_cambio
                 ]
-            ])->header('Access-Control-Allow-Origin', '*');
+            ]);
         } else {
             DB::rollBack();
             return response()->json([
@@ -10970,7 +10930,7 @@ Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id)
                     'plano' => $updatedEquipo->plano,
                     'fecha_cambio' => $updatedEquipo->fecha_cambio
                 ]
-            ])->header('Access-Control-Allow-Origin', '*');
+            ]);
         } else {
             DB::rollBack();
             return response()->json([
@@ -11780,7 +11740,7 @@ Route::post('v1/equipos/{id}/upload-document', function (Request $request, $id) 
                 'message' => 'Errores de validación',
                 'errors' => $validator->errors(),
                 'debug_input' => $request->except('document')
-            ], 422)->header('Access-Control-Allow-Origin', '*');
+            ], 422);
         }
 
         $file = $request->file('document');
@@ -11830,7 +11790,7 @@ Route::post('v1/equipos/{id}/upload-document', function (Request $request, $id) 
                     'tamaño' => $file->getSize(),
                     'fecha_subida' => $equipoArchivoData['created_at']
                 ]
-            ])->header('Access-Control-Allow-Origin', '*');
+            ]);
         } else {
             // Si falla la inserción, eliminar el archivo subido
             Storage::disk('public')->delete('equipos/archivos/' . $fileName);
@@ -11892,7 +11852,7 @@ Route::get('v1/equipos/{id}/documents', function ($id) {
         return response()->json([
             'success' => true,
             'data' => $documentos
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
@@ -12157,7 +12117,7 @@ Route::post('v1/test/find-test-equipment', function (Request $request) {
             'message' => "Encontrados {$equipos->count()} equipos",
             'search_terms' => $searchTerms,
             'data' => $equipos
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
         
     } catch (\Exception $e) {
         return response()->json([
@@ -12199,7 +12159,7 @@ Route::get('v1/test/search-equipment/{term?}', function ($term = null) {
             'search_term' => $term,
             'total_found' => $equipos->count(),
             'data' => $equipos
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
         
     } catch (\Exception $e) {
         return response()->json([
@@ -12227,7 +12187,7 @@ Route::get('v1/test/latest-equipment', function () {
             'success' => true,
             'message' => "Últimos {$equipos->count()} equipos creados",
             'data' => $equipos
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
         
     } catch (\Exception $e) {
         return response()->json([
@@ -12274,7 +12234,7 @@ Route::get('v1/test/medical-devices-search/{term?}', function ($term = null) {
             'search_term' => $term,
             'total_found' => $equipos->count(),
             'data' => $equipos
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
         
     } catch (\Exception $e) {
         return response()->json([
@@ -12365,16 +12325,14 @@ Route::get('v1/equipos/medical-devices-complete-fixed', function (Request $reque
             'total' => $equipos->count(),
             'search_applied' => !empty($search) ? $search : null,
             'data' => $equipos
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Accept');
+        ]);
         
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
             'message' => 'Error en búsqueda: ' . $e->getMessage(),
             'error_details' => $e->getFile() . ':' . $e->getLine()
-        ], 500)->header('Access-Control-Allow-Origin', '*');
+        ], 500);
     }
 })->withoutMiddleware([
     'auth:sanctum',
@@ -12428,7 +12386,7 @@ Route::delete('v1/equipos/{id}/documents/{documentId}', function ($id, $document
             return response()->json([
                 'success' => true,
                 'message' => 'Documento eliminado exitosamente'
-            ])->header('Access-Control-Allow-Origin', '*');
+            ]);
         } else {
             return response()->json([
                 'success' => false,
@@ -12500,7 +12458,7 @@ Route::post('v1/equipos/{id}/documents/{documentId}/share', function (Request $r
             return response()->json([
                 'success' => true,
                 'message' => 'El documento ya existe en el equipo destino'
-            ], 200)->header('Access-Control-Allow-Origin', '*');
+            ], 200);
         }
 
         // Crear copia del documento para el equipo destino
@@ -12527,7 +12485,7 @@ Route::post('v1/equipos/{id}/documents/{documentId}/share', function (Request $r
                     'tipo_documento' => $tipoArchivo->name ?? 'Desconocido',
                     'archivo' => $documento->vinculo
                 ]
-            ])->header('Access-Control-Allow-Origin', '*');
+            ]);
         } else {
             return response()->json([
                 'success' => false,
@@ -12590,7 +12548,7 @@ Route::get('v1/equipos/{id}/documents/stats', function ($id) {
                 'equipo_id' => $id,
                 'equipo_nombre' => $equipo->name
             ]
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
@@ -12632,7 +12590,7 @@ Route::get('v1/equipos/search', function (Request $request) {
             'success' => true,
             'data' => $equipos,
             'total' => $equipos->count()
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
@@ -12681,7 +12639,7 @@ Route::get('v1/equipos/{id}/documents/audit', function ($id) {
             'data' => $auditTrail,
             'equipo_id' => $id,
             'equipo_nombre' => $equipo->name
-        ])->header('Access-Control-Allow-Origin', '*');
+        ]);
 
     } catch (\Exception $e) {
         return response()->json([
