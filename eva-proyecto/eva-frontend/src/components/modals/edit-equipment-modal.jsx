@@ -30,6 +30,7 @@ import {
   Search,
   Edit,
   Trash2,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -1809,36 +1810,14 @@ export function EditEquipmentModal({
       if (completeEquipmentData.orden_compra_id && completeEquipmentData.orden_compra_id !== 0 && completeEquipmentData.orden_compra_id !== "0") {
         console.log("📋 Buscando orden ID:", completeEquipmentData.orden_compra_id);
         try {
-          const response = await httpService.get(`/v1/ordenes-compra`);
-          console.log("📋 Respuesta completa de órdenes:", response.data);
+          const response = await httpService.get(`/v1/ordenes-compra/${completeEquipmentData.orden_compra_id}`);
+          console.log("📋 Respuesta orden:", response.data);
           
-          let ordenesArray = [];
-          
-          // Manejar diferentes estructuras de respuesta
-          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
-            // Estructura con paginación: { data: { data: [...] } }
-            ordenesArray = response.data.data.data;
-          } else if (response.data?.data && Array.isArray(response.data.data)) {
-            // Estructura simple: { data: [...] }
-            ordenesArray = response.data.data;
-          } else if (Array.isArray(response.data)) {
-            // Array directo: [...]
-            ordenesArray = response.data;
-          }
-          
-          console.log("📋 Array de órdenes procesado:", ordenesArray);
-          
-          if (ordenesArray.length > 0) {
-            const order = ordenesArray.find(o => 
-              o.id.toString() === completeEquipmentData.orden_compra_id.toString()
-            );
-            console.log("📋 Orden encontrada:", order);
-            if (order) {
-              setSelectedOrderInfo(order);
-              console.log("📋 Orden info establecida:", order.orden || order.numero);
-            } else {
-              console.warn("📋 Orden no encontrada con ID:", completeEquipmentData.orden_compra_id);
-            }
+          if (response.data?.success && response.data?.data) {
+            setSelectedOrderInfo(response.data.data);
+            console.log("📋 Orden info establecida:", response.data.data.orden || response.data.data.numero);
+          } else {
+            console.warn("📋 Orden no encontrada con ID:", completeEquipmentData.orden_compra_id);
           }
         } catch (error) {
           console.error("❌ Error loading order info:", error);
@@ -3052,6 +3031,21 @@ export function EditEquipmentModal({
                           )}
                         </div>
                         <div className="flex gap-1 ml-2">
+                          {selectedOrderInfo.file && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
+                                window.open(`${baseUrl}/storage/ordenes_compra/${selectedOrderInfo.file}`, '_blank');
+                              }}
+                              className="text-blue-600 hover:bg-blue-100 h-7 w-7 p-0"
+                              title="Ver archivo de orden de compra"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
