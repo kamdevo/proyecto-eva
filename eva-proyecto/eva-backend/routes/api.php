@@ -10805,7 +10805,7 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
 ]);
 
 // Equipment update route with image support (no auth for development/testing)
-Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id) {
+Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Request $request, $id) {
     try {
         DB::beginTransaction();
 
@@ -10865,15 +10865,20 @@ Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id)
 
         $updateData['fecha_cambio'] = now();
 
-        // ✅ GUARDAR HISTORIAL DE CAMBIOS DE UBICACIÓN (área/sede)
+        // ✅ GUARDAR HISTORIAL DE CAMBIOS DE UBICACIÓN (área)
         $areaChanged = $request->has('area_id') && $request->area_id != $equipo->area_id;
-        $sedeChanged = $request->has('sede_id') && $request->sede_id != $equipo->sede_id;
         
-        // Si cambió área o sede, registrar en historial
-        if ($areaChanged || $sedeChanged) {
+        // Si cambió área, registrar en historial
+        if ($areaChanged) {
             try {
-                $sedeOrigenId = $equipo->sede_id ? (int)$equipo->sede_id : 0;
-                $sedeDestinoId = $request->input('sede_id') ? (int)$request->input('sede_id') : $sedeOrigenId;
+                // Obtener sede del servicio actual del equipo
+                $sedeActual = null;
+                if ($equipo->servicio_id) {
+                    $servicio = DB::table('servicios')->where('id', $equipo->servicio_id)->first();
+                    $sedeActual = $servicio->sede_id ?? null;
+                }
+                $sedeOrigenId = $sedeActual ? (int)$sedeActual : 0;
+                $sedeDestinoId = $sedeOrigenId; // La sede no cambia directamente en equipos
                 
                 DB::table('cambios_ubicaciones')->insert([
                     'equipo_id' => (int)$id,
@@ -10888,11 +10893,9 @@ Route::put('v1/equipos/{id}/update-with-image', function (Request $request, $id)
                 \Log::info('📍 HISTORIAL - Cambio de ubicación registrado (con imagen):', [
                     'equipo_id' => $id,
                     'area_changed' => $areaChanged,
-                    'sede_changed' => $sedeChanged,
                     'area_origen' => $equipo->area_id,
                     'area_destino' => $request->input('area_id'),
-                    'sede_origen' => $equipo->sede_id,
-                    'sede_destino' => $request->input('sede_id')
+                    'sede' => $sedeOrigenId
                 ]);
             } catch (\Exception $historialError) {
                 \Log::error('❌ Error guardando historial de ubicación (con imagen):', [

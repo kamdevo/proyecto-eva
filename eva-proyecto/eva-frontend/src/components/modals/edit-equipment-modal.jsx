@@ -2003,10 +2003,14 @@ export function EditEquipmentModal({
 
         console.log("🚀 [EDIT MODAL] FormData preparado para envío con imagen");
 
+        // Agregar _method=PUT para que Laravel lo interprete como PUT
+        // pero enviamos como POST para que multipart/form-data funcione con archivos
+        submitFormData.append("_method", "PUT");
+
         const url = `/v1/equipos/${equipment.id}/update-with-image`;
         console.log("🚀 [EDIT MODAL] URL de actualización con imagen:", url);
 
-        const response = await httpService.put(url, submitFormData, {
+        const response = await httpService.post(url, submitFormData, {
           headers: {
             "Content-Type": "multipart/form-data",
           },
@@ -2712,11 +2716,27 @@ export function EditEquipmentModal({
                             <p className="text-sm text-gray-600 mb-2">
                               Imagen actual
                             </p>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  handleInputChange("newImage", file);
+                                }
+                              }}
+                              className="hidden"
+                              id="image-replace"
+                              disabled={isSubmitting || loading}
+                            />
                             <Button
+                              type="button"
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                handleInputChange("showImageUpload", true)
+                                document
+                                  .getElementById("image-replace")
+                                  .click()
                               }
                               disabled={isSubmitting || loading}
                             >
@@ -2737,6 +2757,7 @@ export function EditEquipmentModal({
                                 </p>
                                 <div className="flex gap-2 justify-center">
                                   <Button
+                                    type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
@@ -2774,6 +2795,7 @@ export function EditEquipmentModal({
                                   disabled={isSubmitting || loading}
                                 />
                                 <Button
+                                  type="button"
                                   variant="outline"
                                   size="sm"
                                   onClick={() =>
