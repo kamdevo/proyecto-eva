@@ -2691,8 +2691,29 @@ export function EditEquipmentModal({
                       <Label className="text-xs sm:text-sm">
                         IMAGEN RELACIONADA DEL EQUIPO
                       </Label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center mt-2 min-h-[200px] flex flex-col items-center justify-center">
-                        {/* Show current image if exists */}
+                      <div
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center mt-2 min-h-[200px] flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                        onClick={() => {
+                          if (!formData.newImage) {
+                            document.getElementById("image-upload")?.click();
+                          }
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.add("border-blue-400", "bg-blue-50");
+                        }}
+                        onDragLeave={(e) => {
+                          e.currentTarget.classList.remove("border-blue-400", "bg-blue-50");
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove("border-blue-400", "bg-blue-50");
+                          const file = e.dataTransfer.files[0];
+                          if (file && file.type.startsWith("image/")) {
+                            handleInputChange("newImage", file);
+                          }
+                        }}
+                      >                        {/* Show current image if exists */}
                         {(completeEquipmentData?.image_url ||
                           completeEquipmentData?.image ||
                           equipment?.equipo?.image) &&
@@ -2776,10 +2797,10 @@ export function EditEquipmentModal({
                               <div>
                                 <Upload className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
                                 <p className="text-gray-500 mb-2">
-                                  {completeEquipmentData?.image ||
-                                  equipment?.equipo?.image
-                                    ? "Seleccionar nueva imagen"
-                                    : "Seleccionar imagen del equipo"}
+                                  Arrastra y suelta una imagen aquí
+                                </p>
+                                <p className="text-sm text-gray-400 mb-3">
+                                  (o haz clic para seleccionar archivo)
                                 </p>
                                 <input
                                   type="file"
