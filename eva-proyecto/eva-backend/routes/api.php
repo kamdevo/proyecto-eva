@@ -1434,7 +1434,7 @@ Route::prefix('v1')->group(function () {
                 'observacion' => 'nullable|string',
                 'repuesto_id' => 'nullable|string|max:100',
                 'repuesto_pendiente' => 'nullable|in:si,no',
-                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480',
             ], [
                 'equipo_id.required' => 'El ID del equipo es obligatorio.',
                 'equipo_id.integer' => 'El ID del equipo debe ser un número válido.',
@@ -1445,8 +1445,10 @@ Route::prefix('v1')->group(function () {
                 'fecha_mantenimiento.date' => 'La fecha de ejecución no tiene un formato válido.',
                 'fecha_programada.required' => 'La fecha programada es obligatoria.',
                 'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
-                'file.mimes' => 'El archivo debe ser PDF, Word o imagen (jpg, png).',
-                'file.max' => 'El archivo no puede superar 10MB.',
+                'file.file' => 'El archivo no se pudo subir correctamente. Intenta con un archivo más pequeño.',
+                'file.uploaded' => 'El archivo no se pudo subir. Verifica que no exceda 20MB.',
+                'file.mimes' => 'El archivo debe ser PDF, Word, Excel, imagen (jpg, png) o comprimido (zip, rar).',
+                'file.max' => 'El archivo no puede superar 20MB.',
             ]);
             
             if ($validator->fails()) {
@@ -1482,7 +1484,16 @@ Route::prefix('v1')->group(function () {
             $filePath = null;
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                // Sanitizar y truncar nombre para que quepa en varchar(200)
+                $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $prefix = time() . '_';
+                $maxNameLen = 195 - strlen('mantenimientos/') - strlen($prefix);
+                if (strlen($originalName) > $maxNameLen) {
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $base = substr(pathinfo($originalName, PATHINFO_FILENAME), 0, $maxNameLen - strlen($ext) - 1);
+                    $originalName = $base . '.' . $ext;
+                }
+                $fileName = $prefix . $originalName;
                 $filePath = $file->storeAs('mantenimientos', $fileName, 'public');
             }
             
@@ -1529,7 +1540,7 @@ Route::prefix('v1')->group(function () {
                 'observacion' => 'nullable|string',
                 'repuesto_id' => 'nullable|string|max:100',
                 'repuesto_pendiente' => 'nullable|in:si,no',
-                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480',
             ], [
                 'equipo_id.required' => 'El ID del equipo es obligatorio.',
                 'equipo_id.integer' => 'El ID del equipo debe ser un número válido.',
@@ -1540,8 +1551,10 @@ Route::prefix('v1')->group(function () {
                 'fecha_mantenimiento.date' => 'La fecha de ejecución no tiene un formato válido.',
                 'fecha_programada.required' => 'La fecha programada es obligatoria.',
                 'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
-                'file.mimes' => 'El archivo debe ser PDF, Word o imagen (jpg, png).',
-                'file.max' => 'El archivo no puede superar 10MB.',
+                'file.file' => 'El archivo no se pudo subir correctamente. Intenta con un archivo más pequeño.',
+                'file.uploaded' => 'El archivo no se pudo subir. Verifica que no exceda 20MB.',
+                'file.mimes' => 'El archivo debe ser PDF, Word, Excel, imagen (jpg, png) o comprimido (zip, rar).',
+                'file.max' => 'El archivo no puede superar 20MB.',
             ]);
             
             if ($validator->fails()) {
@@ -1600,7 +1613,15 @@ Route::prefix('v1')->group(function () {
                 }
                 
                 $file = $request->file('file');
-                $fileName = time() . '_' . $file->getClientOriginalName();
+                $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $prefix = time() . '_';
+                $maxNameLen = 195 - strlen('mantenimientos/') - strlen($prefix);
+                if (strlen($originalName) > $maxNameLen) {
+                    $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+                    $base = substr(pathinfo($originalName, PATHINFO_FILENAME), 0, $maxNameLen - strlen($ext) - 1);
+                    $originalName = $base . '.' . $ext;
+                }
+                $fileName = $prefix . $originalName;
                 $filePath = $file->storeAs('mantenimientos', $fileName, 'public');
                 $updateData['file'] = $filePath;
             }
@@ -4961,17 +4982,39 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
             return response()->json(['success' => false, 'message' => 'No se recibió ningún archivo'], 422);
         }
 
+        $file = $request->file('archivo');
+
+        // Validar archivo
+        if (!$file->isValid()) {
+            return response()->json(['success' => false, 'message' => 'El archivo está corrupto o incompleto'], 422);
+        }
+        if ($file->getSize() > 20 * 1024 * 1024) {
+            return response()->json(['success' => false, 'message' => 'El archivo excede el límite de 20MB'], 422);
+        }
+
         $tabla = $correctivo->tipo_id == 2
             ? 'correctivos_generales_archivos_ind'
             : 'correctivos_generales_archivos';
 
-        $file = $request->file('archivo');
-        $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+        // Truncar nombre del archivo para que quepa en varchar(100) con el timestamp
+        $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+        $maxNameLen = 100 - strlen(time() . '_') - 1; // dejar margen
+        if (strlen($originalName) > $maxNameLen) {
+            $ext = pathinfo($originalName, PATHINFO_EXTENSION);
+            $base = pathinfo($originalName, PATHINFO_FILENAME);
+            $base = substr($base, 0, $maxNameLen - strlen($ext) - 1);
+            $originalName = $base . '.' . $ext;
+        }
+        $fileName = time() . '_' . $originalName;
+
         $file->storeAs('correctivos_generales', $fileName, 'public');
+
+        $titulo = $request->input('titulo') ?: $file->getClientOriginalName();
+        $titulo = substr($titulo, 0, 100); // Truncar titulo a varchar(100)
 
         $archivoId = DB::table($tabla)->insertGetId([
             'file'                  => $fileName,
-            'titulo'                => $request->input('titulo') ?: $file->getClientOriginalName(),
+            'titulo'                => $titulo,
             'correctivo_general_id' => $id,
             'created_at'            => now(),
         ]);

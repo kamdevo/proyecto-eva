@@ -1,12 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, memo } from "react";
 
 /**
  * Componente para mostrar el ID del equipo de manera prominente
  * Incluye funcionalidad de copiado al clipboard
  */
-export function EquipmentIdBadge({ 
+export const EquipmentIdBadge = memo(function EquipmentIdBadge({ 
   equipmentId, 
   variant = "default",
   size = "default",
@@ -86,4 +86,4 @@ export function EquipmentIdBadge({
       )}
     </div>
   );
-}
+})

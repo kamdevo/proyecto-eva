@@ -1,12 +1,30 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { API_CONFIG } from "../config/api";
 import medicalDevicesService from "../services/medicalDevicesService";
+
+// Cache global entre navegaciones (sobrevive re-mount del componente)
+const equipmentCache = {
+  biomedical: { devices: null, pagination: null, filterOptions: null, stats: null, timestamp: 0, filtersKey: "" },
+  industrial: { devices: null, pagination: null, filterOptions: null, stats: null, timestamp: 0, filtersKey: "" },
+};
+const CACHE_TTL = 3 * 60 * 1000; // 3 minutos
+
+function getCacheEntry(type) {
+  return equipmentCache[type] || equipmentCache.biomedical;
+}
+
+function filtersToKey(filters) {
+  return JSON.stringify(filters);
+}
 
 /**
  * Hook genérico para gestión de equipos (biomédicos e industriales)
  * Maneja estado, carga de datos y operaciones CRUD
  */
 export const useEquipment = (equipmentType = "biomedical") => {
+  // Ref para evitar fetches duplicados en StrictMode
+  const fetchingRef = useRef(false);
+
   // Estados principales
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -368,25 +386,73 @@ export const useEquipment = (equipmentType = "biomedical") => {
   }, [filters, equipmentType]);
 
   /**
-   * Refrescar datos
+   * Refrescar datos (invalida cache)
    */
   const refresh = useCallback(() => {
+    const cache = getCacheEntry(equipmentType);
+    cache.timestamp = 0;
+    cache.filtersKey = "";
     fetchDevices();
     fetchStats();
-  }, [fetchDevices, fetchStats]);
+  }, [fetchDevices, fetchStats, equipmentType]);
 
-  // Efectos
+  // Carga inicial: usar cache si está fresco, sino cargar en paralelo
   useEffect(() => {
-    fetchFilterOptions();
-  }, [fetchFilterOptions]);
+    const cache = getCacheEntry(equipmentType);
+    const now = Date.now();
+    const currentKey = filtersToKey(filters);
+    const isCacheFresh = (now - cache.timestamp) < CACHE_TTL && cache.filtersKey === currentKey;
 
+    if (isCacheFresh && cache.devices && cache.filterOptions) {
+      // Restaurar desde cache instantáneamente
+      setDevices(cache.devices);
+      setPagination(cache.pagination || pagination);
+      setFilterOptions(cache.filterOptions);
+      if (cache.stats) setStats(cache.stats);
+      return;
+    }
+
+    // Cargar filter options + stats en paralelo con devices
+    if (!fetchingRef.current) {
+      fetchingRef.current = true;
+      Promise.all([
+        fetchFilterOptions(),
+        fetchStats(),
+      ]).finally(() => {
+        fetchingRef.current = false;
+      });
+    }
+  }, [equipmentType]); // Solo en mount / cambio de tipo
+
+  // Fetch devices cuando cambian filtros
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
 
+  // Guardar en cache después de cada fetch exitoso
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (devices.length > 0 || pagination.total > 0) {
+      const cache = getCacheEntry(equipmentType);
+      cache.devices = devices;
+      cache.pagination = pagination;
+      cache.timestamp = Date.now();
+      cache.filtersKey = filtersToKey(filters);
+    }
+  }, [devices, pagination, equipmentType, filters]);
+
+  useEffect(() => {
+    if (filterOptions.servicios?.length > 0 || filterOptions.sedes?.length > 0) {
+      const cache = getCacheEntry(equipmentType);
+      cache.filterOptions = filterOptions;
+    }
+  }, [filterOptions, equipmentType]);
+
+  useEffect(() => {
+    if (stats.total_equipos > 0) {
+      const cache = getCacheEntry(equipmentType);
+      cache.stats = stats;
+    }
+  }, [stats, equipmentType]);
 
   // Valores calculados
   const hasError = !!error;

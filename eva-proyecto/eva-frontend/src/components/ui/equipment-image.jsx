@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { useEquipmentImages } from "@/hooks/useEquipmentImages";
 import { ImageIcon, Loader2 } from "lucide-react";
 import notFoundImg from "../../assets/Img/imagenes/not-found.jpg";
@@ -6,7 +6,7 @@ import notFoundImg from "../../assets/Img/imagenes/not-found.jpg";
 /**
  * Componente para mostrar imágenes de equipos con carga dinámica
  */
-export const EquipmentImage = ({
+export const EquipmentImage = memo(({
   equipmentId,
   equipmentData = null, // Nuevo prop para recibir datos del equipo directamente
   equipmentName = "Equipo médico",
@@ -166,6 +166,8 @@ export const EquipmentImage = ({
       )}
     </div>
   );
-};
+});
+
+EquipmentImage.displayName = "EquipmentImage";
 
 export default EquipmentImage;

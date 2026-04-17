@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -498,7 +498,7 @@ export function MedicalDevicesView() {
   };
 
   // Use backend search instead of local filtering
-  const filteredDevices = devices && devices.length > 0 ? devices : [];
+  const filteredDevices = useMemo(() => devices && devices.length > 0 ? devices : [], [devices]);
 
   // Handle search with backend (removed duplicate)
 
@@ -1854,49 +1854,49 @@ export function MedicalDevicesView() {
         />
       </Card>
 
-      {/* Modals */}
-      <FilterModal
+      {/* Modals - lazy mounted for performance */}
+      {filterModalOpen && <FilterModal
         open={filterModalOpen}
         onOpenChange={setFilterModalOpen}
         onFiltersApply={handleFiltersApply}
         onFiltersClear={handleClearFilters}
         currentFilters={appliedFilters}
-      />
-      <AddEquipmentModal
+      />}
+      {addModalOpen && <AddEquipmentModal
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
         onEquipmentAdded={refresh}
-      />
-      <CleanNamesModal
+      />}
+      {cleanNamesModalOpen && <CleanNamesModal
         open={cleanNamesModalOpen}
         onOpenChange={setCleanNamesModalOpen}
-      />
-      <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />
-      <PreventiveModal
+      />}
+      {mergeModalOpen && <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />}
+      {preventiveModalOpen && <PreventiveModal
         isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
         onSuccess={refresh}
-      />
-      <CopyEquipmentModal
+      />}
+      {copyEquipmentModalOpen && <CopyEquipmentModal
         open={copyEquipmentModalOpen}
         onOpenChange={setCopyEquipmentModalOpen}
         equipment={selectedEquipment}
         onEquipmentAdded={refresh}
-      />
-      <CalibrationModal
+      />}
+      {calibrationModalOpen && <CalibrationModal
         open={calibrationModalOpen}
         onOpenChange={setCalibrationModalOpen}
         equipoTipoId={1}
         equipoStatus="activo"
         onSuccess={refresh}
-      />
-      <CorrectiveModal
+      />}
+      {correctiveModalOpen && <CorrectiveModal
         open={correctiveModalOpen}
         onOpenChange={setCorrectiveModalOpen}
         equipmentType="biomedico"
-      />
-      <MonthModal open={monthModalOpen} onOpenChange={setMonthModalOpen} />
-      <DocumentListModal
+      />}
+      {monthModalOpen && <MonthModal open={monthModalOpen} onOpenChange={setMonthModalOpen} />}
+      {documentListModalOpen && <DocumentListModal
         open={documentListModalOpen}
         onOpenChange={setDocumentListModalOpen}
         equipment={selectedEquipment}
@@ -1904,73 +1904,69 @@ export function MedicalDevicesView() {
           setDocumentListModalOpen(false);
           setDocumentUploadModalOpen(true);
         }}
-      />
-      <DocumentUploadModal
+      />}
+      {documentUploadModalOpen && <DocumentUploadModal
         open={documentUploadModalOpen}
         onOpenChange={setDocumentUploadModalOpen}
         equipment={selectedEquipment}
         onDocumentUploaded={() => {
-          // Refresh the equipment data after uploading document
           refresh();
         }}
-      />
-      <EditEquipmentModal
+      />}
+      {editEquipmentModalOpen && <EditEquipmentModal
         open={editEquipmentModalOpen}
         onOpenChange={setEditEquipmentModalOpen}
         equipment={selectedEquipment}
         onEquipmentUpdated={() => {
-          // Refresh the equipment data after updating
           refresh();
         }}
-      />
-      <ViewEquipmentModal
+      />}
+      {viewEquipmentModalOpen && <ViewEquipmentModal
         open={viewEquipmentModalOpen}
         onOpenChange={setViewEquipmentModalOpen}
         equipment={selectedEquipment}
-      />
-      <DeleteConfirmModal
+      />}
+      {deleteConfirmModalOpen && <DeleteConfirmModal
         open={deleteConfirmModalOpen}
         onOpenChange={setDeleteConfirmModalOpen}
         equipment={selectedEquipment}
         onEquipmentDeleted={handleEquipmentDeleted}
-      />
-      <AddObservacionModal
+      />}
+      {addObservacionModalOpen && <AddObservacionModal
         isOpen={addObservacionModalOpen}
         onClose={() => setAddObservacionModalOpen(false)}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.equipo?.name || "Equipo sin nombre"}
         onObservationAdded={() => {
-          // Refresh the equipment data after adding observation
           refresh();
         }}
-      />
-      <DarBajaEquipoModal
+      />}
+      {darBajaEquipoModalOpen && <DarBajaEquipoModal
         open={darBajaEquipoModalOpen}
         onOpenChange={setDarBajaEquipoModalOpen}
         equipo={selectedEquipment}
         onSuccess={() => {
-          // Refresh the equipment data after decommissioning
           refresh();
         }}
-      />
-      <ContingenciasModal
+      />}
+      {contingenciasModalOpen && <ContingenciasModal
         open={contingenciasModalOpen}
         onOpenChange={setContingenciasModalOpen}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
-      />
-      <CapacitacionesModal
+      />}
+      {capacitacionesModalOpen && <CapacitacionesModal
         open={capacitacionesModalOpen}
         onOpenChange={setCapacitacionesModalOpen}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
-      />
-      <MovimientosModal
+      />}
+      {movimientosModalOpen && <MovimientosModal
         open={movimientosModalOpen}
         onOpenChange={setMovimientosModalOpen}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
-      />
+      />}
     </div>
   );
 }

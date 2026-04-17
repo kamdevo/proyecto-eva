@@ -328,13 +328,15 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
 
   const handleUploadArchivo = async () => {
     if (!nuevoArchivoFile) { toast.error('Selecciona un archivo primero'); return; }
+    if (nuevoArchivoFile.size > 20 * 1024 * 1024) { toast.error('El archivo excede el límite de 20MB'); return; }
     setUploadingArchivo(true);
     try {
       const data = new FormData();
       data.append('archivo', nuevoArchivoFile);
-      data.append('titulo', nuevoArchivoTitulo || nuevoArchivoFile.name);
+      data.append('titulo', (nuevoArchivoTitulo || nuevoArchivoFile.name).substring(0, 95));
       const res = await apiClient.post(`/v1/correctivos-generales/${correctivo.id}/archivos`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
       });
       if (res.data?.success) {
         toast.success('Archivo subido exitosamente');
@@ -343,7 +345,12 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
         fetchArchivos(correctivo.id);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al subir archivo');
+      const msg = err?.response?.data?.message || err?.message || 'Error al subir archivo';
+      if (err?.code === 'ECONNABORTED') {
+        toast.error('La subida tardó demasiado. Intenta con un archivo más pequeño.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setUploadingArchivo(false);
     }

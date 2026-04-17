@@ -1538,8 +1538,8 @@ class EquipmentController extends ApiController
                 $query->where('equipos.tipo_id', $request->tipo_id);
             }
 
-            if ($request->has('estado_id') && !empty($request->estado_id)) {
-                $query->where('equipos.criesgo_id', $request->estado_id);
+            if ($request->has('criesgo_id') && !empty($request->criesgo_id)) {
+                $query->where('equipos.criesgo_id', $request->criesgo_id);
             }
 
             if ($request->has('estado_id_cg') && !empty($request->estado_id_cg)) {

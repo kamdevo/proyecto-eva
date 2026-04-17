@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Eye, Edit, Paperclip, FileText, Trash2, Files, UserX, AlertTriangle, FileStack } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth.jsx";
@@ -6,7 +7,7 @@ import { useAuth } from "../../hooks/useAuth.jsx";
  * Componente reutilizable para botones de acciones por fila de equipo
  * Funciona tanto para equipos biomédicos como industriales
  */
-export function RowActionButtons({
+export const RowActionButtons = memo(function RowActionButtons({
   equipment,
   onViewClick,
   onEditClick,
@@ -195,4 +196,4 @@ export function RowActionButtons({
       </Button>
     </div>
   );
-}
+})

@@ -134,9 +134,9 @@ const AddPreventivoModal = ({
 
   const handleFileChange = (file) => {
     if (file) {
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("El archivo no puede ser mayor a 10MB");
+      // Validate file size (max 20MB)
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error("El archivo no puede ser mayor a 20MB");
         return;
       }
 
@@ -243,11 +243,11 @@ const AddPreventivoModal = ({
         // Para Laravel, cuando se usa multipart/form-data con PUT, a veces es mejor usar POST con _method
         formDataToSend.append("_method", "PUT");
         response = await httpService.post(`/v1/mantenimientos/${preventivo.id}`, formDataToSend, {
-          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 120000,
         });
       } else {
         response = await httpService.post("/v1/mantenimientos", formDataToSend, {
-          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 120000,
         });
       }
 
@@ -258,11 +258,14 @@ const AddPreventivoModal = ({
       }
     } catch (error) {
       console.error("Error al guardar preventivo:", error);
-      // Mostrar errores de validación específicos si existen
       const validationErrors = error.response?.data?.errors;
       if (validationErrors) {
         const errorMessages = Object.values(validationErrors).flat().join(", ");
         toast.error(errorMessages || "Error de validación", { id: toastId });
+      } else if (error?.code === 'ECONNABORTED') {
+        toast.error('La subida tardó demasiado. Intenta con un archivo más pequeño.', { id: toastId });
+      } else if (error?.response?.status === 413) {
+        toast.error('El archivo es demasiado grande para el servidor.', { id: toastId });
       } else {
         toast.error(error.response?.data?.message || "Error al procesar el mantenimiento", { id: toastId });
       }
@@ -448,12 +451,12 @@ const AddPreventivoModal = ({
                             handleFileChange(e.target.files[0]);
                           }
                         }}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar"
                       />
                     </label>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    PDF, Word, JPG, PNG (máx. 10MB)
+                    PDF, Word, Excel, JPG, PNG, ZIP (máx. 20MB)
                   </p>
                 </>
               )}

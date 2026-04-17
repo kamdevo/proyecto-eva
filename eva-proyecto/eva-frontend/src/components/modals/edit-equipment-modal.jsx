@@ -4906,12 +4906,19 @@ export function EditEquipmentModal({
                 <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50 transition-colors">
                   <Upload className="w-6 h-6 text-gray-400" />
                   <span className="text-sm text-gray-500">Haz clic para seleccionar un archivo</span>
+                  <span className="text-xs text-gray-400">Máximo 20MB</span>
                   <input
                     type="file"
                     className="hidden"
                     onChange={e => {
                       const f = e.target.files[0];
                       if (f) {
+                        // Validar tamaño (20MB)
+                        if (f.size > 20 * 1024 * 1024) {
+                          toast.error('El archivo excede el límite de 20MB');
+                          e.target.value = '';
+                          return;
+                        }
                         setArchivoModalFile(f);
                         if (!archivoModalTitulo) setArchivoModalTitulo(f.name.replace(/\.[^.]+$/, ''));
                       }
@@ -4936,20 +4943,37 @@ export function EditEquipmentModal({
                 disabled={!archivoModalFile || !!uploadingArchivoCorrectivoId}
                 onClick={async () => {
                   if (!archivoModalFile || !archivoModalCorrectivoId) return;
+                  // Validar tamaño antes de subir
+                  if (archivoModalFile.size > 20 * 1024 * 1024) {
+                    toast.error('El archivo excede el límite de 20MB');
+                    return;
+                  }
                   setUploadingArchivoCorrectivoId(archivoModalCorrectivoId);
                   try {
                     const fd = new FormData();
                     fd.append('archivo', archivoModalFile);
-                    fd.append('titulo', archivoModalTitulo || archivoModalFile.name);
+                    fd.append('titulo', (archivoModalTitulo || archivoModalFile.name).substring(0, 95));
                     await httpService.post(`/v1/correctivos-generales/${archivoModalCorrectivoId}/archivos`, fd, {
-                      headers: { 'Content-Type': 'multipart/form-data' }
+                      headers: { 'Content-Type': 'multipart/form-data' },
+                      timeout: 120000, // 2 minutos para archivos grandes
                     });
                     await loadEquipmentHistory(equipment.id);
                     setShowArchivoModal(false);
+                    setArchivoModalFile(null);
+                    setArchivoModalTitulo('');
                     toast.success('Archivo agregado correctamente');
                   } catch (err) {
                     console.error('Error subiendo archivo:', err);
-                    toast.error('Error al subir el archivo');
+                    const msg = err?.response?.data?.message || err?.message || 'Error al subir el archivo';
+                    if (err?.code === 'ECONNABORTED' || msg.includes('timeout')) {
+                      toast.error('La subida tardó demasiado. Intenta con un archivo más pequeño.');
+                    } else if (err?.response?.status === 413) {
+                      toast.error('El archivo es demasiado grande para el servidor.');
+                    } else if (err?.response?.status === 422) {
+                      toast.error(`Error de validación: ${msg}`);
+                    } else {
+                      toast.error(`Error al subir: ${msg}`);
+                    }
                   } finally {
                     setUploadingArchivoCorrectivoId(null);
                   }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEquipment } from "../hooks/useEquipment";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -1527,45 +1527,45 @@ function IndustrialDevices() {
           showInfo={true}
         />
       </Card>
-      {/* Modals */}
-      <FilterModal
+      {/* Modals - lazy mounted for performance */}
+      {filterModalOpen && <FilterModal
         open={filterModalOpen}
         onOpenChange={setFilterModalOpen}
         onFiltersApply={handleFiltersApply}
         onFiltersClear={handleFiltersClear}
         currentFilters={appliedFilters}
         equipmentType="industrial"
-      />
-      <AddEquipmentModal
+      />}
+      {addModalOpen && <AddEquipmentModal
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
         equipmentType="industrial"
         onEquipmentAdded={refresh}
-      />
-      <CleanNamesModal
+      />}
+      {cleanNamesModalOpen && <CleanNamesModal
         open={cleanNamesModalOpen}
         onOpenChange={setCleanNamesModalOpen}
-      />
-      <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />
-      <PreventiveModal
+      />}
+      {mergeModalOpen && <MergeModal open={mergeModalOpen} onOpenChange={setMergeModalOpen} />}
+      {preventiveModalOpen && <PreventiveModal
         isOpen={preventiveModalOpen}
         onOpenChange={setPreventiveModalOpen}
         onSuccess={refresh}
-      />
-      <CalibrationModal
+      />}
+      {calibrationModalOpen && <CalibrationModal
         open={calibrationModalOpen}
         onOpenChange={setCalibrationModalOpen}
         equipoTipoId={2}
         equipoStatus="activo"
         onSuccess={refresh}
-      />
-      <CorrectiveModal
+      />}
+      {correctiveModalOpen && <CorrectiveModal
         open={correctiveModalOpen}
         onOpenChange={setCorrectiveModalOpen}
         equipmentType="industrial"
-      />
-      <MonthModal open={monthModalOpen} onOpenChange={setMonthModalOpen} />
-      <DocumentListModal
+      />}
+      {monthModalOpen && <MonthModal open={monthModalOpen} onOpenChange={setMonthModalOpen} />}
+      {documentListModalOpen && <DocumentListModal
         open={documentListModalOpen}
         onOpenChange={setDocumentListModalOpen}
         equipment={selectedEquipment}
@@ -1573,79 +1573,77 @@ function IndustrialDevices() {
           setDocumentListModalOpen(false);
           setDocumentUploadModalOpen(true);
         }}
-      />
-      <DocumentUploadModal
+      />}
+      {documentUploadModalOpen && <DocumentUploadModal
         open={documentUploadModalOpen}
         onOpenChange={setDocumentUploadModalOpen}
         equipment={selectedEquipment}
         onDocumentUploaded={() => {
           refresh();
         }}
-      />
-      <LifeModal open={lifeModalOpen} onOpenChange={setLifeModalOpen} />
-      <EditEquipmentModal
+      />}
+      {lifeModalOpen && <LifeModal open={lifeModalOpen} onOpenChange={setLifeModalOpen} />}
+      {editEquipmentModalOpen && <EditEquipmentModal
         open={editEquipmentModalOpen}
         onOpenChange={setEditEquipmentModalOpen}
         equipment={selectedEquipment}
         onEquipmentUpdated={() => {
           refresh();
         }}
-      />
-      <ViewEquipmentModal
+      />}
+      {viewEquipmentModalOpen && <ViewEquipmentModal
         open={viewEquipmentModalOpen}
         onOpenChange={setViewEquipmentModalOpen}
         equipment={selectedEquipment}
         equipmentType="industrial"
-      />
-      <DeleteConfirmModal
+      />}
+      {deleteConfirmModalOpen && <DeleteConfirmModal
         open={deleteConfirmModalOpen}
         onOpenChange={setDeleteConfirmModalOpen}
         equipment={selectedEquipment}
         onEquipmentDeleted={handleEquipmentDeleted}
         equipmentType="industrial"
-      />
-
-      <CopyEquipmentModal
+      />}
+      {copyEquipmentModalOpen && <CopyEquipmentModal
         open={copyEquipmentModalOpen}
         onOpenChange={setCopyEquipmentModalOpen}
         equipment={selectedEquipment}
         equipmentType="industrial"
         onEquipmentAdded={refresh}
-      />
-      <AddObservacionModal
+      />}
+      {addObservacionModalOpen && <AddObservacionModal
         isOpen={addObservacionModalOpen}
         onClose={() => setAddObservacionModalOpen(false)}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.equipo?.name || selectedEquipment?.name || "Equipo sin nombre"}
         onObservationAdded={() => refresh()}
-      />
-      <ContingenciasModal
+      />}
+      {contingenciasModalOpen && <ContingenciasModal
         open={contingenciasModalOpen}
         onOpenChange={setContingenciasModalOpen}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
-      />
-      <CapacitacionesModal
+      />}
+      {capacitacionesModalOpen && <CapacitacionesModal
         open={capacitacionesModalOpen}
         onOpenChange={setCapacitacionesModalOpen}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
-      />
-      <MovimientosModal
+      />}
+      {movimientosModalOpen && <MovimientosModal
         open={movimientosModalOpen}
         onOpenChange={setMovimientosModalOpen}
         equipmentId={selectedEquipment?.id}
         equipmentName={selectedEquipment?.name || "Equipo sin nombre"}
-      />
-      <DarBajaEquipoModal
+      />}
+      {darBajaEquipoModalOpen && <DarBajaEquipoModal
         open={darBajaEquipoModalOpen}
         onOpenChange={setDarBajaEquipoModalOpen}
         equipo={selectedEquipment}
         onSuccess={() => {
-          // Refresh the equipment data after decommissioning
           refresh();
         }}
-      />
+      />}
     </div>
   );
 }

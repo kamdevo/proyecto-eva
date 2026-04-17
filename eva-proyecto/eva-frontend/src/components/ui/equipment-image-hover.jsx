@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import EquipmentImage from "./equipment-image";
 import "../../styles/equipment-animations.css";
@@ -7,7 +7,7 @@ import "../../styles/equipment-animations.css";
  * Componente de imagen de equipo con efecto hover mejorado
  * Muestra una vista ampliada con transición fluida al hacer hover
  */
-export function EquipmentImageHover({ 
+export const EquipmentImageHover = memo(function EquipmentImageHover({ 
   equipmentId, 
   equipmentData, 
   equipmentName, 
@@ -75,4 +75,4 @@ export function EquipmentImageHover({
       )}
     </>
   );
-}
+})
