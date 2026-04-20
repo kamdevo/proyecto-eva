@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, FileText, X } from "lucide-react";
 import { toast } from "sonner";
-import axios from "axios";
+import httpService from "@/services/httpService";
 
 export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded }) {
   // Estado del formulario
@@ -152,11 +152,8 @@ export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded
       // Agregar estado por defecto
       submitData.append('estado', 'vigente');
 
-      const response = await axios.post('/api/v1/registros-invima', submitData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json'
-        }
+      const response = await httpService.post('/v1/registros-invima', submitData, {
+        timeout: 60000
       });
 
       if (response.data.success) {

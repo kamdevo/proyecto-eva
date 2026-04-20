@@ -9268,16 +9268,16 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         try {
             // Validaciones
             $request->validate([
-                'numero_registro' => 'required|string|max:255|unique:invimas,invima',
+                'numero_registro' => 'required|string|max:100|unique:invimas,invima',
                 'descripcion_detallada' => 'required|string',
                 'titulo' => 'required|string|max:255',
                 'marcas' => 'required|string|max:255',
-                'archivo_pdf' => 'nullable|mimes:pdf|max:10240', // 10MB max
+                'archivo_pdf' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
                 'estado' => 'nullable|string|in:vigente,vencido,suspendido'
             ], [
                 'numero_registro.required' => 'El número de registro es obligatorio.',
                 'numero_registro.unique'   => 'El registro sanitario ingresado ya existe en el sistema. Búsquelo en el listado.',
-                'numero_registro.max'      => 'El número de registro no puede superar 255 caracteres.',
+                'numero_registro.max'      => 'El número de registro no puede superar 100 caracteres.',
                 'descripcion_detallada.required' => 'La descripción detallada es obligatoria.',
                 'titulo.required'          => 'El título es obligatorio.',
                 'titulo.max'               => 'El título no puede superar 255 caracteres.',
