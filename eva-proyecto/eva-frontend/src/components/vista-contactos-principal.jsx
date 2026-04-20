@@ -313,7 +313,7 @@ export default function ContactsView() {
 
               <div className="space-y-5 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre Completo *</Label>
+                  <Label htmlFor="name" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Nombre Completo *</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -324,7 +324,7 @@ export default function ContactsView() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</Label>
+                  <Label htmlFor="email" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Correo Electrónico</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
@@ -340,7 +340,7 @@ export default function ContactsView() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="telefono" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</Label>
+                    <Label htmlFor="telefono" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Teléfono</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
@@ -353,7 +353,7 @@ export default function ContactsView() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="tcontacto_id" className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Clasificación</Label>
+                    <Label htmlFor="tcontacto_id" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">Clasificación</Label>
                     <Select
                       value={formData.tcontacto_id?.toString() || ""}
                       onValueChange={(v) => handleInputChange("tcontacto_id", v ? parseInt(v) : null)}
@@ -386,43 +386,49 @@ export default function ContactsView() {
         </div>
 
         {/* Tabla de Resultados */}
-        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-0 text-sm">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+          {loading && contactsData.length > 0 && (
+            <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
+              <div className="h-full bg-blue-600 animate-progress origin-left"></div>
+            </div>
+          )}
+            <table className={`w-full text-left border-separate border-spacing-0 text-sm ${loading && contactsData.length > 0 ? 'opacity-40 transition-opacity duration-300' : 'transition-opacity duration-300'}`}>
               <thead>
-                <tr className="bg-white/50">
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                <tr className="bg-white border-b border-slate-100">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     <button onClick={() => handleSort('name')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Nombre / Razón Social {getSortIcon('name')}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     ID {getSortIcon('id')}
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     Correo Electrónico {getSortIcon('email')}
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     Teléfono {getSortIcon('telefono')}
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 text-center">
                     Tipo de Contacto
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 text-right">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={6} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-                        <span className="text-slate-400 font-medium">Sincronizando información...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-6 py-5"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-slate-100" /><div className="space-y-2"><div className="h-4 w-32 bg-slate-100 rounded" /><div className="h-3 w-24 bg-slate-100 rounded" /></div></div></td>
+                      <td className="px-6 py-5"><div className="h-4 w-16 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-5"><div className="h-4 w-40 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-5"><div className="h-4 w-24 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-5 text-center"><div className="h-5 w-20 bg-slate-100 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-5 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : contactsData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="h-64 text-center">
@@ -434,7 +440,7 @@ export default function ContactsView() {
                   </tr>
                 ) : (
                   contactsData.map((contact) => (
-                    <tr key={contact.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
+                    <tr key={contact.id} className="group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100/50 group-hover:scale-110 transition-transform">
@@ -495,7 +501,6 @@ export default function ContactsView() {
                 )}
               </tbody>
             </table>
-          </div>
 
           <div className="bg-slate-50/50 px-6 py-5 border-t border-slate-100">
             <Pagination

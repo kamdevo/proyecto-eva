@@ -198,37 +198,41 @@ export default function VistaAreasPrincipal() {
         </div>
 
         {/* Tabla de Resultados */}
-        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-separate border-spacing-0 text-sm">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+          {loading && currentData.length > 0 && (
+            <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
+              <div className="h-full bg-blue-600 animate-progress origin-left"></div>
+            </div>
+          )}
+            <table className={`w-full text-left border-separate border-spacing-0 text-sm ${loading && currentData.length > 0 ? 'opacity-40 transition-opacity duration-300' : 'transition-opacity duration-300'}`}>
               <thead>
-                <tr className="bg-white/50">
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                <tr className="bg-white border-b border-slate-100">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     <button onClick={() => handleSort('name')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Área {getSortIcon('name')}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     <button onClick={() => handleSort('servicio_nombre')} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Servicio {getSortIcon('servicio_nombre')}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 text-center">
                     <button onClick={() => handleSort('sede_nombre')} className="flex items-center justify-center gap-1.5 hover:text-blue-600 transition-colors w-full">
                       Sede {getSortIcon('sede_nombre')}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-center">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 text-center">
                     <button onClick={() => handleSort('piso_nombre')} className="flex items-center justify-center gap-1.5 hover:text-blue-600 transition-colors w-full">
                       Piso {getSortIcon('piso_nombre')}
                     </button>
                   </th>
-                  <th className="px-6 py-5 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-50 text-right">
+                  <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 text-right">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={`skel-${i}`} className="animate-pulse">
@@ -250,7 +254,7 @@ export default function VistaAreasPrincipal() {
                   </tr>
                 ) : (
                   currentData.map((area) => (
-                    <tr key={area.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
+                    <tr key={area.id} className="group hover:bg-slate-50/50 transition-colors border-b border-slate-50 last:border-0">
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-700">{area.name}</span>
@@ -297,7 +301,6 @@ export default function VistaAreasPrincipal() {
                 )}
               </tbody>
             </table>
-          </div>
 
           <div className="bg-slate-50/50 px-6 py-5 border-t border-slate-100">
             <Pagination

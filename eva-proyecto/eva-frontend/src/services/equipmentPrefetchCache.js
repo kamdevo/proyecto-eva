@@ -20,6 +20,13 @@ export function invalidateEquipmentCache(equipmentId) {
   }
 }
 
+/** Invalida SOLO el historial (calibraciones, preventivos, repuestos, correctivos, observaciones). */
+export function invalidateHistoryCache(equipmentId) {
+  if (equipmentId) {
+    cache.delete(`history-${equipmentId}`);
+  }
+}
+
 async function fetchWithDedup(key, fetcher) {
   const cached = cache.get(key);
   if (isValid(cached)) return cached.data;

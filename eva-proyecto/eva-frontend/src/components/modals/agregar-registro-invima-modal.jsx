@@ -32,6 +32,21 @@ export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded
   // Ref para el input de archivo
   const fileInputRef = React.useRef(null);
 
+  // Resetear formulario al abrir el modal
+  React.useEffect(() => {
+    if (open) {
+      setFormData({
+        numero_registro: "",
+        descripcion_detallada: "",
+        titulo: "",
+        marcas: "",
+        archivo_pdf: null
+      });
+      setErrors({});
+      setLoading(false);
+    }
+  }, [open]);
+
   // Función para manejar cambios en inputs
   const handleInputChange = (field, value) => {
     setFormData(prev => ({

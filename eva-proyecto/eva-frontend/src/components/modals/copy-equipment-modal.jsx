@@ -1149,70 +1149,58 @@ export function CopyEquipmentModal({
                         </div>
                       ) : null}
 
-                      {/* Campo de búsqueda + botón agregar */}
-                      {!formData.invima && (
-                        <div>
-                          <Label className="text-xs sm:text-sm text-gray-700">
-                            Buscar Registro INVIMA:
-                          </Label>
-                          <div className="flex gap-2 mt-1">
-                            <Input
-                              placeholder="Número, nombre de equipo o fabricante..."
-                              value={searchInvima}
-                              onChange={(e) => setSearchInvima(e.target.value)}
-                              className={`flex-1 h-8 text-xs sm:text-sm ${errors.invima ? "border-red-500" : ""}`}
-                              autoComplete="off"
-                            />
-                            <Button size="sm" type="button"
-                              onClick={() => setShowInvimaModal(true)}
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              title="Agregar nuevo registro INVIMA">
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          {errors.invima && (
-                            <p className="text-red-500 text-xs mt-1">{errors.invima}</p>
-                          )}
-
-                          {/* Lista inline de resultados */}
-                          {(searchInvima || '').trim().length >= 2 && (
-                            <div className="mt-2 border border-blue-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-white shadow-sm">
-                              {loadingInvima ? (
-                                <div className="px-3 py-2 text-xs text-gray-500">Cargando registros...</div>
-                              ) : filteredRegistrosInvima.length > 0 ? (
-                                filteredRegistrosInvima.slice(0, 12).map((registro) => (
-                                  <button
-                                    key={registro.id}
-                                    type="button"
-                                    onClick={() => handleInvimaSelection(registro.numero_registro)}
-                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-blue-100 last:border-b-0 transition-colors"
-                                  >
-                                    <span className="block text-xs font-semibold text-blue-800">{registro.numero_registro}</span>
-                                    <span className="block text-xs text-gray-500 truncate">
-                                      {registro.nombre_equipo} — {registro.fabricante}
-                                    </span>
-                                  </button>
-                                ))
-                              ) : (
-                                <div className="px-3 py-2 text-xs text-gray-500">Sin resultados para "{searchInvima}"</div>
-                              )}
-                            </div>
-                          )}
-                          {(searchInvima || '').trim().length > 0 && (searchInvima || '').trim().length < 2 && (
-                            <p className="text-xs text-gray-400 mt-1">Escribe al menos 2 caracteres para buscar</p>
-                          )}
+                      {/* Campo de búsqueda + botón agregar (siempre visible) */}
+                      <div>
+                        <Label className="text-xs sm:text-sm text-gray-700">
+                          Buscar Registro INVIMA:
+                        </Label>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            placeholder="Número, nombre de equipo o fabricante..."
+                            value={searchInvima}
+                            onChange={(e) => setSearchInvima(e.target.value)}
+                            className={`flex-1 h-8 text-xs sm:text-sm ${errors.invima ? "border-red-500" : ""}`}
+                            autoComplete="off"
+                          />
+                          <Button size="sm" type="button"
+                            onClick={() => setShowInvimaModal(true)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            title="Agregar nuevo registro INVIMA">
+                            <Plus className="h-4 w-4" />
+                          </Button>
                         </div>
-                      )}
+                        {errors.invima && (
+                          <p className="text-red-500 text-xs mt-1">{errors.invima}</p>
+                        )}
 
-                      {/* Botón agregar cuando ya hay selección */}
-                      {formData.invima && (
-                        <Button size="sm" type="button"
-                          onClick={() => setShowInvimaModal(true)}
-                          variant="outline"
-                          className="text-xs h-7 border-blue-300 text-blue-700 hover:bg-blue-50">
-                          <Plus className="h-3 w-3 mr-1" /> Crear nuevo registro INVIMA
-                        </Button>
-                      )}
+                        {/* Lista inline de resultados */}
+                        {(searchInvima || '').trim().length >= 2 && (
+                          <div className="mt-2 border border-blue-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-white shadow-sm">
+                            {loadingInvima ? (
+                              <div className="px-3 py-2 text-xs text-gray-500">Cargando registros...</div>
+                            ) : filteredRegistrosInvima.length > 0 ? (
+                              filteredRegistrosInvima.slice(0, 12).map((registro) => (
+                                <button
+                                  key={registro.id}
+                                  type="button"
+                                  onClick={() => handleInvimaSelection(registro.numero_registro)}
+                                  className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-blue-100 last:border-b-0 transition-colors"
+                                >
+                                  <span className="block text-xs font-semibold text-blue-800">{registro.numero_registro}</span>
+                                  <span className="block text-xs text-gray-500 truncate">
+                                    {registro.nombre_equipo} — {registro.fabricante}
+                                  </span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-xs text-gray-500">Sin resultados para "{searchInvima}"</div>
+                            )}
+                          </div>
+                        )}
+                        {(searchInvima || '').trim().length > 0 && (searchInvima || '').trim().length < 2 && (
+                          <p className="text-xs text-gray-400 mt-1">Escribe al menos 2 caracteres para buscar</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

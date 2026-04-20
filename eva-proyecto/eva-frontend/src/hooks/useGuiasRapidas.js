@@ -19,7 +19,7 @@ export const useGuiasRapidas = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_CONFIG.API_URL}/v1/guiarapida`, {
+      const response = await fetch(`${API_CONFIG.API_URL}/v1/guiarapida?per_page=9999`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

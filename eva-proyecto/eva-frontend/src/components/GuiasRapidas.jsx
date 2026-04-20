@@ -42,9 +42,11 @@ import { API_CONFIG } from "@/config/api";
 import httpService from "@/services/httpService";
 import EditGuiaModal from "@/components/modals/edit-guia-modal";
 import AsociarEquipoGuiaModal from "@/components/modals/asociar-equipo-guia-modal";
+import CreateGuiaModal from "@/components/modals/create-guia-modal";
 import Pagination from "@/components/common/Pagination";
 
 export default function GuidesPage() {
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -53,6 +55,8 @@ export default function GuidesPage() {
   const [searchIndicador, setSearchIndicador] = useState("");
   const [currentPageIndicador, setCurrentPageIndicador] = useState(1);
   const [itemsPerPageIndicador, setItemsPerPageIndicador] = useState(10);
+  const [currentPageGuias, setCurrentPageGuias] = useState(1);
+  const [itemsPerPageGuias, setItemsPerPageGuias] = useState(10);
   const [activeTab, setActiveTab] = useState("guias-rapidas");
   const [selectedEquipoNombre, setSelectedEquipoNombre] = useState(null);
 
@@ -61,6 +65,7 @@ export default function GuidesPage() {
     guias, 
     loading: guiasLoading, 
     cobertura,
+    createGuia,
     deleteGuia,
     toggleEstado,
     refresh: refreshGuias 
@@ -137,10 +142,21 @@ export default function GuidesPage() {
   const endIndexIndicador = startIndexIndicador + itemsPerPageIndicador;
   const indicadoresPaginados = indicadoresFiltrados.slice(startIndexIndicador, endIndexIndicador);
 
+  // Paginación para guías rápidas
+  const totalPagesGuias = Math.ceil(guias.length / itemsPerPageGuias);
+  const startIndexGuias = (currentPageGuias - 1) * itemsPerPageGuias;
+  const endIndexGuias = startIndexGuias + itemsPerPageGuias;
+  const guiasPaginadas = guias.slice(startIndexGuias, endIndexGuias);
+
   // Reset page when search changes
   useEffect(() => {
     setCurrentPageIndicador(1);
   }, [searchIndicador]);
+
+  // Reset a página 1 cuando cambie el total de guías (crear/eliminar)
+  useEffect(() => {
+    setCurrentPageGuias(1);
+  }, [guias.length]);
 
   // Función para navegar a detalle por grupo con filtro
   const handleVerDetalle = (nombreEquipo) => {
@@ -306,6 +322,17 @@ export default function GuidesPage() {
                 Cumplen criterios con guía: {cobertura.cumplenConGuia}
               </div>
 
+              <div className="mb-4 flex justify-end">
+                <Button
+                  onClick={() => setCreateModalOpen(true)}
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3 text-base font-semibold"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Crear Guía Rápida
+                </Button>
+              </div>
+
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge className="bg-blue-500 text-white px-3 py-1">
                   <File className="h-3 w-3 mr-1" />
@@ -359,13 +386,13 @@ export default function GuidesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {guias.map((guide, index) => (
+                    {guiasPaginadas.map((guide, index) => (
                       <TableRow
                         key={guide.id}
                         className="hover:bg-gray-50 border-b"
                       >
                         <TableCell className="text-center font-medium">
-                          {index + 1}
+                          {startIndexGuias + index + 1}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -436,6 +463,17 @@ export default function GuidesPage() {
               )}
             </div>
 
+            {/* Paginación */}
+            {!guiasLoading && guias.length > 0 && (
+              <Pagination
+                currentPage={currentPageGuias}
+                totalPages={totalPagesGuias}
+                totalItems={guias.length}
+                itemsPerPage={itemsPerPageGuias}
+                onPageChange={setCurrentPageGuias}
+                loading={guiasLoading}
+              />
+            )}
           </TabsContent>
 
           {/* Indicador por grupo Tab */}
@@ -868,6 +906,16 @@ export default function GuidesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Editar Guía */}
+      <CreateGuiaModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onCreate={createGuia}
+        onSuccess={() => {
+          refreshGuias();
+        }}
+      />
 
       {/* Modal de Editar Guía */}
       <EditGuiaModal

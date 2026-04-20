@@ -40,6 +40,7 @@ import {
   prefetchEquipmentHistory,
   prefetchEspecificaciones,
   invalidateEquipmentCache,
+  invalidateHistoryCache,
 } from "@/services/equipmentPrefetchCache";
 import { API_CONFIG } from "@/config/api";
 import { AgregarRegistroInvimaModal } from "./agregar-registro-invima-modal";
@@ -115,7 +116,6 @@ export function EditEquipmentModal({
   const [registrosInvima, setRegistrosInvima] = useState([]);
   const [loadingInvima, setLoadingInvima] = useState(false);
   const [searchInvima, setSearchInvima] = useState("");
-  const [filteredRegistrosInvima, setFilteredRegistrosInvima] = useState([]);
   const [showInvimaModal, setShowInvimaModal] = useState(false);
   
   // Estados para modales de búsqueda
@@ -163,6 +163,9 @@ export function EditEquipmentModal({
   const loadEquipmentHistory = async (equipmentId) => {
     try {
       console.log("📊 Loading equipment history for ID:", equipmentId);
+
+      // Siempre invalidar caché antes de cargar para garantizar datos frescos
+      invalidateHistoryCache(equipmentId);
 
       // Usar el nuevo endpoint de historial completo del equipo
       const historyResponse = await httpService.get(
@@ -367,6 +370,8 @@ export function EditEquipmentModal({
     // Reset form ready state when modal opens
     if (open) {
       setFormReady(false);
+      // Siempre invalidar caché de historial al abrir para obtener datos frescos
+      invalidateHistoryCache(equipment?.id);
       loadModalData();
       loadRegistrosInvima(); // Cargar registros INVIMA cuando se abre el modal
     }
@@ -864,7 +869,6 @@ export function EditEquipmentModal({
 
       if (response.data.success) {
         setRegistrosInvima(response.data.data);
-        setFilteredRegistrosInvima(response.data.data);
       } else {
         toast.error("Error al cargar registros INVIMA");
       }
@@ -895,17 +899,8 @@ export function EditEquipmentModal({
           { id: "validate-invima" }
         );
       } else {
-        const invimaPattern = /^[A-Z0-9-]+$/;
-        if (
-          !invimaPattern.test(formData.invima) ||
-          formData.invima.length < 8
-        ) {
-          toast.error("Formato de registro INVIMA inválido", {
-            id: "validate-invima",
-          });
-          return;
-        }
-        toast.warning("Registro no encontrado en BD, pero formato válido", {
+        // Formato flexible - acepta cualquier registro
+        toast.success("Registro INVIMA aceptado", {
           id: "validate-invima",
         });
       }
@@ -916,233 +911,67 @@ export function EditEquipmentModal({
     }
   };
 
-  const searchRegistrosInvima = () => {
-    if (!searchInvima.trim()) {
-      setFilteredRegistrosInvima(registrosInvima);
-      return;
-    }
-
-    const resultados = registrosInvima.filter(
-      (registro) =>
-        registro.numero_registro // Backend mapea invima → numero_registro
-          ?.toLowerCase()
-          .includes(searchInvima.toLowerCase()) ||
-        registro.nombre_equipo // Backend mapea titulo → nombre_equipo
-          ?.toLowerCase()
-          .includes(searchInvima.toLowerCase()) ||
-        registro.fabricante // Backend mapea marcas → fabricante
-          ?.toLowerCase()
-          .includes(searchInvima.toLowerCase()) ||
-        registro.modelo // Backend mapea description → modelo
-          ?.toLowerCase()
-          .includes(searchInvima.toLowerCase())
+  const filteredRegistrosInvima = registrosInvima.filter((registro) => {
+    if (!(searchInvima || "").trim()) return true;
+    const searchTerm = searchInvima.toLowerCase();
+    const numeroRegistro = (registro.numero_registro || "").toLowerCase();
+    const nombreEquipo = (registro.nombre_equipo || "").toLowerCase();
+    const fabricante = (registro.fabricante || "").toLowerCase();
+    return (
+      numeroRegistro.includes(searchTerm) ||
+      nombreEquipo.includes(searchTerm) ||
+      fabricante.includes(searchTerm)
     );
+  });
 
-    setFilteredRegistrosInvima(resultados);
-
-    if (resultados.length > 0) {
-      toast.success(`${resultados.length} registro(s) encontrado(s)`);
-      if (resultados.length === 1) {
-        handleInputChange("invima", resultados[0].numero_registro);
-        toast.success(
-          `Registro seleccionado: ${resultados[0].numero_registro}`
-        );
-      }
-    } else {
-      toast.warning("No se encontraron registros");
-    }
-  };
-
-  const handleInvimaSelection = (value) => {
-    handleInputChange("invima", value);
-    const selectedRecord = registrosInvima.find(
-      (r) => r.numero_registro === value // Backend mapea invima → numero_registro
+  const handleInvimaSelection = (numeroRegistro) => {
+    handleInputChange("invima", numeroRegistro);
+    setSearchInvima(numeroRegistro || "");
+    const registroSeleccionado = registrosInvima.find(
+      (r) => r.numero_registro === numeroRegistro
     );
-    if (selectedRecord) {
-      toast.success(`Registro INVIMA seleccionado: ${value}`);
+    if (registroSeleccionado) {
+      toast.success(`Registro seleccionado: ${registroSeleccionado.nombre_equipo}`);
     }
   };
 
   const clearInvimaSelection = () => {
     handleInputChange("invima", "");
     setSearchInvima("");
-    setFilteredRegistrosInvima(registrosInvima);
     toast.info("Selección de registro INVIMA limpiada");
   };
 
-  const viewInvimaDocument = () => {
+  const viewInvimaDocument = async () => {
     if (!formData.invima) {
       toast.error("Seleccione un registro INVIMA primero");
       return;
     }
 
-    const registro = registrosInvima.find(
-      (r) => r.numero_registro === formData.invima // Backend mapea invima → numero_registro
+    const registroSeleccionado = registrosInvima.find(
+      (r) => r.numero_registro === formData.invima
     );
 
-    if (!registro) {
+    if (!registroSeleccionado) {
       toast.error("Registro INVIMA no encontrado");
       return;
     }
 
-    if (registro.archivo_pdf) {
-      // Backend mapea file → archivo_pdf
-      // Construir URL del archivo
-      const fileUrl = `${API_CONFIG.BASE_URL}/api/storage/registros_sanitarios/${registro.archivo_pdf}`;
+    if (!registroSeleccionado.archivo_pdf) {
+      toast.warning("Este registro no tiene documento PDF asociado");
+      return;
+    }
 
-      // Abrir en nueva ventana optimizada para visualización e impresión empresarial
-      const newWindow = window.open(
-        "",
-        "_blank",
-        "width=1200,height=800,scrollbars=yes,resizable=yes"
-      );
-
+    try {
+      const base = import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001";
+      const fileUrl = `${base}/storage/registros_sanitarios/${registroSeleccionado.archivo_pdf}`;
+      const newWindow = window.open(fileUrl, "_blank");
       if (!newWindow) {
-        toast.error(
-          "No se pudo abrir la ventana. Verifique que su navegador permita ventanas emergentes."
-        );
-        return;
+        throw new Error("No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador.");
       }
-
-      // Crear interfaz de visualización empresarial
-      newWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Registro INVIMA - ${registro.numero_registro}</title>
-          <style>
-            body {
-              margin: 0;
-              padding: 20px;
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              background-color: #f5f5f5;
-            }
-            .header {
-              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-              color: white;
-              padding: 20px;
-              border-radius: 8px;
-              margin-bottom: 20px;
-              text-align: center;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            }
-            .header h1 {
-              margin: 0;
-              font-size: 24px;
-              font-weight: 600;
-            }
-            .header p {
-              margin: 5px 0 0 0;
-              opacity: 0.9;
-              font-size: 14px;
-            }
-            .pdf-container {
-              background: white;
-              border-radius: 8px;
-              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-              overflow: hidden;
-              height: calc(100vh - 160px);
-            }
-            .pdf-frame {
-              width: 100%;
-              height: 100%;
-              border: none;
-            }
-            .controls {
-              text-align: center;
-              margin: 15px 0;
-            }
-            .btn {
-              background: #3b82f6;
-              color: white;
-              border: none;
-              padding: 10px 20px;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 14px;
-              margin: 0 5px;
-              transition: background-color 0.2s;
-            }
-            .btn:hover {
-              background: #2563eb;
-            }
-            .btn-print {
-              background: #059669;
-            }
-            .btn-print:hover {
-              background: #047857;
-            }
-            @media print {
-              body { margin: 0; padding: 0; background: white; }
-              .header, .controls { display: none; }
-              .pdf-container { height: 100vh; box-shadow: none; border-radius: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Registro INVIMA</h1>
-            <p>N° Registro: ${registro.numero_registro}</p>
-          </div>
-          
-          <div class="controls">
-            <button class="btn btn-print" onclick="window.print()">
-              🖨️ Imprimir Documento
-            </button>
-            <button class="btn" onclick="toggleFullscreen()">
-              📱 Pantalla Completa
-            </button>
-            <button class="btn" onclick="downloadFile()">
-              💾 Descargar PDF
-            </button>
-          </div>
-          
-          <div class="pdf-container">
-            <iframe src="${fileUrl}" class="pdf-frame" id="pdfFrame"></iframe>
-          </div>
-
-          <script>
-            function toggleFullscreen() {
-              if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-              } else {
-                document.exitFullscreen();
-              }
-            }
-            
-            function downloadFile() {
-              const link = document.createElement('a');
-              link.href = '${fileUrl}';
-              link.download = '${registro.archivo_pdf}';
-              link.click();
-            }
-
-            // Auto-focus para mejor experiencia de usuario
-            window.addEventListener('load', () => {
-              setTimeout(() => {
-                window.focus();
-              }, 500);
-            });
-
-            // Manejar errores de carga del PDF
-            document.getElementById('pdfFrame').addEventListener('error', () => {
-              document.querySelector('.pdf-container').innerHTML = 
-                '<div style="padding: 40px; text-align: center; color: #dc2626;">' +
-                '<h3>⚠️ Error al cargar el documento</h3>' +
-                '<p>No se pudo cargar el archivo PDF. Verifique que el archivo existe y es válido.</p>' +
-                '<button class="btn" onclick="location.reload()">🔄 Reintentar</button>' +
-                '</div>';
-            });
-          </script>
-        </body>
-        </html>
-      `);
-
-      newWindow.document.close();
-    } else {
-      toast.warning("No hay archivo PDF disponible para este registro");
+      toast.success(`Documento abierto: ${registroSeleccionado.numero_registro}`);
+    } catch (error) {
+      console.error("Error loading INVIMA PDF:", error);
+      toast.error(`Error al cargar el documento PDF: ${error.message}`);
     }
   };
 
@@ -1590,9 +1419,20 @@ export function EditEquipmentModal({
     newWindow.document.close();
   };
 
-  const handleNewInvimaCreated = (newInvima) => {
-    setRegistrosInvima((prev) => [...prev, newInvima]);
-    toast.success("Registro INVIMA agregado exitosamente");
+  const handleInvimaRegistroAdded = (nuevoRegistro) => {
+    const registroNormalizado = {
+      id:              nuevoRegistro.id,
+      numero_registro: nuevoRegistro.numero_registro ?? nuevoRegistro.invima,
+      nombre_equipo:   nuevoRegistro.nombre_equipo   ?? nuevoRegistro.titulo,
+      fabricante:      nuevoRegistro.fabricante       ?? nuevoRegistro.marcas,
+      modelo:          nuevoRegistro.modelo           ?? nuevoRegistro.description,
+      archivo_pdf:     nuevoRegistro.archivo_pdf      ?? nuevoRegistro.file,
+    };
+    setRegistrosInvima((prev) => [...prev, registroNormalizado]);
+    handleInputChange("invima", registroNormalizado.numero_registro);
+    setSearchInvima(registroNormalizado.numero_registro || "");
+    setShowInvimaModal(false);
+    toast.success(`Registro ${registroNormalizado.numero_registro} creado y seleccionado`);
   };
 
   // Handlers para manuales y guías
@@ -1839,30 +1679,6 @@ export function EditEquipmentModal({
       });
     }
   }, [completeEquipmentData]);
-
-  // Efecto para filtrar registros INVIMA
-  React.useEffect(() => {
-    if (searchInvima.trim()) {
-      const filtered = registrosInvima.filter(
-        (registro) =>
-          registro.numero_registro // Backend mapea invima → numero_registro
-            ?.toLowerCase()
-            .includes(searchInvima.toLowerCase()) ||
-          registro.nombre_equipo // Backend mapea titulo → nombre_equipo
-            ?.toLowerCase()
-            .includes(searchInvima.toLowerCase()) ||
-          registro.fabricante // Backend mapea marcas → fabricante
-            ?.toLowerCase()
-            .includes(searchInvima.toLowerCase()) ||
-          registro.modelo // Backend mapea description → modelo
-            ?.toLowerCase()
-            .includes(searchInvima.toLowerCase())
-      );
-      setFilteredRegistrosInvima(filtered);
-    } else {
-      setFilteredRegistrosInvima(registrosInvima);
-    }
-  }, [searchInvima, registrosInvima]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -2346,73 +2162,60 @@ export function EditEquipmentModal({
                           </div>
                         ) : null}
 
-                        {/* Campo de búsqueda + botón agregar */}
-                        {!formData.invima && (
-                          <div>
-                            <Label className="text-xs sm:text-sm text-gray-700">
-                              Buscar Registro INVIMA:
-                            </Label>
-                            <div className="flex gap-2 mt-1">
-                              <Input
-                                placeholder="Número, nombre de equipo o fabricante..."
-                                value={searchInvima}
-                                onChange={(e) => setSearchInvima(e.target.value)}
-                                className={`flex-1 h-8 text-xs sm:text-sm ${errors.invima ? "border-red-500" : ""}`}
-                                autoComplete="off"
-                                disabled={isSubmitting || loading}
-                              />
-                              <Button size="sm" type="button"
-                                onClick={() => setShowInvimaModal(true)}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                title="Agregar nuevo registro INVIMA"
-                                disabled={isSubmitting || loading}>
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            {errors.invima && (
-                              <p className="text-red-500 text-xs mt-1">{errors.invima}</p>
-                            )}
-
-                            {/* Lista inline de resultados */}
-                            {(searchInvima || '').trim().length >= 2 && (
-                              <div className="mt-2 border border-blue-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-white shadow-sm">
-                                {loadingInvima ? (
-                                  <div className="px-3 py-2 text-xs text-gray-500">Cargando registros...</div>
-                                ) : filteredRegistrosInvima.length > 0 ? (
-                                  filteredRegistrosInvima.slice(0, 12).map((registro) => (
-                                    <button
-                                      key={registro.id}
-                                      type="button"
-                                      onClick={() => handleInvimaSelection(registro.numero_registro)}
-                                      className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-blue-100 last:border-b-0 transition-colors"
-                                    >
-                                      <span className="block text-xs font-semibold text-blue-800">{registro.numero_registro}</span>
-                                      <span className="block text-xs text-gray-500 truncate">
-                                        {registro.nombre_equipo} — {registro.fabricante}
-                                      </span>
-                                    </button>
-                                  ))
-                                ) : (
-                                  <div className="px-3 py-2 text-xs text-gray-500">Sin resultados para "{searchInvima}"</div>
-                                )}
-                              </div>
-                            )}
-                            {(searchInvima || '').trim().length > 0 && (searchInvima || '').trim().length < 2 && (
-                              <p className="text-xs text-gray-400 mt-1">Escribe al menos 2 caracteres para buscar</p>
-                            )}
+                        {/* Campo de búsqueda + botón agregar (siempre visible) */}
+                        <div>
+                          <Label className="text-xs sm:text-sm text-gray-700">
+                            Buscar Registro INVIMA:
+                          </Label>
+                          <div className="flex gap-2 mt-1">
+                            <Input
+                              placeholder="Número, nombre de equipo o fabricante..."
+                              value={searchInvima}
+                              onChange={(e) => setSearchInvima(e.target.value)}
+                              className={`flex-1 h-8 text-xs sm:text-sm ${errors.invima ? "border-red-500" : ""}`}
+                              autoComplete="off"
+                              disabled={isSubmitting || loading}
+                            />
+                            <Button size="sm" type="button"
+                              onClick={() => setShowInvimaModal(true)}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              title="Agregar nuevo registro INVIMA"
+                              disabled={isSubmitting || loading}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
                           </div>
-                        )}
+                          {errors.invima && (
+                            <p className="text-red-500 text-xs mt-1">{errors.invima}</p>
+                          )}
 
-                        {/* Botón agregar cuando ya hay selección */}
-                        {formData.invima && (
-                          <Button size="sm" type="button"
-                            onClick={() => setShowInvimaModal(true)}
-                            variant="outline"
-                            className="text-xs h-7 border-blue-300 text-blue-700 hover:bg-blue-50"
-                            disabled={isSubmitting || loading}>
-                            <Plus className="h-3 w-3 mr-1" /> Crear nuevo registro INVIMA
-                          </Button>
-                        )}
+                          {/* Lista inline de resultados */}
+                          {(searchInvima || '').trim().length >= 2 && (
+                            <div className="mt-2 border border-blue-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto bg-white shadow-sm">
+                              {loadingInvima ? (
+                                <div className="px-3 py-2 text-xs text-gray-500">Cargando registros...</div>
+                              ) : filteredRegistrosInvima.length > 0 ? (
+                                filteredRegistrosInvima.slice(0, 12).map((registro) => (
+                                  <button
+                                    key={registro.id}
+                                    type="button"
+                                    onClick={() => handleInvimaSelection(registro.numero_registro)}
+                                    className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-blue-100 last:border-b-0 transition-colors"
+                                  >
+                                    <span className="block text-xs font-semibold text-blue-800">{registro.numero_registro}</span>
+                                    <span className="block text-xs text-gray-500 truncate">
+                                      {registro.nombre_equipo} — {registro.fabricante}
+                                    </span>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="px-3 py-2 text-xs text-gray-500">Sin resultados para "{searchInvima}"</div>
+                              )}
+                            </div>
+                          )}
+                          {(searchInvima || '').trim().length > 0 && (searchInvima || '').trim().length < 2 && (
+                            <p className="text-xs text-gray-400 mt-1">Escribe al menos 2 caracteres para buscar</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -4731,7 +4534,7 @@ export function EditEquipmentModal({
       <AgregarRegistroInvimaModal
         open={showInvimaModal}
         onOpenChange={setShowInvimaModal}
-        onInvimaCreated={handleNewInvimaCreated}
+        onRegistroAdded={handleInvimaRegistroAdded}
       />
 
       {/* Modal de búsqueda de manuales */}

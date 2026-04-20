@@ -77,7 +77,7 @@ const Header = () => {
         <GlobalEquipmentSearch />
       </div>
 
-      <NavLink>
+      <div>
         <DropdownMenu>
           <DropdownMenuTrigger>
             <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-white cursor-pointer">
@@ -103,7 +103,7 @@ const Header = () => {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </NavLink>
+      </div>
     </header>
   );
 };

@@ -21,6 +21,7 @@
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
 use Illuminate\Http\Request;

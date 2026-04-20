@@ -51,12 +51,22 @@ const ConfirmarCuenta = lazy(() => import("./pages/ConfirmarCuenta"));
 const ReenviarVerificacion = lazy(() => import("./pages/ReenviarVerificacion"));
 const VerificacionPendiente = lazy(() => import("./pages/VerificacionPendiente"));
 
-// Componente de loading
+// Componente de loading para páginas standalone (login, etc.)
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-[#1d293d]/5">
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1d293d] mx-auto mb-4"></div>
       <p className="text-slate-600 text-sm">Cargando...</p>
+    </div>
+  </div>
+);
+
+// Componente de loading ligero para el área de contenido (sidebar/navbar se mantienen)
+const ContentLoadingFallback = () => (
+  <div className="flex items-center justify-center py-32">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1d293d] mx-auto mb-3"></div>
+      <p className="text-slate-500 text-sm">Cargando módulo...</p>
     </div>
   </div>
 );
@@ -78,19 +88,19 @@ function AppContent() {
   );
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <ErrorBoundary>
       {/* Rutas standalone sin sidebar/navbar */}
-      <ErrorBoundary>
       {isStandalonePage ? (
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute requireAuth={false}>
-                <LoginPage />
-              </ProtectedRoute>
-            }
-          />
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute requireAuth={false}>
+                  <LoginPage />
+                </ProtectedRoute>
+              }
+            />
           <Route
             path="/login"
             element={
@@ -123,7 +133,8 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-        </Routes>
+          </Routes>
+        </Suspense>
       ) : (
         /* Rutas con sidebar/navbar (layout principal) */
         <SidebarProvider>
@@ -132,7 +143,8 @@ function AppContent() {
           </ErrorBoundary>
           <SidebarInset>
             <div className="pt-16">
-              <Routes>
+              <Suspense fallback={<ContentLoadingFallback />}>
+                <Routes>
                 <Route
                   path="/perfil"
                   element={
@@ -385,6 +397,7 @@ function AppContent() {
                   }
                 />
               </Routes>
+              </Suspense>
               <div className="mt-10">
                 <Footer />
               </div>
@@ -392,8 +405,7 @@ function AppContent() {
           </SidebarInset>
         </SidebarProvider>
       )}
-      </ErrorBoundary>
-    </Suspense>
+    </ErrorBoundary>
   );
 }
 

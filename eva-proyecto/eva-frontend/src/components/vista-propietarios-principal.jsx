@@ -382,14 +382,19 @@ export default function VistaPropietariosPrincipal() {
         </Card>
 
         {/* Tabla responsiva mejorada */}
-        <Card className="mb-8 rounded-xl shadow-lg border-0 overflow-hidden bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-0">
+        <Card className="mb-8 rounded-3xl shadow-sm border border-slate-200 overflow-hidden bg-white">
+          <CardContent className="p-0 relative">
+            {loading && currentData.length > 0 && (
+              <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
+                <div className="h-full bg-blue-600 animate-progress origin-left"></div>
+              </div>
+            )}
             {/* Vista de tabla para desktop */}
             <div className="hidden lg:block">
-              <Table>
+              <Table className={`${loading && currentData.length > 0 ? 'opacity-40 transition-opacity duration-300' : 'transition-opacity duration-300'}`}>
                 <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
-                    <TableHead className="text-center font-bold text-gray-700 py-4 px-6 text-base w-20">
+                  <TableRow className="bg-white border-b border-slate-100 hover:bg-transparent">
+                    <TableHead className="text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider py-5 px-6 w-20">
                       <button 
                         onClick={() => handleSort('id')}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors mx-auto"
@@ -398,7 +403,7 @@ export default function VistaPropietariosPrincipal() {
                         {getSortIcon('id')}
                       </button>
                     </TableHead>
-                    <TableHead className="text-left font-bold text-gray-700 py-4 px-6 text-base">
+                    <TableHead className="text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider py-5 px-6">
                       <button 
                         onClick={() => handleSort('nombre')}
                         className="flex items-center gap-2 hover:text-blue-600 transition-colors"
@@ -407,10 +412,10 @@ export default function VistaPropietariosPrincipal() {
                         {getSortIcon('nombre')}
                       </button>
                     </TableHead>
-                    <TableHead className="text-center font-bold text-gray-700 py-4 px-6 text-base">
+                    <TableHead className="text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider py-5 px-6">
                       Logo
                     </TableHead>
-                    <TableHead className="text-center font-bold text-gray-700 py-4 px-6 text-base w-40">
+                    <TableHead className="text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider py-5 px-6 w-40">
                       Acciones
                     </TableHead>
                   </TableRow>
@@ -422,9 +427,7 @@ export default function VistaPropietariosPrincipal() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className={`${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                      } hover:bg-blue-50/70 border-b border-gray-100 transition-colors duration-200`}
+                      className={`bg-white hover:bg-slate-50/50 border-b border-slate-50 last:border-0 transition-colors`}
                     >
                       <TableCell className="py-6 px-6 text-center">
                         <div className="font-semibold text-gray-700 text-base">
