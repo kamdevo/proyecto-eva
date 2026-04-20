@@ -69,6 +69,11 @@ httpService.interceptors.request.use(
       config.headers.Authorization = `Bearer ${authToken}`;
     }
 
+    // Si el body es FormData, eliminar Content-Type para que Axios ponga multipart/form-data con boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     // Agregar timestamp para evitar cache
     if (config.method === "get") {
       config.params = {
