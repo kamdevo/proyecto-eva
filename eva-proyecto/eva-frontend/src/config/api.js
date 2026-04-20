@@ -13,14 +13,14 @@ const getBaseURL = () => {
   if (typeof window !== 'undefined' && window.APP_CONFIG?.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL;
   }
-  return import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.protocol + '//api.eva2.huv.gov.co' : 'http://api.eva2.huv.gov.co');
+  return import.meta.env.VITE_API_BASE_URL || 'http://api.eva2.huv.gov.co';
 };
 
 const getApiURL = () => {
   if (typeof window !== 'undefined' && window.APP_CONFIG?.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL + '/api';
   }
-  return import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.protocol + '//api.eva2.huv.gov.co/api' : 'http://api.eva2.huv.gov.co/api');
+  return import.meta.env.VITE_API_URL || 'http://api.eva2.huv.gov.co/api';
 };
 
 // Configuración base de la API

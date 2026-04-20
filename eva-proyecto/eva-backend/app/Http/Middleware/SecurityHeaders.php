@@ -42,11 +42,6 @@ class SecurityHeaders
         
         $response->headers->set('Content-Security-Policy', $csp);
 
-        // HSTS (HTTP Strict Transport Security)
-        if ($request->secure()) {
-            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-        }
-
         // Remove server information
         $response->headers->remove('Server');
         $response->headers->remove('X-Powered-By');

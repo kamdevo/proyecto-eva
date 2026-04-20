@@ -26,11 +26,6 @@ class SecurityHeadersMiddleware
         
         // Content Security Policy para API
         $response->headers->set('Content-Security-Policy', "default-src 'self'; script-src 'none'; object-src 'none';");
-        
-        // Strict Transport Security (solo en HTTPS)
-        if ($request->isSecure()) {
-            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-        }
 
         // Remover headers que exponen información del servidor
         $response->headers->remove('Server');
