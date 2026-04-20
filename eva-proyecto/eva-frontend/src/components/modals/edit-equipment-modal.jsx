@@ -1484,7 +1484,9 @@ export function EditEquipmentModal({
           await httpService.patch(`/v1/equipos/${equipment.id}/desasociar`, { manual_id: null });
           handleInputChange("manual_id", "");
           setSelectedManualInfo(null);
+          invalidateEquipmentCache(equipment.id);
           toast.success("Manual desasociado correctamente");
+          onEquipmentUpdated && onEquipmentUpdated();
         } catch (err) {
           toast.error(err.response?.data?.message || "Error al desasociar el manual");
         }
@@ -1503,7 +1505,9 @@ export function EditEquipmentModal({
           await httpService.patch(`/v1/equipos/${equipment.id}/desasociar`, { guia_id: null });
           handleInputChange("guia_id", "");
           setSelectedGuideInfo(null);
+          invalidateEquipmentCache(equipment.id);
           toast.success("Guía rápida desasociada correctamente");
+          onEquipmentUpdated && onEquipmentUpdated();
         } catch (err) {
           toast.error(err.response?.data?.message || "Error al desasociar la guía rápida");
         }
