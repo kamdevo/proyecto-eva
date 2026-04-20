@@ -11021,6 +11021,48 @@ Route::get('v1/equipos/{id}/equipment-history', [\App\Http\Controllers\Api\Equip
         \Illuminate\Routing\Middleware\ThrottleRequests::class
     ]);
 
+// Ruta para desasociar manual o guía rápida de un equipo (pone el campo en NULL)
+Route::patch('v1/equipos/{id}/desasociar', function (Request $request, $id) {
+    try {
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json(['success' => false, 'message' => 'Equipo no encontrado'], 404);
+        }
+
+        $allowed = ['manual_id', 'guia_id', 'orden_compra_id', 'invima_id'];
+        $updateData = [];
+        foreach ($allowed as $field) {
+            // Incluir el campo si viene explícitamente en el body (aunque sea null)
+            if (array_key_exists($field, $request->all())) {
+                $updateData[$field] = null;
+            }
+        }
+
+        if (empty($updateData)) {
+            return response()->json(['success' => false, 'message' => 'No se especificó ningún campo a desasociar'], 422);
+        }
+
+        $updateData['fecha_cambio'] = now();
+        DB::table('equipos')->where('id', $id)->update($updateData);
+
+        \Log::info('🔗 [DESASOCIAR] Equipo ID ' . $id . ' - campos desasociados: ' . implode(', ', array_keys($updateData)));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Desasociación realizada correctamente',
+            'updated_fields' => array_keys($updateData)
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('❌ [DESASOCIAR] Error: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Error al desasociar: ' . $e->getMessage()], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \Illuminate\Routing\Middleware\ThrottleRequests::class
+]);
+
 // ====================================================
 // RUTAS PARA GUÍAS RÁPIDAS
 // ====================================================

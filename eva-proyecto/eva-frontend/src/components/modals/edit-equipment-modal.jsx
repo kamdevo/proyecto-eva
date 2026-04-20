@@ -140,7 +140,7 @@ export function EditEquipmentModal({
   const [editingPreventivo, setEditingPreventivo] = useState(null);
   const [showEditObservacionModal, setShowEditObservacionModal] = useState(false);
   const [selectedObservacion, setSelectedObservacion] = useState(null);
-  const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null });
+  const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, confirmLabel: 'Eliminar', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' });
   
   // Estados para guardar la información de los manuales, guías y órdenes seleccionados
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
@@ -1474,15 +1474,41 @@ export function EditEquipmentModal({
   };
 
   const handleRemoveManual = () => {
-    handleInputChange("manual_id", "");
-    setSelectedManualInfo(null);
-    toast.info("Manual desasociado");
+    setConfirmModal({
+      open: true,
+      message: '¿Desasociar el manual de este equipo? El manual no se eliminará del sistema.',
+      confirmLabel: 'Desasociar',
+      confirmClass: 'bg-orange-600 hover:bg-orange-700 text-white',
+      onConfirm: async () => {
+        try {
+          await httpService.patch(`/v1/equipos/${equipment.id}/desasociar`, { manual_id: null });
+          handleInputChange("manual_id", "");
+          setSelectedManualInfo(null);
+          toast.success("Manual desasociado correctamente");
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Error al desasociar el manual");
+        }
+      }
+    });
   };
 
   const handleRemoveGuide = () => {
-    handleInputChange("guia_id", "");
-    setSelectedGuideInfo(null);
-    toast.info("Guía rápida desasociada");
+    setConfirmModal({
+      open: true,
+      message: '¿Desasociar la guía rápida de este equipo? La guía no se eliminará del sistema.',
+      confirmLabel: 'Desasociar',
+      confirmClass: 'bg-orange-600 hover:bg-orange-700 text-white',
+      onConfirm: async () => {
+        try {
+          await httpService.patch(`/v1/equipos/${equipment.id}/desasociar`, { guia_id: null });
+          handleInputChange("guia_id", "");
+          setSelectedGuideInfo(null);
+          toast.success("Guía rápida desasociada correctamente");
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Error al desasociar la guía rápida");
+        }
+      }
+    });
   };
 
   // Handler para órdenes de compra
@@ -4650,7 +4676,7 @@ export function EditEquipmentModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="w-5 h-5" />
-              Confirmar eliminación
+              Confirmar acción
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600 py-2">{confirmModal.message}</p>
@@ -4664,13 +4690,13 @@ export function EditEquipmentModal({
             </Button>
             <Button
               type="button"
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className={confirmModal.confirmClass || 'bg-red-600 hover:bg-red-700 text-white'}
               onClick={async () => {
                 setConfirmModal(m => ({ ...m, open: false }));
                 if (confirmModal.onConfirm) await confirmModal.onConfirm();
               }}
             >
-              Eliminar
+              {confirmModal.confirmLabel || 'Eliminar'}
             </Button>
           </div>
         </DialogContent>
