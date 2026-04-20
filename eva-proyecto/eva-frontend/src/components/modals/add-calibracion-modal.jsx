@@ -210,7 +210,10 @@ const AddCalibracionModal = ({
 
       if (response.data.success) {
         toast.success(isEditing ? "Calibración actualizada exitosamente" : "Calibración agregada exitosamente", { id: toastId });
-        if (onCalibracionAdded) onCalibracionAdded();
+        // Esperar a que el padre recargue el historial antes de cerrar el modal
+        if (onCalibracionAdded) {
+          try { await onCalibracionAdded(); } catch (e) { console.warn('Error en onCalibracionAdded:', e); }
+        }
         onClose();
       }
     } catch (error) {

@@ -253,7 +253,9 @@ const AddPreventivoModal = ({
 
       if (response.data.success) {
         toast.success(preventivo ? "Mantenimiento actualizado exitosamente" : "Mantenimiento agregado exitosamente", { id: toastId });
-        if (onPreventivoAdded) onPreventivoAdded();
+        if (onPreventivoAdded) {
+          try { await onPreventivoAdded(); } catch (e) { console.warn('Error en onPreventivoAdded:', e); }
+        }
         onClose();
       }
     } catch (error) {

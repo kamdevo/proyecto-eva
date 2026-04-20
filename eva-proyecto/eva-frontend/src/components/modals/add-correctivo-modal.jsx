@@ -451,7 +451,9 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
 
       if (response.data.success) {
         toast.success(isEditing ? "Correctivo actualizado exitosamente" : "Correctivo registrado exitosamente", { id: toastId });
-        if (onCorrectivoAdded) onCorrectivoAdded();
+        if (onCorrectivoAdded) {
+          try { await onCorrectivoAdded(); } catch (e) { console.warn('Error en onCorrectivoAdded:', e); }
+        }
         onClose();
       } else {
         throw new Error(response.data.message || "Error al guardar");

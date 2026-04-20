@@ -179,7 +179,9 @@ const AddRepuestoModal = ({
 
       if (response.data.success) {
         toast.success("Repuesto/Accesorio agregado exitosamente", { id: toastId });
-        if (onRepuestoAdded) onRepuestoAdded();
+        if (onRepuestoAdded) {
+          try { await onRepuestoAdded(); } catch (e) { console.warn('Error en onRepuestoAdded:', e); }
+        }
         onClose();
       }
     } catch (error) {

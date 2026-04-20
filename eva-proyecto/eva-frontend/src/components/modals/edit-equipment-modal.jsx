@@ -1183,10 +1183,18 @@ export function EditEquipmentModal({
       onConfirm: async () => {
         try {
           await httpService.delete(`/v1/mantenimientos/${id}`);
+          // Optimistic UI: remover inmediatamente del state para reflejar el cambio
+          setEquipmentHistory(prev => ({
+            ...prev,
+            preventivos: (prev.preventivos || []).filter(p => p.id !== id)
+          }));
           toast.success('Mantenimiento eliminado');
+          // Sincronizar con backend (por si el delete cambió algo más)
           if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar mantenimiento');
+          // Si falla, resincronizar con backend para revertir el optimismo
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
         }
       }
     });
@@ -1199,10 +1207,16 @@ export function EditEquipmentModal({
       onConfirm: async () => {
         try {
           await httpService.delete(`/v1/calibracion/${id}`);
+          // Optimistic UI: remover inmediatamente del state
+          setEquipmentHistory(prev => ({
+            ...prev,
+            calibraciones: (prev.calibraciones || []).filter(c => c.id !== id)
+          }));
           toast.success('Calibración eliminada');
           if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar calibración');
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
         }
       }
     });
@@ -1215,10 +1229,16 @@ export function EditEquipmentModal({
       onConfirm: async () => {
         try {
           await httpService.delete(`/v1/correctivos-generales/${id}`);
+          // Optimistic UI: remover inmediatamente del state
+          setEquipmentHistory(prev => ({
+            ...prev,
+            correctivos: (prev.correctivos || []).filter(c => c.id !== id)
+          }));
           toast.success('Correctivo eliminado');
           if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar correctivo');
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
         }
       }
     });
@@ -4529,11 +4549,11 @@ export function EditEquipmentModal({
             </Card>
           </div>
 
-          <div className="flex justify-between p-4 border-t">
+          <div className="sticky bottom-0 left-0 right-0 z-20 -mx-4 -mb-4 bg-white border-t rounded-2xl shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.12)] flex gap-2 items-center justify-center px-6 py-4 w-[100%] max-w-3xl mx-auto">
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-8 flex items-center gap-2 shadow-md"
             >
               {isSubmitting ? (
                 <>
