@@ -112,14 +112,8 @@ export function AgregarRegistroInvimaModal({ open, onOpenChange, onRegistroAdded
     });
 
     // Validar formato de registro INVIMA
-    if (formData.numero_registro) {
-      const invimaPattern = /^[A-Z0-9-]+$/;
-      if (!invimaPattern.test(formData.numero_registro)) {
-        newErrors.numero_registro = 'El registro debe contener solo letras mayúsculas, números y guiones';
-      }
-      if (formData.numero_registro.length < 8) {
-        newErrors.numero_registro = 'El registro debe tener al menos 8 caracteres';
-      }
+    if (formData.numero_registro && formData.numero_registro.length < 8) {
+      newErrors.numero_registro = 'El registro debe tener al menos 8 caracteres';
     }
 
     setErrors(newErrors);
