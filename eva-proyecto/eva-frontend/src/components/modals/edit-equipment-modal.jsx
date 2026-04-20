@@ -1184,7 +1184,7 @@ export function EditEquipmentModal({
         try {
           await httpService.delete(`/v1/mantenimientos/${id}`);
           toast.success('Mantenimiento eliminado');
-          if (equipment?.id) loadEquipmentHistory(equipment.id);
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar mantenimiento');
         }
@@ -1200,7 +1200,7 @@ export function EditEquipmentModal({
         try {
           await httpService.delete(`/v1/calibracion/${id}`);
           toast.success('Calibración eliminada');
-          if (equipment?.id) loadEquipmentHistory(equipment.id);
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar calibración');
         }
@@ -1216,7 +1216,7 @@ export function EditEquipmentModal({
         try {
           await httpService.delete(`/v1/correctivos-generales/${id}`);
           toast.success('Correctivo eliminado');
-          if (equipment?.id) loadEquipmentHistory(equipment.id);
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar correctivo');
         }
@@ -4583,9 +4583,9 @@ export function EditEquipmentModal({
         }}
         equipmentName={equipment?.name || equipment?.nombre || formData?.name}
         observation={selectedObservacion}
-        onObservationUpdated={() => {
+        onObservationUpdated={async () => {
           if (equipment?.id) {
-            loadEquipmentHistory(equipment.id);
+            await loadEquipmentHistory(equipment.id);
           }
         }}
       />
@@ -4599,10 +4599,10 @@ export function EditEquipmentModal({
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
         correctivo={editingCorrectivo}
-        onCorrectivoAdded={() => {
+        onCorrectivoAdded={async () => {
           // Recargar historial del equipo
           if (equipment?.id) {
-            loadEquipmentHistory(equipment.id);
+            await loadEquipmentHistory(equipment.id);
           }
         }}
       />
@@ -4617,10 +4617,10 @@ export function EditEquipmentModal({
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
         isIndustrial={equipment?.tipo_id == 2}
-        onPreventivoAdded={() => {
+        onPreventivoAdded={async () => {
           // Recargar historial del equipo
           if (equipment?.id) {
-            loadEquipmentHistory(equipment.id);
+            await loadEquipmentHistory(equipment.id);
           }
         }}
         preventivo={editingPreventivo}
@@ -4636,10 +4636,10 @@ export function EditEquipmentModal({
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
         calibracion={editingCalibracion}
-        onCalibracionAdded={() => {
+        onCalibracionAdded={async () => {
           // Recargar historial del equipo
           if (equipment?.id) {
-            loadEquipmentHistory(equipment.id);
+            await loadEquipmentHistory(equipment.id);
           }
         }}
       />
@@ -4795,10 +4795,10 @@ export function EditEquipmentModal({
         onClose={() => setShowAddRepuestoModal(false)}
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
-        onRepuestoAdded={() => {
+        onRepuestoAdded={async () => {
           // Recargar historial del equipo
           if (equipment?.id) {
-            loadEquipmentHistory(equipment.id);
+            await loadEquipmentHistory(equipment.id);
           }
         }}
       />
