@@ -22,6 +22,7 @@ import {
 import Pagination from "@/components/common/Pagination";
 import { toast } from "sonner";
 import { API_CONFIG } from "@/config/api";
+import { invalidateEquipmentCache } from "@/services/equipmentPrefetchCache";
 
 const AsociarEquipoGuiaModal = ({ isOpen, onClose, guia, onSuccess }) => {
   const [equipos, setEquipos] = useState([]);
@@ -142,6 +143,10 @@ const AsociarEquipoGuiaModal = ({ isOpen, onClose, guia, onSuccess }) => {
       console.log('✅ Respuesta de asociación:', data);
 
       if (data.success) {
+        // Invalidar caché de cada equipo recién asociado para que el modal
+        // "Editar equipo" muestre la guía asociada sin necesidad de recargar.
+        selectedEquipos.forEach((equipoId) => invalidateEquipmentCache(equipoId));
+
         toast.success(data.message || `${selectedEquipos.length} equipo(s) asociado(s) exitosamente`);
         onSuccess?.();
         handleClose();
