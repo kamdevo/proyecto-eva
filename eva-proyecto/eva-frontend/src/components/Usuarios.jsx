@@ -1382,7 +1382,7 @@ export default function Usuarios() {
   }
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen antialiased">
+    <div className="bg-[#F1F4F6] min-h-screen antialiased">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Page Header Section - New Design */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-8">
@@ -1710,7 +1710,7 @@ export default function Usuarios() {
               </div>
             )}
 
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+            <div className="overflow-hidden rounded-3xl bg-white  overflow-x-auto relative">
               {/* Skeleton Overlay while refreshing */}
               {usuariosLoading && usuarios.length > 0 && (
                 <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">

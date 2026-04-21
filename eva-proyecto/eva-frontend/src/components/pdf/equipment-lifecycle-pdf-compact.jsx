@@ -632,7 +632,7 @@ export const EquipmentLifecyclePDFCompact = ({ equipment }) => {
             {safeEquipment.documentos && safeEquipment.documentos.length > 0 ? (
               safeEquipment.documentos.slice(0, 6).map((doc, index) => (
                 <View key={index} style={styles.tableRow}>
-                  <Text style={[styles.tableCell, {flex: 3}]}>{getSafeValue(doc.tipo_documento)}</Text>
+                  <Text style={[styles.tableCell, {flex: 3}]}>{doc.tipo_personalizado ? `${doc.tipo_personalizado} (Personalizado)` : getSafeValue(doc.tipo_documento)}</Text>
                   <Text style={[styles.tableCell, {flex: 2}]}>{getSafeValue(doc.nombre_archivo)}</Text>
                   <Text style={[styles.tableCell, {flex: 1}]}>{getSafeValue(doc.fecha_documento)}</Text>
                 </View>

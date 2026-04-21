@@ -755,7 +755,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             data.documentos.slice(0, 6).map((doc, index) => (
               <View key={index} style={styles.dataTableRow}>
                 <Text style={styles.dataTableCell}>{safeValue(doc.nombre_archivo)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(doc.tipo_documento)}</Text>
+                <Text style={styles.dataTableCell}>{doc.tipo_personalizado ? `${doc.tipo_personalizado} (Personalizado)` : safeValue(doc.tipo_documento)}</Text>
                 <Text style={styles.dataTableCell}>{safeValue(doc.fecha_documento)}</Text>
                 <Text style={styles.dataTableCell}>
                   {doc.vinculo ? (

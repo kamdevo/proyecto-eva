@@ -138,12 +138,12 @@ export default function VistaServiciosPrincipal() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
+    <div className="min-h-screen bg-[#F1F4F6] p-4 md:p-8">
 
       {/* ── PAGE HEADER (White Editorial Style) ── */}
       <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-blue-600">
+          <div className="p-3 bg-white border border-slate-100 rounded-2xl  text-blue-600">
             <Settings className="w-8 h-8" />
           </div>
           <div>
@@ -157,7 +157,7 @@ export default function VistaServiciosPrincipal() {
         </div>
 
         {/* Summary Stat Card */}
-        <div className="bg-white border border-gray-100 p-5 rounded-3xl shadow-sm flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
+        <div className="bg-white border border-gray-100 p-5 rounded-3xl  flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
           <div className="bg-blue-100 p-3 rounded-2xl">
             <Building2 className="h-8 w-8 text-blue-600" />
           </div>
@@ -172,7 +172,7 @@ export default function VistaServiciosPrincipal() {
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Barra de Controles y Búsqueda */}
-        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
+        <div className="bg-white p-4 rounded-3xl  border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
           <div className="relative flex-grow w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
             <input
@@ -211,7 +211,7 @@ export default function VistaServiciosPrincipal() {
 
           <Button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12 shadow-lg shadow-blue-100 transition-all font-bold w-full lg:w-auto shrink-0"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12  transition-all font-bold w-full lg:w-auto shrink-0"
           >
             <Plus className="w-5 h-5 font-bold" />
             Nuevo Servicio
@@ -219,7 +219,7 @@ export default function VistaServiciosPrincipal() {
         </div>
 
         {/* Tabla de Resultados */}
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+        <div className="overflow-hidden rounded-3xl bg-white  overflow-x-auto relative">
           {loading && servicios.length > 0 && (
             <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
               <div className="h-full bg-blue-600 animate-progress origin-left"></div>
@@ -227,7 +227,7 @@ export default function VistaServiciosPrincipal() {
           )}
             <table className={`w-full text-left border-separate border-spacing-0 text-sm ${loading && servicios.length > 0 ? 'opacity-40 transition-opacity duration-300' : 'transition-opacity duration-300'}`}>
               <thead>
-                <tr className="bg-white border-b border-slate-100">
+                <tr className="bg-[#F8FAFC] border-b border-slate-100">
                   <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
                     <button onClick={() => handleSort("s.name")} className="flex items-center gap-1.5 hover:text-blue-600 transition-colors">
                       Servicio {getSortIcon("s.name")}

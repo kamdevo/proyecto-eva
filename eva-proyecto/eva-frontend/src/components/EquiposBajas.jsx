@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import {
   Search,
   FileText,
-  ChevronLeft,
-  ChevronRight,
   Edit,
   Link,
   Plus,
@@ -29,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "../hooks/useAuth";
 import useBajas from "../hooks/useBajas";
 import { API_CONFIG } from "../config/api";
@@ -37,6 +36,7 @@ import ModalAgregarBaja from "@/components/modals/agregar-baja-modal";
 import ModalEditarDocumento from "@/components/modals/editar-baja-modal";
 import ModalTablaEquipos from "@/components/modals/tabla-equipos-asociar";
 import ModalEquiposAsociados from "@/components/modals/equipos-asociados-modal";
+import Pagination from "@/components/common/Pagination";
 
 export default function EquiposBajas() {
   const { hasPermission, canCreate, canEdit, canDelete } = useAuth();
@@ -158,233 +158,201 @@ export default function EquiposBajas() {
     }
   };
 
-  const renderPagination = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        pages.push(1, 2, 3, 4, 5);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(
-          totalPages - 4,
-          totalPages - 3,
-          totalPages - 2,
-          totalPages - 1,
-          totalPages
-        );
-      } else {
-        pages.push(
-          currentPage - 2,
-          currentPage - 1,
-          currentPage,
-          currentPage + 1,
-          currentPage + 2
-        );
-      }
-    }
-
-    return pages;
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#F1F4F6] p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            Final disposition
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Administre y supervise todos los registros del sistema
-          </p>
-        </div>
-
-        {/* Search Filter */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Buscar Bajas
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Buscar por descripción, motivo o ID..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1); // Reset to first page on search
-              }}
-              className="w-full sm:w-80"
-            />
-            <Button variant="outline" size="icon" className="flex-shrink-0">
-              <Search className="h-4 w-4" />
-            </Button>
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Bajas de equipos
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Administre y supervise todos los registros del sistema
+            </p>
           </div>
-        </div>
-
-        {/* Records Count and Loading */}
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            {loading ? (
-              "Cargando..."
-            ) : (
-              `Mostrando registros de ${startIndex + 1} a ${endIndex} de un total de ${pagination.total} registros`
-            )}
-          </p>
-          {error && (
-            <div className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded">
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Add Button */}
-        <div className="mb-6 flex justify-start">
           {canCreate('bajas') && (
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            <button
               onClick={() => setIsAgregarBajaModalOpen(true)}
               disabled={loading}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
             >
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Agregar baja</span>
               <span className="sm:hidden">Agregar</span>
-            </Button>
+            </button>
           )}
         </div>
 
+        {/* Search & Records Bar */}
+        <section className="bg-white rounded-xl p-4 sm:p-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex-1 max-w-md">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
+                Buscar bajas
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar por descripción, motivo o ID..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-9 bg-slate-50 border-slate-200 focus-visible:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="text-sm text-slate-500">
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Skeleton className="h-4 w-56" />
+                </span>
+              ) : (
+                <>Mostrando <span className="font-semibold text-slate-700">{startIndex + 1}</span>–<span className="font-semibold text-slate-700">{endIndex}</span> de <span className="font-semibold text-slate-700">{pagination.total}</span> registros</>
+              )}
+            </div>
+          </div>
+          {error && (
+            <div className="mt-3 text-sm text-rose-700 bg-rose-50 border border-rose-100 px-3 py-2 rounded-lg">
+              {error}
+            </div>
+          )}
+        </section>
+
         {/* Desktop Table */}
-        <div className="hidden lg:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="hidden lg:block bg-white rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-600 text-white">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="py-5 px-6 text-left text-xs font-bold text-slate-500 uppercase tracking-widest w-20">
                     ID
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium">
-                    Fecha Baja
+                  <th className="py-5 px-6 text-left text-xs font-bold text-slate-500 uppercase tracking-widest w-40">
+                    Fecha baja
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium">
+                  <th className="py-5 px-6 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">
                     Descripción
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-medium">
+                  <th className="py-5 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-widest w-40">
                     Archivo
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-medium">
+                  <th className="py-5 px-6 text-center text-xs font-bold text-slate-500 uppercase tracking-widest w-56">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                      Cargando bajas...
-                    </td>
-                  </tr>
+                  Array.from({ length: itemsPerPage }).map((_, i) => (
+                    <tr key={`skel-${i}`}>
+                      <td className="px-6 py-4"><Skeleton className="h-4 w-10" /></td>
+                      <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                      <td className="px-6 py-4">
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </td>
+                      <td className="px-6 py-4 text-center"><Skeleton className="h-8 w-24 rounded-lg mx-auto" /></td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          {Array.from({ length: 4 }).map((_, j) => (
+                            <Skeleton key={j} className="h-9 w-9 rounded-full" />
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 ) : currentBajas.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                      {searchTerm ? 'No se encontraron bajas que coincidan con la búsqueda' : 'No hay bajas registradas'}
+                    <td colSpan="5" className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <FileText className="w-12 h-12 text-slate-300" />
+                        <p className="text-slate-600">
+                          {searchTerm ? 'No se encontraron bajas que coincidan con la búsqueda' : 'No hay bajas registradas'}
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  currentBajas.map((baja, index) => (
-                    <tr
-                      key={baja.id}
-                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {baja.id}
+                  currentBajas.map((baja) => (
+                    <tr key={baja.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                        #{baja.id}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
+                      <td className="px-6 py-4 text-sm text-slate-700">
                         {baja.fecha_baja ? new Date(baja.fecha_baja).toLocaleDateString() : 'N/A'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700 max-w-md">
+                      <td className="px-6 py-4 text-sm text-slate-700 max-w-md">
                         <div className="line-clamp-2">{baja.descripcion || baja.motivo || 'Sin descripción'}</div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         {baja.archivo ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <button
                             onClick={() => handleViewDocument(baja.archivo)}
-                            className="text-green-600 hover:bg-green-50"
+                            className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                             title="Ver documento de baja"
                           >
-                            <FileText className="h-4 w-4 mr-1" />
-                            Ver Archivo
-                          </Button>
+                            <FileText className="h-3.5 w-3.5" />
+                            Ver archivo
+                          </button>
                         ) : (
-                          <span className="text-gray-400 text-sm">Sin archivo</span>
+                          <span className="text-slate-400 text-xs">Sin archivo</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
                             onClick={() => handleBajaClick(baja)}
-                            className="p-2 hover:bg-blue-50 rounded-full"
+                            className="p-2 rounded-full text-blue-600 hover:bg-blue-50 transition-colors"
                             title="Ver detalles"
                           >
-                            <Eye className="h-5 w-5 text-blue-600" />
-                          </Button>
+                            <Eye className="h-4 w-4" />
+                          </button>
 
                           {baja.documento && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                            <button
                               onClick={() => handleDownloadDocument(baja)}
-                              className="p-2 hover:bg-green-50 rounded-full"
+                              className="p-2 rounded-full text-emerald-600 hover:bg-emerald-50 transition-colors"
                               title="Descargar documento"
                             >
-                              <Download className="h-5 w-5 text-green-600" />
-                            </Button>
+                              <Download className="h-4 w-4" />
+                            </button>
                           )}
 
                           {canEdit('bajas') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                            <button
                               onClick={() => {
                                 setSelectedBaja(baja);
                                 setIsEditarBajaModalOpen(true);
                               }}
-                              className="p-2 hover:bg-yellow-50 rounded-full"
+                              className="p-2 rounded-full text-amber-600 hover:bg-amber-50 transition-colors"
                               title="Editar"
                             >
-                              <Edit className="h-5 w-5 text-yellow-600" />
-                            </Button>
+                              <Edit className="h-4 w-4" />
+                            </button>
                           )}
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
                             onClick={() => {
                               setSelectedBaja(baja);
                               setIsAsociarEquiposModalOpen(true);
                             }}
-                            className="p-2 hover:bg-purple-50 rounded-full"
+                            className="p-2 rounded-full text-violet-600 hover:bg-violet-50 transition-colors"
                             title="Asociar equipos"
                           >
-                            <Link className="h-5 w-5 text-purple-600" />
-                          </Button>
+                            <Link className="h-4 w-4" />
+                          </button>
 
                           {canDelete('bajas') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                            <button
                               onClick={() => handleDeleteBaja(baja.id)}
-                              className="p-2 hover:bg-red-50 rounded-full"
+                              className="p-2 rounded-full text-rose-600 hover:bg-rose-50 transition-colors"
                               title="Eliminar"
                             >
-                              <Trash2 className="h-5 w-5 text-red-600" />
-                            </Button>
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -399,105 +367,106 @@ export default function EquiposBajas() {
         {/* Mobile Cards */}
         <div className="lg:hidden space-y-4">
           {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              Cargando bajas...
-            </div>
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={`mskel-${i}`} className="bg-white rounded-xl p-4 space-y-3">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-16" />
+                  <div className="flex gap-2">
+                    {Array.from({ length: 3 }).map((_, j) => (
+                      <Skeleton key={j} className="h-8 w-8 rounded-full" />
+                    ))}
+                  </div>
+                </div>
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ))
           ) : currentBajas.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="bg-white rounded-xl py-12 text-center text-slate-500">
+              <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
               {searchTerm ? 'No se encontraron bajas que coincidan con la búsqueda' : 'No hay bajas registradas'}
             </div>
           ) : (
             currentBajas.map((baja) => (
               <div
                 key={baja.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+                className="bg-white rounded-xl p-4"
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div className="font-medium text-gray-900">ID: {baja.id}</div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                  <div className="text-sm font-semibold text-slate-900">#{baja.id}</div>
+                  <div className="flex items-center gap-1">
+                    <button
                       onClick={() => handleBajaClick(baja)}
-                      className="p-2 hover:bg-blue-50 rounded-full"
+                      className="p-2 rounded-full text-blue-600 hover:bg-blue-50 transition-colors"
                       title="Ver detalles"
                     >
-                      <Eye className="h-4 w-4 text-blue-600" />
-                    </Button>
+                      <Eye className="h-4 w-4" />
+                    </button>
 
                     {baja.documento && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
                         onClick={() => handleDownloadDocument(baja)}
-                        className="p-2 hover:bg-green-50 rounded-full"
+                        className="p-2 rounded-full text-emerald-600 hover:bg-emerald-50 transition-colors"
                         title="Descargar documento"
                       >
-                        <Download className="h-4 w-4 text-green-600" />
-                      </Button>
+                        <Download className="h-4 w-4" />
+                      </button>
                     )}
 
                     {canEdit('bajas') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
                         onClick={() => {
                           setSelectedBaja(baja);
                           setIsEditarBajaModalOpen(true);
                         }}
-                        className="p-2 hover:bg-yellow-50 rounded-full"
+                        className="p-2 rounded-full text-amber-600 hover:bg-amber-50 transition-colors"
                         title="Editar"
                       >
-                        <Edit className="h-4 w-4 text-yellow-600" />
-                      </Button>
+                        <Edit className="h-4 w-4" />
+                      </button>
                     )}
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
                       onClick={() => {
                         setSelectedBaja(baja);
                         setIsAsociarEquiposModalOpen(true);
                       }}
-                      className="p-2 hover:bg-purple-50 rounded-full"
+                      className="p-2 rounded-full text-violet-600 hover:bg-violet-50 transition-colors"
                       title="Asociar equipos"
                     >
-                      <Link className="h-4 w-4 text-purple-600" />
-                    </Button>
+                      <Link className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
 
                 <div className="mb-2">
-                  <span className="text-xs text-gray-500">Fecha:</span>
-                  <span className="text-sm text-gray-700 ml-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Fecha:</span>
+                  <span className="text-sm text-slate-700 ml-2">
                     {baja.fecha_baja ? new Date(baja.fecha_baja).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-700 mb-3 line-clamp-3">
+                <p className="text-sm text-slate-700 mb-3 line-clamp-3">
                   {baja.descripcion || baja.motivo || 'Sin descripción'}
                 </p>
 
-                <div className="flex items-center justify-between">
-                  <Button
-                    variant="outline"
-                    size="sm"
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <button
                     onClick={() => handleViewAssociatedEquipment(baja)}
-                    className="text-blue-600 hover:bg-blue-50"
+                    className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                   >
-                    <Eye className="h-4 w-4 mr-1" />
+                    <Eye className="h-3.5 w-3.5" />
                     Equipos ({baja.equipos_count || 0})
-                  </Button>
+                  </button>
 
                   {canDelete('bajas') && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
                       onClick={() => handleDeleteBaja(baja.id)}
-                      className="text-red-600 hover:bg-red-50"
+                      className="p-2 rounded-full text-rose-600 hover:bg-rose-50 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </button>
                   )}
                 </div>
               </div>
@@ -506,76 +475,16 @@ export default function EquiposBajas() {
         </div>
 
         {/* Pagination */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-600 order-2 sm:order-1">
-            Página {currentPage} de {totalPages}
-          </div>
-
-          <div className="flex items-center gap-2 order-1 sm:order-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="hidden sm:flex"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Anterior
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="sm:hidden"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-
-            <div className="hidden sm:flex items-center gap-1">
-              {renderPagination().map((page) => (
-                <Button
-                  key={page}
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-8 h-8 p-0 ${currentPage === page
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "hover:bg-gray-100"
-                    }`}
-                >
-                  {page}
-                </Button>
-              ))}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="hidden sm:flex"
-            >
-              Siguiente
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              disabled={currentPage === totalPages}
-              className="sm:hidden"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        {!loading && totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={pagination.total}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            loading={loading}
+          />
+        )}
       </div>
 
       {/* Document Modal */}

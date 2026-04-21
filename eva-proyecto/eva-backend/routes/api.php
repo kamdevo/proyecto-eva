@@ -5421,8 +5421,8 @@ Route::post('v1/equipos-create', function(Request $request) {
             'estado_mantenimiento' => 0, // SIEMPRE 0 por defecto
             'estadoequipo_id' => $request->input('funcionalidad') ?: 1, // Funcionalidad → estadoequipo_id
             'disponibilidad_id' => $request->input('estadoequipo_id') ?: null, // Disponibilidad → disponibilidad_id
-            'guia_id' => $request->input('guia_id') ?: 1, // REQUERIDO
-            'manual_id' => $request->input('manual_id') ?: 1, // REQUERIDO
+            'guia_id' => $request->input('guia_id') ?: null, // Opcional: no asignar guía por defecto al copiar/crear
+            'manual_id' => $request->input('manual_id') ?: null, // Opcional: no asignar manual por defecto al copiar/crear
 
             // Campos de archivos
             'image' => $imagePath,
@@ -6903,8 +6903,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'baja_id' => $request->input('baja_id', 1),
                 'estado_mantenimiento' => $request->input('estado_mantenimiento', 0),
                 'estadoequipo_id' => $request->input('estadoequipo_id', 1),
-                'guia_id' => $request->input('guia_id', 1),
-                'manual_id' => $request->input('manual_id', 1),
+                'guia_id' => $request->input('guia_id') ?: null,
+                'manual_id' => $request->input('manual_id') ?: null,
                 'disponibilidad_id' => $request->input('disponibilidad_id', 1),
 
                 // Campos de archivos (usando campos existentes en la tabla)

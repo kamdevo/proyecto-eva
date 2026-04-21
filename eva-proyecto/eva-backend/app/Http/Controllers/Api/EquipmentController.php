@@ -1988,20 +1988,59 @@ class EquipmentController extends ApiController
                 $equipoData['contingencias'] = [];
             }
 
-            // 3. Calibraciones (todas)
+            // 3. Calibraciones
+            // Industrial: combina ambas tablas (calibracion_ind + calibracion), por si hay
+            // registros mezclados asociados al equipo industrial.
+            // Biomédico: solo calibracion.
             try {
-                $calibraciones = DB::table('calibracion')
-                    ->where('equipo_id', $id)
-                    ->select(
-                        'calibracion.*',
-                        'calibracion.fecha_calibracion',
-                        'calibracion.fecha_programada as proxima_calibracion',
-                        'calibracion.description as tipo_calibracion',
-                        DB::raw("'Conforme' as resultado")
-                    )
-                    ->orderBy('fecha_calibracion', 'desc')
-                    ->get();
-                $equipoData['calibraciones'] = $calibraciones;
+                if ($equipoBasico->tipo_id == 2) {
+                    $calibracionesInd = DB::table('calibracion_ind')
+                        ->where('equipo_id', $id)
+                        ->where('status', 1)
+                        ->get()
+                        ->map(function ($row) {
+                            $row->origen_tabla = 'calibracion_ind';
+                            $row->tipo_calibracion = $row->description ?? null;
+                            $row->proxima_calibracion = $row->fecha_programada ?? null;
+                            $row->resultado = 'Conforme';
+                            return $row;
+                        });
+
+                    $calibracionesBio = DB::table('calibracion')
+                        ->where('equipo_id', $id)
+                        ->where('status', 1)
+                        ->get()
+                        ->map(function ($row) {
+                            $row->origen_tabla = 'calibracion';
+                            $row->tipo_calibracion = $row->description ?? null;
+                            $row->proxima_calibracion = $row->fecha_programada ?? null;
+                            $row->resultado = 'Conforme';
+                            return $row;
+                        });
+
+                    $calibraciones = $calibracionesInd
+                        ->concat($calibracionesBio)
+                        ->sortByDesc(function ($row) {
+                            return $row->fecha_calibracion ?? '';
+                        })
+                        ->values();
+                    $equipoData['calibraciones'] = $calibraciones;
+                } else {
+                    $calibraciones = DB::table('calibracion')
+                        ->where('equipo_id', $id)
+                        ->where('status', 1)
+                        ->select(
+                            'calibracion.*',
+                            'calibracion.fecha_calibracion',
+                            'calibracion.fecha_programada as proxima_calibracion',
+                            'calibracion.description as tipo_calibracion',
+                            DB::raw("'Conforme' as resultado"),
+                            DB::raw("'calibracion' as origen_tabla")
+                        )
+                        ->orderBy('fecha_calibracion', 'desc')
+                        ->get();
+                    $equipoData['calibraciones'] = $calibraciones;
+                }
             } catch (\Exception $e) {
                 \Log::warning('Error obteniendo calibraciones: ' . $e->getMessage());
                 $equipoData['calibraciones'] = [];
@@ -2015,7 +2054,8 @@ class EquipmentController extends ApiController
                     ->select(
                         'archivos.*',
                         'archivos.name as nombre_archivo',
-                        'equipo_archivo.vinculo as tipo_documento',
+                        'archivos.name as tipo_documento',
+                        'equipo_archivo.otro as tipo_personalizado',
                         'equipo_archivo.created_at as fecha_subida',
                         'equipo_archivo.vinculo',
                         'equipo_archivo.created_at'
@@ -2028,7 +2068,25 @@ class EquipmentController extends ApiController
                 $equipoData['documentos'] = [];
             }
 
-            // 5. Contactos Técnicos (todos)
+            // 5. Repuestos/Accesorios
+            try {
+                $repuestos = DB::table('equipo_repuestos')
+                    ->leftJoin('repuestos', 'equipo_repuestos.repuesto_id', '=', 'repuestos.id')
+                    ->where('equipo_repuestos.equipo_id', $id)
+                    ->select(
+                        'equipo_repuestos.*',
+                        'repuestos.name as repuesto_name'
+                    )
+                    ->orderBy('equipo_repuestos.fecha', 'desc')
+                    ->limit(50)
+                    ->get();
+                $equipoData['repuestos'] = $repuestos;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo repuestos: ' . $e->getMessage());
+                $equipoData['repuestos'] = [];
+            }
+
+            // 6. Contactos Técnicos (todos)
             try {
                 $contactos = DB::table('contacto')
                     ->leftJoin('equipo_contacto', 'contacto.id', '=', 'equipo_contacto.contacto_id')
@@ -2042,7 +2100,7 @@ class EquipmentController extends ApiController
                 $equipoData['contactos_tecnicos'] = [];
             }
 
-            // 6. Observaciones del Equipo (todas)
+            // 7. Observaciones del Equipo (todas)
             try {
                 $observaciones = DB::table('observaciones')
                     ->leftJoin('usuarios', 'observaciones.usuario_id', '=', 'usuarios.id')
@@ -2070,7 +2128,7 @@ class EquipmentController extends ApiController
                 $equipoData['observaciones'] = [];
             }
 
-            // 7. Capacitaciones (documentos de tipo capacitacion en equipo_archivo)
+            // 8. Capacitaciones (documentos de tipo capacitacion en equipo_archivo)
             try {
                 $capacitaciones = DB::table('equipo_archivo')
                     ->join('archivos', 'equipo_archivo.archivo_id', '=', 'archivos.id')
@@ -2096,7 +2154,7 @@ class EquipmentController extends ApiController
                 $equipoData['capacitaciones'] = [];
             }
 
-            // 8. Movimientos (cambios de ubicacion)
+            // 9. Movimientos (cambios de ubicacion)
             try {
                 // Primero verificar si hay registros
                 $countMovimientos = DB::table('cambios_ubicaciones')
@@ -2140,7 +2198,7 @@ class EquipmentController extends ApiController
                 $equipoData['movimientos'] = [];
             }
 
-            // 9. Correctivos Generales
+            // 10. Correctivos Generales
             try {
                 $correctivos = DB::table('correctivos_generales')
                     ->leftJoin('codificacion_cierres', 'codificacion_cierres.id', '=', 'correctivos_generales.cierre_id')
@@ -2158,6 +2216,187 @@ class EquipmentController extends ApiController
             } catch (\Exception $e) {
                 \Log::warning('Error obteniendo correctivos generales: ' . $e->getMessage());
                 $equipoData['correctivos_generales'] = [];
+            }
+
+            // 11. Especificaciones del Equipo
+            try {
+                $especificaciones = DB::table('equipo_especificacion as ee')
+                    ->join('especificacion as e', 'ee.especificacion_id', '=', 'e.id')
+                    ->where('ee.equipo_id', $id)
+                    ->where('ee.status', 1)
+                    ->select('ee.*', 'e.name as especificacion_nombre')
+                    ->orderBy('ee.created_at', 'desc')
+                    ->get();
+                $equipoData['especificaciones'] = $especificaciones;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo especificaciones: ' . $e->getMessage());
+                $equipoData['especificaciones'] = [];
+            }
+
+            // 12. Historial de Usuario (observaciones + documentos + mantenimientos)
+            try {
+                $userHistory = [];
+
+                // Observaciones
+                $observaciones = DB::table('observaciones as o')
+                    ->leftJoin('usuarios as u', 'o.usuario_id', '=', 'u.id')
+                    ->where('o.equipo_id', $id)
+                    ->select([
+                        'o.id',
+                        'o.description as detalle',
+                        'o.created_at as fecha',
+                        'u.nombre as usuario',
+                        DB::raw("'observacion' as tipo"),
+                        DB::raw("'Agregó observación' as accion")
+                    ])
+                    ->get();
+
+                foreach ($observaciones as $obs) {
+                    $userHistory[] = [
+                        'id' => 'obs_' . $obs->id,
+                        'usuario' => $obs->usuario ?? 'Usuario desconocido',
+                        'accion' => $obs->accion,
+                        'detalle' => $obs->detalle ?? 'Sin detalle',
+                        'fecha' => $obs->fecha,
+                        'tipo' => $obs->tipo
+                    ];
+                }
+
+                // Documentos
+                $documentos = DB::table('equipo_archivo as ea')
+                    ->leftJoin('archivos as a', 'ea.archivo_id', '=', 'a.id')
+                    ->where('ea.equipo_id', $id)
+                    ->select([
+                        'ea.id',
+                        'a.name as detalle',
+                        'ea.created_at as fecha',
+                        DB::raw("'Sistema' as usuario"),
+                        DB::raw("'documento' as tipo"),
+                        DB::raw("'Archivo vinculado' as accion")
+                    ])
+                    ->get();
+
+                foreach ($documentos as $doc) {
+                    $userHistory[] = [
+                        'id' => 'doc_' . $doc->id,
+                        'usuario' => $doc->usuario ?? 'Usuario desconocido',
+                        'accion' => $doc->accion,
+                        'detalle' => $doc->detalle ?? 'Documento sin nombre',
+                        'fecha' => $doc->fecha,
+                        'tipo' => $doc->tipo
+                    ];
+                }
+
+                // Mantenimientos
+                $mantenimientosUsuario = DB::table('mantenimiento as m')
+                    ->where('m.equipo_id', $id)
+                    ->select([
+                        'm.id',
+                        'm.description as detalle',
+                        'm.created_at as fecha',
+                        DB::raw("'Sistema' as usuario"),
+                        DB::raw("'mantenimiento' as tipo"),
+                        DB::raw("'Mantenimiento registrado' as accion")
+                    ])
+                    ->get();
+
+                foreach ($mantenimientosUsuario as $mant) {
+                    $userHistory[] = [
+                        'id' => 'mant_' . $mant->id,
+                        'usuario' => $mant->usuario ?? 'Usuario desconocido',
+                        'accion' => $mant->accion,
+                        'detalle' => $mant->detalle ?? 'Mantenimiento registrado',
+                        'fecha' => $mant->fecha,
+                        'tipo' => $mant->tipo
+                    ];
+                }
+
+                // Ordenar por fecha descendente
+                usort($userHistory, function($a, $b) {
+                    return strtotime($b['fecha']) - strtotime($a['fecha']);
+                });
+
+                // Limitar a 50
+                $equipoData['user_history'] = array_slice($userHistory, 0, 50);
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo user history: ' . $e->getMessage());
+                $equipoData['user_history'] = [];
+            }
+
+            // 13. Tickets/Órdenes relacionados al equipo (últimos 10)
+            try {
+                $tickets = DB::table('ordenes')
+                    ->leftJoin('subprocesos', 'ordenes.subproceso_id', '=', 'subprocesos.id')
+                    ->leftJoin('usuarios as reportante', 'ordenes.reportante_id', '=', 'reportante.id')
+                    ->leftJoin('usuarios as asignado', 'ordenes.asignado_id', '=', 'asignado.id')
+                    ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
+                    ->leftJoin('areas', 'ordenes.area_id', '=', 'areas.id')
+                    ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                    ->where('ordenes.equipo_id', $id)
+                    ->select([
+                        'ordenes.id',
+                        'ordenes.asunto',
+                        'ordenes.descripcion',
+                        'ordenes.fecha_inicio',
+                        'ordenes.fecha_fin',
+                        'ordenes.estado_id',
+                        'ordenes.prioridad',
+                        'ordenes.diagnostico',
+                        'ordenes.reparacion',
+                        'ordenes.image',
+                        'subprocesos.nombre as origen',
+                        'reportante.nombre as reportante_nombre',
+                        'reportante.apellido as reportante_apellido',
+                        'asignado.nombre as asignado_nombre',
+                        'asignado.apellido as asignado_apellido',
+                        'servicios.name as servicio_nombre',
+                        'areas.name as area_nombre',
+                        'sedes.name as sede_nombre'
+                    ])
+                    ->orderBy('ordenes.fecha_inicio', 'desc')
+                    ->limit(10)
+                    ->get();
+                $equipoData['tickets'] = $tickets;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo tickets: ' . $e->getMessage());
+                $equipoData['tickets'] = [];
+            }
+
+            // 14. Cambios de Hoja de Vida
+            try {
+                $cambiosHdv = DB::table('cambios_hdv')
+                    ->leftJoin('usuarios', 'cambios_hdv.usuario_id', '=', 'usuarios.id')
+                    ->where('cambios_hdv.equipo_id', $id)
+                    ->select([
+                        'cambios_hdv.id',
+                        'cambios_hdv.equipo_id',
+                        'cambios_hdv.descripcion',
+                        'cambios_hdv.usuario_id',
+                        'cambios_hdv.created_at',
+                        'usuarios.nombre as usuario_nombre',
+                        'usuarios.apellido as usuario_apellido',
+                        'usuarios.username as usuario_username',
+                        DB::raw("CONCAT(COALESCE(usuarios.nombre, 'Sistema'), ' ', COALESCE(usuarios.apellido, '')) as responsable_nombre")
+                    ])
+                    ->orderBy('cambios_hdv.created_at', 'desc')
+                    ->get()
+                    ->map(function ($cambio) {
+                        return [
+                            'id' => $cambio->id,
+                            'descripcion' => $cambio->descripcion,
+                            'usuario_id' => $cambio->usuario_id,
+                            'usuario_nombre' => $cambio->usuario_nombre ?? 'Sistema',
+                            'usuario_apellido' => $cambio->usuario_apellido ?? '',
+                            'usuario_username' => $cambio->usuario_username ?? '',
+                            'responsable_nombre' => $cambio->responsable_nombre ?? 'Sistema',
+                            'fecha' => $cambio->created_at,
+                            'fecha_formateada' => \Carbon\Carbon::parse($cambio->created_at)->format('d/m/Y H:i:s')
+                        ];
+                    });
+                $equipoData['cambios_hdv'] = $cambiosHdv;
+            } catch (\Exception $e) {
+                \Log::warning('Error obteniendo cambios HDV: ' . $e->getMessage());
+                $equipoData['cambios_hdv'] = [];
             }
 
             return response()->json([

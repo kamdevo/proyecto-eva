@@ -8,14 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import SearchableSelect from "@/components/ui/searchable-select";
 import {
   Upload,
   FileText,
@@ -39,6 +33,7 @@ export function DocumentUploadModal({
   const [documentTypes, setDocumentTypes] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
+  const [documentTypeFreeText, setDocumentTypeFreeText] = useState("");
   const [formData, setFormData] = useState({
     archivo_id: "",
     document: null,
@@ -83,6 +78,7 @@ export function DocumentUploadModal({
       hora_capacitacion: "",
       otro: "",
     });
+    setDocumentTypeFreeText("");
   };
 
   const handleInputChange = (field, value) => {
@@ -168,8 +164,8 @@ export function DocumentUploadModal({
   const handleUpload = async () => {
     try {
       // Validaciones
-      if (!formData.archivo_id) {
-        toast.error("Por favor selecciona un tipo de documento");
+      if (!formData.archivo_id && !documentTypeFreeText.trim()) {
+        toast.error("Por favor selecciona o escribe un tipo de documento");
         return;
       }
 
@@ -200,18 +196,28 @@ export function DocumentUploadModal({
 
       // Preparar FormData
       const uploadData = new FormData();
-      uploadData.append("archivo_id", formData.archivo_id);
+      
+      // Si hay un tipo seleccionado del listado, enviarlo
+      if (formData.archivo_id) {
+        uploadData.append("archivo_id", formData.archivo_id);
+        
+        // Campo especial para "otros documentos" cuando se selecciona manualmente
+        if (formData.archivo_id === "19" && formData.otro) {
+          uploadData.append("otro", formData.otro);
+        }
+      } 
+      // Si hay texto libre, usar el ID 19 (Otro documento) y enviar el texto en el campo "otro"
+      else if (documentTypeFreeText.trim()) {
+        uploadData.append("archivo_id", "19"); // ID de "Otro documento"
+        uploadData.append("otro", documentTypeFreeText.trim());
+      }
+      
       uploadData.append("document", formData.document);
 
       // Campos especiales para capacitaciones
       if (formData.archivo_id === "9") {
         uploadData.append("fecha_capacitacion", formData.fecha_capacitacion);
         uploadData.append("hora_capacitacion", formData.hora_capacitacion);
-      }
-
-      // Campo especial para "otros documentos"
-      if (formData.archivo_id === "19" && formData.otro) {
-        uploadData.append("otro", formData.otro);
       }
 
       const url = `/v1/equipos/${equipment.id}/upload-document`;
@@ -302,26 +308,32 @@ export function DocumentUploadModal({
                 <FileType className="h-4 w-4" />
                 Tipo de Documento *
               </Label>
-              <Select
+              <SearchableSelect
+                options={documentTypes}
                 value={formData.archivo_id}
-                onValueChange={(value) =>
-                  handleInputChange("archivo_id", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar tipo de documento..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {documentTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id.toString()}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => {
+                  handleInputChange("archivo_id", value);
+                  if (value) setDocumentTypeFreeText("");
+                }}
+                allowFreeInput={true}
+                onFreeInputChange={(text) => {
+                  setDocumentTypeFreeText(text);
+                  if (text) handleInputChange("archivo_id", "");
+                }}
+                placeholder="Buscar o escribir tipo de documento..."
+                className=""
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                💡 Puede buscar en la lista o escribir un tipo personalizado
+              </p>
               {selectedDocType && (
                 <p className="text-xs text-gray-600 mt-1">
                   📋 <strong>{selectedDocType.name}</strong>
+                </p>
+              )}
+              {documentTypeFreeText && (
+                <p className="text-xs text-blue-600 mt-1">
+                  ✏️ Tipo personalizado: <strong>{documentTypeFreeText}</strong>
                 </p>
               )}
             </div>
@@ -529,7 +541,7 @@ export function DocumentUploadModal({
 
           <Button
             onClick={handleUpload}
-            disabled={!formData.archivo_id || !formData.document || isUploading}
+            disabled={(!formData.archivo_id && !documentTypeFreeText.trim()) || !formData.document || isUploading}
             className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
           >
             {isUploading ? (

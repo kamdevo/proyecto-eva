@@ -206,12 +206,12 @@ export default function VistaTiposMantenimiento() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] p-4 md:p-8">
+    <div className="min-h-screen bg-[#F1F4F6] p-4 md:p-8">
 
       {/* ── PAGE HEADER ── */}
       <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-amber-600">
+          <div className="p-3 bg-white border border-slate-100 rounded-2xl  text-amber-600">
             <Wrench className="w-8 h-8" />
           </div>
           <div>
@@ -225,7 +225,7 @@ export default function VistaTiposMantenimiento() {
         </div>
 
         {/* Summary Stat Card */}
-        <div className="bg-white border border-gray-100 p-5 rounded-3xl shadow-sm flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
+        <div className="bg-white border border-gray-100 p-5 rounded-3xl  flex items-center gap-5 w-full md:w-64 transition-all hover:shadow-md">
           <div className="bg-amber-100 p-3 rounded-2xl">
             <Settings2 className="h-8 w-8 text-amber-600" />
           </div>
@@ -240,7 +240,7 @@ export default function VistaTiposMantenimiento() {
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Barra de Controles y Búsqueda */}
-        <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
+        <div className="bg-white p-4 rounded-3xl  border border-gray-100 flex flex-col lg:flex-row gap-4 items-center">
           <div className="relative flex-grow w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
             <Input
@@ -274,7 +274,7 @@ export default function VistaTiposMantenimiento() {
 
           <Button
             onClick={handleOpenAdd}
-            className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12 shadow-lg shadow-amber-100 transition-all font-bold w-full lg:w-auto shrink-0"
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl flex items-center gap-2.5 px-6 h-12  transition-all font-bold w-full lg:w-auto shrink-0"
           >
             <Plus className="w-5 h-5 font-bold" />
             Agregar Tipo
@@ -282,7 +282,7 @@ export default function VistaTiposMantenimiento() {
         </div>
 
         {/* Tabla de Resultados */}
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+        <div className="overflow-hidden rounded-3xl bg-white  overflow-x-auto relative">
           {loading && currentItems.length > 0 && (
             <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
               <div className="h-full bg-blue-600 animate-progress origin-left"></div>

@@ -76,6 +76,10 @@ export async function prefetchDropdownOptions() {
   });
 }
 
+/**
+ * Prefetch equipment data (general info + all related data).
+ * Now uses complete-info endpoint which returns everything in one call.
+ */
 export async function prefetchEquipmentData(equipmentId) {
   return fetchWithDedup(`equip-${equipmentId}`, async () => {
     const resp = await httpService.get(`/v1/equipos/${equipmentId}/complete-info`);
@@ -84,13 +88,31 @@ export async function prefetchEquipmentData(equipmentId) {
   });
 }
 
+/**
+ * Prefetch equipment history (calibraciones, preventivos, correctivos, repuestos, observaciones).
+ * Now included in complete-info, but keeping separate cache key for compatibility.
+ */
 export async function prefetchEquipmentHistory(equipmentId) {
   return fetchWithDedup(`history-${equipmentId}`, async () => {
+    // Try complete-info first (includes all history)
+    const completeResp = await prefetchEquipmentData(equipmentId);
+    if (completeResp) {
+      return {
+        correctivos: completeResp.correctivos_generales || completeResp.contingencias || [],
+        preventivos: completeResp.mantenimientos_preventivos || [],
+        calibraciones: completeResp.calibraciones || [],
+        repuestos: completeResp.repuestos || [],
+        observaciones: completeResp.observaciones || []
+      };
+    }
+
+    // Fallback to old equipment-history endpoint
     try {
       const resp = await httpService.get(`/v1/equipos/${equipmentId}/equipment-history`);
       if (resp.data?.success) return resp.data.data;
     } catch { /* fall through */ }
 
+    // Fallback to old historial endpoint
     try {
       const resp = await httpService.get(`/v1/equipos/${equipmentId}/historial`);
       if (resp.data?.success) return resp.data.data;
@@ -120,8 +142,19 @@ export async function prefetchEquipmentHistory(equipmentId) {
   });
 }
 
+/**
+ * Prefetch equipment specifications.
+ * Now included in complete-info, but keeping separate cache key for compatibility.
+ */
 export async function prefetchEspecificaciones(equipmentId) {
   return fetchWithDedup(`especificaciones-${equipmentId}`, async () => {
+    // Try complete-info first
+    const completeResp = await prefetchEquipmentData(equipmentId);
+    if (completeResp?.especificaciones) {
+      return completeResp.especificaciones;
+    }
+
+    // Fallback to dedicated endpoint
     const resp = await httpService.get(`/v1/equipo-especificaciones/${equipmentId}`);
     const data = resp?.data?.data || resp?.data || [];
     return Array.isArray(data) ? data : [];
@@ -146,6 +179,13 @@ export function prefetchEquipment(equipmentId) {
 
 export async function prefetchUserHistory(equipmentId) {
   return fetchWithDedup(`user-history-${equipmentId}`, async () => {
+    // Try complete-info first
+    const completeResp = await prefetchEquipmentData(equipmentId);
+    if (completeResp?.user_history) {
+      return completeResp.user_history;
+    }
+
+    // Fallback to dedicated endpoint
     const resp = await httpService.get(`/v1/equipos/${equipmentId}/user-history`);
     if (resp.data?.success) return resp.data.data || [];
     return [];
@@ -154,6 +194,13 @@ export async function prefetchUserHistory(equipmentId) {
 
 export async function prefetchEquipmentTickets(equipmentId) {
   return fetchWithDedup(`tickets-${equipmentId}`, async () => {
+    // Try complete-info first
+    const completeResp = await prefetchEquipmentData(equipmentId);
+    if (completeResp?.tickets) {
+      return completeResp.tickets;
+    }
+
+    // Fallback to dedicated endpoint
     const resp = await httpService.get('/v1/gestion-tickets', {
       params: { equipo_id: equipmentId, per_page: 10, page: 1 }
     });
@@ -166,6 +213,13 @@ export async function prefetchEquipmentTickets(equipmentId) {
 
 export async function prefetchCambiosHdv(equipmentId) {
   return fetchWithDedup(`cambios-hdv-${equipmentId}`, async () => {
+    // Try complete-info first
+    const completeResp = await prefetchEquipmentData(equipmentId);
+    if (completeResp?.cambios_hdv) {
+      return completeResp.cambios_hdv;
+    }
+
+    // Fallback to dedicated endpoint
     const resp = await httpService.get(`/v1/equipos/${equipmentId}/cambios-hdv`);
     if (resp.data?.success) return resp.data.data || [];
     return [];

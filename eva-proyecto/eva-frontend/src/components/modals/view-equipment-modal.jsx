@@ -1500,7 +1500,16 @@ export function ViewEquipmentModal({
                         displayData.documentos.map((doc, index) => (
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.nombre_archivo)}</td>
-                            <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.tipo_documento)}</td>
+                            <td className="border border-gray-200 px-3 py-2 text-sm">
+                              {doc.tipo_personalizado ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Personalizado</span>
+                                  {safeValue(doc.tipo_personalizado)}
+                                </span>
+                              ) : (
+                                safeValue(doc.tipo_documento)
+                              )}
+                            </td>
                             <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(doc.fecha_documento)}</td>
                             <td className="border border-gray-200 px-3 py-2 text-center">
                               {doc.vinculo ? (
