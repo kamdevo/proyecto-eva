@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { API_CONFIG } from "@/config/api";
 import apiClient from "@/config/apiClient";
 import SearchableSelect from "@/components/ui/searchable-select";
+import FileDropzone from "@/components/common/FileDropzone";
 
 function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCorrectivoAdded, correctivo = null }) {
   const isEditing = !!correctivo;
@@ -656,21 +657,14 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
                   </div>
                   <div className="space-y-2">
                     <Label>Archivo Asociado</Label>
-                    {!avanceFile ? (
-                      <div
-                        className="border-2 border-dashed rounded-md p-2.5 text-center cursor-pointer hover:bg-gray-50 text-xs"
-                        onClick={() => document.getElementById('avance-file').click()}
-                      >
-                        <Paperclip className="mx-auto h-4 w-4 text-gray-400 mb-0.5" />
-                        <span className="text-gray-500">Adjuntar</span>
-                        <input id="avance-file" type="file" className="hidden" onChange={(e) => setAvanceFile(e.target.files[0])} />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded border text-xs">
-                        <span className="truncate max-w-[110px]">{avanceFile.name}</span>
-                        <X className="h-3.5 w-3.5 text-red-500 cursor-pointer flex-shrink-0" onClick={() => setAvanceFile(null)} />
-                      </div>
-                    )}
+                    <FileDropzone
+                      file={avanceFile}
+                      onFileChange={(f) => setAvanceFile(f)}
+                      onRemove={() => setAvanceFile(null)}
+                      compact
+                      label="Arrastra o adjunta"
+                      hint=""
+                    />
                   </div>
                   <div className="space-y-2 col-span-2">
                     <Label>Descripción del Avance <span className="text-red-500">*</span></Label>
@@ -711,28 +705,14 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
               </div>
               <div className="space-y-2">
                 <Label>Documento</Label>
-                {!correctivoFile ? (
-                  <div
-                    className="border-2 border-dashed rounded-md p-3 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => document.getElementById('file-main').click()}
-                  >
-                    <Upload className="mx-auto h-5 w-5 text-gray-400 mb-1" />
-                    <span className="text-xs text-gray-500">Click para subir archivo</span>
-                    <input
-                      id="file-main"
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => setCorrectivoFile(e.target.files[0])}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md border text-xs">
-                    <span className="truncate max-w-[150px]">{correctivoFile.name}</span>
-                    <Button variant="ghost" size="sm" onClick={() => setCorrectivoFile(null)} className="h-6 w-6 p-0 text-red-500">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+                <FileDropzone
+                  file={correctivoFile}
+                  onFileChange={(f) => setCorrectivoFile(f)}
+                  onRemove={() => setCorrectivoFile(null)}
+                  compact
+                  label="Arrastra o haz click para subir"
+                  hint=""
+                />
               </div>
             </div>
           </div>
@@ -857,26 +837,14 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
               </div>
               <div className="space-y-2">
                 <Label>Evidencia de Repuesto</Label>
-                {!repuestoFile ? (
-                  <div
-                    className="border-2 border-dashed rounded-md p-3 text-center cursor-pointer hover:bg-gray-50 text-xs"
-                    onClick={() => document.getElementById('file-repuesto').click()}
-                  >
-                    <Upload className="mx-auto h-4 w-4 text-gray-400 mb-1" />
-                    <span>Subir archivo</span>
-                    <input
-                      id="file-repuesto"
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => setRepuestoFile(e.target.files[0])}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md border text-xs">
-                    <span className="truncate">{repuestoFile.name}</span>
-                    <X className="h-4 w-4 text-red-500 cursor-pointer" onClick={() => setRepuestoFile(null)} />
-                  </div>
-                )}
+                <FileDropzone
+                  file={repuestoFile}
+                  onFileChange={(f) => setRepuestoFile(f)}
+                  onRemove={() => setRepuestoFile(null)}
+                  compact
+                  label="Arrastra o haz click para subir"
+                  hint=""
+                />
               </div>
             </div>
           </div>

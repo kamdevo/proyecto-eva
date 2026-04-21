@@ -4352,7 +4352,7 @@ export function EditEquipmentModal({
                             (calibracion, index) => (
                               <tr key={calibracion.id || index}>
                                 <td className="border border-gray-300 p-2 text-xs">
-                                  {calibracion.id || "-"}
+                                  {calibracion.description || "-"}
                                 </td>
                                 <td className="border border-gray-300 p-2 text-xs">
                                   {calibracion.fecha_calibracion

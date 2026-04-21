@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import SearchableSelect from "@/components/ui/searchable-select";
-import { Calendar, Upload, X, FileText, Package } from "lucide-react";
+import { Calendar, Package } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import FileDropzone from "@/components/common/FileDropzone";
 import { useRepuestos } from "../../hooks/useRepuestos";
 
 const AddRepuestoModal = ({
@@ -33,7 +34,6 @@ const AddRepuestoModal = ({
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
   const [repuestoFreeText, setRepuestoFreeText] = useState("");
 
   // Cargar repuestos desde la BD
@@ -94,26 +94,6 @@ const AddRepuestoModal = ({
 
       handleInputChange("file", file);
       toast.success("Archivo cargado correctamente");
-    }
-  };
-
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileChange(e.dataTransfer.files[0]);
     }
   };
 
@@ -296,62 +276,13 @@ const AddRepuestoModal = ({
           {/* Archivo */}
           <div className="space-y-2">
             <Label htmlFor="archivo">Archivo Asociado</Label>
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                dragActive
-                  ? "border-purple-500 bg-purple-50"
-                  : "border-gray-300 hover:border-purple-400"
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              {formData.file ? (
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-purple-600" />
-                    <span className="text-sm font-medium">
-                      {formData.file.name}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ({(formData.file.size / 1024).toFixed(2)} KB)
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRemoveFile}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-600">
-                    Arrastra un archivo aquí o{" "}
-                    <label className="text-purple-600 hover:text-purple-700 cursor-pointer">
-                      selecciona uno
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files?.[0]) {
-                            handleFileChange(e.target.files[0]);
-                          }
-                        }}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      />
-                    </label>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    PDF, Word, JPG, PNG (máx. 10MB)
-                  </p>
-                </>
-              )}
-            </div>
+            <FileDropzone
+              file={formData.file}
+              onFileChange={handleFileChange}
+              onRemove={handleRemoveFile}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              hint="PDF, Word, JPG, PNG (máx. 10MB)"
+            />
           </div>
 
           <DialogFooter className="gap-2">

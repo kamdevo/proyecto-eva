@@ -992,9 +992,13 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento
                              WHERE equipo_id = equipos.id
                              ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento'),
-                    DB::raw('(SELECT fecha_calibracion FROM calibracion
-                             WHERE equipo_id = equipos.id
-                             ORDER BY fecha_calibracion DESC LIMIT 1) AS ultima_calibracion'),
+                    DB::raw("(SELECT NULLIF(
+                                 GREATEST(
+                                     COALESCE((SELECT MAX(fecha_calibracion) FROM calibracion WHERE equipo_id = equipos.id), '0001-01-01'),
+                                     COALESCE((SELECT MAX(fecha_calibracion) FROM calibracion_ind WHERE equipo_id = equipos.id), '0001-01-01')
+                                 ),
+                                 '0001-01-01'
+                             )) AS ultima_calibracion"),
                     DB::raw('(SELECT fecha_mantenimiento FROM correctivos_generales
                              WHERE equipo_id = equipos.id
                              ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_correctivo'),
@@ -1014,8 +1018,8 @@ class EquipmentController extends ApiController
                              WHERE equipo_id = equipos.id 
                              ORDER BY fecha_inicio DESC LIMIT 1) AS ultimo_ticket_cerrado'),
                     // Conteos específicos para reemplazar archivos y planes mantenimiento
-                    DB::raw('(SELECT COUNT(*) FROM calibracion 
-                             WHERE equipo_id = equipos.id) AS cuenta_calibraciones'),
+                    DB::raw('((SELECT COUNT(*) FROM calibracion WHERE equipo_id = equipos.id)
+                             + (SELECT COUNT(*) FROM calibracion_ind WHERE equipo_id = equipos.id)) AS cuenta_calibraciones'),
                     DB::raw('(SELECT COUNT(*) FROM mantenimiento 
                              WHERE equipo_id = equipos.id) AS cuenta_preventivos'),
                     DB::raw('(SELECT COUNT(*) FROM contingencias 
