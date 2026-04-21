@@ -691,14 +691,48 @@ class EquipoController extends Controller
                 ->limit(50)
                 ->get();
 
-            // Obtener calibraciones (industrial usa calibracion_ind)
-            $tablaCalibraciones = $equipo->tipo_id == 2 ? 'calibracion_ind' : 'calibracion';
-            $calibraciones = DB::table($tablaCalibraciones)
-                ->where('equipo_id', $id)
-                ->where('status', 1)
-                ->orderBy('fecha_calibracion', 'desc')
-                ->limit(50)
-                ->get();
+            // Obtener calibraciones
+            // Industrial: combina ambas tablas (calibracion_ind + calibracion), por si hay
+            // registros mezclados asociados al equipo industrial.
+            // Biomédico: solo calibracion.
+            if ($equipo->tipo_id == 2) {
+                $calibracionesInd = DB::table('calibracion_ind')
+                    ->where('equipo_id', $id)
+                    ->where('status', 1)
+                    ->get()
+                    ->map(function ($row) {
+                        $row->origen_tabla = 'calibracion_ind';
+                        return $row;
+                    });
+
+                $calibracionesBio = DB::table('calibracion')
+                    ->where('equipo_id', $id)
+                    ->where('status', 1)
+                    ->get()
+                    ->map(function ($row) {
+                        $row->origen_tabla = 'calibracion';
+                        return $row;
+                    });
+
+                $calibraciones = $calibracionesInd
+                    ->concat($calibracionesBio)
+                    ->sortByDesc(function ($row) {
+                        return $row->fecha_calibracion ?? '';
+                    })
+                    ->values()
+                    ->take(50);
+            } else {
+                $calibraciones = DB::table('calibracion')
+                    ->where('equipo_id', $id)
+                    ->where('status', 1)
+                    ->orderBy('fecha_calibracion', 'desc')
+                    ->limit(50)
+                    ->get()
+                    ->map(function ($row) {
+                        $row->origen_tabla = 'calibracion';
+                        return $row;
+                    });
+            }
 
             // Obtener repuestos/accesorios
             $repuestos = DB::table('equipo_repuestos')
