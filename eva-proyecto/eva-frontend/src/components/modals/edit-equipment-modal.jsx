@@ -1546,9 +1546,24 @@ export function EditEquipmentModal({
   };
 
   const handleRemoveOrder = () => {
-    handleInputChange("orden_compra_id", "");
-    setSelectedOrderInfo(null);
-    toast.info("Orden de compra desasociada");
+    setConfirmModal({
+      open: true,
+      message: '¿Desasociar la orden de compra de este equipo? La orden no se eliminará del sistema.',
+      confirmLabel: 'Desasociar',
+      confirmClass: 'bg-orange-600 hover:bg-orange-700 text-white',
+      onConfirm: async () => {
+        try {
+          await httpService.patch(`/v1/equipos/${equipment.id}/desasociar`, { orden_compra_id: null });
+          handleInputChange("orden_compra_id", "");
+          setSelectedOrderInfo(null);
+          invalidateEquipmentCache(equipment.id);
+          toast.success("Orden de compra desasociada correctamente");
+          onEquipmentUpdated && onEquipmentUpdated();
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Error al desasociar la orden de compra");
+        }
+      }
+    });
   };
 
   // Función para ver documentos PDF de repuestos

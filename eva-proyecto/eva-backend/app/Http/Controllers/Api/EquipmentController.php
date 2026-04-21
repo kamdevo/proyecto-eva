@@ -1066,7 +1066,11 @@ class EquipmentController extends ApiController
                     'manuales.descripcion as manual_descripcion',
                     'manuales.url as manual_url',
                     'guias_rapidas.name as guia_name',
-                    'guias_rapidas.file as guia_file'
+                    'guias_rapidas.file as guia_file',
+                    // Registro INVIMA (tabla invimas)
+                    'invimas.invima as invima_numero_registro',
+                    'invimas.file as invima_archivo',
+                    'invimas.titulo as invima_titulo'
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
@@ -1279,7 +1283,9 @@ class EquipmentController extends ApiController
                     ] : null,
                     'registros_invima' => $equipo->invima_id ? [[
                         'id' => $equipo->invima_id,
-                        'numero_registro' => null,
+                        'numero_registro' => $equipo->invima_numero_registro ?? null,
+                        'nombre_equipo' => $equipo->invima_titulo ?? null,
+                        'archivo_registro_sanitario' => $equipo->invima_archivo ?? null,
                     ]] : null,
                 ];
             });
@@ -1364,6 +1370,10 @@ class EquipmentController extends ApiController
                     'manuales.url as manual_url',
                     'guias_rapidas.name as guia_name',
                     'guias_rapidas.file as guia_file',
+                    // Registro INVIMA (tabla invimas)
+                    'invimas.invima as invima_numero_registro',
+                    'invimas.file as invima_archivo',
+                    'invimas.titulo as invima_titulo',
                     // Información adicional dinámica con subconsultas corregidas
                     DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento 
                              WHERE equipo_id = equipos.id 
@@ -1728,8 +1738,9 @@ class EquipmentController extends ApiController
                     ] : null,
                     'registros_invima' => $equipo->invima_id ? [[
                         'id' => $equipo->invima_id,
-                        'numero_registro' => null,
-                        // 'archivo_registro_sanitario' => $equipo->archivo_invima,
+                        'numero_registro' => $equipo->invima_numero_registro ?? null,
+                        'nombre_equipo' => $equipo->invima_titulo ?? null,
+                        'archivo_registro_sanitario' => $equipo->invima_archivo ?? null,
                     ]] : null,
                 ];
             });

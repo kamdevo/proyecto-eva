@@ -128,7 +128,7 @@ export function ManualSearchModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-center bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
             Buscar Manuales de Equipos
