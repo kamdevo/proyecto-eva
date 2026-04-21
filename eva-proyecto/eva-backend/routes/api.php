@@ -5416,7 +5416,7 @@ Route::post('v1/equipos-create', function(Request $request) {
             'criesgo_id' => $request->input('criesgo_id') ?: 1, // REQUERIDO
             'tadquisicion_id' => $request->input('tadquisicion_id') ?: 1, // REQUERIDO
             'invima_id' => $procesarInvimaId($request->input('invima')), // REQUERIDO - función maneja el default
-            'orden_compra_id' => $request->input('orden_compra_id') ?: 1, // REQUERIDO
+            'orden_compra_id' => $request->input('orden_compra_id') ?: null, // Opcional: no asignar orden por defecto al copiar/crear
             'baja_id' => $request->input('baja_id') ?: 1, // REQUERIDO
             'estado_mantenimiento' => 0, // SIEMPRE 0 por defecto
             'estadoequipo_id' => $request->input('funcionalidad') ?: 1, // Funcionalidad → estadoequipo_id
@@ -6899,7 +6899,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'criesgo_id' => $request->input('criesgo_id', 1),
                 'tadquisicion_id' => $request->input('tadquisicion_id', 1),
                 'invima_id' => $procesarInvimaId($request->input('invima')), // Mapear numero_registro -> invima_id
-                'orden_compra_id' => $request->input('orden_compra_id', 1),
+                'orden_compra_id' => $request->input('orden_compra_id') ?: null,
                 'baja_id' => $request->input('baja_id', 1),
                 'estado_mantenimiento' => $request->input('estado_mantenimiento', 0),
                 'estadoequipo_id' => $request->input('estadoequipo_id', 1),
