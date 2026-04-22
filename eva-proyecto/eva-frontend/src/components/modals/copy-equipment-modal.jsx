@@ -318,6 +318,7 @@ export function CopyEquipmentModal({
 
       // ── INVIMA ────────────────────────────────────
       invima: baseEq.invima || baseEq.numero_invima || "",
+      invima_id: (baseEq.invima_id && baseEq.invima_id !== 0) ? baseEq.invima_id.toString() : "",
 
       // ── Campos ÚNICOS (Vaciados por ser copia) ──────
       serial: "",
@@ -646,6 +647,8 @@ export function CopyEquipmentModal({
       (r) => r.numero_registro === numeroRegistro
     );
     if (registroSeleccionado) {
+      // CRÍTICO: actualizar el FK invima_id (lo que se guarda en BD)
+      handleInputChange("invima_id", registroSeleccionado.id.toString());
       toast.success(
         `Registro seleccionado: ${registroSeleccionado.nombre_equipo}`
       );
@@ -696,6 +699,7 @@ export function CopyEquipmentModal({
   // Función para limpiar selección de INVIMA
   const clearInvimaSelection = () => {
     handleInputChange("invima", "");
+    handleInputChange("invima_id", "");
     setSearchInvima("");
     toast.info("Selección de registro INVIMA limpiada");
   };
@@ -716,6 +720,7 @@ export function CopyEquipmentModal({
     // Agregar a la lista y autoseleccionar
     setRegistrosInvima((prev) => [...prev, registroNormalizado]);
     handleInputChange("invima", registroNormalizado.numero_registro);
+    handleInputChange("invima_id", registroNormalizado.id ? registroNormalizado.id.toString() : "");
     setSearchInvima(registroNormalizado.numero_registro || "");
     setShowInvimaModal(false);
     toast.success(`Registro ${registroNormalizado.numero_registro} creado y seleccionado`);

@@ -931,12 +931,15 @@ export function EditEquipmentModal({
       (r) => r.numero_registro === numeroRegistro
     );
     if (registroSeleccionado) {
+      // CRÍTICO: actualizar también el FK invima_id que es lo que se guarda en BD
+      handleInputChange("invima_id", registroSeleccionado.id.toString());
       toast.success(`Registro seleccionado: ${registroSeleccionado.nombre_equipo}`);
     }
   };
 
   const clearInvimaSelection = () => {
     handleInputChange("invima", "");
+    handleInputChange("invima_id", "");
     setSearchInvima("");
     toast.info("Selección de registro INVIMA limpiada");
   };
@@ -1450,6 +1453,7 @@ export function EditEquipmentModal({
     };
     setRegistrosInvima((prev) => [...prev, registroNormalizado]);
     handleInputChange("invima", registroNormalizado.numero_registro);
+    handleInputChange("invima_id", registroNormalizado.id ? registroNormalizado.id.toString() : "");
     setSearchInvima(registroNormalizado.numero_registro || "");
     setShowInvimaModal(false);
     toast.success(`Registro ${registroNormalizado.numero_registro} creado y seleccionado`);

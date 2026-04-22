@@ -128,7 +128,7 @@ export function ManualSearchModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-6xl h-[90vh] max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-center bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
             Buscar Manuales de Equipos
@@ -138,7 +138,7 @@ export function ManualSearchModal({
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col space-y-4">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col space-y-4">
           {/* Filtros de Búsqueda */}
           <Card className="border border-gray-200">
             <CardContent className="p-4">
@@ -205,9 +205,9 @@ export function ManualSearchModal({
           )}
 
           {/* Tabla de Manuales */}
-          <Card className="flex-1 overflow-hidden">
+          <Card className="flex-1 min-h-0 overflow-hidden">
             <CardContent className="p-0 h-full">
-              <div className="overflow-auto h-full">
+              <div className="overflow-y-auto h-full">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
