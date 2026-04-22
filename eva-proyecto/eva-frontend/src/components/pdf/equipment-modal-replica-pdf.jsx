@@ -411,9 +411,9 @@ const EquipmentModalReplicaPDF = ({ data }) => {
         <View style={styles.table}>
           <View style={styles.tableRow}>
             <Text style={styles.tableCellHeader}>Reg. INVIMA</Text>
-            <Text style={styles.tableCellData}>{safeValue(data?.registro_sanitario_invima)}</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.invima || data?.numero_invima || data?.invima_numero_registro || data?.registro_sanitario_invima)}</Text>
             <Text style={styles.tableCellHeader}>Estado INVIMA</Text>
-            <Text style={styles.tableCellData}>{safeValue(data?.estado_invima)}</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.invima_estado || data?.estado_invima)}</Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableCellHeader}>F. Adquisición</Text>
@@ -833,35 +833,6 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             <Text style={styles.tableCellData}>{safeValue(data?.plan)}</Text>
           </View>
         </View>
-
-        {/* HISTORIAL DE USUARIOS */}
-        <Text style={styles.sectionTitle}>HISTORIAL DE ACTIVIDAD DE USUARIOS</Text>
-        {data?.userHistory && data.userHistory.length > 0 ? (
-          <View style={styles.dataTable}>
-            <View style={styles.dataTableHeader}>
-              <Text style={styles.dataTableHeaderCell}>Usuario</Text>
-              <Text style={styles.dataTableHeaderCell}>Acción</Text>
-              <Text style={styles.dataTableHeaderCell}>Detalle</Text>
-              <Text style={styles.dataTableHeaderCell}>Fecha</Text>
-            </View>
-            {data.userHistory.slice(0, 8).map((entry, index) => (
-              <View key={index} style={styles.dataTableRow}>
-                <Text style={styles.dataTableCell}>{safeValue(entry.usuario)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(entry.accion)}</Text>
-                <Text style={styles.dataTableCell}>{safeValue(entry.detalle)}</Text>
-                <Text style={styles.dataTableCell}>
-                  {formatDate(entry.fecha)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={[styles.table, styles.emptyHistoryContainer]}>
-            <Text style={styles.emptyHistoryText}>
-              No hay actividad registrada para este equipo
-            </Text>
-          </View>
-        )}
 
         {/* FOOTER */}
         <View style={styles.footer}>

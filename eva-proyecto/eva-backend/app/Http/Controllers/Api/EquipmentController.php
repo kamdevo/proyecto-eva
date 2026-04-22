@@ -1881,19 +1881,28 @@ class EquipmentController extends ApiController
                 // Query the correct invimas table
                 $registroInvima = DB::table('invimas')->where('id', $equipo->invima_id)->first();
                 if ($registroInvima) {
-                    // $equipoData['registro_sanitario'] = $registroInvima->invima;
-                    // $equipoData['archivo_registro_sanitario'] = $registroInvima->file;
+                    // Número de registro sanitario (columna `invima` en tabla invimas)
+                    $equipoData['invima_numero_registro'] = $registroInvima->invima;
+                    $equipoData['registro_sanitario_invima'] = $registroInvima->invima;
+                    $equipoData['archivo_registro_sanitario'] = $registroInvima->file;
+                    $equipoData['invima_archivo'] = $registroInvima->file;
+
+                    // Si el campo texto `equipos.invima` está vacío, usar el de la tabla invimas
+                    if (empty($equipoData['invima'])) {
+                        $equipoData['invima'] = $registroInvima->invima;
+                    }
 
                     // Additional INVIMA data for completeness
                     $equipoData['invima_nombre_equipo'] = $registroInvima->titulo;
                     $equipoData['invima_fabricante'] = $registroInvima->marcas;
                     $equipoData['invima_modelo'] = $registroInvima->description;
                     $equipoData['invima_estado'] = 'vigente'; // Por defecto vigente
+                    $equipoData['estado_invima'] = 'vigente';
 
                     \Log::info('INVIMA data retrieved successfully', [
                         'equipo_id' => $equipo->id,
                         'invima_id' => $equipo->invima_id,
-                        'numero_registro' => $registroInvima->numero_registro
+                        'numero_registro' => $registroInvima->invima
                     ]);
                 } else {
                     \Log::warning('INVIMA record not found', [

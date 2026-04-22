@@ -1023,9 +1023,27 @@ export function ViewEquipmentModal({
                   <tbody>
                     <tr>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Reg. INVIMA</td>
-                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.registro_sanitario_invima)}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span>{safeValue(displayData.invima || displayData.numero_invima || displayData.registro_sanitario_invima)}</span>
+                          {(displayData.invima_archivo || displayData.archivo_registro_sanitario) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const archivo = displayData.invima_archivo || displayData.archivo_registro_sanitario;
+                                const base = import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
+                                window.open(`${base}/storage/registros_sanitarios/${archivo}`, "_blank");
+                              }}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                              title="Ver archivo del registro INVIMA"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800 w-1/4">Estado INVIMA</td>
-                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.estado_invima)}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.invima_estado || displayData.estado_invima)}</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">F. Adquisición</td>
