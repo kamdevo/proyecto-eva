@@ -11814,7 +11814,7 @@ Route::post('v1/equipos/{id}/upload-document', function (Request $request, $id) 
         // Validaciones del archivo y datos
         $validator = Validator::make($request->all(), [
             'archivo_id' => 'required|integer',
-            'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,txt,jpg,jpeg,png,JPG,JPEG,PNG,PDF|max:10240', // 10MB
+            'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,txt,jpg,jpeg,png,JPG,JPEG,PNG,PDF|max:40960', // 40MB
             'fecha_capacitacion' => 'nullable|date',
             'hora_capacitacion' => 'nullable',
             'otro' => 'nullable|string|max:255'

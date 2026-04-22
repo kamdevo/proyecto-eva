@@ -96,10 +96,10 @@ export function DocumentUploadModal({
   };
 
   const validateAndSetFile = (file) => {
-    // Validar tamaño (10MB máximo)
-    const maxSize = 10 * 1024 * 1024; // 10MB en bytes
+    // Validar tamaño (40MB máximo)
+    const maxSize = 40 * 1024 * 1024; // 40MB en bytes
     if (file.size > maxSize) {
-      toast.error("El archivo es demasiado grande. Máximo 10MB permitido.");
+      toast.error("El archivo es demasiado grande. Máximo 40MB permitido.");
       return;
     }
 
@@ -465,7 +465,7 @@ export function DocumentUploadModal({
                         <p className="font-medium mb-1">Formatos permitidos:</p>
                         <p>PDF, DOC, DOCX, XLS, XLSX, TXT, JPG, JPEG, PNG</p>
                         <p className="mt-1 text-gray-400">
-                          Tamaño máximo: 10MB
+                          Tamaño máximo: 40MB
                         </p>
                       </div>
                     </div>
