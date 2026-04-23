@@ -8,22 +8,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, Package, FileText, Calendar, DollarSign } from "lucide-react";
+import { Search, Package, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
 
-export function OrderSearchModal({ 
-  open, 
-  onOpenChange, 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://192.168.2.146:8001";
+
+export function OrderSearchModal({
+  open,
+  onOpenChange,
   onSelectOrder,
-  currentOrderId 
+  currentOrderId
 }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Cargar órdenes de compra
   const loadOrders = async () => {
     try {
       setLoading(true);
@@ -37,7 +38,6 @@ export function OrderSearchModal({
       if (response.data?.success) {
         setOrders(response.data.data?.data || []);
       } else {
-        console.warn("No se pudieron cargar las órdenes de compra");
         setOrders([]);
       }
     } catch (error) {
@@ -49,27 +49,19 @@ export function OrderSearchModal({
     }
   };
 
-  // Cargar órdenes cuando se abre el modal
   useEffect(() => {
     if (open) {
+      setSelectedOrder(null);
       loadOrders();
     }
   }, [open]);
 
-  // Búsqueda en tiempo real
   useEffect(() => {
     if (open) {
-      const debounceTimer = setTimeout(() => {
-        loadOrders();
-      }, 300);
-
-      return () => clearTimeout(debounceTimer);
+      const t = setTimeout(() => loadOrders(), 300);
+      return () => clearTimeout(t);
     }
   }, [searchTerm, open]);
-
-  const handleSelectOrder = (order) => {
-    setSelectedOrder(order);
-  };
 
   const handleConfirmSelection = () => {
     if (selectedOrder && onSelectOrder) {
@@ -88,23 +80,31 @@ export function OrderSearchModal({
     setSearchTerm("");
   };
 
-  const formatCurrency = (amount) => {
-    if (!amount) return "N/A";
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP'
-    }).format(amount);
-  };
-
   const formatDate = (date) => {
     if (!date) return "N/A";
-    return new Date(date).toLocaleDateString('es-CO');
+    try {
+      return new Date(date).toLocaleDateString('es-CO');
+    } catch {
+      return String(date);
+    }
+  };
+
+  const getFileUrl = (file) => {
+    if (!file) return null;
+    if (/^https?:\/\//i.test(file)) return file;
+    // Backend guarda en public/storage/ordenes_compra/<file>
+    return `${API_BASE}/storage/ordenes_compra/${file}`;
+  };
+
+  const openFile = (e, url) => {
+    e.stopPropagation();
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader className="pb-4 border-b">
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-6xl h-[90vh] max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
+        <DialogHeader className="pb-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold text-blue-700 flex items-center gap-2">
             <Package className="w-5 h-5" />
             Buscar Órdenes de Compra
@@ -114,12 +114,12 @@ export function OrderSearchModal({
           </p>
         </DialogHeader>
 
-        <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col gap-3 py-3 overflow-hidden">
           {/* Búsqueda */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 shrink-0">
             <div className="flex-1">
               <Label className="text-sm font-medium">
-                Buscar por número, proveedor, o descripción
+                Buscar por número de orden, proveedor o tipo de compra
               </Label>
               <div className="relative mt-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -132,28 +132,23 @@ export function OrderSearchModal({
               </div>
             </div>
             <div className="flex items-end">
-              <Button
-                onClick={() => setSearchTerm("")}
-                variant="outline"
-                size="sm"
-                className="mb-0"
-              >
+              <Button onClick={() => setSearchTerm("")} variant="outline" size="sm">
                 Limpiar
               </Button>
             </div>
           </div>
 
           {/* Lista de órdenes */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden border rounded-lg">
             {loading ? (
-              <div className="flex items-center justify-center h-32">
+              <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                   <p className="text-sm text-gray-500">Cargando órdenes de compra...</p>
                 </div>
               </div>
             ) : orders.length === 0 ? (
-              <div className="flex items-center justify-center h-32">
+              <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">
@@ -162,108 +157,157 @@ export function OrderSearchModal({
                 </div>
               </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto overflow-y-auto max-h-80">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 sticky top-0">
-                      <tr>
-                        <th className="w-12 p-3 text-left"></th>
-                        <th className="p-3 text-left font-medium">Número</th>
-                        <th className="p-3 text-left font-medium">Proveedor</th>
-                        <th className="p-3 text-left font-medium">Fecha</th>
-                        <th className="p-3 text-left font-medium">Valor</th>
-                        <th className="p-3 text-left font-medium">Estado</th>
-                        <th className="p-3 text-left font-medium">Descripción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((order) => (
+              <div className="h-full overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="w-10 p-3 text-left"></th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">ID</th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">N° Orden</th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">Fecha</th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">Proveedor</th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">Tipo de compra</th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">Estado</th>
+                      <th className="p-3 text-center font-semibold whitespace-nowrap">Archivo</th>
+                      <th className="p-3 text-left font-semibold whitespace-nowrap">SECOP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map((order) => {
+                      const orderIdStr = String(order.id);
+                      const isSelected = selectedOrder?.id === order.id;
+                      const isCurrent = String(currentOrderId || '') === orderIdStr;
+                      const fileUrl = getFileUrl(order.file);
+                      return (
                         <tr
                           key={order.id}
-                          onClick={() => handleSelectOrder(order)}
-                          className={`border-t cursor-pointer hover:bg-blue-50 transition-colors ${
-                            selectedOrder?.id === order.id ? 'bg-blue-100 border-blue-200' : ''
-                          } ${currentOrderId === order.id.toString() ? 'bg-green-50' : ''}`}
+                          onClick={() => setSelectedOrder(order)}
+                          className={`border-t cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-blue-100 hover:bg-blue-100'
+                              : isCurrent
+                              ? 'bg-green-50 hover:bg-green-100'
+                              : 'hover:bg-blue-50'
+                          }`}
                         >
                           <td className="p-3">
                             <div className={`w-4 h-4 border-2 rounded-full flex items-center justify-center ${
-                              selectedOrder?.id === order.id 
-                                ? 'bg-blue-600 border-blue-600' 
-                                : 'border-gray-300'
+                              isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
                             }`}>
-                              {selectedOrder?.id === order.id && (
-                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                              )}
+                              {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
                             </div>
                           </td>
-                          <td className="p-3 font-medium text-blue-600">
-                            {order.numero || order.id}
+                          <td className="p-3 text-gray-600">{order.id}</td>
+                          <td className="p-3 font-medium text-blue-700">
+                            {order.orden || `#${order.id}`}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            {formatDate(order.fecha)}
                           </td>
                           <td className="p-3">
-                            {order.proveedor || "N/A"}
+                            {order.proveedor_nombre || <span className="text-gray-400 italic">Sin proveedor</span>}
                           </td>
                           <td className="p-3">
-                            {formatDate(order.fecha || order.created_at)}
-                          </td>
-                          <td className="p-3 font-medium">
-                            {formatCurrency(order.valor_total || order.valor)}
+                            {order.tipo_compra_nombre || <span className="text-gray-400 italic">N/A</span>}
                           </td>
                           <td className="p-3">
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              order.estado === 'completada' || order.estado === 'entregada'
+                              String(order.status) === '1' || order.status === 1
                                 ? 'bg-green-100 text-green-800'
-                                : order.estado === 'pendiente' || order.estado === 'proceso'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
+                                : 'bg-gray-100 text-gray-700'
                             }`}>
-                              {order.estado || "N/A"}
+                              {String(order.status) === '1' || order.status === 1 ? 'Activa' : 'Inactiva'}
                             </span>
                           </td>
-                          <td className="p-3 max-w-xs">
-                            <div className="truncate" title={order.descripcion || order.observaciones}>
-                              {order.descripcion || order.observaciones || "Sin descripción"}
-                            </div>
+                          <td className="p-3 text-center">
+                            {fileUrl ? (
+                              <button
+                                type="button"
+                                onClick={(e) => openFile(e, fileUrl)}
+                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                                title={`Ver archivo: ${order.file}`}
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="text-xs">Ver</span>
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">Sin archivo</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {order.url_secop ? (
+                              <button
+                                type="button"
+                                onClick={(e) => openFile(e, order.url_secop)}
+                                className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 hover:underline"
+                                title={order.url_secop}
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                <span className="text-xs">Ver</span>
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">-</span>
+                            )}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
 
-          {/* Orden seleccionada */}
+          {/* Orden seleccionada - preview */}
           {selectedOrder && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2">Orden seleccionada:</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 shrink-0">
+              <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Orden seleccionada
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div><span className="font-medium text-gray-700">ID:</span> {selectedOrder.id}</div>
+                <div><span className="font-medium text-gray-700">N° Orden:</span> {selectedOrder.orden || 'N/A'}</div>
+                <div><span className="font-medium text-gray-700">Fecha:</span> {formatDate(selectedOrder.fecha)}</div>
+                <div><span className="font-medium text-gray-700">Proveedor:</span> {selectedOrder.proveedor_nombre || 'N/A'}</div>
+                <div><span className="font-medium text-gray-700">Tipo:</span> {selectedOrder.tipo_compra_nombre || 'N/A'}</div>
                 <div>
-                  <span className="font-medium">Número:</span> {selectedOrder.numero || selectedOrder.id}
+                  <span className="font-medium text-gray-700">Archivo:</span>{' '}
+                  {getFileUrl(selectedOrder.file) ? (
+                    <button
+                      type="button"
+                      onClick={(e) => openFile(e, getFileUrl(selectedOrder.file))}
+                      className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                    >
+                      <FileText className="w-3 h-3" /> Ver
+                    </button>
+                  ) : (
+                    <span className="text-gray-500 italic">Sin archivo</span>
+                  )}
                 </div>
-                <div>
-                  <span className="font-medium">Proveedor:</span> {selectedOrder.proveedor || "N/A"}
-                </div>
-                <div>
-                  <span className="font-medium">Fecha:</span> {formatDate(selectedOrder.fecha || selectedOrder.created_at)}
-                </div>
-                <div>
-                  <span className="font-medium">Valor:</span> {formatCurrency(selectedOrder.valor_total || selectedOrder.valor)}
-                </div>
+                {selectedOrder.url_secop && (
+                  <div className="col-span-2">
+                    <span className="font-medium text-gray-700">SECOP:</span>{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => openFile(e, selectedOrder.url_secop)}
+                      className="text-indigo-600 hover:underline break-all"
+                    >
+                      {selectedOrder.url_secop}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
 
         {/* Botones */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button 
-            onClick={handleCancel}
-            variant="outline"
-          >
+        <div className="flex justify-end gap-3 pt-3 border-t shrink-0">
+          <Button onClick={handleCancel} variant="outline">
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirmSelection}
             disabled={!selectedOrder}
             className="bg-blue-600 hover:bg-blue-700 text-white"

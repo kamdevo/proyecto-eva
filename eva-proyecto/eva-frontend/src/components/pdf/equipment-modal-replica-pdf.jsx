@@ -584,7 +584,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                         : ticket.descripcion_completa)
                     : (ticket.descripcion_problema || ticket.descripcion || 'Sin descripción')}
                 </Text>
-                <Text style={styles.dataTableCell}>{ticket.estado || ticket.estado_nombre || 'Sin estado'}</Text>
+                <Text style={styles.dataTableCell}>{ticket.estado || ticket.estado_nombre || ({1:'Abierto',2:'Asignado',3:'Diagnosticado',4:'Cerrado',5:'Esperando cierre'}[Number(ticket.estado_id)]) || 'Sin estado'}</Text>
                 <Text style={styles.dataTableCell}>
                   {ticket.file_cierre ? (
                     <Link 

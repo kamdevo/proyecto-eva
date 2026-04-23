@@ -2376,6 +2376,21 @@ class EquipmentController extends ApiController
                     ->orderBy('ordenes.fecha_inicio', 'desc')
                     ->limit(10)
                     ->get();
+
+                // Mapear estado_id a texto (mismos valores que /v1/gestion-tickets)
+                $estadoMap = [
+                    1 => 'Abierto',
+                    2 => 'Asignado',
+                    3 => 'Diagnosticado',
+                    4 => 'Cerrado',
+                    5 => 'Esperando cierre',
+                ];
+                $tickets = $tickets->map(function ($t) use ($estadoMap) {
+                    $t->estado = $estadoMap[$t->estado_id] ?? 'Sin estado';
+                    $t->estado_nombre = $t->estado;
+                    return $t;
+                });
+
                 $equipoData['tickets'] = $tickets;
             } catch (\Exception $e) {
                 \Log::warning('Error obteniendo tickets: ' . $e->getMessage());

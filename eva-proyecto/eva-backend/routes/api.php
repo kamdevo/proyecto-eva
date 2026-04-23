@@ -10740,16 +10740,30 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
             'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
-            'periodicidad', 'manual_id', 'guia_id', 'invima_id'
+            'periodicidad', 'manual_id', 'guia_id', 'invima_id', 'orden_compra_id'
         ]);
+
+        // Normalizar FKs: convertir '', '0', 0 a null para evitar violar FK
+        foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id'] as $fkField) {
+            if (array_key_exists($fkField, $updateData)) {
+                $v = $updateData[$fkField];
+                if ($v === '' || $v === null || $v === '0' || $v === 0) {
+                    $updateData[$fkField] = null;
+                } else {
+                    $updateData[$fkField] = (int) $v;
+                }
+            }
+        }
 
         // Debug logging para manual_id y guia_id
         \Log::info('🔥 BACKEND - Datos recibidos para actualización:', [
             'equipo_id' => $id,
             'manual_id' => $request->get('manual_id'),
             'guia_id' => $request->get('guia_id'),
+            'orden_compra_id' => $request->get('orden_compra_id'),
             'manual_id_en_updateData' => isset($updateData['manual_id']) ? $updateData['manual_id'] : 'NO PRESENTE',
-            'guia_id_en_updateData' => isset($updateData['guia_id']) ? $updateData['guia_id'] : 'NO PRESENTE'
+            'guia_id_en_updateData' => isset($updateData['guia_id']) ? $updateData['guia_id'] : 'NO PRESENTE',
+            'orden_compra_id_en_updateData' => array_key_exists('orden_compra_id', $updateData) ? $updateData['orden_compra_id'] : 'NO PRESENTE'
         ]);
 
         // Process manuales and planos JSON
@@ -10868,8 +10882,20 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
             'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
-            'periodicidad', 'manual_id', 'guia_id', 'invima_id'
+            'periodicidad', 'manual_id', 'guia_id', 'invima_id', 'orden_compra_id'
         ]);
+
+        // Normalizar FKs: convertir '', '0', 0 a null
+        foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id'] as $fkField) {
+            if (array_key_exists($fkField, $updateData)) {
+                $v = $updateData[$fkField];
+                if ($v === '' || $v === null || $v === '0' || $v === 0) {
+                    $updateData[$fkField] = null;
+                } else {
+                    $updateData[$fkField] = (int) $v;
+                }
+            }
+        }
 
         // Process manuales and planos JSON
         if ($request->has('manuales')) {

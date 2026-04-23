@@ -198,6 +198,7 @@ export function ViewEquipmentModal({
           ? response.data.data.data 
           : [];
         
+        const ESTADO_MAP = { 1: 'Abierto', 2: 'Asignado', 3: 'Diagnosticado', 4: 'Cerrado', 5: 'Esperando cierre' };
         const ticketsConDescripcionCompleta = ticketsArray.map(ticket => {
           let descripcionCompleta = '';
           
@@ -241,6 +242,7 @@ export function ViewEquipmentModal({
           
           return {
             ...ticket,
+            estado: ticket.estado || ticket.estado_nombre || ESTADO_MAP[ticket.estado_id] || 'Sin estado',
             descripcion_completa: descripcionCompleta || ticket.descripcion_problema || ticket.descripcion || 'Sin descripción'
           };
         });
@@ -377,6 +379,7 @@ export function ViewEquipmentModal({
       setLoadingTickets(true);
       prefetchEquipmentTickets(equipment.id)
         .then(tickets => {
+          const ESTADO_MAP = { 1: 'Abierto', 2: 'Asignado', 3: 'Diagnosticado', 4: 'Cerrado', 5: 'Esperando cierre' };
           const ticketsConDescripcion = (tickets || []).map(ticket => {
             let descripcionCompleta = '';
             if (ticket.descripcion_problema || ticket.descripcion) {
@@ -399,6 +402,7 @@ export function ViewEquipmentModal({
             }
             return {
               ...ticket,
+              estado: ticket.estado || ticket.estado_nombre || ESTADO_MAP[ticket.estado_id] || 'Sin estado',
               descripcion_completa: descripcionCompleta || ticket.descripcion_problema || ticket.descripcion || 'Sin descripción'
             };
           });
@@ -1242,18 +1246,24 @@ export function ViewEquipmentModal({
                               : (ticket.descripcion_problema || ticket.descripcion || 'Sin descripción')}
                           </td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">
-                            <Badge 
-                              className={
-                                ticket.estado_id === 1 ? 'bg-red-100 text-red-800' :
-                                ticket.estado_id === 2 ? 'bg-yellow-100 text-yellow-800' :
-                                ticket.estado_id === 3 ? 'bg-gray-100 text-gray-800' :
-                                ticket.estado_id === 4 ? 'bg-green-100 text-green-800' :
-                                ticket.estado_id === 5 ? 'bg-purple-100 text-purple-800' :
-                                'bg-gray-100 text-gray-800'
-                              }
-                            >
-                              {ticket.estado || ticket.estado_nombre || 'Sin estado'}
-                            </Badge>
+                            {(() => {
+                              const estadoId = Number(ticket.estado_id);
+                              const estadoTxt = ticket.estado || ticket.estado_nombre || (
+                                estadoId === 1 ? 'Abierto' :
+                                estadoId === 2 ? 'Asignado' :
+                                estadoId === 3 ? 'Diagnosticado' :
+                                estadoId === 4 ? 'Cerrado' :
+                                estadoId === 5 ? 'Esperando cierre' : 'Sin estado'
+                              );
+                              const cls =
+                                estadoId === 1 ? 'bg-red-100 text-red-800' :
+                                estadoId === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                estadoId === 3 ? 'bg-blue-100 text-blue-800' :
+                                estadoId === 4 ? 'bg-green-100 text-green-800' :
+                                estadoId === 5 ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800';
+                              return <Badge className={cls}>{estadoTxt}</Badge>;
+                            })()}
                           </td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">
                             {ticket.file_cierre ? (
