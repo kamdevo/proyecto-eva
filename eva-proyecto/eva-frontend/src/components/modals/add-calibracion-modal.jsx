@@ -197,19 +197,49 @@ const AddCalibracionModal = ({
         onClose();
       }
     } catch (error) {
-      console.error("Error al guardar calibración:", error);
-      console.error("Respuesta del servidor:", error.response?.data);
-
-      // Extraer mensajes detallados de validación (422)
-      let detalle = error.response?.data?.message || "Error al guardar la calibración";
-      const errores = error.response?.data?.data || error.response?.data?.errors;
-      if (errores && typeof errores === 'object') {
-        const mensajes = Object.values(errores).flat().filter(Boolean);
-        if (mensajes.length > 0) {
-          detalle = mensajes.join(' · ');
-        }
+      // Logging detallado para diagnóstico (visible en consola siempre)
+      const status = error.response?.status;
+      const data = error.response?.data;
+      console.error("❌ [CALIBRACIÓN] Error completo:", error);
+      console.error("❌ [CALIBRACIÓN] Status HTTP:", status);
+      console.error("❌ [CALIBRACIÓN] Response data:", data);
+      console.error("❌ [CALIBRACIÓN] Response headers:", error.response?.headers);
+      console.error("❌ [CALIBRACIÓN] Request URL:", error.config?.url);
+      console.error("❌ [CALIBRACIÓN] Request method:", error.config?.method);
+      if (formData.file) {
+        console.error("❌ [CALIBRACIÓN] Archivo enviado:", {
+          name: formData.file.name,
+          size: formData.file.size,
+          sizeMB: (formData.file.size / 1024 / 1024).toFixed(2) + ' MB',
+          type: formData.file.type
+        });
       }
-      toast.error(detalle, { id: toastId });
+
+      // Construir mensaje detallado
+      let detalle;
+      if (!error.response) {
+        // No hubo respuesta del servidor: network error, CORS, nginx body too large, timeout
+        if (error.message?.includes('Network Error')) {
+          detalle = `Error de red: el servidor no responde o rechazó la conexión (posible límite de tamaño en proxy/nginx). Archivo: ${formData.file ? (formData.file.size / 1024 / 1024).toFixed(2) + ' MB' : 'sin archivo'}`;
+        } else {
+          detalle = `Sin respuesta del servidor: ${error.message || 'desconocido'}`;
+        }
+      } else if (status === 413) {
+        detalle = `El archivo es demasiado grande para el servidor (límite excedido en nginx/PHP). Tamaño: ${formData.file ? (formData.file.size / 1024 / 1024).toFixed(2) + ' MB' : 'N/A'}`;
+      } else if (status === 422) {
+        detalle = data?.message || 'Errores de validación';
+        const errores = data?.data || data?.errors;
+        if (errores && typeof errores === 'object') {
+          const mensajes = Object.values(errores).flat().filter(Boolean);
+          if (mensajes.length > 0) detalle = `${detalle}: ${mensajes.join(' · ')}`;
+        }
+      } else if (status >= 500) {
+        detalle = `Error del servidor (${status}): ${data?.message || 'Error interno'}`;
+      } else {
+        detalle = data?.message || `Error HTTP ${status || 'desconocido'}`;
+      }
+
+      toast.error(detalle, { id: toastId, duration: 8000 });
     } finally {
       setIsSubmitting(false);
     }
