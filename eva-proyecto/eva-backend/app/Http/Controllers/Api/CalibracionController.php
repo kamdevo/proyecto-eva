@@ -178,10 +178,9 @@ class CalibracionController extends ApiController
     {
         $validator = Validator::make($request->all(), [
             'equipo_id' => 'required|exists:equipos,id',
-            'description' => 'required|string|max:500',
-            'fecha_calibracion' => 'required|date',
+            'description' => 'required|string|max:500',            'fecha_calibracion' => 'required|date',
             'fecha_programada' => 'required|date',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,xls,xlsx,csv|max:10240'
+            'file' => 'nullable|file|max:40960'
         ]);
 
         if ($validator->fails()) {
@@ -195,6 +194,16 @@ class CalibracionController extends ApiController
             $filePath = null;
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
+                // Validar extensión (lista blanca)
+                $allowedExt = ['pdf','doc','docx','jpg','jpeg','png','xls','xlsx','csv'];
+                $ext = strtolower($file->getClientOriginalExtension());
+                if (!in_array($ext, $allowedExt, true)) {
+                    return ResponseFormatter::error(
+                        ['file' => ['Extensión no permitida. Permitidas: ' . implode(', ', $allowedExt)]],
+                        'Archivo inválido',
+                        422
+                    );
+                }
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $file->storeAs('calibraciones', $fileName, 'public');
                 $filePath = $fileName;
@@ -331,7 +340,7 @@ class CalibracionController extends ApiController
             'description' => 'sometimes|string|max:500',
             'fecha_calibracion' => 'sometimes|date',
             'fecha_programada' => 'sometimes|date',
-            'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,xls,xlsx,csv|max:10240',
+            'file' => 'nullable|file|max:40960',
         ]);
 
         if ($validator->fails()) {

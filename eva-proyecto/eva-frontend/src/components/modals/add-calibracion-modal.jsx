@@ -100,9 +100,9 @@ const AddCalibracionModal = ({
 
   const handleFileChange = (file) => {
     if (file) {
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("El archivo no puede ser mayor a 10MB");
+      // Validate file size (max 40MB)
+      if (file.size > 40 * 1024 * 1024) {
+        toast.error("El archivo no puede ser mayor a 40MB");
         return;
       }
 
@@ -198,7 +198,18 @@ const AddCalibracionModal = ({
       }
     } catch (error) {
       console.error("Error al guardar calibración:", error);
-      toast.error(error.response?.data?.message || "Error al guardar la calibración", { id: toastId });
+      console.error("Respuesta del servidor:", error.response?.data);
+
+      // Extraer mensajes detallados de validación (422)
+      let detalle = error.response?.data?.message || "Error al guardar la calibración";
+      const errores = error.response?.data?.data || error.response?.data?.errors;
+      if (errores && typeof errores === 'object') {
+        const mensajes = Object.values(errores).flat().filter(Boolean);
+        if (mensajes.length > 0) {
+          detalle = mensajes.join(' · ');
+        }
+      }
+      toast.error(detalle, { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
