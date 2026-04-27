@@ -985,8 +985,13 @@ export function EditEquipmentModal({
       return;
     }
 
-    // Construir URL del archivo de observación
-    const fileUrl = `/storage/observaciones/${filename}`;
+    // Construir URL del archivo de observación.
+    // El backend guarda en DB el path 'observaciones/<archivo>' (storeAs).
+    // Normalizamos para no duplicar el segmento ni servir 403.
+    const raw = String(filename || '').replace(/^\/+/, '');
+    const relPath = raw.startsWith('observaciones/') ? raw : `observaciones/${raw}`;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001';
+    const fileUrl = `${apiBase}/storage/${relPath}`;
 
     // Abrir en nueva ventana optimizada para visualización e impresión empresarial
     const newWindow = window.open(

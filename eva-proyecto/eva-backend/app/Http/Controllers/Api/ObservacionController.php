@@ -70,20 +70,29 @@ class ObservacionController extends ApiController
             }
 
             if ($request->has('fecha_desde')) {
-                $query->whereDate('fecha', '>=', $request->fecha_desde);
+                $query->whereDate('fecha_nota', '>=', $request->fecha_desde);
             }
 
             if ($request->has('fecha_hasta')) {
-                $query->whereDate('fecha', '<=', $request->fecha_hasta);
+                $query->whereDate('fecha_nota', '<=', $request->fecha_hasta);
             }
 
-            // Ordenamiento
-            $sortBy = $request->get('sort_by', 'fecha');
-            $sortOrder = $request->get('sort_order', 'desc');
+            // Ordenamiento - default por created_at desc (la tabla NO tiene columna 'fecha')
+            $allowedSorts = ['id', 'created_at', 'fecha_nota'];
+            $sortBy = $request->get('sort_by', 'created_at');
+            if (!in_array($sortBy, $allowedSorts)) {
+                $sortBy = 'created_at';
+            }
+            $sortOrder = strtolower($request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
             $query->orderBy($sortBy, $sortOrder);
 
-            // Paginación
-            $perPage = $request->get('per_page', 10);
+            // Paginación - cuando se filtra por equipo_id devolvemos un cap alto
+            // para asegurar que la lista en el modal de detalles muestre TODAS las observaciones
+            $defaultPerPage = $request->has('equipo_id') ? 1000 : 15;
+            $perPage = (int) $request->get('per_page', $defaultPerPage);
+            if ($perPage <= 0) {
+                $perPage = $defaultPerPage;
+            }
             $observaciones = $query->paginate($perPage);
 
             return $this->paginatedResponse($observaciones, 'Observaciones obtenidas exitosamente');

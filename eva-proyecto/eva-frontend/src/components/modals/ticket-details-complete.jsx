@@ -314,7 +314,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent
-          className="min-w-[80vw] w-auto h-auto max-h-[95vh]  overflow-y-auto p-0"
+          className="min-w-[80vw] w-auto h-auto max-h-[95vh] overflow-y-auto p-0 border-0 shadow-2xl rounded-lg scrollbar-slim"
           showCloseButton={false}
         >
           <DialogTitle className="sr-only">Detalle del Ticket #{ticket?.id}</DialogTitle>

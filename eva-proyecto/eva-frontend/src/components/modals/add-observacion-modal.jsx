@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Upload, X, FileText, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import { invalidateEquipmentCache, invalidateHistoryCache } from "@/services/equipmentPrefetchCache";
 
 const AddObservacionModal = ({
   isOpen,
@@ -159,6 +160,14 @@ const AddObservacionModal = ({
 
       if (response.data.success) {
         toast.success("Observación agregada exitosamente");
+        // Invalidar cache del equipo para que la nueva observación aparezca
+        // en el modal de detalles (hoja de vida) y en el modal de edición
+        try {
+          invalidateEquipmentCache(equipmentId);
+          invalidateHistoryCache(equipmentId);
+        } catch (cacheErr) {
+          console.warn("No se pudo invalidar cache de equipo:", cacheErr);
+        }
         onObservationAdded && onObservationAdded();
         onClose();
       } else {

@@ -1417,7 +1417,13 @@ export function ViewEquipmentModal({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/observaciones/${obs.file}`, '_blank')}
+                                onClick={() => {
+                                  const base = import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001';
+                                  // El controller guarda 'observaciones/<archivo>' - normalizamos para evitar duplicar el segmento
+                                  const raw = String(obs.file || '').replace(/^\/+/, '');
+                                  const path = raw.startsWith('observaciones/') ? raw : `observaciones/${raw}`;
+                                  window.open(`${base}/storage/${path}`, '_blank');
+                                }}
                                 className="text-purple-600 hover:bg-purple-100 h-7 px-2"
                                 title="Ver archivo de observación"
                               >
