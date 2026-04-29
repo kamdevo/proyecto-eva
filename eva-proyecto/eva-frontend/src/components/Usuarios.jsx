@@ -1037,8 +1037,10 @@ export default function Usuarios() {
         password: "",
         rol: fullUser.rol_id ? fullUser.rol_id.toString() : "",  // Convertir a string para el Select
         centroCosto: fullUser.centro_id || "",
-        empresa: fullUser.id_empresa || "",
+        empresa: fullUser.id_empresa ? fullUser.id_empresa.toString() : "",  // Convertir a string para SearchableSelect
       };
+
+      console.log("📝 Empresa del usuario:", fullUser.id_empresa, "-> FormData empresa:", formData.empresa);
 
       console.log("📝 FormData a establecer:", formData);
       setAddUserForm(formData);
@@ -1112,8 +1114,10 @@ export default function Usuarios() {
         username: addUserForm.username,
         rol_id: parseInt(addUserForm.rol),
         centro_id: addUserForm.centroCosto,
-        id_empresa: parseInt(addUserForm.empresa) || 1,
+        id_empresa: addUserForm.empresa ? parseInt(addUserForm.empresa) : null,
       };
+
+      console.log("📤 Enviando empresa al backend:", userData.id_empresa);
 
       if (addUserForm.password) {
         userData.password = addUserForm.password;

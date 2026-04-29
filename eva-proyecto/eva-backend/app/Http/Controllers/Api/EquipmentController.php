@@ -2231,7 +2231,24 @@ class EquipmentController extends ApiController
                     ])
                     ->orderBy('correctivos_generales.fecha_inicio', 'desc')
                     ->get();
-                
+
+                // Embeber archivos de cada correctivo (biomédico o industrial según tipo de equipo)
+                $tablaArchivos = (isset($equipoBasico->tipo_id) && $equipoBasico->tipo_id == 2)
+                    ? 'correctivos_generales_archivos_ind'
+                    : 'correctivos_generales_archivos';
+                $corIds = $correctivos->pluck('id')->toArray();
+                $archivosPorCorrectivo = !empty($corIds)
+                    ? DB::table($tablaArchivos)
+                        ->whereIn('correctivo_general_id', $corIds)
+                        ->orderBy('created_at', 'desc')
+                        ->get()
+                        ->groupBy('correctivo_general_id')
+                    : collect();
+                $correctivos = $correctivos->map(function ($c) use ($archivosPorCorrectivo) {
+                    $c->archivos = $archivosPorCorrectivo->get($c->id, collect())->values();
+                    return $c;
+                });
+
                 $equipoData['correctivos_generales'] = $correctivos;
             } catch (\Exception $e) {
                 \Log::warning('Error obteniendo correctivos generales: ' . $e->getMessage());

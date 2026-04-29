@@ -117,6 +117,14 @@ class CorrectivoGeneral extends Model
         return $this->belongsTo(TipoFalla::class, 'tipo_falla_id');
     }
 
+    /**
+     * Relación con Archivos del correctivo
+     */
+    public function archivos(): HasMany
+    {
+        return $this->hasMany(CorrectivoGeneralArchivo::class, 'correctivo_general_id');
+    }
+
     // ==========================================
     // SCOPES EMPRESARIALES
     // ==========================================

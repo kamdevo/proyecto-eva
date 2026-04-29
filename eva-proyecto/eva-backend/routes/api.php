@@ -5814,8 +5814,19 @@ Route::get('v1/gestion-tickets', function(Request $request) {
             }
 
             // Filtro por tipo de equipo (subproceso_id)
+            // Ahora soporta múltiples valores separados por comas
             if ($tipoEquipo !== 'all') {
-                $query->where('ordenes.subproceso_id', $tipoEquipo);
+                if (strpos($tipoEquipo, ',') !== false) {
+                    // Múltiples tipos: convertir string a array y filtrar con whereIn
+                    $tipos = array_map('trim', explode(',', $tipoEquipo));
+                    $tipos = array_filter($tipos); // Remover vacíos
+                    if (!empty($tipos)) {
+                        $query->whereIn('ordenes.subproceso_id', $tipos);
+                    }
+                } else {
+                    // Un solo tipo: usar where tradicional
+                    $query->where('ordenes.subproceso_id', $tipoEquipo);
+                }
             }
         }
 

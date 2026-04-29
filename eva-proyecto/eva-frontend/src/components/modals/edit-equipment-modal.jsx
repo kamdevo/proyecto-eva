@@ -4752,15 +4752,15 @@ export function EditEquipmentModal({
 
       {/* Modal para agregar archivo a correctivo */}
       <Dialog open={showArchivoModal} onOpenChange={(v) => { if (!uploadingArchivoCorrectivoId) setShowArchivoModal(v); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-full overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-700">
               <Upload className="w-4 h-4" />
               Agregar Archivo al Correctivo
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1">
+          <div className="space-y-4 pt-2 min-w-0 w-full overflow-hidden">
+            <div className="space-y-1 min-w-0">
               <Label htmlFor="arch-titulo" className="text-sm font-medium">Título</Label>
               <Input
                 id="arch-titulo"
@@ -4769,13 +4769,18 @@ export function EditEquipmentModal({
                 onChange={e => setArchivoModalTitulo(e.target.value)}
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0 w-full overflow-hidden">
               <Label className="text-sm font-medium">Archivo</Label>
               {archivoModalFile ? (
-                <div className="flex items-center gap-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-sm">
+                <div className="flex items-center gap-2 p-2 bg-indigo-50 border border-indigo-200 rounded text-sm w-full overflow-hidden">
                   <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                  <span className="flex-1 truncate text-indigo-700">{archivoModalFile.name}</span>
-                  <button type="button" onClick={() => setArchivoModalFile(null)} className="text-red-400 hover:text-red-600">
+                  <span
+                    className="flex-1 min-w-0 text-indigo-700 overflow-hidden text-ellipsis whitespace-nowrap"
+                    title={archivoModalFile.name}
+                  >
+                    {archivoModalFile.name}
+                  </span>
+                  <button type="button" onClick={() => setArchivoModalFile(null)} className="text-red-400 hover:text-red-600 flex-shrink-0">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -4834,6 +4839,9 @@ export function EditEquipmentModal({
                       headers: { 'Content-Type': 'multipart/form-data' },
                       timeout: 120000, // 2 minutos para archivos grandes
                     });
+                    // Invalidar caches para que la hoja de vida muestre el archivo recién subido
+                    invalidateEquipmentCache(equipment.id);
+                    invalidateHistoryCache(equipment.id);
                     await loadEquipmentHistory(equipment.id);
                     setShowArchivoModal(false);
                     setArchivoModalFile(null);

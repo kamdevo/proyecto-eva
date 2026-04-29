@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import Pagination from "@/components/common/Pagination";
 import ItemsPerPage from "@/components/common/ItemsPerPage";
 import TicketDetailsModal from "@/components/modals/ticket-details-complete";
@@ -55,7 +57,7 @@ export default function GestionTickets() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [selectedOrigin, setSelectedOrigin] = useState("all");
+  const [selectedTiposEquipo, setSelectedTiposEquipo] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -161,9 +163,9 @@ export default function GestionTickets() {
         }
       }
 
-      if (selectedOrigin && selectedOrigin !== 'all') {
-        // Filtrar por tipo de equipo (no por origen)
-        params.tipo_equipo = selectedOrigin;
+      if (selectedTiposEquipo && selectedTiposEquipo.length > 0) {
+        // Enviar tipos de equipo como string separado por comas
+        params.tipo_equipo = selectedTiposEquipo.join(',');
       }
 
       if (estadoFilter && estadoFilter !== 'all') {
@@ -212,7 +214,7 @@ export default function GestionTickets() {
   // Cargar tickets al montar el componente y cuando cambien los filtros (excepto búsqueda de texto)
   useEffect(() => {
     fetchTickets();
-  }, [currentPage, itemsPerPage, selectedOrigin, estadoFilter, sedeFilter, reportanteFilter, sortField, sortOrder, refreshTrigger]);
+  }, [currentPage, itemsPerPage, selectedTiposEquipo, estadoFilter, sedeFilter, reportanteFilter, sortField, sortOrder, refreshTrigger]);
 
   // Función para disparar la búsqueda manualmente (botón o 'Enter')
   const triggerSearch = () => {
@@ -223,12 +225,22 @@ export default function GestionTickets() {
   // Función para limpiar todos los filtros
   const handleClearFilters = () => {
     setSearchTerm("");
-    setSelectedOrigin("all");
+    setSelectedTiposEquipo([]);
     setEstadoFilter("all");
     setSedeFilter("all");
     setReportanteFilter("all");
     setCurrentPage(1);
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  // Helper para obtener el label de un tipo de equipo
+  const getTipoEquipoLabel = (id) => {
+    const tipos = {
+      "1": "Biomédico",
+      "2": "Industrial",
+      "3": "Infraestructura",
+    };
+    return tipos[id] || id;
   };
 
   const handleExportIndustrialStats = async () => {
@@ -503,19 +515,71 @@ export default function GestionTickets() {
               </div>
             </div>
 
-            {/* Tipo de Equipo */}
+            {/* Tipo de Equipo - Multi-select con checkboxes */}
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Tipo de Equipo</Label>
-              <select
-                value={selectedOrigin}
-                onChange={(e) => setSelectedOrigin(e.target.value)}
-                className="w-full appearance-none bg-white border border-gray-300 rounded-md px-3 py-2.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Todos los tipos</option>
-                <option value="1">Biomédico</option>
-                <option value="2">Industrial</option>
-                <option value="3">Infraestructura</option>
-              </select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between text-left font-normal h-auto py-2.5 px-3 text-sm"
+                  >
+                    <span className="truncate">
+                      {selectedTiposEquipo.length === 0
+                        ? "Todos los tipos"
+                        : selectedTiposEquipo.length === 1
+                        ? getTipoEquipoLabel(selectedTiposEquipo[0])
+                        : `${selectedTiposEquipo.length} tipos seleccionados`}
+                    </span>
+                    <Filter className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" align="start">
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                      Seleccionar Tipos
+                    </div>
+                    {[
+                      { id: "1", label: "Biomédico" },
+                      { id: "2", label: "Industrial" },
+                      { id: "3", label: "Infraestructura" },
+                    ].map((tipo) => (
+                      <div key={tipo.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`tipo-${tipo.id}`}
+                          checked={selectedTiposEquipo.includes(tipo.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTiposEquipo([...selectedTiposEquipo, tipo.id]);
+                            } else {
+                              setSelectedTiposEquipo(
+                                selectedTiposEquipo.filter((t) => t !== tipo.id)
+                              );
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`tipo-${tipo.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {tipo.label}
+                        </label>
+                      </div>
+                    ))}
+                    <div className="pt-2 mt-2 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => setSelectedTiposEquipo([])}
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Limpiar selección
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

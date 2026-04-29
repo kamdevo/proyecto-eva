@@ -1356,22 +1356,42 @@ export function ViewEquipmentModal({
                               </span>
                             </div>
                           </td>
-                          <td className="border border-gray-200 px-3 py-2 text-center">
-                            {correctivo.file ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/correctivos_generales/${correctivo.file.split('/').pop()}`, '_blank')}
-                                className="text-gray-800 hover:bg-gray-100 h-7 px-2"
-                                title="Ver archivo adjunto"
-                              >
-                                <ExternalLink className="w-4 h-4 mr-1" />
-                                Ver
-                              </Button>
-                            ) : (
-                              <span className="text-gray-400 text-xs">Sin archivo</span>
-                            )}
+                          <td className="border border-gray-200 px-3 py-2">
+                            <div className="flex flex-col gap-1 items-center">
+                              {correctivo.file && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/correctivos_generales/${correctivo.file.split('/').pop()}`, '_blank')}
+                                  className="text-gray-800 hover:bg-gray-100 h-7 px-2 w-full"
+                                  title="Ver archivo principal"
+                                >
+                                  <ExternalLink className="w-4 h-4 mr-1" />
+                                  Principal
+                                </Button>
+                              )}
+                              {correctivo.archivos && correctivo.archivos.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1 justify-center">
+                                  {correctivo.archivos.map((arch) => (
+                                    <a
+                                      key={arch.id}
+                                      href={`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.2.146:8001'}/storage/correctivos_generales/${arch.file}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={arch.titulo || arch.file}
+                                      className="flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded text-indigo-600 hover:bg-indigo-100 transition-colors text-[10px] max-w-[120px]"
+                                    >
+                                      <FileText className="w-3 h-3 flex-shrink-0" />
+                                      <span className="truncate">{arch.titulo || arch.file}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                              {!correctivo.file && (!correctivo.archivos || correctivo.archivos.length === 0) && (
+                                <span className="text-gray-400 text-xs">Sin archivos</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))

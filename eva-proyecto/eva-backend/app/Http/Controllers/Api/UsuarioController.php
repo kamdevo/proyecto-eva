@@ -141,7 +141,8 @@ class UsuarioController extends Controller
                 'servicio_id' => 'nullable|integer',
                 'centro_id' => 'nullable|string',
                 'zona_id' => 'nullable|integer',
-                'estado' => 'sometimes|boolean'
+                'estado' => 'sometimes|boolean',
+                'id_empresa' => 'nullable|integer|exists:propietario,id'
             ]);
 
             if ($validator->fails()) {
