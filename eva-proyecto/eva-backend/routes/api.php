@@ -15595,10 +15595,15 @@ Route::post('v1/tickets/{id}/diagnostico', function(Request $request, $id) {
         $fileName = null;
         if ($request->hasFile('file_diagnostico')) {
             $file = $request->file('file_diagnostico');
-            $fileName = time() . '_diagnostico_' . $file->getClientOriginalName();
-            // Guardar en disco 'public' explícitamente en la carpeta correctivos_generales
+            // Sanitizar: extensión + nombre truncado a 40 chars + timestamp único
+            // para no superar el límite de la columna file_diagnostico (varchar 100→500 con migración)
+            $ext          = strtolower($file->getClientOriginalExtension()) ?: 'bin';
+            $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $originalName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $originalName); // solo chars seguros
+            $originalName = substr($originalName, 0, 40);                           // máx 40 chars
+            $fileName     = time() . '_diag_' . $originalName . '.' . $ext;        // ej: 1778097625_diag_WhatsApp_Scan_2026.pdf
+            // Guardar en disco 'public' en la carpeta correctivos_generales
             $file->storeAs('correctivos_generales', $fileName, 'public');
-            // Se guarda SOLO el nombre del archivo
         }
 
         // Obtener ID del usuario actual (si está autenticado)
