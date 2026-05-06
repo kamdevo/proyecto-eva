@@ -1,13 +1,10 @@
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+// API Configuration - centralizado desde api.js
+import { API_CONFIG } from './api.js';
 
 export const apiConfig = {
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
+  baseURL: API_CONFIG.API_URL,
+  timeout: API_CONFIG.TIMEOUT,
+  headers: API_CONFIG.DEFAULT_HEADERS,
 };
 
 export default apiConfig;

@@ -809,7 +809,19 @@ class CorrectivoGeneralController extends Controller
                 $correctivo->repuesto_pendiente ?? '' // repuesto_instalado
             ];
 
-            $sheet->fromArray($rowData, null, 'A' . $row);
+            // Escribir celda a celda con tipo explícito para evitar fórmulas involuntarias
+            $colIdx = 1;
+            foreach ($rowData as $cellValue) {
+                $cellRef = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx) . $row;
+                if (is_float($cellValue) || is_int($cellValue)) {
+                    $sheet->setCellValue($cellRef, $cellValue);
+                } elseif (is_null($cellValue) || $cellValue === '') {
+                    $sheet->setCellValue($cellRef, '');
+                } else {
+                    $sheet->setCellValueExplicit($cellRef, $this->cleanText((string)$cellValue), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                }
+                $colIdx++;
+            }
             $row++;
         }
 
@@ -1358,30 +1370,47 @@ class CorrectivoGeneralController extends Controller
             
             Log::info("🔄 [EXPORT] Iniciando exportación a Excel - Formato: {$formato}, Tipo: {$tipo}");
 
-            // Obtener correctivos de la tabla correctivos_generales
-            // Subquery para obtener el responsable del plan de mantenimiento más reciente
-            $subqueryResponsableGeneral = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cg.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
-            
-            $queryGenerales = DB::table('correctivos_generales as cg')
-                ->leftJoin('equipos as e', 'cg.equipo_id', '=', 'e.id')
-                ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
-                ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
-                ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
-                ->leftJoin('codificacion_cierres as cc', 'cg.cierre_id', '=', 'cc.id')
-                ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
-                ->select([
+            // ================================================================
+            // CONSULTA SIMPLIFICADA: parte desde equipos con tipo_id correcto.
+            // INNER JOIN garantiza que solo aparecen correctivos/tickets de
+            // equipos existentes con el tipo correcto. Tickets manuales
+            // (equipo_id NULL/0) y huérfanos se excluyen automáticamente.
+            // ================================================================
+            $tipoId   = $tipo === 'industrial' ? 2 : 1;
+            $subqResp = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = e.id ORDER BY pm.anio DESC LIMIT 1)";
+
+            // ── 1. CORRECTIVOS de la tabla correspondiente al tipo ────────
+            $tablaCorrectivos = $tipo === 'industrial' ? 'correctivos_generales_ind' : 'correctivos_generales';
+            $tipoLabel        = $tipo === 'industrial' ? 'Correctivos Industriales' : 'Correctivos Generales';
+
+            // Columnas tipo-específicas (cierre solo existe en correctivos_generales, no en _ind)
+            $selectEspecificos = $tipo === 'industrial'
+                ? [DB::raw("NULL as cierre_name"), DB::raw("NULL as cierre_code"), DB::raw("cg.code as code_orden")]
+                : ['cc.name as cierre_name', 'cc.code as cierre_code', 'cg.code_orden'];
+
+            $fechaColC = $tipo === 'industrial'
+                ? DB::raw("COALESCE(cg.created_at, cg.fecha_mantenimiento)")
+                : DB::raw("COALESCE(cg.fecha_inicio, cg.created_at)");
+
+            $qC = DB::table("{$tablaCorrectivos} as cg")
+                ->join('equipos as e', function ($join) use ($tipoId) {
+                    // INNER JOIN: solo correctivos cuyo equipo exista y tenga el tipo correcto
+                    $join->on('cg.equipo_id', '=', 'e.id')->where('e.tipo_id', $tipoId);
+                })
+                ->leftJoin('servicios as s',         'e.servicio_id',       '=', 's.id')
+                ->leftJoin('sedes as sede',           's.sede_id',           '=', 'sede.id')
+                ->leftJoin('areas as ar',             'e.area_id',           '=', 'ar.id')
+                ->leftJoin('estadoequipos as ee',     'e.estadoequipo_id',   '=', 'ee.id')
+                ->select(array_merge([
                     'cg.id',
-                    'cg.created_at',
+                    DB::raw("COALESCE(cg.fecha_inicio, cg.created_at, cg.fecha_mantenimiento) as created_at"),
                     'cg.equipo_id',
-                    DB::raw("cg.fecha_inicio as fecha_inicio"),
-                    'cc.name as cierre_name',
-                    'cc.code as cierre_code',
-                    'cg.diagnostico',
+                    DB::raw("COALESCE(cg.fecha_inicio, cg.created_at, cg.fecha_mantenimiento) as fecha_inicio"),
                     'sede.name as sede_nombre',
-                    DB::raw("'Correctivos Generales' as tipo"),
-                    DB::raw("{$subqueryResponsableGeneral} as responsable_nombre"),
+                    DB::raw("'{$tipoLabel}' as tipo"),
+                    DB::raw("{$subqResp} as responsable_nombre"),
                     'e.name as equipo_name',
-                    'e.code as equipo_code', 
+                    'e.code as equipo_code',
                     'e.marca',
                     'e.modelo',
                     'e.serial',
@@ -1390,232 +1419,147 @@ class CorrectivoGeneralController extends Controller
                     'ee.name as estado_actual',
                     'e.costo',
                     'cg.fecha_mantenimiento as fecha_cierre',
+                    DB::raw("cg.description as description"),
+                    DB::raw("cg.description as descripcion"),
+                    'cg.file',
+                    // Campos exclusivos de tickets → NULL para correctivos
                     DB::raw("NULL as fecha_fin"),
-                    'cg.description',
-                    'cg.orden',
-                    'cg.code_orden',
-                    'cg.file'
-                ])
-                ->orderBy('cg.created_at', 'desc');
+                    DB::raw("NULL as retro_cierre"),
+                    DB::raw("NULL as estado_descripcion"),
+                    DB::raw("NULL as nombre_equipo"),
+                    DB::raw("NULL as codigo_equipo"),
+                    DB::raw("NULL as marca_equipo"),
+                    DB::raw("NULL as modelo_equipo"),
+                    DB::raw("NULL as serie_equipo"),
+                    DB::raw("NULL as tecnico_cierre_text"),
+                    DB::raw("NULL as reparacion"),
+                    DB::raw("NULL as repuesto_pendiente"),
+                ], $selectEspecificos));
 
-            // Filtrar por tipo de equipo si se especifica
+            // JOIN codificacion_cierres solo para biomédico (la tabla _ind no tiene cierre_id)
             if ($tipo === 'biomedico') {
-                $queryGenerales->where('e.tipo_id', 1);
-            } elseif ($tipo === 'industrial') {
-                // Para industrial: NO usar tabla correctivos_generales, usar SOLO correctivos_generales_ind
-                // Se anula la query principal y se reemplaza abajo
-                $queryGenerales->whereRaw('1 = 0'); // Vaciar resultados de la query principal
-            }
-            
-            if ($limit) {
-                $queryGenerales->limit($limit);
+                $qC->leftJoin('codificacion_cierres as cc', 'cg.cierre_id', '=', 'cc.id');
             }
 
-            // Filtros opcionales para exportación filtrada (fecha, búsqueda, estado)
+            // Filtros de fecha/búsqueda/estado para correctivos
             if ($request->filled('fecha_desde')) {
-                $queryGenerales->whereDate('cg.created_at', '>=', $request->fecha_desde);
+                $qC->whereDate($fechaColC, '>=', $request->fecha_desde);
             }
             if ($request->filled('fecha_hasta')) {
-                $queryGenerales->whereDate('cg.created_at', '<=', $request->fecha_hasta);
+                $qC->whereDate($fechaColC, '<=', $request->fecha_hasta);
             }
             if ($request->filled('anio') && $request->anio !== 'all') {
-                $queryGenerales->whereYear('cg.created_at', $request->anio);
+                $qC->whereYear($fechaColC, $request->anio);
             }
             if ($request->filled('mes') && $request->mes !== 'all') {
-                $queryGenerales->whereMonth('cg.created_at', $request->mes);
+                $qC->whereMonth($fechaColC, $request->mes);
             }
             if ($request->filled('search')) {
-                $searchTerm = $request->search;
-                $queryGenerales->where(function ($q) use ($searchTerm) {
-                    $q->where('cg.code_orden', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('cg.orden', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('e.name', 'LIKE', "%{$searchTerm}%");
+                $st = $request->search;
+                $qC->where(function ($q) use ($st) {
+                    $q->where('cg.description', 'LIKE', "%{$st}%")
+                      ->orWhere('e.name',        'LIKE', "%{$st}%")
+                      ->orWhere('e.code',        'LIKE', "%{$st}%");
                 });
             }
             if ($request->filled('status') && $request->status !== 'all') {
                 if ($request->status === 'completed') {
-                    $queryGenerales->whereNotNull('cg.fecha_mantenimiento');
+                    $qC->whereNotNull('cg.fecha_mantenimiento');
                 } elseif ($request->status === 'pending') {
-                    $queryGenerales->whereNull('cg.fecha_mantenimiento');
+                    $qC->whereNull('cg.fecha_mantenimiento');
                 }
             }
+            if ($limit) { $qC->limit($limit); }
 
-            $correctivosGenerales = $queryGenerales->get();
+            $correctivosGenerales = $qC->get();
 
-            // Para industrial: incluir también registros de correctivos_generales_ind
-            if ($tipo === 'industrial') {
-                $subqueryResponsableInd = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = cgi.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
-                
-                $queryInd = DB::table('correctivos_generales_ind as cgi')
-                    ->leftJoin('equipos as e', 'cgi.equipo_id', '=', 'e.id')
-                    ->leftJoin('servicios as s', 'e.servicio_id', '=', 's.id')
-                    ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
-                    ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
-                    ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
-                    ->select([
-                        'cgi.id',
-                        DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento) as created_at"),
-                        'cgi.equipo_id',
-                        DB::raw("COALESCE(cgi.created_at, cgi.fecha_mantenimiento) as fecha_inicio"),
-                        DB::raw("NULL as cierre_name"),
-                        DB::raw("NULL as cierre_code"),
-                        DB::raw("NULL as diagnostico"),
-                        'sede.name as sede_nombre',
-                        DB::raw("'Correctivos Industriales' as tipo"),
-                        DB::raw("{$subqueryResponsableInd} as responsable_nombre"),
-                        'e.name as equipo_name',
-                        'e.code as equipo_code',
-                        'e.marca',
-                        'e.modelo',
-                        'e.serial',
-                        's.name as servicio_nombre',
-                        'ar.name as area_nombre',
-                        'ee.name as estado_actual',
-                        'e.costo',
-                        'cgi.fecha_mantenimiento as fecha_cierre',
-                        DB::raw("NULL as fecha_fin"),
-                        'cgi.description',
-                        DB::raw("cgi.description as orden"),
-                        DB::raw("cgi.code as code_orden"),
-                        'cgi.file'
-                    ])
-                    ->orderBy('cgi.created_at', 'desc');
-
-                if ($request->filled('fecha_desde')) {
-                    $queryInd->whereDate('cgi.created_at', '>=', $request->fecha_desde);
-                }
-                if ($request->filled('fecha_hasta')) {
-                    $queryInd->whereDate('cgi.created_at', '<=', $request->fecha_hasta);
-                }
-                if ($request->filled('anio') && $request->anio !== 'all') {
-                    $queryInd->whereYear('cgi.created_at', $request->anio);
-                }
-                if ($request->filled('search')) {
-                    $searchTerm = $request->search;
-                    $queryInd->where(function ($q) use ($searchTerm) {
-                        $q->where('cgi.code', 'LIKE', "%{$searchTerm}%")
-                          ->orWhere('cgi.description', 'LIKE', "%{$searchTerm}%")
-                          ->orWhere('e.name', 'LIKE', "%{$searchTerm}%");
-                    });
-                }
-                if ($request->filled('status') && $request->status !== 'all') {
-                    if ($request->status === 'completed') {
-                        $queryInd->whereNotNull('cgi.fecha_mantenimiento');
-                    } elseif ($request->status === 'pending') {
-                        $queryInd->whereNull('cgi.fecha_mantenimiento');
-                    }
-                }
-
-                $correctivosInd = $queryInd->get();
-                $correctivosGenerales = $correctivosInd; // Solo _ind para industrial
-            }
-
-            // Obtener tickets/órdenes (tabla ordenes - todos son tickets del sistema)
-            // Subquery para obtener el responsable del plan de mantenimiento más reciente
-            $subqueryResponsable = "(SELECT pm.responsable FROM planes_mantenimientos pm WHERE pm.equipo_id = o.equipo_id ORDER BY pm.anio DESC LIMIT 1)";
-            
-            $queryTickets = DB::table('ordenes as o')
-                ->leftJoin('equipos as e', 'o.equipo_id', '=', 'e.id')
-                ->leftJoin('servicios as s', 'o.servicio_id', '=', 's.id')
-                ->leftJoin('sedes as sede', 's.sede_id', '=', 'sede.id')
-                ->leftJoin('areas as ar', 'e.area_id', '=', 'ar.id')
-                ->leftJoin('estadoequipos as ee', 'e.estadoequipo_id', '=', 'ee.id')
-                ->leftJoin('codificacion_cierres as cc', 'o.cierre_id', '=', 'cc.id')
-                ->leftJoin('estados as est', 'o.estado_id', '=', 'est.id')
+            // ── 2. TICKETS (ordenes) — INNER JOIN sobre equipos del tipo correcto ──
+            // Tickets manuales (equipo_id NULL/0) quedan automáticamente excluidos.
+            $qT = DB::table('ordenes as o')
+                ->join('equipos as e', function ($join) use ($tipoId) {
+                    // INNER JOIN: solo tickets cuyo equipo exista y tenga el tipo correcto
+                    $join->on('o.equipo_id', '=', 'e.id')->where('e.tipo_id', $tipoId);
+                })
+                ->leftJoin('servicios as s',         'o.servicio_id',       '=', 's.id')
+                ->leftJoin('sedes as sede',           's.sede_id',           '=', 'sede.id')
+                ->leftJoin('areas as ar',             'e.area_id',           '=', 'ar.id')
+                ->leftJoin('estadoequipos as ee',     'e.estadoequipo_id',   '=', 'ee.id')
+                ->leftJoin('codificacion_cierres as cc', 'o.cierre_id',      '=', 'cc.id')
+                ->leftJoin('estados as est',          'o.estado_id',         '=', 'est.id')
                 ->select([
                     'o.id',
                     DB::raw("CAST(o.fecha_inicio AS DATETIME) as created_at"),
                     'o.equipo_id',
                     'o.fecha_inicio',
-                    'o.retro_cierre',
-                    'o.estado_id',
-                    'o.cierre_id',
-                    'est.descripcion as estado_descripcion',
                     'sede.name as sede_nombre',
-                    DB::raw("CASE WHEN (o.equipo_id IS NULL OR o.equipo_id = 0) THEN 'Tickets (Manual)' ELSE 'Tickets' END as tipo"),
-                    DB::raw("{$subqueryResponsable} as responsable_nombre"),
+                    DB::raw("'Tickets' as tipo"),
+                    DB::raw("{$subqResp} as responsable_nombre"),
                     'e.name as equipo_name',
-                    'o.nombre_equipo',
-                    'e.code as equipo_code', 
-                    'o.codigo_equipo',
+                    'e.code as equipo_code',
                     'e.marca',
-                    'o.marca_equipo',
                     'e.modelo',
-                    'o.modelo_equipo',
                     'e.serial',
-                    'o.serie_equipo',
                     's.name as servicio_nombre',
                     'ar.name as area_nombre',
                     'ee.name as estado_actual',
                     'e.costo',
                     'o.fecha_fin as fecha_cierre',
                     'o.fecha_fin',
+                    DB::raw("o.descripcion as description"),
                     'o.descripcion',
+                    DB::raw("NULL as file"),
+                    DB::raw("o.id as code_orden"),
+                    'cc.code as cierre_code',
+                    'cc.name as cierre_name',
+                    'o.retro_cierre',
+                    'est.descripcion as estado_descripcion',
+                    // Campos manuales (NULL: el equipo viene del JOIN, no de campos libres)
+                    DB::raw("NULL as nombre_equipo"),
+                    DB::raw("NULL as codigo_equipo"),
+                    DB::raw("NULL as marca_equipo"),
+                    DB::raw("NULL as modelo_equipo"),
+                    DB::raw("NULL as serie_equipo"),
                     'o.tecnico_cierre_text',
                     'o.reparacion',
-                    'o.fecha_asignacion_cierre',
                     'o.repuesto_pendiente',
-                    DB::raw("o.id as code_orden"),
-                    DB::raw("NULL as file"),
-                    'cc.code as cierre_code',
-                    'cc.name as cierre_name'
                 ])
-                ->where(function($query) {
-                    $query->whereNull('o.equipo_id')
-                          ->orWhere('o.equipo_id', 0)
-                          ->orWhereNotNull('e.id');
-                })
                 ->orderBy('o.fecha_inicio', 'desc');
 
-            // Filtrar por tipo de equipo si se especifica
-            if ($tipo === 'biomedico') {
-                $queryTickets->where(function($query) {
-                    $query->where('e.tipo_id', 1)
-                          ->orWhere('o.subproceso_id', 1); // Para tickets sin equipo asociado
-                });
-            } elseif ($tipo === 'industrial') {
-                $queryTickets->where(function($query) {
-                    $query->where('e.tipo_id', 2)
-                          ->orWhere('o.subproceso_id', 2); // Para tickets sin equipo asociado
-                });
-            }
-
-            if ($limit) {
-                $queryTickets->limit($limit);
-            }
-
-            // Filtros opcionales para exportación filtrada (fecha, búsqueda, estado)
+            // Filtros de fecha/búsqueda/estado para tickets
             if ($request->filled('fecha_desde')) {
-                $queryTickets->whereDate('o.fecha_inicio', '>=', $request->fecha_desde);
+                $qT->whereDate('o.fecha_inicio', '>=', $request->fecha_desde);
             }
             if ($request->filled('fecha_hasta')) {
-                $queryTickets->whereDate('o.fecha_inicio', '<=', $request->fecha_hasta);
+                $qT->whereDate('o.fecha_inicio', '<=', $request->fecha_hasta);
             }
             if ($request->filled('anio') && $request->anio !== 'all') {
-                $queryTickets->whereYear('o.fecha_inicio', $request->anio);
+                $qT->whereYear('o.fecha_inicio', $request->anio);
             }
             if ($request->filled('mes') && $request->mes !== 'all') {
-                $queryTickets->whereMonth('o.fecha_inicio', $request->mes);
+                $qT->whereMonth('o.fecha_inicio', $request->mes);
             }
             if ($request->filled('search')) {
-                $searchTerm = $request->search;
-                $queryTickets->where(function ($q) use ($searchTerm) {
-                    $q->where('o.descripcion', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('e.name', 'LIKE', "%{$searchTerm}%");
+                $st = $request->search;
+                $qT->where(function ($q) use ($st) {
+                    $q->where('o.descripcion', 'LIKE', "%{$st}%")
+                      ->orWhere('e.name',       'LIKE', "%{$st}%")
+                      ->orWhere('e.code',       'LIKE', "%{$st}%");
                 });
             }
             if ($request->filled('status') && $request->status !== 'all') {
                 if ($request->status === 'completed') {
-                    $queryTickets->whereNotNull('o.fecha_fin');
+                    $qT->whereNotNull('o.fecha_fin');
                 } elseif ($request->status === 'pending') {
-                    $queryTickets->whereNull('o.fecha_fin');
+                    $qT->whereNull('o.fecha_fin');
                 }
             }
+            if ($limit) { $qT->limit($limit); }
 
-            // Cambiar de UNION SQL a manipulación de colecciones para evitar errores 1271 Illegal mix of collations
-            $tickets = $queryTickets->get();
-            
-            // Combinar ambas y ordenar por fecha descendente
+            $tickets = $qT->get();
+
+            Log::info("🔎 [EXPORT] tipo={$tipo} | correctivos=" . count($correctivosGenerales) . " | tickets=" . count($tickets));
+
+            // Combinar y ordenar por fecha descendente
             $queryFinal = collect($correctivosGenerales)
                 ->concat($tickets)
                 ->sortByDesc('created_at')
@@ -2040,7 +1984,15 @@ class CorrectivoGeneralController extends Controller
                         $correctivo->marca ?? $correctivo->marca_equipo ?? '', // 10. Marca
                         $correctivo->modelo ?? $correctivo->modelo_equipo ?? '', // 11. Modelo
                         ($correctivo->serial ?? $correctivo->serie_equipo) ? "SN: " . ($correctivo->serial ?? $correctivo->serie_equipo) : '', // 12. Serie
-                        $correctivo->estado_actual ?? (str_contains($correctivo->tipo, 'Tickets') ? 'No vinculado' : 'N/A'), // 13. Estado Actual
+                        // 13. Estado Actual del equipo (desde tabla estadoequipos): activo, dado de baja, etc.
+                        // Si no hay equipo asociado al ticket, mostrar 'Sin equipo'; si el equipo no tiene estado, 'N/A'.
+                        (function() use ($correctivo) {
+                            if (!empty($correctivo->estado_actual)) {
+                                return $correctivo->estado_actual;
+                            }
+                            $sinEquipo = empty($correctivo->equipo_id) || $correctivo->equipo_id == 0 || empty($correctivo->equipo_name);
+                            return $sinEquipo ? 'Sin equipo' : 'N/A';
+                        })(),
                         $correctivo->sede_nombre ?? '', // 14. Sede
                         $correctivo->servicio_nombre ?? '', // 15. Servicio
                         $correctivo->area_nombre ?? '', // 16. Area
@@ -2054,7 +2006,7 @@ class CorrectivoGeneralController extends Controller
                         $formatDate($avance3->date ?? null), // 24. F. Avance 3 (Excel Date)
                         $avance3->title ?? '', // 25. Título Avance 3
                         $avance3->description ?? '', // 26. Desc. Avance 3
-                        $correctivo->cierre_code ?? $correctivo->retro_cierre ?? '', // 27. Retro Cierre
+                        $correctivo->retro_cierre ?? '', // 27. Retro Cierre (campo retro_cierre de ordenes, texto libre del técnico)
                         $correctivo->reparacion ?? $correctivo->description ?? $correctivo->orden ?? '', // 28. Desc. Cierre
                         $formatDate($correctivo->fecha_asignacion_cierre ?? $correctivo->fecha_cierre ?? null), // 29. Fecha Cierre (Excel Date)
                         $correctivo->costo ?? 0, // 30. Costo
@@ -2062,10 +2014,28 @@ class CorrectivoGeneralController extends Controller
                         $correctivo->repuesto_pendiente ?? '' // 32. Repuesto
                     ];
 
-                    // Sanitizar texto a UTF-8 para evitar caracteres corruptos en Excel
-                    $rowData = array_map(fn($v) => is_string($v) ? $this->cleanText($v) : $v, $rowData);
-                    $sheet->fromArray($rowData, null, 'A' . $row);
-                    
+                    // Escribir celda a celda con tipo explícito para evitar que valores como
+                    // "=C014", "+123", "-abc" sean interpretados como fórmulas de Excel.
+                    $colIdx = 1;
+                    foreach ($rowData as $cellValue) {
+                        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+                        $cellRef   = $colLetter . $row;
+                        if (is_float($cellValue) || is_int($cellValue)) {
+                            // Valores numéricos y fechas Excel (float) → tipo numérico
+                            $sheet->setCellValue($cellRef, $cellValue);
+                        } elseif (is_null($cellValue) || $cellValue === '') {
+                            $sheet->setCellValue($cellRef, '');
+                        } else {
+                            // Texto: forzar tipo STRING y limpiar encoding
+                            $sheet->setCellValueExplicit(
+                                $cellRef,
+                                $this->cleanText((string)$cellValue),
+                                \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+                            );
+                        }
+                        $colIdx++;
+                    }
+
                     // Si hay link de archivo, ponerlo como hipervínculo
                     if (!empty($rowData[16])) {
                         $sheet->getCell('Q' . $row)->getHyperlink()->setUrl($rowData[16]);

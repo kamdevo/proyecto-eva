@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { API_CONFIG } from "@/config/api.js";
 
 /**
  * Hook personalizado para gestión de imágenes de equipos
@@ -39,7 +40,7 @@ export const useEquipmentImages = () => {
         if (response.data.success && response.data.data.imagen) {
           const imageData = response.data.data.imagen;
           const imageUrl = `${
-            import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"
+            API_CONFIG.BASE_URL
           }/storage/${imageData.path}`;
 
           // Guardar en cache

@@ -12,6 +12,7 @@
 
 import logger, { LOG_CATEGORIES } from "../utils/logger.js";
 import smartCache from "../utils/smartCache.js";
+import { API_CONFIG } from "@/config/api.js";
 
 // Estados de conexión
 export const CONNECTION_STATES = {
@@ -35,14 +36,14 @@ class ConnectionPool {
       // Endpoints múltiples con prioridades
       endpoints: [
         {
-          url: import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001",
+          url: API_CONFIG.BASE_URL,
           priority: 1,
           weight: 100,
           maxConnections: 10,
           timeout: 5000,
         },
         {
-          url: import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001",
+          url: API_CONFIG.BASE_URL,
           priority: 2,
           weight: 80,
           maxConnections: 8,
