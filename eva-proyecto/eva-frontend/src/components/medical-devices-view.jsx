@@ -1255,6 +1255,22 @@ export function MedicalDevicesView() {
                                 "Sin estado"
                               )}
                             </Badge>
+                            {/* Botón para ver documento de baja cuando el equipo está dado de baja */}
+                            {device.data?.status === "Equipo dado de baja" && device.archivo_baja && (
+                              <button
+                                type="button"
+                                title="Ver documento de baja"
+                                onClick={() => {
+                                  const pureFileName = String(device.archivo_baja).split('/').pop();
+                                  const url = `${import.meta.env.VITE_API_BASE_URL || "http://192.168.56.1:8001"}/storage/equipos/bajas/${pureFileName}`;
+                                  window.open(url, "_blank");
+                                }}
+                                className="ml-1 inline-flex items-center gap-1 text-xs bg-red-700 hover:bg-red-800 text-white px-2 py-0.5 rounded font-medium transition-colors"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Ver doc. baja
+                              </button>
+                            )}
                           </span>
                         </div>
                         <div>

@@ -31,6 +31,8 @@ import {
   Edit,
   Trash2,
   ExternalLink,
+  Eye,
+  Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -53,6 +55,7 @@ import AddRepuestoModal from "./add-repuesto-modal";
 import AddCorrectivoModal from "./add-correctivo-modal";
 import AddEspecificacionModal from "./add-especificacion-modal";
 import EditObservacionModal from "./edit-observacion-modal";
+import TicketDetailsComplete from "./ticket-details-complete";
 
 // Parsear fecha como local (evita desfase de timezone con fechas ISO date-only)
 const parseLocalDate = (dateStr) => {
@@ -141,6 +144,13 @@ export function EditEquipmentModal({
   const [showEditObservacionModal, setShowEditObservacionModal] = useState(false);
   const [selectedObservacion, setSelectedObservacion] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, confirmLabel: 'Eliminar', confirmClass: 'bg-red-600 hover:bg-red-700 text-white' });
+
+  // Estados para sección de tickets
+  const [equipmentTickets, setEquipmentTickets] = useState([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [loadingTicketDetail, setLoadingTicketDetail] = useState(false);
   
   // Estados para guardar la información de los manuales, guías y órdenes seleccionados
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
@@ -156,6 +166,50 @@ export function EditEquipmentModal({
     } catch (e) {
       console.error("Error cargando especificaciones:", e);
       setEquipoEspecificaciones([]);
+    }
+  };
+
+  // Función para cargar tickets asociados al equipo
+  const fetchEquipmentTickets = async (equipmentId) => {
+    setLoadingTickets(true);
+    try {
+      const response = await httpService.get('/v1/gestion-tickets', {
+        params: { equipo_id: equipmentId, per_page: 100, page: 1 }
+      });
+      const ESTADO_MAP = { 1: 'Abierto', 2: 'Asignado', 3: 'Diagnosticado', 4: 'Cerrado', 5: 'Esperando cierre' };
+      if (response.data?.success && response.data?.data?.data) {
+        const arr = Array.isArray(response.data.data.data) ? response.data.data.data : [];
+        setEquipmentTickets(arr.map(t => ({
+          ...t,
+          estado: t.estado || t.estado_nombre || ESTADO_MAP[t.estado_id] || 'Sin estado',
+        })));
+      } else {
+        setEquipmentTickets([]);
+      }
+    } catch (e) {
+      console.error('Error cargando tickets del equipo:', e);
+      setEquipmentTickets([]);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  // Función para cargar detalle completo de un ticket y abrir modal con acciones
+  const openTicketDetail = async (ticketId) => {
+    setLoadingTicketDetail(true);
+    try {
+      const response = await httpService.get(`/v1/gestion-tickets/${ticketId}`);
+      if (response.data?.success && response.data?.data) {
+        setSelectedTicket(response.data.data);
+        setShowTicketModal(true);
+      } else {
+        toast.error('No se pudieron cargar los detalles del ticket');
+      }
+    } catch (e) {
+      console.error('Error cargando detalle ticket:', e);
+      toast.error('Error al cargar los detalles del ticket');
+    } finally {
+      setLoadingTicketDetail(false);
     }
   };
 
@@ -374,6 +428,7 @@ export function EditEquipmentModal({
       invalidateHistoryCache(equipment?.id);
       loadModalData();
       loadRegistrosInvima(); // Cargar registros INVIMA cuando se abre el modal
+      if (equipment?.id) fetchEquipmentTickets(equipment.id); // Cargar tickets asociados
     }
   }, [open, equipment?.id]);
 
@@ -4571,6 +4626,110 @@ export function EditEquipmentModal({
                 </CardContent>
               )}
             </Card>
+
+            {/* ===== SECCIÓN: TICKETS / CORRECTIVOS ASOCIADOS ===== */}
+            <Card className="border border-gray-200 rounded-lg shadow-sm">
+              <CardHeader className="p-3 sm:p-4 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="w-4 h-4 text-orange-600" />
+                    <CardTitle className="text-sm font-semibold text-gray-800">
+                      Tickets / Correctivos Asociados
+                    </CardTitle>
+                    {equipmentTickets.length > 0 && (
+                      <span className="ml-1 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-medium">
+                        {equipmentTickets.length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 sm:p-4">
+                {loadingTickets ? (
+                  <div className="flex items-center justify-center py-6 text-gray-500 text-sm">
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
+                    Cargando tickets...
+                  </div>
+                ) : equipmentTickets.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 text-sm italic">
+                    No hay tickets asociados a este equipo
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-2 py-2 text-left font-semibold text-gray-700">ID</th>
+                          <th className="border border-gray-300 px-2 py-2 text-left font-semibold text-gray-700">Descripción</th>
+                          <th className="border border-gray-300 px-2 py-2 text-left font-semibold text-gray-700">Estado</th>
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-700">Archivo</th>
+                          <th className="border border-gray-300 px-2 py-2 text-center font-semibold text-gray-700">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {equipmentTickets.map((ticket, idx) => {
+                          const estadoId = Number(ticket.estado_id);
+                          const estadoCls =
+                            estadoId === 1 ? 'bg-red-100 text-red-700' :
+                            estadoId === 2 ? 'bg-yellow-100 text-yellow-700' :
+                            estadoId === 3 ? 'bg-blue-100 text-blue-700' :
+                            estadoId === 4 ? 'bg-green-100 text-green-700' :
+                            estadoId === 5 ? 'bg-purple-100 text-purple-700' :
+                            'bg-gray-100 text-gray-700';
+                          const estadoLabel =
+                            estadoId === 1 ? 'Abierto' :
+                            estadoId === 2 ? 'Asignado' :
+                            estadoId === 3 ? 'Diagnosticado' :
+                            estadoId === 4 ? 'Cerrado' :
+                            estadoId === 5 ? 'Esperando cierre' :
+                            ticket.estado || 'Sin estado';
+                          const desc = ticket.descripcion_problema || ticket.descripcion || 'Sin descripción';
+                          return (
+                            <tr key={ticket.id || idx} className="hover:bg-gray-50">
+                              <td className="border border-gray-200 px-2 py-1.5 font-medium text-gray-800">#{ticket.id}</td>
+                              <td className="border border-gray-200 px-2 py-1.5 text-gray-700 max-w-[280px]">
+                                {desc.length > 120 ? desc.substring(0, 120) + '...' : desc}
+                              </td>
+                              <td className="border border-gray-200 px-2 py-1.5">
+                                <Badge className={estadoCls}>{estadoLabel}</Badge>
+                              </td>
+                              <td className="border border-gray-200 px-2 py-1.5 text-center">
+                                {ticket.file_cierre ? (
+                                  <button
+                                    type="button"
+                                    title="Ver archivo de cierre"
+                                    onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://192.168.56.1:8001'}/storage/correctivos_generales/${ticket.file_cierre}`, '_blank')}
+                                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    <ExternalLink className="w-3 h-3" /> Ver
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </td>
+                              <td className="border border-gray-200 px-2 py-1.5 text-center">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  disabled={loadingTicketDetail}
+                                  onClick={() => openTicketDetail(ticket.id)}
+                                  title="Abrir ticket con todas las acciones"
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  {loadingTicketDetail ? '...' : 'Abrir'}
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div className="sticky bottom-0 left-0 right-0 z-20 -mx-4 -mb-4 bg-white border-t rounded-2xl shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.12)] flex gap-2 items-center justify-center px-6 py-4 w-[100%] max-w-3xl mx-auto">
@@ -4884,6 +5043,24 @@ export function EditEquipmentModal({
           }
         }}
       />
+
+      {/* Modal de ticket con todas las acciones habilitadas */}
+      {showTicketModal && selectedTicket && (
+        <TicketDetailsComplete
+          isOpen={showTicketModal}
+          onClose={() => {
+            setShowTicketModal(false);
+            setSelectedTicket(null);
+            // Recargar tickets tras cerrar por si hubo cambios
+            if (equipment?.id) fetchEquipmentTickets(equipment.id);
+          }}
+          ticket={selectedTicket}
+          readOnly={false}
+          onRefresh={() => {
+            if (selectedTicket?.id) openTicketDetail(selectedTicket.id);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

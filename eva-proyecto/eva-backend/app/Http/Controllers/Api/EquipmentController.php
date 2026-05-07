@@ -1443,7 +1443,9 @@ class EquipmentController extends ApiController
                     'pro.logo as propietario_logo',
                     'ordenes_compra.orden as orden_compra',
                     'ordenes_compra.file as orden_compra_file',
-                    'tipos_compra.tipo_compra as tipo_compra'
+                    'tipos_compra.tipo_compra as tipo_compra',
+                    // Documento de baja (para badge en tabla principal)
+                    DB::raw('(SELECT b.archivo FROM equipos_bajas eb LEFT JOIN bajas b ON eb.baja_id = b.id WHERE eb.equipo_id = equipos.id ORDER BY b.fecha_baja DESC LIMIT 1) AS archivo_baja')
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
@@ -1742,6 +1744,8 @@ class EquipmentController extends ApiController
                         'nombre_equipo' => $equipo->invima_titulo ?? null,
                         'archivo_registro_sanitario' => $equipo->invima_archivo ?? null,
                     ]] : null,
+                    // Documento de baja (badge en tabla principal)
+                    'archivo_baja' => $equipo->archivo_baja ?? null,
                 ];
             });
 

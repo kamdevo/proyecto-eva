@@ -83,6 +83,7 @@ export default function HospitalTicketModal({
     fecha: "",
     area: "",
     equipo: "",
+    equipo_id: null,
     modelo: "",
     serie: "",
     marca: "",
@@ -293,6 +294,7 @@ export default function HospitalTicketModal({
     setFormData((prev) => ({
       ...prev,
       equipo: equipo.name || "",
+      equipo_id: equipo.id || null,
       modelo: equipo.modelo || "",
       serie: equipo.serial || "",
       marca: equipo.marca || "",
@@ -442,6 +444,7 @@ export default function HospitalTicketModal({
       const ticketData = {
         descripcion: formData.descripcionProblema || "Ticket creado desde el sistema",
         subproceso_id: ticketType === "biomedico" ? 1 : ticketType === "industrial" ? 2 : 3,
+        equipo_id: ticketType !== "infraestructura" ? (formData.equipo_id || null) : null,
         nombre_equipo: ticketType === "infraestructura" ? "N/A - Infraestructura" : (formData.equipo || "No especificado"),
         codigo_equipo: ticketType === "infraestructura" ? null : (formData.numeroInventario || null),
         serie_equipo: ticketType === "infraestructura" ? null : (formData.serie || null),
@@ -798,6 +801,7 @@ export default function HospitalTicketModal({
                         setFormData(prev => ({
                           ...prev,
                           equipo: "",
+                          equipo_id: null,
                           modelo: "",
                           serie: "",
                           marca: "",
