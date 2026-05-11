@@ -452,9 +452,9 @@ class EquipmentController extends ApiController
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:100|unique:equipos,code,' . $id,
+            'code' => 'nullable|string|max:100',
             'servicio_id' => 'required|exists:servicios,id',
-            'area_id' => 'required|exists:areas,id',
+            'area_id' => 'nullable|exists:areas,id',
             'marca' => 'nullable|string|max:100',
             'modelo' => 'nullable|string|max:100',
             'serial' => 'nullable|string|max:100',
@@ -1445,9 +1445,17 @@ class EquipmentController extends ApiController
                     'ordenes_compra.file as orden_compra_file',
                     'tipos_compra.tipo_compra as tipo_compra',
                     // Documento de baja (para badge en tabla principal)
-                    DB::raw('(SELECT b.archivo FROM equipos_bajas eb LEFT JOIN bajas b ON eb.baja_id = b.id WHERE eb.equipo_id = equipos.id ORDER BY b.fecha_baja DESC LIMIT 1) AS archivo_baja')
+                    // Busca primero por equipos.baja_id (legacy/directo) y si no existe usa equipos_bajas (flujo nuevo)
+                    DB::raw('COALESCE(
+                        (SELECT b.archivo FROM bajas b WHERE b.id = equipos.baja_id AND b.archivo IS NOT NULL AND b.archivo != "" LIMIT 1),
+                        (SELECT b.archivo FROM equipos_bajas eb LEFT JOIN bajas b ON eb.baja_id = b.id WHERE eb.equipo_id = equipos.id AND b.archivo IS NOT NULL AND b.archivo != "" ORDER BY b.fecha_baja DESC LIMIT 1)
+                    ) AS archivo_baja'),
+                    'centros.id as centro_costo_id',
+                    'centros.code as centro_costo',
+                    'centros.name as centro_costo_nombre'
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
+                ->leftJoin('centros', 'centros.id', '=', 'servicios.centro_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
                 ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
                 ->leftJoin('zonas', 'zonas.id', '=', 'servicios.zona_id')
@@ -1746,6 +1754,10 @@ class EquipmentController extends ApiController
                     ]] : null,
                     // Documento de baja (badge en tabla principal)
                     'archivo_baja' => $equipo->archivo_baja ?? null,
+                    // Centro de costo (servicios.centro_id -> centros.code)
+                    'centro_costo_id' => $equipo->centro_costo_id ?? null,
+                    'centro_costo' => $equipo->centro_costo ?? null,
+                    'centro_costo_nombre' => $equipo->centro_costo_nombre ?? null,
                 ];
             });
 
@@ -1802,6 +1814,10 @@ class EquipmentController extends ApiController
                     'estadoequipos.name as estado_nombre',
                     'pro.nombre as propietario_nombre',
                     'pro.logo as propietario_logo',
+                    // Centro de costo (servicios.centro_id -> centros)
+                    'centros.id as centro_costo_id',
+                    'centros.code as centro_costo',
+                    'centros.name as centro_costo_nombre',
                     
                     // Plan de mantenimiento del año vigente
                     DB::raw('(SELECT COUNT(*) FROM planes_mantenimientos 
@@ -1831,6 +1847,7 @@ class EquipmentController extends ApiController
                     DB::raw('(SELECT anio FROM vigencias_mantenimiento LIMIT 1) AS anio_vigente')
                 ])
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
+                ->leftJoin('centros', 'centros.id', '=', 'servicios.centro_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
                 ->leftJoin('propietarios as pro', 'pro.id', '=', 'equipos.propietario_id')
@@ -2630,6 +2647,10 @@ class EquipmentController extends ApiController
 
                 // Estados y clasificaciones
                 'estados' => $this->getEstadosEquipoWithDefault(),
+                'funcionalidades' => DB::table('estadoequipos')
+                    ->where('tipoestado_id', 1)
+                    ->where('status', 1)
+                    ->get(['id', 'name']),
                 'clasificaciones' => $safeQuery('cbiomedica', ['id', 'name'], 'name',
                     ['id' => 0, 'name' => 'No disponible - Configurar clasificaciones biomédicas']),
                 'riesgos' => $safeQuery('criesgo', ['id', 'name'], 'name',
@@ -2674,7 +2695,11 @@ class EquipmentController extends ApiController
                 // Años disponibles para filtros temporales
                 'years' => collect(range(date('Y') - 10, date('Y') + 2))->map(function($year) {
                     return ['id' => $year, 'name' => $year];
-                })
+                }),
+
+                // Períodos de garantía
+                'periodos_garantias' => $safeQuery('periodos_garantias', ['id', 'name'], 'id',
+                    ['id' => 0, 'name' => 'No disponible'])
             ];
 
             return response()->json([

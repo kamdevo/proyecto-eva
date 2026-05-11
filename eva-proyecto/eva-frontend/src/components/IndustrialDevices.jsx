@@ -254,13 +254,15 @@ function IndustrialDevices() {
       const response = await httpService.get(`/v1/calibracion`, {
         params: {
           equipo_id: equipmentId,
-          per_page: 1,
+          per_page: 20,
           order_by: "fecha_calibracion",
           order_direction: "desc"
         }
       });
-      const data = response.data?.data?.data || response.data?.data || response.data;
-      const calibration = Array.isArray(data) ? data[0] : (data.data ? data.data[0] : null);
+      const raw = response.data?.data?.data || response.data?.data || response.data;
+      const records = Array.isArray(raw) ? raw : (raw?.data ? raw.data : []);
+      // Buscar el registro más reciente que tenga archivo
+      const calibration = records.find(r => r.file);
       if (calibration && calibration.file) {
         const fileName = calibration.file.replace(/^calibraciones\//, "");
         const fileUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}/storage/calibraciones/${fileName}`;

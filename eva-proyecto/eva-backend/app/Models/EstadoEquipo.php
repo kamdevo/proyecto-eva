@@ -47,7 +47,7 @@ class EstadoEquipo extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'estado_equipos';
+    protected $table = 'estadoequipos';
     protected $primaryKey = 'id';
     public $timestamps = true;
 

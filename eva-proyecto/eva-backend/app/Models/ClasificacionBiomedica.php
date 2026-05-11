@@ -49,7 +49,7 @@ class ClasificacionBiomedica extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'clasificacion_biomedicas';
+    protected $table = 'cbiomedica';
     protected $primaryKey = 'id';
     public $timestamps = true;
 

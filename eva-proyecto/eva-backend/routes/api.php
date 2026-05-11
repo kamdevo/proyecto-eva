@@ -5420,7 +5420,7 @@ Route::post('v1/equipos-create', function(Request $request) {
             'baja_id' => $request->input('baja_id') ?: 1, // REQUERIDO
             'estado_mantenimiento' => 0, // SIEMPRE 0 por defecto
             'estadoequipo_id' => $request->input('funcionalidad') ?: 1, // Funcionalidad → estadoequipo_id
-            'disponibilidad_id' => $request->input('estadoequipo_id') ?: null, // Disponibilidad → disponibilidad_id
+            'disponibilidad_id' => $request->input('estadoequipo_id') ?: 0, // 0 para evitar setear una disponibilidad real por defecto
             'guia_id' => $request->input('guia_id') ?: null, // Opcional: no asignar guía por defecto al copiar/crear
             'manual_id' => $request->input('manual_id') ?: null, // Opcional: no asignar manual por defecto al copiar/crear
 
@@ -9585,7 +9585,8 @@ Route::get('v1/test/modal-equipment-data', function () {
             'funcionalidades' => DB::table('estadoequipos')
                 ->where('tipoestado_id', 1)
                 ->where('status', 1)
-                ->get(['id', 'name'])
+                ->get(['id', 'name']),
+            'periodos_garantias' => DB::table('periodos_garantias')->orderBy('id')->get(['id', 'name'])
         ];
 
         return response()->json([
@@ -10894,10 +10895,16 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
             'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
             'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
             'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
-            'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
+            'criesgo_id', 'tadquisicion_id', 'tipo_id', 'disponibilidad_id',
+            'costo', 'vida_util', 'garantia',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
             'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
-            'periodicidad', 'manual_id', 'guia_id', 'invima_id', 'orden_compra_id'
+            'periodicidad', 'manual_id', 'guia_id', 'invima_id', 'orden_compra_id',
+            'invima', 'accesorios', 'activo_comodato', 'observacion', 'codigo_antiguo',
+            'v1', 'v2', 'v3',
+            'fecha_fabricacion', 'fecha_instalacion', 'fecha_inicio_operacion',
+            'fecha_acta_recibo', 'fecha_vencimiento_garantia', 'fecha_recepcion_almacen',
+            'fecha_ad', 'otros'
         ]);
 
         // Normalizar FKs: convertir '', '0', 0 a null

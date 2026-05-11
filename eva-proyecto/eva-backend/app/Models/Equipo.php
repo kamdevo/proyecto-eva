@@ -172,57 +172,50 @@ class Equipo extends Model
      */
     protected $casts = [
         'id' => 'integer',
-        
-        // Fechas críticas del equipo
+
+        // Fechas que son columnas DATE reales en la DB
         'fecha_ad' => 'date',
         'fecha_instalacion' => 'date',
-        'fecha_mantenimiento' => 'date',
-        'fecha_vencimiento_garantia' => 'date',
-        'fecha_acta_recibo' => 'date',
-        'fecha_inicio_operacion' => 'date',
-        'fecha_fabricacion' => 'date',
-        'fecha_recepcion_almacen' => 'date',
-        
-        // Valores numéricos y financieros
-        'vida_util' => 'integer',
-        'costo' => 'decimal:2',
-        'v1' => 'decimal:2',
-        'v2' => 'decimal:2', 
-        'v3' => 'decimal:2',
-        
-        // Campos booleanos de control
-        'verificacion_inventario' => 'boolean',
-        'activo_comodato' => 'boolean',
-        'movilidad' => 'boolean',
-        'calibracion' => 'boolean',
-        'repuesto_pendiente' => 'boolean',
-        
-        // Relaciones foráneas
-        'servicio_id' => 'integer',
-        'area_id' => 'integer',
-        'centro_id' => 'integer',
-        'piso_id' => 'integer',
-        'zona_id' => 'integer',
-        'propietario_id' => 'integer',
+
+        // NOTA: fecha_fabricacion, fecha_vencimiento_garantia, fecha_acta_recibo,
+        // fecha_inicio_operacion, fecha_recepcion_almacen, fecha_mantenimiento
+        // son columnas TEXT en la DB — no usar cast 'date' para evitar errores
+
+        // vida_util es varchar(100) en la DB pero contiene números
+        // No casteamos para no romper valores como "10 AÑOS"
+
+        // costo, v1, v2, v3 son varchar en la DB — no castear a decimal
+        // para permitir valores como "5115000000" o "110V"
+
+        // calibracion, repuesto_pendiente, movilidad, activo_comodato,
+        // verificacion_inventario son varchar en la DB — no castear a boolean
+
+        // Relaciones foráneas (son int en la DB)
+        'servicio_id'     => 'integer',
+        'area_id'         => 'integer',
+        'centro_id'       => 'integer',
+        'piso_id'         => 'integer',
+        'zona_id'         => 'integer',
+        'propietario_id'  => 'integer',
         'estadoequipo_id' => 'integer',
-        'tipo_id' => 'integer',
-        'fuente_id' => 'integer',
-        'tecnologia_id' => 'integer',
-        'frecuencia_id' => 'integer',
-        'cbiomedica_id' => 'integer',
-        'criesgo_id' => 'integer',
+        'tipo_id'         => 'integer',
+        'fuente_id'       => 'integer',
+        'tecnologia_id'   => 'integer',
+        'frecuencia_id'   => 'integer',
+        'cbiomedica_id'   => 'integer',
+        'criesgo_id'      => 'integer',
         'tadquisicion_id' => 'integer',
-        'invima_id' => 'integer',
+        'invima_id'       => 'integer',
         'orden_compra_id' => 'integer',
-        'baja_id' => 'integer',
-        'guia_id' => 'integer',
-        'manual_id' => 'integer',
-        'necesidad_id' => 'integer',
+        'baja_id'         => 'integer',
+        'guia_id'         => 'integer',
+        'manual_id'       => 'integer',
+        'necesidad_id'    => 'integer',
         'disponibilidad_id' => 'integer',
-        
+
         // Timestamps del sistema
-        'created_at' => 'datetime',
-        'fecha_cambio' => 'datetime' // Usamos fecha_cambio como updated_at
+        'created_at'  => 'datetime',
+        'fecha_cambio' => 'datetime',
     ];
 
     // ==========================================
@@ -528,6 +521,15 @@ class Equipo extends Model
     public function registroInvima(): BelongsTo
     {
         return $this->belongsTo(Invima::class, 'invima_id');
+    }
+
+    /**
+     * Relación con tipo de equipo
+     */
+    public function tipo(): BelongsTo
+    {
+        return $this->belongsTo(Tipo::class, 'tipo_id')
+                    ->withDefault(['name' => 'Sin tipo']);
     }
 
     /**

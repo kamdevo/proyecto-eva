@@ -62,6 +62,8 @@ export async function prefetchDropdownOptions() {
         clasificacionesRiesgo: resp.data.data.riesgos || [],
         tiposAdquisicion: resp.data.data.tipos_adquisicion || [],
         estadosEquipo: resp.data.data.estados || [],
+        funcionalidades: resp.data.data.funcionalidades || [],
+        periodosGarantias: resp.data.data.periodos_garantias || [],
         tipos: resp.data.data.tipos_equipos || resp.data.data.tipos || [],
         disponibilidades: resp.data.data.disponibilidades || [],
         invimas: resp.data.data.invimas || resp.data.data.registros_invima || [],

@@ -19,6 +19,8 @@
  */
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use App\Http\Controllers\Api\EquipmentController;
 
 /*
@@ -86,3 +88,88 @@ Route::post('equipos/eliminar-masivo', [EquipmentController::class, 'eliminarMas
 Route::get('equipos/{id}/qr', [EquipmentController::class, 'generarQR']);
 Route::get('equipos/{id}/etiqueta', [EquipmentController::class, 'generarEtiqueta']);
 Route::post('equipos/escanear-qr', [EquipmentController::class, 'escanearQR']);
+
+// Contactos asociados al equipo
+Route::get('equipos/{id}/contactos', function($id) {
+    try {
+        $contactos = DB::table('equipo_contacto')
+            ->join('contacto', 'equipo_contacto.contacto_id', '=', 'contacto.id')
+            ->leftJoin('tcontacto', 'contacto.tcontacto_id', '=', 'tcontacto.id')
+            ->select([
+                'equipo_contacto.id as pivot_id',
+                'contacto.id as contacto_id',
+                'contacto.name',
+                'contacto.email',
+                'contacto.telefono',
+                'tcontacto.description as tipo_nombre',
+            ])
+            ->where('equipo_contacto.equipo_id', $id)
+            ->where('equipo_contacto.status', 1)
+            ->where('contacto.status', 1)
+            ->orderBy('contacto.name')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $contactos]);
+    } catch (Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Error obteniendo contactos: ' . $e->getMessage()], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+Route::post('equipos/{id}/contactos', function(Request $request, $id) {
+    try {
+        $request->validate(['contacto_id' => 'required|integer|exists:contacto,id']);
+
+        // Evitar duplicados activos
+        $exists = DB::table('equipo_contacto')
+            ->where('equipo_id', $id)
+            ->where('contacto_id', $request->contacto_id)
+            ->where('status', 1)
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['success' => false, 'message' => 'El contacto ya está asociado a este equipo'], 422);
+        }
+
+        $pivotId = DB::table('equipo_contacto')->insertGetId([
+            'equipo_id'   => $id,
+            'contacto_id' => $request->contacto_id,
+            'status'      => 1,
+            'created_at'  => now(),
+        ]);
+
+        $contacto = DB::table('equipo_contacto')
+            ->join('contacto', 'equipo_contacto.contacto_id', '=', 'contacto.id')
+            ->leftJoin('tcontacto', 'contacto.tcontacto_id', '=', 'tcontacto.id')
+            ->select([
+                'equipo_contacto.id as pivot_id',
+                'contacto.id as contacto_id',
+                'contacto.name',
+                'contacto.email',
+                'contacto.telefono',
+                'tcontacto.description as tipo_nombre',
+            ])
+            ->where('equipo_contacto.id', $pivotId)
+            ->first();
+
+        return response()->json(['success' => true, 'message' => 'Contacto asociado exitosamente', 'data' => $contacto], 201);
+    } catch (Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Error asociando contacto: ' . $e->getMessage()], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
+Route::delete('equipos/{id}/contactos/{pivotId}', function($id, $pivotId) {
+    try {
+        $updated = DB::table('equipo_contacto')
+            ->where('id', $pivotId)
+            ->where('equipo_id', $id)
+            ->update(['status' => 0]);
+
+        if (!$updated) {
+            return response()->json(['success' => false, 'message' => 'Asociación no encontrada'], 404);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Contacto desvinculado exitosamente']);
+    } catch (Exception $e) {
+        return response()->json(['success' => false, 'message' => 'Error desvinculando contacto: ' . $e->getMessage()], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);

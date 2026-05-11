@@ -47,7 +47,7 @@ class FrecuenciaMantenimiento extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'frecuencia_mantenimientos';
+    protected $table = 'frecuenciam';
     protected $primaryKey = 'id';
     public $timestamps = true;
 

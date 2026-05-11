@@ -49,7 +49,7 @@ class Tecnologia extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'tecnologias';
+    protected $table = 'tecnologiap';
     protected $primaryKey = 'id';
     public $timestamps = true;
 

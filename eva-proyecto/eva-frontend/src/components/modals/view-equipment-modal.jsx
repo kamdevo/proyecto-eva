@@ -900,8 +900,14 @@ export function ViewEquipmentModal({
                       <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.corriente)}</td>
                     </tr>
                     <tr>
-                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">País Origen</td>
-                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.pais_origen)}</td>
+                      <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Centro de Costo</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">
+                        {displayData.centro_costo
+                          ? (displayData.centro_costo_nombre
+                              ? `${displayData.centro_costo} - ${displayData.centro_costo_nombre}`
+                              : displayData.centro_costo)
+                          : safeValue(null)}
+                      </td>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Frecuencia</td>
                       <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.frecuencia)}</td>
                     </tr>

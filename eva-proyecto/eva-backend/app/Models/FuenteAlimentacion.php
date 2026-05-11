@@ -49,7 +49,7 @@ class FuenteAlimentacion extends Model
     // CONFIGURACIÓN BÁSICA DEL MODELO
     // ==========================================
     
-    protected $table = 'fuente_alimentacions';
+    protected $table = 'fuenteal';
     protected $primaryKey = 'id';
     public $timestamps = true;
 

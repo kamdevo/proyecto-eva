@@ -33,6 +33,7 @@ import {
   ExternalLink,
   Eye,
   Ticket,
+  StepForward,
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
@@ -56,6 +57,7 @@ import AddCorrectivoModal from "./add-correctivo-modal";
 import AddEspecificacionModal from "./add-especificacion-modal";
 import EditObservacionModal from "./edit-observacion-modal";
 import TicketDetailsComplete from "./ticket-details-complete";
+import SearchableSelect from "@/components/ui/searchable-select";
 
 // Parsear fecha como local (evita desfase de timezone con fechas ISO date-only)
 const parseLocalDate = (dateStr) => {
@@ -94,6 +96,7 @@ export function EditEquipmentModal({
     calibraciones: false,
     repuestos: false,
     especificaciones: false,
+    equipmentTickets: false,
   });
   const [equipmentHistory, setEquipmentHistory] = useState({
     correctivos: [],
@@ -101,6 +104,7 @@ export function EditEquipmentModal({
     calibraciones: [],
     repuestos: [],
     observaciones: [],
+    equipmentTickets: [],
   });
   const [dropdownOptions, setDropdownOptions] = useState({
     servicios: [],
@@ -113,7 +117,16 @@ export function EditEquipmentModal({
     clasificacionesRiesgo: [],
     tiposAdquisicion: [],
     estadosEquipo: [],
+    funcionalidades: [],
+    periodosGarantias: [],
   });
+
+  // Estado para quick-add propietario
+  const [showQuickPropietario, setShowQuickPropietario] = useState(false);
+  const [quickPropNombre, setQuickPropNombre] = useState("");
+  const [quickPropLogo, setQuickPropLogo] = useState(null);
+  const [savingPropietario, setSavingPropietario] = useState(false);
+  const quickLogoRef = React.useRef(null);
 
   // Estados para INVIMA
   const [registrosInvima, setRegistrosInvima] = useState([]);
@@ -151,6 +164,13 @@ export function EditEquipmentModal({
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [loadingTicketDetail, setLoadingTicketDetail] = useState(false);
+
+  // Estados para sección de contactos
+  const [equipmentContacts, setEquipmentContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [showContactSelect, setShowContactSelect] = useState(false);
+  const [allContacts, setAllContacts] = useState([]);
+  const [selectedContactId, setSelectedContactId] = useState(null);
   
   // Estados para guardar la información de los manuales, guías y órdenes seleccionados
   const [selectedManualInfo, setSelectedManualInfo] = useState(null);
@@ -191,6 +211,108 @@ export function EditEquipmentModal({
       setEquipmentTickets([]);
     } finally {
       setLoadingTickets(false);
+    }
+  };
+
+  // Funciones para contactos del equipo
+  const fetchEquipmentContacts = async (equipmentId) => {
+    setLoadingContacts(true);
+    try {
+      const response = await httpService.get(`/v1/equipos/${equipmentId}/contactos`);
+      if (response.data?.success) {
+        setEquipmentContacts(Array.isArray(response.data.data) ? response.data.data : []);
+      } else {
+        setEquipmentContacts([]);
+      }
+    } catch (e) {
+      console.error('Error cargando contactos del equipo:', e);
+      setEquipmentContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const fetchAllContacts = async () => {
+    try {
+      const response = await httpService.get('/v1/contactos/list', { params: { per_page: 1000 } });
+      if (response.data?.success) {
+        const contacts = Array.isArray(response.data.data) ? response.data.data : [];
+        setAllContacts(contacts.map(c => ({
+          id: c.id.toString(),
+          label: `${c.name}${c.tipo_nombre ? ` (${c.tipo_nombre})` : ''}`,
+          name: c.name,
+        })));
+      }
+    } catch (e) {
+      console.error('Error cargando lista de contactos:', e);
+    }
+  };
+
+  const addEquipmentContact = async (contactId) => {
+    if (!contactId || !equipment?.id) return;
+    try {
+      const response = await httpService.post(`/v1/equipos/${equipment.id}/contactos`, { contacto_id: parseInt(contactId) });
+      if (response.data?.success) {
+        toast.success('Contacto asociado correctamente');
+        setEquipmentContacts(prev => [...prev, response.data.data]);
+        setShowContactSelect(false);
+        setSelectedContactId(null);
+      } else {
+        toast.error(response.data?.message || 'Error al asociar contacto');
+      }
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Error al asociar contacto';
+      toast.error(msg);
+    }
+  };
+
+  const removeEquipmentContact = async (pivotId) => {
+    if (!equipment?.id) return;
+    try {
+      const response = await httpService.delete(`/v1/equipos/${equipment.id}/contactos/${pivotId}`);
+      if (response.data?.success) {
+        toast.success('Contacto desvinculado');
+        setEquipmentContacts(prev => prev.filter(c => c.pivot_id !== pivotId));
+      } else {
+        toast.error(response.data?.message || 'Error al desvincular contacto');
+      }
+    } catch (e) {
+      toast.error('Error al desvincular contacto');
+    }
+  };
+
+  // Crear propietario rápido y añadirlo al dropdown
+  const saveQuickPropietario = async () => {
+    if (!quickPropNombre.trim()) {
+      toast.error('Ingrese el nombre del propietario');
+      return;
+    }
+    setSavingPropietario(true);
+    try {
+      const fd = new FormData();
+      fd.append('nombre', quickPropNombre.trim());
+      if (quickPropLogo) fd.append('logo', quickPropLogo);
+      const response = await httpService.post('/v1/propietarios', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (response.data?.success) {
+        const nuevo = response.data.data;
+        setDropdownOptions(prev => ({
+          ...prev,
+          propietarios: [...prev.propietarios, { id: nuevo.id, name: nuevo.nombre }],
+        }));
+        handleInputChange('propietario_id', nuevo.id.toString());
+        toast.success('Propietario creado y seleccionado');
+        setShowQuickPropietario(false);
+        setQuickPropNombre('');
+        setQuickPropLogo(null);
+      } else {
+        toast.error(response.data?.message || 'Error al crear propietario');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Error al crear propietario');
+    } finally {
+      setSavingPropietario(false);
     }
   };
 
@@ -429,6 +551,8 @@ export function EditEquipmentModal({
       loadModalData();
       loadRegistrosInvima(); // Cargar registros INVIMA cuando se abre el modal
       if (equipment?.id) fetchEquipmentTickets(equipment.id); // Cargar tickets asociados
+      if (equipment?.id) fetchEquipmentContacts(equipment.id); // Cargar contactos asociados
+      fetchAllContacts(); // Cargar lista completa de contactos para el selector
     }
   }, [open, equipment?.id]);
 
@@ -444,6 +568,14 @@ export function EditEquipmentModal({
       setSelectedManualInfo(null);
       setSelectedGuideInfo(null);
       setSelectedOrderInfo(null);
+      // Limpiar estado de contactos
+      setEquipmentContacts([]);
+      setShowContactSelect(false);
+      setSelectedContactId(null);
+      // Limpiar quick propietario
+      setShowQuickPropietario(false);
+      setQuickPropNombre('');
+      setQuickPropLogo(null);
     }
   }, [open]);
 
@@ -615,6 +747,11 @@ export function EditEquipmentModal({
         equipmentData.disponibilidad_id && equipmentData.disponibilidad_id !== 0
           ? equipmentData.disponibilidad_id.toString()
           : "",
+      funcionalidad:
+        equipmentData.funcionalidad && equipmentData.funcionalidad !== 0
+          ? equipmentData.funcionalidad.toString()
+          : "",
+      componentes: equipmentData.componentes || "",
 
       // Documentación y archivos
       manual: equipmentData.manual || "",
@@ -891,6 +1028,8 @@ export function EditEquipmentModal({
       // Estado
       estadoequipo_id: "",
       disponibilidad_id: "",
+      funcionalidad: "",
+      componentes: "",
 
       // Documentación
       manual: "",
@@ -2579,40 +2718,22 @@ export function EditEquipmentModal({
                         </Select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs sm:text-sm">
-                            Centro de costo:
-                            <span className="text-destructive">*</span>
-                          </Label>
-                          <Input
-                            value={formData.localizacion_actual || ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "localizacion_actual",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Centro de costo"
-                            className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
-                            disabled={isSubmitting || loading}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs sm:text-sm">
-                            País de origen:
-                            <span className="text-destructive">*</span>
-                          </Label>
-                          <Input
-                            value={formData.propiedad || ""}
-                            onChange={(e) =>
-                              handleInputChange("propiedad", e.target.value)
-                            }
-                            placeholder="País de origen"
-                            className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
-                            disabled={isSubmitting || loading}
-                          />
-                        </div>
+                      <div className="col-span-2">
+                        <Label className="text-xs sm:text-sm">
+                          Localización actual:
+                        </Label>
+                        <Input
+                          value={formData.localizacion_actual || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "localizacion_actual",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Localización actual"
+                          className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                          disabled={isSubmitting || loading}
+                        />
                       </div>
                     </div>
                   </div>
@@ -2806,44 +2927,6 @@ export function EditEquipmentModal({
 
                   <div>
                     <Label className="text-xs sm:text-sm">
-                      Propietario:<span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      key={`propietario-${formReady}-${formData.propietario_id}`}
-                      value={formData.propietario_id || ""}
-                      onValueChange={(value) =>
-                        handleInputChange("propietario_id", value)
-                      }
-                      disabled={isSubmitting || loading || !formReady}
-                    >
-                      <SelectTrigger
-                        className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
-                          errors.propietario_id ? "border-red-500" : ""
-                        }`}
-                      >
-                        <SelectValue placeholder="Seleccione propietario" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {dropdownOptions.propietarios.map((propietario) => (
-                          <SelectItem
-                            key={propietario.id}
-                            value={propietario.id.toString()}
-                          >
-                            {propietario.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.propietario_id && (
-                      <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        {errors.propietario_id}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className="text-xs sm:text-sm">
                       Costo de adquisición:
                     </Label>
                     <Input
@@ -2879,6 +2962,46 @@ export function EditEquipmentModal({
                       className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
                       disabled={isSubmitting || loading}
                     />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Garantía:
+                    </Label>
+                    <Select
+                      value={formData.garantia || ""}
+                      onValueChange={(value) => handleInputChange("garantia", value)}
+                      disabled={isSubmitting || loading}
+                    >
+                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                        <SelectValue placeholder="Seleccione período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dropdownOptions.periodosGarantias.map((pg) => (
+                          <SelectItem key={pg.id} value={pg.name}>
+                            {pg.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Activo comodato:
+                    </Label>
+                    <Input
+                      value={formData.activo_comodato || ""}
+                      onChange={(e) =>
+                        handleInputChange("activo_comodato", e.target.value)
+                      }
+                      placeholder="Código de comodato"
+                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      disabled={isSubmitting || loading || formData.tadquisicion_id !== "3"}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solo requerido para equipos en comodato
+                    </p>
                   </div>
 
                   <div>
@@ -3094,6 +3217,108 @@ export function EditEquipmentModal({
                     )}
                   </div>
                 </div>
+
+                {/* INFORMACIÓN DE CONTACTOS */}
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="font-medium text-xs sm:text-sm">
+                      👤 Información de Contactos:
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowContactSelect(!showContactSelect);
+                        setSelectedContactId(null);
+                      }}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-100 text-xs px-3 py-1 h-7"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Agregar contacto
+                    </Button>
+                  </div>
+
+                  {showContactSelect && (
+                    <div className="flex gap-2 mb-3 items-end">
+                      <div className="flex-1">
+                        <SearchableSelect
+                          placeholder="Buscar contacto..."
+                          options={allContacts}
+                          value={selectedContactId}
+                          onValueChange={setSelectedContactId}
+                          disabled={loading}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => addEquipmentContact(selectedContactId)}
+                        disabled={!selectedContactId}
+                        className="bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 text-xs"
+                      >
+                        Asociar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setShowContactSelect(false); setSelectedContactId(null); }}
+                        className="h-9 w-9 p-0 text-gray-500 hover:text-gray-800"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {loadingContacts ? (
+                    <p className="text-xs text-gray-500 text-center py-2">Cargando contactos...</p>
+                  ) : equipmentContacts.length > 0 ? (
+                    <div className="overflow-x-auto rounded-lg border border-gray-200">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Tipo</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Nombre</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Correo</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Teléfono</th>
+                            <th className="px-3 py-2"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {equipmentContacts.map((contact) => (
+                            <tr key={contact.pivot_id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="px-3 py-2">
+                                <Badge variant="secondary" className="text-xs font-normal">
+                                  {contact.tipo_nombre || "Sin tipo"}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-2 font-medium">{contact.name}</td>
+                              <td className="px-3 py-2 text-gray-600">{contact.email || "—"}</td>
+                              <td className="px-3 py-2 text-gray-600">{contact.telefono || "—"}</td>
+                              <td className="px-3 py-2 text-right">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeEquipmentContact(contact.pivot_id)}
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  title="Quitar contacto"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                      <p className="text-xs text-gray-500">Sin contactos asociados</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -3266,6 +3491,24 @@ export function EditEquipmentModal({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Periodicidad calibración:
+                    </Label>
+                    <Input
+                      value={formData.periodicidad || ""}
+                      onChange={(e) =>
+                        handleInputChange("periodicidad", e.target.value)
+                      }
+                      placeholder="Periodicidad en meses"
+                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      disabled={isSubmitting || loading || !formData.calibracion}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solo requerido si se realiza calibración
+                    </p>
+                  </div>
                 </div>
 
                 <Separator className="my-6" />
@@ -3298,6 +3541,41 @@ export function EditEquipmentModal({
                               {estado.name}
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs sm:text-sm">
+                        Funcionalidad:
+                      </Label>
+                      <Select
+                        value={formData.funcionalidad || ""}
+                        onValueChange={(value) =>
+                          handleInputChange("funcionalidad", value)
+                        }
+                        disabled={isSubmitting || loading}
+                      >
+                        <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                          <SelectValue placeholder="Seleccione funcionalidad" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dropdownOptions.funcionalidades && dropdownOptions.funcionalidades.length > 0
+                            ? dropdownOptions.funcionalidades.map((f) => (
+                                <SelectItem key={f.id} value={f.id.toString()}>
+                                  {f.name}
+                                </SelectItem>
+                              ))
+                            : [
+                                { id: "1", name: "Funcional" },
+                                { id: "2", name: "No Funcional" },
+                                { id: "3", name: "En Mantenimiento" },
+                              ].map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.name}
+                                </SelectItem>
+                              ))
+                          }
                         </SelectContent>
                       </Select>
                     </div>
@@ -3634,68 +3912,6 @@ export function EditEquipmentModal({
                       )}
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    <div>
-                      <Label className="text-xs sm:text-sm">
-                        Clasificación biomédica:
-                        <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={formData.cbiomedica_id || ""}
-                        onValueChange={(value) =>
-                          handleInputChange("cbiomedica_id", value)
-                        }
-                        disabled={isSubmitting || loading}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Seleccionar clasificación" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dropdownOptions.clasificacionesBiomedicas.map(
-                            (clasificacion) => (
-                              <SelectItem
-                                key={clasificacion.id}
-                                value={clasificacion.id.toString()}
-                              >
-                                {clasificacion.name}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs sm:text-sm">
-                        Clasificación de acuerdo al riesgo:
-                        <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={formData.criesgo_id || ""}
-                        onValueChange={(value) =>
-                          handleInputChange("criesgo_id", value)
-                        }
-                        disabled={isSubmitting || loading}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Seleccionar riesgo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dropdownOptions.clasificacionesRiesgo.map(
-                            (riesgo) => (
-                              <SelectItem
-                                key={riesgo.id}
-                                value={riesgo.id.toString()}
-                              >
-                                {riesgo.name}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -3836,17 +4052,34 @@ export function EditEquipmentModal({
                   COMPONENTES
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3 sm:p-4 md:p-6">
-                <div className="border border-gray-300 rounded-lg p-4 min-h-[80px] sm:min-h-[100px] bg-white">
-                  <Textarea
-                    value={formData.accesorios || ""}
-                    onChange={(e) =>
-                      handleInputChange("accesorios", e.target.value)
-                    }
-                    placeholder="Descripción de componentes y accesorios del equipo..."
-                    className="min-h-[100px] border-none resize-none focus:ring-0 w-full"
-                    disabled={isSubmitting || loading}
-                  />
+              <CardContent className="p-3 sm:p-4 md:p-6 space-y-4">
+                <div>
+                  <Label className="text-xs sm:text-sm font-medium">Componentes del equipo:</Label>
+                  <div className="border border-gray-300 rounded-lg p-4 min-h-[80px] bg-white mt-1">
+                    <Textarea
+                      value={formData.componentes || ""}
+                      onChange={(e) =>
+                        handleInputChange("componentes", e.target.value)
+                      }
+                      placeholder="Descripción de componentes del equipo..."
+                      className="min-h-[100px] border-none resize-none focus:ring-0 w-full"
+                      disabled={isSubmitting || loading}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs sm:text-sm font-medium">Accesorios:</Label>
+                  <div className="border border-gray-300 rounded-lg p-4 min-h-[80px] bg-white mt-1">
+                    <Textarea
+                      value={formData.accesorios || ""}
+                      onChange={(e) =>
+                        handleInputChange("accesorios", e.target.value)
+                      }
+                      placeholder="Descripción de accesorios del equipo..."
+                      className="min-h-[80px] border-none resize-none focus:ring-0 w-full"
+                      disabled={isSubmitting || loading}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -3862,21 +4095,113 @@ export function EditEquipmentModal({
               <CardContent className="p-3 sm:p-4 md:p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                   <div>
-                    <Label className="text-xs sm:text-sm">Propietario:</Label>
-                    <Select defaultValue="hospital">
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
+                    <Label className="text-xs sm:text-sm">
+                      Propietario:<span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      key={`seg-propietario-${formReady}-${formData.propietario_id}`}
+                      value={formData.propietario_id || ""}
+                      onValueChange={(value) =>
+                        handleInputChange("propietario_id", value)
+                      }
+                      disabled={isSubmitting || loading || !formReady}
+                    >
+                      <SelectTrigger
+                        className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
+                          errors.propietario_id ? "border-red-500" : ""
+                        }`}
+                      >
+                        <SelectValue placeholder="Seleccione propietario" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="hospital">
-                          Hospital Universitario del Valle
-                        </SelectItem>
-                        <SelectItem value="tercero">Tercero</SelectItem>
+                        {dropdownOptions.propietarios.map((propietario) => (
+                          <SelectItem
+                            key={propietario.id}
+                            value={propietario.id.toString()}
+                          >
+                            {propietario.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" size="sm" className="mt-2">
-                      <Plus className="h-4 w-4" />
+                    {errors.propietario_id && (
+                      <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.propietario_id}
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setShowQuickPropietario(true); setQuickPropNombre(''); setQuickPropLogo(null); }}
+                      className="mt-2 text-blue-600 border-blue-300 hover:bg-blue-50 text-xs h-7 px-2"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Nuevo propietario
                     </Button>
+
+                    {showQuickPropietario && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                        <p className="text-xs font-medium text-blue-800">Crear propietario</p>
+                        <div>
+                          <Label className="text-xs text-gray-600">Nombre <span className="text-red-500">*</span></Label>
+                          <Input
+                            value={quickPropNombre}
+                            onChange={(e) => setQuickPropNombre(e.target.value)}
+                            placeholder="Nombre del propietario"
+                            className="mt-1 h-7 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">Logo (opcional)</Label>
+                          <input
+                            ref={quickLogoRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => setQuickPropLogo(e.target.files?.[0] || null)}
+                          />
+                          <div className="flex items-center gap-2 mt-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => quickLogoRef.current?.click()}
+                              className="h-7 text-xs"
+                            >
+                              <Upload className="w-3 h-3 mr-1" />
+                              {quickPropLogo ? quickPropLogo.name : 'Seleccionar imagen'}
+                            </Button>
+                            {quickPropLogo && (
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => setQuickPropLogo(null)}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={saveQuickPropietario}
+                            disabled={savingPropietario}
+                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            {savingPropietario ? 'Guardando...' : 'Guardar'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowQuickPropietario(false)}
+                            className="h-7 text-xs"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -4002,45 +4327,47 @@ export function EditEquipmentModal({
             {/* OTROS CORRECTIVOS */}
             <Card>
               <CardHeader className="bg-yellow-50 py-3">
-                <CardTitle className="text-sm font-medium text-center text-yellow-700 flex items-center justify-center gap-2">
-                  OTROS CORRECTIVOS
-                  {equipmentHistory.correctivos && equipmentHistory.correctivos.length > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {equipmentHistory.correctivos.length}
-                    </Badge>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto bg-white hover:bg-yellow-100 text-yellow-700 border-yellow-200 flex items-center gap-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowAddCorrectivoModal(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Agregar</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() =>
-                      setExpandedSections((prev) => ({
-                        ...prev,
-                        otrosCorrectivos: !prev.otrosCorrectivos,
-                      }))
-                    }
-                  >
-                    <Plus
-                      className={`h-4 w-4 transition-transform ${
-                        expandedSections?.otrosCorrectivos ? "rotate-45" : ""
-                      }`}
-                    />
-                  </Button>
-                </CardTitle>
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex-1"></div>
+                  <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">
+                    OTROS CORRECTIVOS
+                    {equipmentHistory.correctivos && equipmentHistory.correctivos.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {equipmentHistory.correctivos.length}
+                      </Badge>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          otrosCorrectivos: !prev.otrosCorrectivos,
+                        }))
+                      }
+                    >
+                      <StepForward
+                        className={`h-4 w-4 transition-transform rotate-90 ${
+                          expandedSections?.otrosCorrectivos ? "rotate-270" : ""
+                        }`}
+                      />
+                    </Button>
+                  </CardTitle>
+                  <div className="flex-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                      onClick={() => setShowAddCorrectivoModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               {expandedSections?.otrosCorrectivos && (
                 <CardContent className="p-3 sm:p-4 md:p-6">
@@ -4244,9 +4571,9 @@ export function EditEquipmentModal({
                         }))
                       }
                     >
-                      <Plus
-                        className={`h-4 w-4 transition-transform ${
-                          expandedSections?.preventivos ? "rotate-45" : ""
+                      <StepForward
+                        className={`h-4 w-4 transition-transform rotate-90   ${
+                          expandedSections?.preventivos ? "rotate-270" : ""
                         }`}
                       />
                     </Button>
@@ -4272,13 +4599,13 @@ export function EditEquipmentModal({
                       <thead>
                         <tr className="bg-gray-100">
                           <th className="border border-gray-300 p-2 text-xs">
-                            Descripción
+                            Código Preventivo
                           </th>
                           <th className="border border-gray-300 p-2 text-xs">
-                            fecha de ejecución
+                            Fecha de ejecución
                           </th>
                           <th className="border border-gray-300 p-2 text-xs">
-                            información relacionada
+                            Acciones
                           </th>
                         </tr>
                       </thead>
@@ -4367,7 +4694,7 @@ export function EditEquipmentModal({
                   <div className="flex-1"></div>
                   <CardTitle className="text-sm font-medium text-blue-700 flex items-center gap-2">
                     CALIBRACIONES
-                    <Button
+                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
@@ -4379,9 +4706,9 @@ export function EditEquipmentModal({
                         }))
                       }
                     >
-                      <Plus
-                        className={`h-4 w-4 transition-transform ${
-                          expandedSections?.calibraciones ? "rotate-45" : ""
+                      <StepForward
+                        className={`h-4 w-4 transition-transform rotate-90   ${
+                          expandedSections?.calibraciones ? "rotate-270" : ""
                         }`}
                       />
                     </Button>
@@ -4514,7 +4841,7 @@ export function EditEquipmentModal({
                   <div className="flex-1"></div>
                   <CardTitle className="text-sm font-medium text-purple-700 flex items-center gap-2">
                     REPUESTOS/ACCESORIOS
-                    <Button
+                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
@@ -4526,9 +4853,9 @@ export function EditEquipmentModal({
                         }))
                       }
                     >
-                      <Plus
-                        className={`h-4 w-4 transition-transform ${
-                          expandedSections?.repuestos ? "rotate-45" : ""
+                      <StepForward
+                        className={`h-4 w-4 transition-transform rotate-90   ${
+                          expandedSections?.repuestos ? "rotate-270" : ""
                         }`}
                       />
                     </Button>
@@ -4630,12 +4957,34 @@ export function EditEquipmentModal({
             {/* ===== SECCIÓN: TICKETS / CORRECTIVOS ASOCIADOS ===== */}
             <Card className="border border-gray-200 rounded-lg shadow-sm">
               <CardHeader className="p-3 sm:p-4 bg-gray-50">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-center">
                   <div className="flex items-center gap-2">
                     <Ticket className="w-4 h-4 text-orange-600" />
                     <CardTitle className="text-sm font-semibold text-gray-800">
                       Tickets / Correctivos Asociados
                     </CardTitle>
+
+                    {equipmentTickets.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() =>
+                        setExpandedSections((prev) => ({
+                          ...prev,
+                          tickets: !prev.tickets,
+                        }))
+                      }
+                    >
+                      <StepForward
+                        className={`h-4 w-4 transition-transform rotate-90   ${
+                          expandedSections?.tickets ? "rotate-270" : ""
+                        }`}
+                      />
+                    </Button>
+                    )}
+                    
                     {equipmentTickets.length > 0 && (
                       <span className="ml-1 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-medium">
                         {equipmentTickets.length}
@@ -4645,7 +4994,7 @@ export function EditEquipmentModal({
                 </div>
               </CardHeader>
               <CardContent className="p-3 sm:p-4">
-                {loadingTickets ? (
+                {loadingTickets? (
                   <div className="flex items-center justify-center py-6 text-gray-500 text-sm">
                     <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2" />
                     Cargando tickets...
@@ -4654,7 +5003,7 @@ export function EditEquipmentModal({
                   <div className="text-center py-6 text-gray-400 text-sm italic">
                     No hay tickets asociados a este equipo
                   </div>
-                ) : (
+                ) : expandedSections?.tickets ? (
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse text-xs">
                       <thead>
@@ -4727,7 +5076,7 @@ export function EditEquipmentModal({
                       </tbody>
                     </table>
                   </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           </div>
