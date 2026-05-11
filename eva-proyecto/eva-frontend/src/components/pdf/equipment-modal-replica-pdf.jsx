@@ -515,7 +515,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           {data?.mantenimientos_preventivos && data.mantenimientos_preventivos.length > 0 ? (
             data.mantenimientos_preventivos.slice(0, 10).map((mant, index) => (
               <View key={index} style={styles.dataTableRow}>
-                <Text style={styles.dataTableCell}>#{mant.id || '-'}</Text>
+                <Text style={styles.dataTableCell}>{mant.description || '-'}</Text>
                 <Text style={styles.dataTableCell}>{formatDate(mant.fecha_mantenimiento || mant.fecha_programada)}</Text>
                 <Text style={styles.dataTableCell}>{mant.observacion ? (mant.observacion.length > 80 ? mant.observacion.substring(0, 80) + '...' : mant.observacion) : 'Sin observación'}</Text>
                 <Text style={styles.dataTableCell}>{mant.status === 1 ? 'Completado' : 'Pendiente'}</Text>

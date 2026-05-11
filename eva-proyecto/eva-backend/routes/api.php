@@ -10751,7 +10751,7 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
 
         $updateData = $request->only([
             'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
-            'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
+            'servicio_id', 'area_id', 'centro_id', 'propietario_id', 'estadoequipo_id',
             'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
@@ -10760,7 +10760,7 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
         ]);
 
         // Normalizar FKs: convertir '', '0', 0 a null para evitar violar FK
-        foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id'] as $fkField) {
+        foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id', 'centro_id'] as $fkField) {
             if (array_key_exists($fkField, $updateData)) {
                 $v = $updateData[$fkField];
                 if ($v === '' || $v === null || $v === '0' || $v === 0) {
@@ -10891,7 +10891,7 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
 
         $updateData = $request->only([
             'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
-            'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
+            'servicio_id', 'area_id', 'centro_id', 'propietario_id', 'estadoequipo_id',
             'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'disponibilidad_id',
             'costo', 'vida_util', 'garantia',
@@ -10927,7 +10927,7 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
         }
 
         // Normalizar FKs: convertir '', '0', 0 a null
-        foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id'] as $fkField) {
+        foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id', 'centro_id'] as $fkField) {
             if (array_key_exists($fkField, $updateData)) {
                 $v = $updateData[$fkField];
                 if ($v === '' || $v === null || $v === '0' || $v === 0) {

@@ -1121,7 +1121,7 @@ export function ViewEquipmentModal({
                     {displayData.mantenimientos_preventivos && displayData.mantenimientos_preventivos.length > 0 ? (
                       displayData.mantenimientos_preventivos.map((mant, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">#{mant.id || '-'}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800">{mant.description || '-'}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(mant.fecha_mantenimiento || mant.fecha_programada)}</td>
                           <td className="border border-gray-200 px-3 py-2 text-sm">
                             {mant.observacion ? (mant.observacion.length > 80 ? mant.observacion.substring(0, 80) + '...' : mant.observacion) : 'Sin observación'}

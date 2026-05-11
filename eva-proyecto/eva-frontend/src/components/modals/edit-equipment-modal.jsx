@@ -109,6 +109,7 @@ export function EditEquipmentModal({
   const [dropdownOptions, setDropdownOptions] = useState({
     servicios: [],
     areas: [],
+    centros: [],
     propietarios: [],
     fuentes: [],
     tecnologias: [],
@@ -677,6 +678,10 @@ export function EditEquipmentModal({
         equipmentData.area_id && equipmentData.area_id !== 0
           ? equipmentData.area_id.toString()
           : "",
+      centro_id: (() => {
+        const id = equipmentData.centro_costo_id || equipmentData.centro_id;
+        return id && id !== 0 ? id.toString() : "";
+      })(),
       movilidad: equipmentData.movilidad || "FIJO",
       localizacion_actual: equipmentData.localizacion_actual || "",
 
@@ -994,6 +999,7 @@ export function EditEquipmentModal({
       sede_id: "",
       servicio_id: "",
       area_id: "",
+      centro_id: "",
       movilidad: "FIJO",
       localizacion_actual: "",
 
@@ -2632,9 +2638,21 @@ export function EditEquipmentModal({
                             <Select
                               key={`servicio-${formReady}-${formData.servicio_id}`}
                               value={formData.servicio_id || ""}
-                              onValueChange={(value) =>
-                                handleInputChange("servicio_id", value)
-                              }
+                              onValueChange={(value) => {
+                                handleInputChange("servicio_id", value);
+                                // Auto-rellenar centro de costo basado en el servicio seleccionado
+                                const svc = dropdownOptions.servicios.find(
+                                  (s) => s.id?.toString() === value
+                                );
+                                if (svc && svc.centro_id) {
+                                  handleInputChange(
+                                    "centro_id",
+                                    svc.centro_id.toString()
+                                  );
+                                } else {
+                                  handleInputChange("centro_id", "");
+                                }
+                              }}
                               disabled={isSubmitting || loading || !formReady}
                             >
                               <SelectTrigger
@@ -2694,6 +2712,27 @@ export function EditEquipmentModal({
                                   ))}
                               </SelectContent>
                             </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-xs sm:text-sm">
+                              Centro de costo:
+                            </Label>
+                            <Input
+                              readOnly
+                              disabled
+                              value={(() => {
+                                const centro = (dropdownOptions.centros || []).find(
+                                  (c) => c.id?.toString() === (formData.centro_id || "").toString()
+                                );
+                                return centro?.code || "";
+                              })()}
+                              placeholder="Se asigna según el servicio"
+                              className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm bg-gray-100 cursor-not-allowed"
+                            />
+                            <div className="text-xs text-gray-500 mt-1">
+                              Ligado al servicio del equipo (no editable)
+                            </div>
                           </div>
                         </div>
                       </div>

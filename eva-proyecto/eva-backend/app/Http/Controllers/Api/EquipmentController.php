@@ -989,9 +989,9 @@ class EquipmentController extends ApiController
                     'cbiomedica.name as clasificacion',
                     'criesgo.name as riesgo',
                     // Información adicional dinámica
-                    DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento
+                    DB::raw('(SELECT COALESCE(fecha_mantenimiento, fecha_programada, DATE(created_at)) FROM mantenimiento
                              WHERE equipo_id = equipos.id
-                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento'),
+                             ORDER BY COALESCE(fecha_mantenimiento, fecha_programada, DATE(created_at)) DESC LIMIT 1) AS ultimo_mantenimiento'),
                     DB::raw("(SELECT NULLIF(
                                  GREATEST(
                                      COALESCE((SELECT MAX(fecha_calibracion) FROM calibracion WHERE equipo_id = equipos.id), '0001-01-01'),
@@ -1375,9 +1375,9 @@ class EquipmentController extends ApiController
                     'invimas.file as invima_archivo',
                     'invimas.titulo as invima_titulo',
                     // Información adicional dinámica con subconsultas corregidas
-                    DB::raw('(SELECT fecha_mantenimiento FROM mantenimiento 
+                    DB::raw('(SELECT COALESCE(fecha_mantenimiento, fecha_programada, DATE(created_at)) FROM mantenimiento 
                              WHERE equipo_id = equipos.id 
-                             ORDER BY fecha_mantenimiento DESC LIMIT 1) AS ultimo_mantenimiento'),
+                             ORDER BY COALESCE(fecha_mantenimiento, fecha_programada, DATE(created_at)) DESC LIMIT 1) AS ultimo_mantenimiento'),
                     DB::raw('(SELECT fecha_calibracion FROM calibracion 
                              WHERE equipo_id = equipos.id 
                              ORDER BY fecha_calibracion DESC LIMIT 1) AS ultima_calibracion'),
@@ -2642,8 +2642,10 @@ class EquipmentController extends ApiController
             $options = [
                 // Ubicación geográfica con relaciones
                 'sedes' => $safeQuery('sedes'),
-                'servicios' => $safeQuery('servicios', ['id', 'name', 'sede_id']),
+                'servicios' => $safeQuery('servicios', ['id', 'name', 'sede_id', 'centro_id']),
                 'areas' => $safeQuery('areas', ['id', 'name', 'servicio_id']),
+                'centros' => $safeQuery('centros', ['id', 'name', 'code'], 'name',
+                    ['id' => 0, 'name' => 'No disponible - Configurar centros de costo']),
 
                 // Estados y clasificaciones
                 'estados' => $this->getEstadosEquipoWithDefault(),

@@ -54,6 +54,7 @@ export async function prefetchDropdownOptions() {
         sedes: resp.data.data.sedes || [],
         servicios: resp.data.data.servicios || [],
         areas: resp.data.data.areas || [],
+        centros: resp.data.data.centros || [],
         propietarios: resp.data.data.propietarios || [],
         fuentes: resp.data.data.fuentes || [],
         tecnologias: resp.data.data.tecnologias || [],
