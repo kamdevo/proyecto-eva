@@ -10769,9 +10769,7 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
                     $updateData[$fkField] = (int) $v;
                 }
             }
-        }
-
-        // Debug logging para manual_id y guia_id
+        }        // Debug logging para manual_id y guia_id
         \Log::info('🔥 BACKEND - Datos recibidos para actualización:', [
             'equipo_id' => $id,
             'manual_id' => $request->get('manual_id'),
@@ -10906,6 +10904,27 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
             'fecha_acta_recibo', 'fecha_vencimiento_garantia', 'fecha_recepcion_almacen',
             'fecha_ad', 'otros'
         ]);
+
+        // Normalizar campos de fecha: '0000-00-00', '', null o inválidos -> null
+        $dateFields = [
+            'fecha_ad', 'fecha_instalacion', 'fecha_fabricacion',
+            'fecha_inicio_operacion', 'fecha_acta_recibo',
+            'fecha_vencimiento_garantia', 'fecha_recepcion_almacen'
+        ];
+        foreach ($dateFields as $df) {
+            if (array_key_exists($df, $updateData)) {
+                $v = $updateData[$df];
+                if (empty($v) || $v === '0000-00-00' || (is_string($v) && str_starts_with($v, '0000'))) {
+                    $updateData[$df] = null;
+                } else {
+                    try {
+                        $updateData[$df] = \Carbon\Carbon::parse($v)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $updateData[$df] = null;
+                    }
+                }
+            }
+        }
 
         // Normalizar FKs: convertir '', '0', 0 a null
         foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id'] as $fkField) {

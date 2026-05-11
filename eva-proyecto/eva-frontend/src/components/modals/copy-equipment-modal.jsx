@@ -138,6 +138,7 @@ export function CopyEquipmentModal({
     disponibilidades: [],
     sedes: [],
     centros: [],
+    periodos_garantias: [],
   });
 
   // Estado para registros INVIMA
@@ -151,6 +152,12 @@ export function CopyEquipmentModal({
   const [errors, setErrors] = useState({});
   const [showInvimaModal, setShowInvimaModal] = useState(false);
   const [formReady, setFormReady] = useState(false);
+
+  // Estado quick-add propietario
+  const [showQuickPropietario, setShowQuickPropietario] = useState(false);
+  const [quickPropNombre, setQuickPropNombre] = useState("");
+  const [quickPropLogo, setQuickPropLogo] = useState(null);
+  const [savingPropietario, setSavingPropietario] = useState(false);
 
   // Función para deserializar datos de PHP (Misma que EditEquipmentModal)
   const deserializePHPData = (phpSerializedString) => {
@@ -189,6 +196,7 @@ export function CopyEquipmentModal({
   // Referencias para archivos
   const imageInputRef = useRef(null);
   const excelInputRef = useRef(null);
+  const quickLogoRef = useRef(null);
 
   // Reset del formulario y obtención de datos cuando el modal se abre
   useEffect(() => {
@@ -417,6 +425,41 @@ export function CopyEquipmentModal({
       toast.error("Error al cargar los catálogos del sistema");
     } finally {
       setLoadingCatalogs(false);
+    }
+  };
+
+  // Crear propietario rápido y añadirlo al dropdown
+  const saveQuickPropietario = async () => {
+    if (!quickPropNombre.trim()) {
+      toast.error('Ingrese el nombre del propietario');
+      return;
+    }
+    setSavingPropietario(true);
+    try {
+      const fd = new FormData();
+      fd.append('nombre', quickPropNombre.trim());
+      if (quickPropLogo) fd.append('logo', quickPropLogo);
+      const response = await httpService.post('/v1/propietarios', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (response.data?.success) {
+        const nuevo = response.data.data;
+        setCatalogs(prev => ({
+          ...prev,
+          propietarios: [...prev.propietarios, { id: nuevo.id, name: nuevo.nombre }],
+        }));
+        handleInputChange('propietario_id', nuevo.id.toString());
+        toast.success('Propietario creado y seleccionado');
+        setShowQuickPropietario(false);
+        setQuickPropNombre('');
+        setQuickPropLogo(null);
+      } else {
+        toast.error(response.data?.message || 'Error al crear propietario');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Error al crear propietario');
+    } finally {
+      setSavingPropietario(false);
     }
   };
 
@@ -1609,16 +1652,25 @@ export function CopyEquipmentModal({
                   <Label className="text-xs sm:text-sm">
                     Garantía:
                   </Label>
-                  <Input
-                    placeholder="GARANTÍA EN AÑOS"
+                  <Select
                     value={formData.garantia}
-                    onChange={(e) =>
-                      handleInputChange("garantia", e.target.value)
-                    }
-                    className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${
-                      errors.garantia ? "border-red-500" : ""
-                    }`}
-                  />
+                    onValueChange={(value) => handleInputChange("garantia", value)}
+                  >
+                    <SelectTrigger className={`mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm ${errors.garantia ? "border-red-500" : ""}`}>
+                      <SelectValue placeholder="Seleccione período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogs.periodos_garantias && catalogs.periodos_garantias.length > 0 ? (
+                        catalogs.periodos_garantias.map((pg) => (
+                          <SelectItem key={pg.id} value={pg.name}>
+                            {pg.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-aplica">No aplica</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                   {errors.garantia && (
                     <p className="text-red-500 text-xs mt-1">
                       {errors.garantia}
@@ -2476,11 +2528,75 @@ export function CopyEquipmentModal({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-2"
                     type="button"
+                    onClick={() => { setShowQuickPropietario(true); setQuickPropNombre(''); setQuickPropLogo(null); }}
+                    className="mt-2 text-blue-600 border-blue-300 hover:bg-blue-50 text-xs h-7 px-2"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 mr-1" />
+                    Nuevo propietario
                   </Button>
+
+                  {showQuickPropietario && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                      <p className="text-xs font-medium text-blue-800">Crear propietario</p>
+                      <div>
+                        <label className="text-xs text-gray-600">Nombre <span className="text-red-500">*</span></label>
+                        <Input
+                          value={quickPropNombre}
+                          onChange={(e) => setQuickPropNombre(e.target.value)}
+                          placeholder="Nombre del propietario"
+                          className="mt-1 h-7 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Logo (opcional)</label>
+                        <input
+                          ref={quickLogoRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => setQuickPropLogo(e.target.files?.[0] || null)}
+                        />
+                        <div className="flex items-center gap-2 mt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => quickLogoRef.current?.click()}
+                            className="h-7 text-xs"
+                          >
+                            <Upload className="w-3 h-3 mr-1" />
+                            {quickPropLogo ? quickPropLogo.name : 'Seleccionar imagen'}
+                          </Button>
+                          {quickPropLogo && (
+                            <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => setQuickPropLogo(null)}>
+                              <X className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={saveQuickPropietario}
+                          disabled={savingPropietario}
+                          className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          {savingPropietario ? 'Guardando...' : 'Guardar'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowQuickPropietario(false)}
+                          className="h-7 text-xs"
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>

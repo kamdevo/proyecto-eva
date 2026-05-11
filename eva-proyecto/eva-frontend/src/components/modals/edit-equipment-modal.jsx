@@ -119,6 +119,7 @@ export function EditEquipmentModal({
     estadosEquipo: [],
     funcionalidades: [],
     periodosGarantias: [],
+    disponibilidades: [],
   });
 
   // Estado para quick-add propietario
@@ -3508,6 +3509,76 @@ export function EditEquipmentModal({
                     <p className="text-xs text-gray-500 mt-1">
                       Solo requerido si se realiza calibración
                     </p>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Disponibilidad:
+                    </Label>
+                    <Select
+                      value={formData.disponibilidad_id || ""}
+                      onValueChange={(value) =>
+                        handleInputChange("disponibilidad_id", value)
+                      }
+                      disabled={isSubmitting || loading}
+                    >
+                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                        <SelectValue placeholder="Seleccione disponibilidad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dropdownOptions.disponibilidades &&
+                        dropdownOptions.disponibilidades.length > 0 ? (
+                          dropdownOptions.disponibilidades.map((disponibilidad) => (
+                            <SelectItem
+                              key={disponibilidad.id}
+                              value={disponibilidad.id.toString()}
+                            >
+                              {disponibilidad.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="0">No disponible</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Evaluación de desempeño:
+                    </Label>
+                    <Select
+                      value={formData.evaluacion_desempenio || ""}
+                      onValueChange={(value) =>
+                        handleInputChange("evaluacion_desempenio", value)
+                      }
+                      disabled={isSubmitting || loading}
+                    >
+                      <SelectTrigger className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm">
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="excelente">Excelente</SelectItem>
+                        <SelectItem value="bueno">Bueno</SelectItem>
+                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="deficiente">Deficiente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs sm:text-sm">
+                      Localización actual:
+                    </Label>
+                    <Input
+                      value={formData.localizacion_actual || ""}
+                      onChange={(e) =>
+                        handleInputChange("localizacion_actual", e.target.value)
+                      }
+                      placeholder="Localización actual"
+                      className="mt-1 h-7 sm:h-8 md:h-9 text-xs sm:text-sm"
+                      disabled={isSubmitting || loading}
+                    />
                   </div>
                 </div>
 

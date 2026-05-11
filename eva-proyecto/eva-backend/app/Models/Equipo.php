@@ -173,9 +173,9 @@ class Equipo extends Model
     protected $casts = [
         'id' => 'integer',
 
-        // Fechas que son columnas DATE reales en la DB
-        'fecha_ad' => 'date',
-        'fecha_instalacion' => 'date',
+        // NOTA: fecha_ad y fecha_instalacion son DATE en la DB pero NO se castean
+        // para evitar que Eloquent serialice NULL como '0000-00-00' en MySQL strict mode.
+        // El controlador ya formatea estas fechas como string 'Y-m-d' o null.
 
         // NOTA: fecha_fabricacion, fecha_vencimiento_garantia, fecha_acta_recibo,
         // fecha_inicio_operacion, fecha_recepcion_almacen, fecha_mantenimiento

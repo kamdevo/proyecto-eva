@@ -1,7 +1,8 @@
 import React, { lazy, Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "./contexts/AuthContext";
 import { AuthProvider as PermissionAuthProvider } from "./hooks/useAuth.jsx";
 import { ToastProvider } from "./contexts/ToastContext";
 import { EquipmentSearchProvider } from "./contexts/EquipmentSearchContext";
@@ -10,6 +11,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useLocation } from "react-router-dom";
+import { useIdleTimeout } from "./hooks/useIdleTimeout";
+import { toast } from "sonner";
 
 // Componentes críticos (no lazy)
 import Navbar from "./components/Navbar";
@@ -72,6 +75,64 @@ const ContentLoadingFallback = () => (
 );
 
 
+// Componente que gestiona el timeout de sesión inactiva
+function SessionIdleManager() {
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleIdle = React.useCallback(async () => {
+    toast.warning("Tu sesión ha expirado por inactividad. Inicia sesión de nuevo.", { duration: 6000 });
+    await logout();
+    navigate("/login", { replace: true });
+  }, [logout, navigate]);
+
+  const { showWarning, secondsLeft, stayLoggedIn } = useIdleTimeout({
+    idleMinutes: 30,
+    warningMinutes: 2,
+    onIdle: handleIdle,
+    enabled: isAuthenticated,
+  });
+
+  if (!showWarning) return null;
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const ss = String(secondsLeft % 60).padStart(2, "0");
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center border border-amber-200">
+        <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Sesión a punto de expirar</h2>
+        <p className="text-gray-600 text-sm mb-4">
+          Por inactividad, tu sesión se cerrará automáticamente en:
+        </p>
+        <div className="text-4xl font-mono font-bold text-amber-600 mb-6">
+          {mm}:{ss}
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={stayLoggedIn}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+          >
+            Continuar sesión
+          </button>
+          <button
+            onClick={handleIdle}
+            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Componente interno que usa useLocation
 function AppContent() {
   const location = useLocation();
@@ -89,6 +150,8 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
+      {/* Gestor de timeout de sesión por inactividad */}
+      <SessionIdleManager />
       {/* Rutas standalone sin sidebar/navbar */}
       {isStandalonePage ? (
         <Suspense fallback={<LoadingFallback />}>

@@ -418,8 +418,14 @@ class EquipoController extends Controller
         ];
 
         foreach ($dateFields as $field) {
-            if (!empty($data[$field])) {
-                $prepared[$field] = Carbon::parse($data[$field])->format('Y-m-d');
+            if (!empty($data[$field]) && $data[$field] !== '0000-00-00' && !str_starts_with((string)$data[$field], '0000')) {
+                try {
+                    $prepared[$field] = Carbon::parse($data[$field])->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $prepared[$field] = null;
+                }
+            } elseif (array_key_exists($field, $data)) {
+                $prepared[$field] = null;
             }
         }
 
