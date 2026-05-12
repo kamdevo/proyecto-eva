@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,9 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
   const [loading, setLoading] = useState(false);
   const [calibraciones, setCalibraciones] = useState([]);
   const [filteredCalibraciones, setFilteredCalibraciones] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // valor que escribe el usuario
+  const [searchTerm, setSearchTerm] = useState("");    // valor debounced que dispara la API
+  const searchDebounceRef = useRef(null);
   const [dateFromFilter, setDateFromFilter] = useState("");
   const [dateToFilter, setDateToFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -146,23 +148,29 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
     setCurrentPage(1);
   }, [searchTerm, dateFromFilter, dateToFilter, loadCalibraciones]);
 
-  // Load data when modal opens
+  // Load data when modal opens, cleanup debounce on close
   useEffect(() => {
     if (open) {
       loadCalibraciones(1, '');
+    } else {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     }
   }, [open, equipoId, loadCalibraciones]);
 
-  // Apply filters when filter values change
+  // Apply filters when debounced searchTerm or date filters change
   useEffect(() => {
     if (open) {
       applyFilters();
     }
   }, [searchTerm, dateFromFilter, dateToFilter, open, applyFilters]);
 
-  // Handle search with debounce
+  // Handle search: update input immediately, debounce the API call
   const handleSearch = (value) => {
-    setSearchTerm(value);
+    setSearchInput(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchTerm(value);
+    }, 400);
   };
 
   // Handle date from filter change
@@ -494,7 +502,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
                         placeholder="Buscar calibraciones..."
-                        value={searchTerm}
+                        value={searchInput}
                         onChange={(e) => handleSearch(e.target.value)}
                         className="pl-10 border-blue-200 focus:border-blue-400"
                       />
@@ -544,11 +552,12 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                     />
                   </div>
 
-                  {(searchTerm || dateFromFilter || dateToFilter) && (
+                  {(searchInput || dateFromFilter || dateToFilter) && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
+                        setSearchInput('');
                         setSearchTerm('');
                         setDateFromFilter('');
                         setDateToFilter('');
@@ -584,7 +593,7 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                       </span>
                     )}
                   </div>
-                  {(searchTerm || dateFromFilter || dateToFilter) && (
+                  {(searchInput || dateFromFilter || dateToFilter) && (
                     <div className="flex items-center gap-2 text-xs bg-blue-50 px-2 py-1 rounded">
                       <Filter className="h-3 w-3" />
                       <span>Filtros activos</span>
@@ -625,16 +634,17 @@ export function CalibrationModal({ open, onOpenChange, equipoId = null, equipoTi
                             <div className="flex flex-col items-center gap-2">
                               <AlertCircle className="h-8 w-8 text-gray-400" />
                               <span className="font-medium">
-                                {searchTerm || dateFromFilter || dateToFilter ?
+                                {searchInput || dateFromFilter || dateToFilter ?
                                   'No se encontraron calibraciones que coincidan con los filtros aplicados' :
                                   'No hay calibraciones registradas'
                                 }
                               </span>
-                              {(searchTerm || dateFromFilter || dateToFilter) && (
+                              {(searchInput || dateFromFilter || dateToFilter) && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
+                                    setSearchInput('');
                                     setSearchTerm('');
                                     setDateFromFilter('');
                                     setDateToFilter('');
