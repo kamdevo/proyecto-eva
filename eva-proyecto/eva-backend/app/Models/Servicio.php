@@ -48,6 +48,7 @@ class Servicio extends Model
     protected $table = 'servicios';
     protected $primaryKey = 'id';
     public $timestamps = true;
+    const UPDATED_AT = null;
 
     /**
      * Campos que pueden ser asignados masivamente

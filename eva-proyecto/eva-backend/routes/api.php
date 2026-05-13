@@ -7010,6 +7010,10 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
     Route::get('servicios/options', [ServicioController::class, 'getOptions']);
     Route::get('servicios', [ServicioController::class, 'index']);
+    Route::post('servicios', [ServicioController::class, 'store']);
+    Route::get('servicios/{id}', [ServicioController::class, 'show']);
+    Route::put('servicios/{id}', [ServicioController::class, 'update']);
+    Route::delete('servicios/{id}', [ServicioController::class, 'destroy']);
 /*
     Route::get('servicios', function() {
         try {
