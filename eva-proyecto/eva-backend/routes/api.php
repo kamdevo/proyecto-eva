@@ -7813,10 +7813,12 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
 
     Route::get('empresas', function() {
         try {
-            $empresas = DB::table('empresas')
-                ->select('id', 'name', 'estado', 'area')
-                ->orderBy('name', 'asc')
-                ->get();
+            $search = request('search', '');
+            $query = DB::table('empresas')->select('id', 'name', 'estado', 'area');
+            if ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            }
+            $empresas = $query->orderBy('name', 'asc')->get();
             return response()->json([
                 'success' => true,
                 'data' => $empresas
@@ -7826,6 +7828,63 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'success' => false,
                 'message' => 'Error obteniendo empresas: ' . $e->getMessage()
             ], 500);
+        }
+    });
+
+    Route::post('empresas', function(Request $request) {
+        try {
+            $request->validate([
+                'name'   => 'required|string|max:200|unique:empresas,name',
+                'area'   => 'required|string|max:200',
+                'estado' => 'nullable|string',
+            ]);
+            $id = DB::table('empresas')->insertGetId([
+                'name'   => $request->name,
+                'area'   => $request->area,
+                'estado' => $request->estado ?? 'true',
+            ]);
+            $empresa = DB::table('empresas')->where('id', $id)->first();
+            return response()->json(['success' => true, 'data' => $empresa, 'message' => 'Empresa creada exitosamente'], 201);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error al crear empresa: ' . $e->getMessage()], 500);
+        }
+    });
+
+    Route::put('empresas/{id}', function(Request $request, $id) {
+        try {
+            $request->validate([
+                'name'   => 'required|string|max:200|unique:empresas,name,' . $id,
+                'area'   => 'required|string|max:200',
+                'estado' => 'nullable|string',
+            ]);
+            $updated = DB::table('empresas')->where('id', $id)->update([
+                'name'   => $request->name,
+                'area'   => $request->area,
+                'estado' => $request->estado ?? 'true',
+            ]);
+            if (!$updated) {
+                return response()->json(['success' => false, 'message' => 'Empresa no encontrada'], 404);
+            }
+            $empresa = DB::table('empresas')->where('id', $id)->first();
+            return response()->json(['success' => true, 'data' => $empresa, 'message' => 'Empresa actualizada exitosamente']);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error al actualizar empresa: ' . $e->getMessage()], 500);
+        }
+    });
+
+    Route::delete('empresas/{id}', function($id) {
+        try {
+            $inUse = DB::table('usuarios')->where('id_empresa', $id)->exists();
+            if ($inUse) {
+                return response()->json(['success' => false, 'message' => 'No se puede eliminar: la empresa tiene usuarios asociados'], 400);
+            }
+            $deleted = DB::table('empresas')->where('id', $id)->delete();
+            if (!$deleted) {
+                return response()->json(['success' => false, 'message' => 'Empresa no encontrada'], 404);
+            }
+            return response()->json(['success' => true, 'message' => 'Empresa eliminada exitosamente']);
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error al eliminar empresa: ' . $e->getMessage()], 500);
         }
     });
 

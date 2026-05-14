@@ -65,7 +65,7 @@ export default function VistaEmpresasMantenimiento() {
       if (search) params.append("search", search);
 
       const response = await fetch(
-        `${API_URL}/v1/proveedores-mantenimiento?${params.toString()}`,
+        `${API_URL}/v1/empresas?${params.toString()}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
       );
       const result = await response.json();
@@ -101,28 +101,26 @@ export default function VistaEmpresasMantenimiento() {
   }, [sortField, sortDirection]);
 
   const toggleStatus = async (empresa) => {
-    const newStatus = empresa.status === 1 ? 0 : 1;
+    const isActive = empresa.estado === "true";
+    const newEstado = isActive ? "false" : "true";
     setEmpresasData((prev) =>
-      prev.map((e) => (e.id === empresa.id ? { ...e, status: newStatus } : e))
+      prev.map((e) => (e.id === empresa.id ? { ...e, estado: newEstado } : e))
     );
     try {
-      const response = await fetch(
-        `${API_URL}/v1/proveedores-mantenimiento/${empresa.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify({ name: empresa.name, status: newStatus }),
-        }
-      );
+      const response = await fetch(`${API_URL}/v1/empresas/${empresa.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ name: empresa.name, area: empresa.area, estado: newEstado }),
+      });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.message);
-      toast.success(newStatus === 1 ? "Empresa activada" : "Empresa desactivada");
+      toast.success(newEstado === "true" ? "Empresa activada" : "Empresa desactivada");
     } catch (error) {
       setEmpresasData((prev) =>
-        prev.map((e) => (e.id === empresa.id ? { ...e, status: empresa.status } : e))
+        prev.map((e) => (e.id === empresa.id ? { ...e, estado: empresa.estado } : e))
       );
       toast.error(error.message || "Error al cambiar estado");
     }
@@ -164,13 +162,10 @@ export default function VistaEmpresasMantenimiento() {
   const confirmDelete = async () => {
     if (!empresaToDelete) return;
     try {
-      const response = await fetch(
-        `${API_URL}/v1/proveedores-mantenimiento/${empresaToDelete.id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
+      const response = await fetch(`${API_URL}/v1/empresas/${empresaToDelete.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Error al eliminar empresa");
@@ -294,12 +289,20 @@ export default function VistaEmpresasMantenimiento() {
                     Nombre de la Empresa {getSortIcon("name")}
                   </button>
                 </th>
+                <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">
+                  <button
+                    onClick={() => handleSort("area")}
+                    className="flex items-center gap-1.5 hover:text-amber-600 transition-colors"
+                  >
+                    Área {getSortIcon("area")}
+                  </button>
+                </th>
                 <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 w-32 text-center">
                   <button
-                    onClick={() => handleSort("status")}
+                    onClick={() => handleSort("estado")}
                     className="flex items-center gap-1.5 hover:text-amber-600 transition-colors mx-auto"
                   >
-                    Estado {getSortIcon("status")}
+                    Estado {getSortIcon("estado")}
                   </button>
                 </th>
                 <th className="px-6 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 text-right w-36">
@@ -313,13 +316,14 @@ export default function VistaEmpresasMantenimiento() {
                   <tr key={`skel-${i}`} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-5 w-12 bg-slate-100 rounded-full" /></td>
                     <td className="px-6 py-4"><div className="h-4 w-56 bg-slate-100 rounded" /></td>
+                    <td className="px-6 py-4"><div className="h-4 w-32 bg-slate-100 rounded" /></td>
                     <td className="px-6 py-4 text-center"><div className="h-5 w-16 bg-slate-100 rounded-full mx-auto" /></td>
                     <td className="px-6 py-4 text-right"><div className="flex gap-2 justify-end"><div className="h-8 w-8 bg-slate-100 rounded-lg" /><div className="h-8 w-8 bg-slate-100 rounded-lg" /></div></td>
                   </tr>
                 ))
               ) : currentData.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="h-64 text-center">
+                  <td colSpan={5} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <Building2 className="h-16 w-16 text-slate-100" />
                       <span className="text-slate-400 font-medium italic">
@@ -354,17 +358,20 @@ export default function VistaEmpresasMantenimiento() {
                         </span>
                       </div>
                     </td>
+                    <td className="px-6 py-4">
+                      <span className="text-slate-500 text-sm">{empresa.area || "—"}</span>
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1">
                         <Switch
-                          checked={empresa.status === 1}
+                          checked={empresa.estado === "true"}
                           onCheckedChange={() => toggleStatus(empresa)}
                           className="data-[state=checked]:bg-green-500"
                         />
                         <span className={`text-[10px] font-semibold ${
-                          empresa.status === 1 ? "text-green-600" : "text-slate-400"
+                          empresa.estado === "true" ? "text-green-600" : "text-slate-400"
                         }`}>
-                          {empresa.status === 1 ? "ACTIVO" : "INACTIVO"}
+                          {empresa.estado === "true" ? "ACTIVO" : "INACTIVO"}
                         </span>
                       </div>
                     </td>
