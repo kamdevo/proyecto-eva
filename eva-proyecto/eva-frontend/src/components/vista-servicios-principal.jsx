@@ -18,6 +18,7 @@ import httpService from "@/services/httpService";
 import { cachedGet, invalidateConfigCache } from "@/services/configDataCache";
 import Pagination from "@/components/common/Pagination";
 import ConfigPageSkeleton from "@/components/skeletons/ConfigPageSkeleton";
+import { Switch } from "@/components/ui/switch";
 
 // Modales
 import UIModalAgregarServicio  from "@/components/modals/ui-modal-agregar-servicio";
@@ -117,6 +118,25 @@ export default function VistaServiciosPrincipal() {
   const triggerSearch = () => {
     setSearchTerm(inputSearch);
     setCurrentPage(1);
+  };
+
+  // ── Toggle estado ─────────────────────────────────────────
+  const toggleStatus = async (s) => {
+    const isActive = s.is_active == 1 || s.is_active === true || s.activo == 1 || s.status == 1;
+    const newVal = isActive ? 0 : 1;
+    setServicios((prev) =>
+      prev.map((item) =>
+        item.id === s.id ? { ...item, is_active: newVal, status: newVal } : item
+      )
+    );
+    try {
+      await httpService.put(`/v1/servicios/${s.id}`, { is_active: newVal });
+      invalidateConfigCache('/v1/servicios');
+      toast.success(newVal === 1 ? "Servicio activado" : "Servicio desactivado");
+    } catch (error) {
+      setServicios((prev) => prev.map((item) => (item.id === s.id ? s : item)));
+      toast.error(error.response?.data?.message || "Error al cambiar estado");
+    }
   };
 
   // ── Acciones ──────────────────────────────────────────────
@@ -368,17 +388,20 @@ export default function VistaServiciosPrincipal() {
 
                       {/* Estado */}
                       <td className="px-6 py-4 text-center">
-                        {(s.is_active == 1 || s.is_active === true || s.activo == 1 || s.status == 1) ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-600 text-xs font-bold">
-                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                            Activo
+                        <div className="flex flex-col items-center gap-1">
+                          <Switch
+                            checked={!!(s.is_active == 1 || s.is_active === true || s.activo == 1 || s.status == 1)}
+                            onCheckedChange={() => toggleStatus(s)}
+                            className="data-[state=checked]:bg-green-500"
+                          />
+                          <span className={`text-[10px] font-semibold ${
+                            (s.is_active == 1 || s.is_active === true || s.activo == 1 || s.status == 1)
+                              ? "text-green-600"
+                              : "text-slate-400"
+                          }`}>
+                            {(s.is_active == 1 || s.is_active === true || s.activo == 1 || s.status == 1) ? "ACTIVO" : "INACTIVO"}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-100 text-red-600 text-xs font-bold">
-                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                            Inactivo
-                          </span>
-                        )}
+                        </div>
                       </td>
 
                       {/* Acciones */}

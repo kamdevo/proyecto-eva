@@ -47,6 +47,7 @@ const CapacitacionesView = lazy(() => import("./components/CapacitacionesView"))
 const ConsultaIndustrialView = lazy(() => import("./components/ConsultaIndustrialView"));
 const VistaMateriales = lazy(() => import("./components/vista-materiales"));
 const VistaSedes = lazy(() => import("./components/vista-sedes"));
+const VistaEmpresasMantenimiento = lazy(() => import("./components/vista-empresas-mantenimiento"));
 const DebugRegistration = lazy(() => import("./components/DebugRegistration"));
 const CompleteDebugTest = lazy(() => import("./components/CompleteDebugTest"));
 const LogoutPage = lazy(() => import("./components/LogoutPage"));
@@ -431,6 +432,16 @@ function AppContent() {
                     <ProtectedRoute>
                       <AdminRoute allowAdvanced={true}>
                         <VistaSedes />
+                      </AdminRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/config/empresas-mantenimiento"
+                  element={
+                    <ProtectedRoute>
+                      <AdminRoute allowAdvanced={true}>
+                        <VistaEmpresasMantenimiento />
                       </AdminRoute>
                     </ProtectedRoute>
                   }

@@ -384,14 +384,14 @@ export default function VistaPropietariosPrincipal() {
         {/* Tabla responsiva mejorada */}
         <Card className="mb-8 rounded-3xl shadow-sm border border-slate-200 overflow-hidden bg-white">
           <CardContent className="p-0 relative">
-            {loading && currentData.length > 0 && (
+            {isLoading && currentData.length > 0 && (
               <div className="absolute inset-x-0 top-0 h-1 bg-blue-100 overflow-hidden z-10">
                 <div className="h-full bg-blue-600 animate-progress origin-left"></div>
               </div>
             )}
             {/* Vista de tabla para desktop */}
             <div className="hidden lg:block">
-              <Table className={`${loading && currentData.length > 0 ? 'opacity-40 transition-opacity duration-300' : 'transition-opacity duration-300'}`}>
+              <Table className={`${isLoading && currentData.length > 0 ? 'opacity-40 transition-opacity duration-300' : 'transition-opacity duration-300'}`}>
                 <TableHeader>
                   <TableRow className="bg-white border-b border-slate-100 hover:bg-transparent">
                     <TableHead className="text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider py-5 px-6 w-20">
