@@ -1425,6 +1425,7 @@ Route::prefix('v1')->group(function () {
     // Create new executed maintenance (preventivo ejecutado)
     Route::post('mantenimientos', function (Request $request) {
         try {
+            $allowedFileExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
             $validator = Validator::make($request->all(), [
                 'equipo_id' => 'required|integer|exists:equipos,id',
                 'description' => 'required|string|max:100',
@@ -1435,7 +1436,11 @@ Route::prefix('v1')->group(function () {
                 'observacion' => 'nullable|string',
                 'repuesto_id' => 'nullable|string|max:100',
                 'repuesto_pendiente' => 'nullable|in:si,no',
-                'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480',
+                'file' => ['nullable', 'file', 'max:20480', function($attr, $val, $fail) use ($allowedFileExts) {
+                    if ($val && !in_array(strtolower($val->getClientOriginalExtension()), $allowedFileExts)) {
+                        $fail('El archivo debe ser PDF, Word, Excel, imagen (jpg, png) o comprimido (zip, rar).');
+                    }
+                }],
             ], [
                 'equipo_id.required' => 'El ID del equipo es obligatorio.',
                 'equipo_id.integer' => 'El ID del equipo debe ser un número válido.',
@@ -1531,6 +1536,7 @@ Route::prefix('v1')->group(function () {
     // Update executed maintenance
     Route::put('mantenimientos/{id}', function (Request $request, $id) {
         try {
+            $allowedFileExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
             $validator = Validator::make($request->all(), [
                 'equipo_id' => 'required|integer|exists:equipos,id',
                 'description' => 'required|string|max:100',
@@ -1541,7 +1547,11 @@ Route::prefix('v1')->group(function () {
                 'observacion' => 'nullable|string',
                 'repuesto_id' => 'nullable|string|max:100',
                 'repuesto_pendiente' => 'nullable|in:si,no',
-                'file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,zip,rar|max:20480',
+                'file' => ['nullable', 'file', 'max:20480', function($attr, $val, $fail) use ($allowedFileExts) {
+                    if ($val && !in_array(strtolower($val->getClientOriginalExtension()), $allowedFileExts)) {
+                        $fail('El archivo debe ser PDF, Word, Excel, imagen (jpg, png) o comprimido (zip, rar).');
+                    }
+                }],
             ], [
                 'equipo_id.required' => 'El ID del equipo es obligatorio.',
                 'equipo_id.integer' => 'El ID del equipo debe ser un número válido.',
