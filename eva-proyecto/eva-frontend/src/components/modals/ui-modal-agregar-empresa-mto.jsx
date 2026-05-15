@@ -12,6 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Building2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
@@ -89,15 +96,15 @@ export default function UIModalAgregarEmpresaMto({ isOpen, onClose }) {
             <Label htmlFor="area" className="text-sm font-semibold text-gray-700">
               Área <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="area"
-              type="text"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              placeholder="Ej: Mantenimiento Biomédico"
-              className="rounded-xl border-gray-200 focus:border-amber-400 focus:ring-amber-400 py-3 text-base"
-              maxLength={200}
-            />
+            <Select value={area} onValueChange={setArea}>
+              <SelectTrigger className="rounded-xl border-gray-200 focus:border-amber-400 focus:ring-amber-400 py-3 text-base">
+                <SelectValue placeholder="Seleccione el área" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mantenimiento Biomédico">Mantenimiento Biomédico</SelectItem>
+                <SelectItem value="Mantenimiento Industrial">Mantenimiento Industrial</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
