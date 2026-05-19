@@ -1025,14 +1025,27 @@ class CorrectivoGeneralController extends Controller
             $tipoEquipoStore = DB::table('equipos')->where('id', $request->equipo_id)->value('tipo_id');
 
             if ($tipoEquipoStore == 2) {
-                // Equipo industrial: guardar SOLO en correctivos_generales_ind
+                // Equipo industrial: guardar en correctivos_generales_ind con todos los campos disponibles
                 $correctivoIndId = DB::table('correctivos_generales_ind')->insertGetId([
-                    'description'        => $request->description,
-                    'created_at'         => now(),
-                    'status'             => 1,
                     'equipo_id'          => $request->equipo_id,
+                    'status'             => 1,
+                    'created_at'         => now(),
+                    // Orden de trabajo
+                    'code_orden'         => $request->code_orden,
+                    'orden'              => $request->orden,
+                    'fecha_inicio'       => $request->fecha_inicio,
+                    // Diagnóstico / avance
+                    'code_diagnostico'   => $request->code_diagnostico,
+                    'diagnostico'        => $request->diagnostico,
+                    'fecha_diagnostico'  => $request->fecha_diagnostico,
+                    // Cierre / trabajo realizado
+                    'code'               => $request->code,
+                    'description'        => $request->description,
                     'fecha_mantenimiento'=> $request->fecha_mantenimiento,
-                    'code'               => $request->code_orden,
+                    'cierre_id'          => $request->cierre_id ?: 14,
+                    // Repuesto
+                    'repuesto_id'        => $request->repuesto_id,
+                    'repuesto_pendiente' => $request->repuesto_id ? 'si' : ($request->repuestos_pendientes ? 'si' : 'no'),
                     'file'               => null,
                 ]);
                 $correctivoId = $correctivoIndId;

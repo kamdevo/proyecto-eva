@@ -2241,34 +2241,56 @@ class EquipmentController extends ApiController
 
             // 10. Correctivos Generales
             try {
-                $correctivos = DB::table('correctivos_generales')
-                    ->leftJoin('codificacion_cierres', 'codificacion_cierres.id', '=', 'correctivos_generales.cierre_id')
-                    ->where('correctivos_generales.equipo_id', $id)
-                    ->select([
-                        'correctivos_generales.*',
-                        'codificacion_cierres.name as descripcion_codigo',
-                        'codificacion_cierres.code as codigo_cierre',
-                        DB::raw('(SELECT COUNT(*) FROM avances_correctivos WHERE correctivo_general_id = correctivos_generales.id) AS conteo_avances')
-                    ])
-                    ->orderBy('correctivos_generales.fecha_inicio', 'desc')
-                    ->get();
+                $esIndustrial = (isset($equipoBasico->tipo_id) && $equipoBasico->tipo_id == 2);
 
-                // Embeber archivos de cada correctivo (biomédico o industrial según tipo de equipo)
-                $tablaArchivos = (isset($equipoBasico->tipo_id) && $equipoBasico->tipo_id == 2)
-                    ? 'correctivos_generales_archivos_ind'
-                    : 'correctivos_generales_archivos';
-                $corIds = $correctivos->pluck('id')->toArray();
-                $archivosPorCorrectivo = !empty($corIds)
-                    ? DB::table($tablaArchivos)
-                        ->whereIn('correctivo_general_id', $corIds)
-                        ->orderBy('created_at', 'desc')
-                        ->get()
-                        ->groupBy('correctivo_general_id')
-                    : collect();
-                $correctivos = $correctivos->map(function ($c) use ($archivosPorCorrectivo) {
-                    $c->archivos = $archivosPorCorrectivo->get($c->id, collect())->values();
-                    return $c;
-                });
+                if ($esIndustrial) {
+                    // Industrial: leer de correctivos_generales_ind
+                    $correctivos = DB::table('correctivos_generales_ind')
+                        ->where('equipo_id', $id)
+                        ->where('status', 1)
+                        ->orderBy('fecha_mantenimiento', 'desc')
+                        ->limit(50)
+                        ->get();
+
+                    $corIds = $correctivos->pluck('id')->toArray();
+                    $archivosPorCorrectivo = !empty($corIds)
+                        ? DB::table('correctivos_generales_archivos_ind')
+                            ->whereIn('correctivo_general_id', $corIds)
+                            ->orderBy('created_at', 'desc')
+                            ->get()
+                            ->groupBy('correctivo_general_id')
+                        : collect();
+                    $correctivos = $correctivos->map(function ($c) use ($archivosPorCorrectivo) {
+                        $c->archivos = $archivosPorCorrectivo->get($c->id, collect())->values();
+                        return $c;
+                    });
+                } else {
+                    // Biomédico: leer de correctivos_generales con joins
+                    $correctivos = DB::table('correctivos_generales')
+                        ->leftJoin('codificacion_cierres', 'codificacion_cierres.id', '=', 'correctivos_generales.cierre_id')
+                        ->where('correctivos_generales.equipo_id', $id)
+                        ->select([
+                            'correctivos_generales.*',
+                            'codificacion_cierres.name as descripcion_codigo',
+                            'codificacion_cierres.code as codigo_cierre',
+                            DB::raw('(SELECT COUNT(*) FROM avances_correctivos WHERE correctivo_general_id = correctivos_generales.id) AS conteo_avances')
+                        ])
+                        ->orderBy('correctivos_generales.fecha_inicio', 'desc')
+                        ->get();
+
+                    $corIds = $correctivos->pluck('id')->toArray();
+                    $archivosPorCorrectivo = !empty($corIds)
+                        ? DB::table('correctivos_generales_archivos')
+                            ->whereIn('correctivo_general_id', $corIds)
+                            ->orderBy('created_at', 'desc')
+                            ->get()
+                            ->groupBy('correctivo_general_id')
+                        : collect();
+                    $correctivos = $correctivos->map(function ($c) use ($archivosPorCorrectivo) {
+                        $c->archivos = $archivosPorCorrectivo->get($c->id, collect())->values();
+                        return $c;
+                    });
+                }
 
                 $equipoData['correctivos_generales'] = $correctivos;
             } catch (\Exception $e) {

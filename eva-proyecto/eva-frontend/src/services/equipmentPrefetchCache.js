@@ -20,10 +20,12 @@ export function invalidateEquipmentCache(equipmentId) {
   }
 }
 
-/** Invalida SOLO el historial (calibraciones, preventivos, repuestos, correctivos, observaciones). */
+/** Invalida el historial y el cache de complete-info para que correctivos/preventivos recién creados aparezcan inmediatamente. */
 export function invalidateHistoryCache(equipmentId) {
   if (equipmentId) {
     cache.delete(`history-${equipmentId}`);
+    cache.delete(`equip-${equipmentId}`);
+    cache.delete(`user-history-${equipmentId}`);
   }
 }
 
