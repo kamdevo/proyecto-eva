@@ -1424,7 +1424,7 @@ export default function Usuarios() {
 
             <Dialog open={isAddUserModalOpen} onOpenChange={setIsAddUserModalOpen}>
               <DialogTrigger asChild>
-                <Button className="flex items-center gap-2 px-6 h-12 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 hover:shadow-blue-200 transition-all active:scale-95 border-none">
+                <Button className="flex items-center gap-2 px-6 h-12 bg-[#1D293D] text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 hover:shadow-blue-200 transition-all active:scale-95 border-none">
                   <Plus className="w-5 h-5 font-black" />
                   <span className="hidden sm:inline">Nuevo Usuario</span>
                   <span className="sm:hidden">Nuevo</span>
@@ -1657,7 +1657,7 @@ export default function Usuarios() {
             </Dialog>
 
             {/* Stats Card - Following Image 2 Design */}
-            <div className="hidden sm:flex bg-blue-600 rounded-3xl p-6 text-white min-w-[280px] relative overflow-hidden shadow-xl shadow-blue-200">
+            <div className="hidden sm:flex bg-[#1D293D] rounded-3xl p-6 text-white min-w-[280px] relative overflow-hidden shadow-xl shadow-blue-200">
               <div className="relative z-10 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-blue-500/50 p-2 rounded-xl">
@@ -1894,7 +1894,7 @@ export default function Usuarios() {
                             <Switch
                               checked={user.active === 'true' || user.active === true}
                               onCheckedChange={() => handleToggleUserActivation(user)}
-                              className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-200"
+                              className="data-[state=checked]:bg-[#1D293D] data-[state=unchecked]:bg-slate-200"
                             />
                             <span className={`text-[9px] font-bold uppercase tracking-wider ${user.active === 'true' || user.active === true ? "text-green-600" : "text-slate-400"
                               }`}>

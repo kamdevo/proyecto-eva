@@ -15,6 +15,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
+import RichTextarea from "../ui/rich-textarea";
 import {
   Select,
   SelectContent,
@@ -92,6 +93,7 @@ export default function HospitalTicketModal({
     correoElectronico: "",
     tipoArreglo: "",
     descripcionProblema: "",
+    descripcionProblemaHtml: "",
     reportanteNombre: "",
     evidencias: [],
     tipoMantenimientoId: "",
@@ -442,7 +444,7 @@ export default function HospitalTicketModal({
     const createTicketPromise = async () => {
       // Preparar datos para el backend
       const ticketData = {
-        descripcion: formData.descripcionProblema || "Ticket creado desde el sistema",
+        descripcion: formData.descripcionProblemaHtml || formData.descripcionProblema || "Ticket creado desde el sistema",
         subproceso_id: ticketType === "biomedico" ? 1 : ticketType === "industrial" ? 2 : 3,
         equipo_id: ticketType !== "infraestructura" ? (formData.equipo_id || null) : null,
         nombre_equipo: ticketType === "infraestructura" ? "N/A - Infraestructura" : (formData.equipo || "No especificado"),
@@ -1038,18 +1040,16 @@ export default function HospitalTicketModal({
                 <Label className="text-sm font-medium text-gray-700 mb-2 block">
                   Descripción detallada del problema presentado
                 </Label>
-                <Textarea
-                  value={formData.descripcionProblema}
-                  onChange={(e) =>
-                    handleInputChange("descripcionProblema", e.target.value)
-                  }
+                <RichTextarea
+                  value={formData.descripcionProblemaHtml}
+                  onChange={(plain, html) => {
+                    handleInputChange("descripcionProblema", plain);
+                    handleInputChange("descripcionProblemaHtml", html);
+                  }}
                   rows={6}
                   placeholder="Descripción detallada del problema... (Ej: El equipo no enciende, emite ruidos extraños, etc.)"
-                  className="text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full resize-none"
+                  minLength={30}
                 />
-                <p className={`text-xs mt-1 ${formData.descripcionProblema.trim().length < 30 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
-                  {formData.descripcionProblema.length} caracteres (mínimo 30)
-                </p>
               </div>
             </div>
 

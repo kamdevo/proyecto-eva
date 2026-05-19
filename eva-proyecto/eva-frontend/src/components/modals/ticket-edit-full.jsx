@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextarea from "@/components/ui/rich-textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -204,12 +205,14 @@ export default function TicketEditModal({ isOpen, onClose, ticket, onSave }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border border-orange-200 p-3 rounded col-span-2">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Descripción del problema presentado *</label>
-                <Textarea
-                  value={editedTicket.description}
-                  onChange={(e) => setEditedTicket(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  className="mt-2 w-full border-orange-300 focus:border-orange-500"
-                />
+                <div className="mt-2">
+                  <RichTextarea
+                    value={editedTicket.description}
+                    onChange={(plain, html) => setEditedTicket(prev => ({ ...prev, description: html }))}
+                    rows={3}
+                    placeholder="Descripción del problema..."
+                  />
+                </div>
               </div>
               <div className="border border-gray-200 p-3 rounded bg-gray-50">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Empresa Asignada *</label>
