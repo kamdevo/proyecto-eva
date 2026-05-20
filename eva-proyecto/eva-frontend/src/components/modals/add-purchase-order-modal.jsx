@@ -196,24 +196,25 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:w-[90vw] md:w-[75vw] lg:w-[65vw] xl:w-[55vw] max-w-6xl mx-auto max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
-        <DialogHeader className="border-b border-teal-200 pb-3">
+        <DialogHeader className="border-b border-slate-200 pb-4">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-base sm:text-lg font-semibold text-slate-800">
-              Agregar
-            </DialogTitle>
-            <DialogDescription>
-              Complete el formulario para crear una nueva orden de compra
-            </DialogDescription>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900">
+                Nueva Orden de Compra
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500 mt-0.5">
+                Complete el formulario para registrar una orden de compra
+              </DialogDescription>
+            </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
+              className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="h-1 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4" id="purchase-order-form">
@@ -292,9 +293,9 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
           </div>
 
           {/* Sección SECOP */}
-          <div className="space-y-4 p-3 md:p-4 lg:p-5 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="space-y-4 p-3 md:p-4 lg:p-5 bg-slate-50 rounded-lg border border-slate-200">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-blue-800">
+              <Label className="text-sm font-medium text-slate-700">
                 Integración SECOP
               </Label>
               <Button
@@ -336,7 +337,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
                   <div><strong>Entidad:</strong> {selectedSecopProcess.entidad || 'N/A'}</div>
                   <div><strong>Objeto:</strong> {selectedSecopProcess.objeto || 'N/A'}</div>
                   <div className="bg-blue-50 p-2 rounded border border-blue-200 mt-2">
-                    <div className="text-blue-700 font-medium mb-1">📝 Campos auto-completados:</div>
+                    <div className="text-blue-700 font-medium mb-1">Campos auto-completados:</div>
                     <div><strong>ID SECOP:</strong> {formData.secop_id || 'No disponible'}</div>
                     <div><strong>URL SECOP:</strong> {formData.url_secop ? (
                       <a
@@ -402,7 +403,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             <div
               className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
                 dragActive
-                  ? "border-teal-400 bg-teal-50"
+                  ? "border-blue-400 bg-blue-50"
                   : "border-slate-300 bg-slate-50"
               }`}
               onDragEnter={handleDrag}
@@ -413,7 +414,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
               <Upload className="w-6 sm:w-8 h-6 sm:h-8 text-slate-400 mx-auto mb-2 sm:mb-3" />
               <div className="text-slate-500 text-xs sm:text-sm mb-1 sm:mb-2">
                 Arrastra y suelta tu archivo aquí, o{" "}
-                <label className="text-teal-600 font-medium cursor-pointer">
+                <label className="text-blue-600 font-medium cursor-pointer">
                   haz clic para seleccionar
                   <input
                     type="file"
@@ -447,7 +448,7 @@ export function AddPurchaseOrderModal({ open, onOpenChange }) {
             </Button>
             <Button
               type="submit"
-              className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white px-4 sm:px-6 h-9 text-sm"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 h-9 text-sm font-semibold"
               disabled={loading}
             >
               {loading ? (

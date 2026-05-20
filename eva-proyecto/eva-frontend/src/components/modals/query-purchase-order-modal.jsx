@@ -84,9 +84,9 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
         style={{ width: '80vw', maxWidth: 'none', height: '80vh', maxHeight: 'none' }}
       >
         <div className="flex flex-col h-full">
-          <DialogHeader className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-slate-800">
-              <Search className="w-5 h-5 text-teal-600" />
+          <DialogHeader className="px-6 py-4 border-b border-slate-200 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-slate-900 font-bold">
+              <Search className="w-5 h-5 text-blue-600" />
               Consulta Avanzada de Órdenes de Compra
             </DialogTitle>
           </DialogHeader>
@@ -114,9 +114,9 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
           {activeTab === "ordenes" && (
             <div className="space-y-6">
               {/* Filtros de Búsqueda */}
-              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <Card className="bg-slate-50 border-slate-200">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
+                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
                     <Filter className="w-4 h-4 text-blue-600" />
                     Filtros de Búsqueda
                   </CardTitle>
@@ -128,12 +128,12 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                       placeholder="Buscar por número, proveedor, descripción..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="flex-1 border-blue-300 focus:border-blue-500"
+                      className="flex-1"
                     />
                     <Button 
                       onClick={handleSearch} 
                       disabled={loading}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       <Search className="w-4 h-4 mr-2" />
                       Buscar
@@ -230,13 +230,13 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
               </Card>
 
               {/* Resultados */}
-              <Card className="bg-white border-gray-200 shadow-sm">
-                <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 border-b border-emerald-200">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="w-4 h-4 text-emerald-600" />
+              <Card className="bg-white border-slate-200">
+                <CardHeader className="bg-slate-50 border-b border-slate-100">
+                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
+                    <FileText className="w-4 h-4 text-blue-600" />
                     Resultados de la Búsqueda
                     {!loading && purchaseOrders && (
-                      <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-800">
+                      <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800">
                         {purchaseOrders.length} registros
                       </Badge>
                     )}
@@ -254,7 +254,7 @@ export function QueryPurchaseOrderModal({ open, onOpenChange }) {
                         {purchaseOrders.map((order) => (
                           <div
                             key={order.id}
-                            className="border rounded-lg p-4 hover:shadow-md transition-all duration-200 bg-white hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 border-gray-200 hover:border-blue-300"
+                            className="border rounded-lg p-4 hover:bg-slate-50 transition-colors bg-white border-slate-200 hover:border-slate-300"
                           >
                             <div className="flex items-center justify-between mb-3">
                               <Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 border-blue-200">

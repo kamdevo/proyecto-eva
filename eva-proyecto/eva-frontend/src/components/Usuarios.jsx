@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useFormSubmit } from "../hooks/useFormSubmit";
-import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, User, Lock, CheckCircle, XCircle, Power, LayoutDashboard, Settings, ShieldCheck, Activity, FileText, Database, Users, HardDrive, Ticket, ClipboardList, Layers } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Eye, Search, RotateCcw, ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, User, Lock, CheckCircle, XCircle, Power, LayoutDashboard, Settings, ShieldCheck, Activity, FileText, Database, Users, HardDrive, Ticket, ClipboardList, Layers, UserMinus } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -88,6 +88,7 @@ export default function Usuarios() {
     createUsuario,
     updateUsuario,
     deleteUsuario,
+    darDeBajaUsuario,
     getUsuario,
     changePage,
     changePageSize,
@@ -113,6 +114,7 @@ export default function Usuarios() {
   const [isRelationModalOpen, setIsRelationModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [userToDarDeBaja, setUserToDarDeBaja] = useState(null);
   const [relationToDelete, setRelationToDelete] = useState(null);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
@@ -942,6 +944,23 @@ export default function Usuarios() {
     }
   };
 
+  const handleDarDeBaja = (user) => {
+    setUserToDarDeBaja(user);
+  };
+
+  const confirmDarDeBaja = async () => {
+    if (userToDarDeBaja) {
+      try {
+        const result = await darDeBajaUsuario(userToDarDeBaja.id);
+        setUserToDarDeBaja(null);
+        toast.success(result.message || "Usuario dado de baja exitosamente");
+      } catch (error) {
+        console.error("Error dando de baja usuario:", error);
+        toast.error("Error al dar de baja: " + error.message);
+      }
+    }
+  };
+
   const confirmDeleteRelation = () => {
     console.log("Eliminando relación:", relationToDelete);
     setRelationToDelete(null);
@@ -1657,7 +1676,7 @@ export default function Usuarios() {
             </Dialog>
 
             {/* Stats Card - Following Image 2 Design */}
-            <div className="hidden sm:flex bg-[#1D293D] rounded-3xl p-6 text-white min-w-[280px] relative overflow-hidden shadow-xl shadow-blue-200">
+            <div className="hidden sm:flex bg-[#1D293D] rounded-3xl p-6 text-white min-w-[280px] relative overflow-hidden">
               <div className="relative z-10 flex flex-col justify-between h-full">
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-blue-500/50 p-2 rounded-xl">
@@ -1923,6 +1942,14 @@ export default function Usuarios() {
                             </Button>
                             <Button
                               size="sm"
+                              onClick={() => handleDarDeBaja(user)}
+                              className="w-9 h-9 p-0 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-xl transition-all shadow-none border-none"
+                              title="Dar de baja (libera correo para nuevo funcionario)"
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
                               onClick={() => handleDeleteUser(user)}
                               className="w-9 h-9 p-0 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all shadow-none border-none"
                               title="Eliminar usuario"
@@ -2080,7 +2107,7 @@ export default function Usuarios() {
         </Card>
 
         {/* Modules Management Section */}
-        <Card className="shadow-sm border-0">
+      {/*   <Card className="shadow-sm border-0">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -2095,7 +2122,7 @@ export default function Usuarios() {
           </CardHeader>
 
           <CardContent>
-            {/* Modules Table */}
+             Modules Table 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
               <Table>
                 <TableHeader className="bg-white border-b border-slate-100">
@@ -2166,7 +2193,7 @@ export default function Usuarios() {
               </Table>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Zone Relations Section */}
         <Card className="shadow-sm border-0">
@@ -3190,6 +3217,53 @@ export default function Usuarios() {
                 className="bg-red-600 hover:bg-red-700 focus:ring-red-600 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
               >
                 Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Dar de Baja Confirmation Dialog */}
+        <AlertDialog
+          open={!!userToDarDeBaja}
+          onOpenChange={() => setUserToDarDeBaja(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Dar de baja a funcionario</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p>
+                    El funcionario{" "}
+                    <span className="font-semibold text-gray-900">
+                      {userToDarDeBaja?.nombre} {userToDarDeBaja?.apellido}
+                    </span>{" "}
+                    será desactivado definitivamente.
+                  </p>
+                  <p>
+                    Su correo{" "}
+                    <span className="font-semibold text-orange-700">{userToDarDeBaja?.email}</span>{" "}
+                    quedará <span className="font-semibold">libre</span> para ser
+                    usado por el nuevo funcionario que ocupe el cargo.
+                  </p>
+                  <p className="text-gray-500">
+                    El historial de actividades se conservará de forma
+                    auditable.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setUserToDarDeBaja(null)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2.5 rounded-lg font-medium transition-all duration-200"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDarDeBaja}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
+              >
+                Dar de baja y liberar correo
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

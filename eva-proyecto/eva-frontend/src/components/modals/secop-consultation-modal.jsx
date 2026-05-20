@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -16,529 +15,397 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  X, 
-  Loader2, 
-  ExternalLink, 
+import {
+  Search,
+  X,
+  Loader2,
+  ExternalLink,
   Calendar,
   Building,
   DollarSign,
   FileText,
   RefreshCw,
-  Filter,
-  Users,
-  TrendingUp,
-  Database,
-  MapPin,
-  Clock,
-  CheckCircle
+  CheckCircle,
+  ArrowRight,
 } from "lucide-react";
 import { useSecopService } from "../../hooks/useSecopService";
 
-export function SecopConsultationModal({ 
-  open, 
-  onOpenChange, 
-  onSelectProcess 
+export function SecopConsultationModal({
+  open,
+  onOpenChange,
+  onSelectProcess,
 }) {
-  const [searchForm, setSearchForm] = useState({
-    search: '',
-    entidad: '',
-    objeto: '',
-    limit: 25
-  });
-
+  const [query, setQuery] = useState('');
+  const [entidad, setEntidad] = useState('');
+  const [limit, setLimit] = useState('25');
   const [selectedProcess, setSelectedProcess] = useState(null);
+  const searchInputRef = useRef(null);
 
   const {
     processes,
     loading,
     error,
-    statistics,
     searchProcesses,
     quickSearch,
-    getStatistics
   } = useSecopService();
 
   useEffect(() => {
     if (open) {
-      getStatistics();
+      setTimeout(() => searchInputRef.current?.focus(), 80);
+    } else {
+      setQuery('');
+      setEntidad('');
+      setLimit('25');
+      setSelectedProcess(null);
     }
-  }, [open, getStatistics]);
+  }, [open]);
 
   const handleSearch = async () => {
-    if (!searchForm.search.trim() && !searchForm.entidad.trim()) {
-      return;
-    }
-
-    const filters = {
-      ...searchForm,
-      search: searchForm.search.trim(),
-      entidad: searchForm.entidad.trim()
-    };
-
-    if (searchForm.search.trim()) {
-      await quickSearch(searchForm.search, searchForm.limit);
+    const q = query.trim();
+    const e = entidad.trim();
+    if (!q && !e) return;
+    if (q) {
+      await quickSearch(q, parseInt(limit));
     } else {
-      await searchProcesses(filters);
+      await searchProcesses({ entidad: e, limit: parseInt(limit) });
     }
-  };
-
-  const clearFilters = () => {
-    setSearchForm({
-      search: '',
-      entidad: '',
-      objeto: '',
-      limit: 25
-    });
-  };
-
-  const handleSelectProcess = (process) => {
-    setSelectedProcess(process);
-  };
-
-  const onClose = () => {
     setSelectedProcess(null);
-    onOpenChange(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSearch();
   };
 
   const handleConfirm = () => {
     if (selectedProcess && onSelectProcess) {
       onSelectProcess(selectedProcess);
     }
-    onClose();
+    onOpenChange(false);
   };
 
   const formatValue = (value) => {
-    if (!value || value === 0) return 'Sin valor';
-    return new Intl.NumberFormat('es-CO', { 
-      style: 'currency', 
+    if (!value || value === 0) return null;
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
       currency: 'COP',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
     }).format(value);
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Sin fecha';
+    if (!dateString) return null;
     try {
       return new Date(dateString).toLocaleDateString('es-CO', {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       });
     } catch {
-      return dateString;
+      return null;
     }
   };
 
-  const getStatusColor = (estado) => {
+  const getStatusStyle = (estado) => {
     switch (estado?.toLowerCase()) {
       case 'en ejecución':
       case 'activo':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'cerrado':
       case 'terminado':
-        return 'bg-slate-100 text-slate-800 border-slate-200';
+        return 'bg-slate-100 text-slate-600 border-slate-200';
       case 'cancelado':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 text-red-700 border-red-200';
       default:
         return 'bg-blue-100 text-blue-800 border-blue-200';
     }
   };
 
+  const hasResults = !loading && !error && processes.length > 0;
+  const isEmpty = !loading && !error && processes.length === 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="max-w-none w-[80vw] max-h-none h-[80vh] p-0 overflow-auto"
-        style={{ width: '80vw', maxWidth: 'none', height: '80vh', maxHeight: 'none' }}
+      <DialogContent
+        className="w-[92vw] sm:w-[92vw] max-w-6xl sm:max-w-6xl h-[85vh] p-0 flex flex-col overflow-hidden"
       >
-        <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-indigo-50">
-          {/* Header Mejorado */}
-          <DialogHeader className="px-6 py-4 bg-white border-b border-blue-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <Building className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <DialogTitle className=" text-xl font-semibold text-gray-900">
-                    Consulta SECOP
-                  </DialogTitle>
-                  <p className="text-blue-600 text-sm">
-                    Sistema Electrónico de Contratación Pública
-                  </p>
-                </div>
+        {/* HEADER */}
+        <DialogHeader className="px-6 py-4 bg-white border-b border-slate-200 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 text-white" />
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-                className="h-8 w-8 p-0 hover:bg-blue-50"
-              >
-                <X className="h-4 w-4" />
+              <div>
+                <DialogTitle className="text-base font-bold text-slate-900 leading-tight">
+                  Consultar SECOP
+                </DialogTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Sistema Electrónico de Contratación Pública · datos.gov.co
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </DialogHeader>
+
+        {/* SEARCH BAR */}
+        <div className="px-6 py-4 bg-white border-b border-slate-100 flex-shrink-0">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Buscar contrato, objeto, número de proceso…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="pl-9 h-10 text-sm border-slate-300 focus-visible:ring-blue-500"
+              />
+            </div>
+            <Input
+              placeholder="Entidad (opcional)"
+              value={entidad}
+              onChange={(e) => setEntidad(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="h-10 text-sm border-slate-300 w-44 hidden sm:block focus-visible:ring-blue-500"
+            />
+            <Select value={limit} onValueChange={setLimit}>
+              <SelectTrigger className="h-10 w-24 text-sm border-slate-300 hidden sm:flex">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleSearch}
+              disabled={loading || (!query.trim() && !entidad.trim())}
+              className="h-10 px-5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex-shrink-0"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Search className="w-4 h-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Buscar</span>
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="flex gap-2 mt-2 sm:hidden">
+            <Input
+              placeholder="Entidad (opcional)"
+              value={entidad}
+              onChange={(e) => setEntidad(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="h-9 text-sm border-slate-300 flex-1"
+            />
+            <Select value={limit} onValueChange={setLimit}>
+              <SelectTrigger className="h-9 w-20 text-sm border-slate-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(hasResults || query || entidad) && (
+            <div className="flex items-center justify-between mt-3">
+              {hasResults && (
+                <span className="text-xs text-slate-500">
+                  <span className="font-semibold text-slate-700">{processes.length}</span> contratos encontrados
+                  {selectedProcess && (
+                    <span className="ml-2 text-blue-600 font-medium">· 1 seleccionado</span>
+                  )}
+                </span>
+              )}
+              {(query || entidad) && (
+                <button
+                  onClick={() => { setQuery(''); setEntidad(''); setSelectedProcess(null); }}
+                  className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 ml-auto"
+                >
+                  <X className="w-3 h-3" /> Limpiar
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* RESULTS */}
+        <div className="flex-1 overflow-y-auto bg-[#F1F4F6]">
+          {loading && (
+            <div className="flex flex-col items-center justify-center h-48 gap-3">
+              <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+              <p className="text-sm text-slate-600 font-medium">Consultando SECOP…</p>
+              <p className="text-xs text-slate-400">Obteniendo datos de datos.gov.co</p>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="flex flex-col items-center justify-center h-48 gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <X className="w-5 h-5 text-red-500" />
+              </div>
+              <p className="text-sm font-medium text-red-600">Error en la consulta</p>
+              <p className="text-xs text-slate-500 max-w-xs text-center">{error}</p>
+              <Button size="sm" variant="outline" onClick={handleSearch} className="mt-1">
+                <RefreshCw className="w-3 h-3 mr-1" /> Reintentar
               </Button>
             </div>
-          </DialogHeader>
+          )}
 
-          {/* Contenido Principal con Scroll */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            
-            {/* Panel de Estadísticas Colorido */}
-            {statistics && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-700 text-sm font-medium">Estado del Servicio</p>
-                      <p className="text-lg font-bold text-blue-900 mt-1">
-                        {statistics.disponible ? 'Activo' : 'Inactivo'}
-                      </p>
-                    </div>
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <Database className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-lg border border-green-200 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-700 text-sm font-medium">Fuente de Datos</p>
-                      <p className="text-lg font-bold text-green-900 mt-1">
-                        datos.gov.co
-                      </p>
-                    </div>
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-700 text-sm font-medium">Procesos Consultados</p>
-                      <p className="text-lg font-bold text-purple-900 mt-1">
-                        {processes.length}
-                      </p>
-                    </div>
-                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                      <Users className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Panel de Búsqueda Colorido */}
-            <div className="bg-white rounded-lg border border-indigo-200 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Search className="w-4 h-4 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Filtros de Búsqueda</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Búsqueda General
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="Buscar en SECOP..."
-                      value={searchForm.search}
-                      onChange={(e) => setSearchForm(prev => ({ ...prev, search: e.target.value }))}
-                      className="h-10 pl-10 border-gray-300 focus:border-indigo-400 focus:ring-indigo-400"
-                    />
-                    <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Entidad
-                  </Label>
-                  <Input
-                    placeholder="Nombre de la entidad"
-                    value={searchForm.entidad}
-                    onChange={(e) => setSearchForm(prev => ({ ...prev, entidad: e.target.value }))}
-                    className="h-10 border-gray-300 focus:border-green-400 focus:ring-green-400"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Número de Resultados
-                  </Label>
-                  <Select 
-                    value={searchForm.limit.toString()} 
-                    onValueChange={(value) => setSearchForm(prev => ({ ...prev, limit: parseInt(value) }))}
-                  >
-                    <SelectTrigger className="h-10 border-gray-300 focus:border-purple-400 focus:ring-purple-400">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10 resultados</SelectItem>
-                      <SelectItem value="25">25 resultados</SelectItem>
-                      <SelectItem value="50">50 resultados</SelectItem>
-                      <SelectItem value="100">100 resultados</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Acciones
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={handleSearch}
-                      disabled={loading}
-                      className="flex-1 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-                    >
-                      {loading ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                      ) : (
-                        <Search className="w-4 h-4 mr-1" />
-                      )}
-                      Buscar
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={clearFilters}
-                  className="border-gray-300 hover:bg-gray-50"
-                >
-                  <X className="w-4 h-4 mr-1" />
-                  Limpiar
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => getStatistics()}
-                  className="border-gray-300 hover:bg-gray-50"
-                >
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                  Actualizar Estado
-                </Button>
-              </div>
+          {isEmpty && !query && !entidad && (
+            <div className="flex flex-col items-center justify-center h-48 gap-2">
+              <Search className="w-8 h-8 text-slate-300" />
+              <p className="text-sm text-slate-500">Ingresa un término para consultar contratos públicos</p>
+              <p className="text-xs text-slate-400">Presiona Enter o haz clic en Buscar</p>
             </div>
+          )}
 
-            {/* Resultados como Grid de Tarjetas */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                      <FileText className="w-3 h-3 text-white" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Resultados de la Consulta</h3>
-                  </div>
-                  {processes.length > 0 && (
-                    <Badge className="bg-emerald-100 text-emerald-800 text-sm px-3 py-1">
-                      {processes.length} contratos encontrados
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              <div className="p-6 max-h-96 overflow-y-auto">
-                {error && (
-                  <div className="p-8 text-center">
-                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <X className="w-6 h-6 text-red-600" />
-                    </div>
-                    <p className="text-red-600 font-medium mb-1">Error en la consulta</p>
-                    <p className="text-gray-600 text-sm">{error}</p>
-                  </div>
-                )}
+          {isEmpty && (query || entidad) && (
+            <div className="flex flex-col items-center justify-center h-48 gap-2">
+              <FileText className="w-8 h-8 text-slate-300" />
+              <p className="text-sm font-medium text-slate-600">Sin resultados</p>
+              <p className="text-xs text-slate-400">Prueba con otros términos o una entidad diferente</p>
+            </div>
+          )}
 
-                {loading && (
-                  <div className="p-12 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-                    <p className="text-gray-600 font-medium">Consultando SECOP...</p>
-                    <p className="text-gray-500 text-sm mt-1">Obteniendo datos del gobierno</p>
-                  </div>
-                )}
-
-                {!loading && !error && processes.length === 0 && (
-                  <div className="p-12 text-center">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Search className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="text-gray-600 font-medium mb-1">Sin resultados</p>
-                    <p className="text-gray-500 text-sm">Ingresa términos de búsqueda para consultar contratos públicos</p>
-                  </div>
-                )}
-
-                {!loading && !error && processes.length > 0 && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {processes.map((process, index) => (
-                      <div 
-                        key={process.id || index}
-                        className={`relative p-5 rounded-lg border-2 transition-all duration-200 hover:shadow-md cursor-pointer ${
-                          selectedProcess && selectedProcess.id === process.id 
-                            ? 'border-blue-500 bg-blue-50 shadow-lg' 
-                            : 'border-gray-200 bg-white hover:border-gray-300'
-                        }`}
-                        onClick={() => handleSelectProcess(process)}
-                      >
-                        {/* Indicador de selección */}
-                        {selectedProcess && selectedProcess.id === process.id && (
-                          <div className="absolute top-3 right-3">
-                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                              <CheckCircle className="w-4 h-4 text-white" />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Header de la tarjeta */}
-                        <div className="mb-3">
-                          <div className="flex items-start justify-between mb-2">
-                            <Badge className={`text-xs px-2 py-1 ${getStatusColor(process.estado)}`}>
-                              {process.estado || 'Sin estado'}
+          {hasResults && (
+            <ul className="p-4 space-y-2">
+              {processes.map((process, index) => {
+                const isSelected = selectedProcess?.id === process.id;
+                const valor = formatValue(process.valor);
+                const fecha = formatDate(process.fecha_firma);
+                return (
+                  <li
+                    key={process.id || index}
+                    onClick={() => setSelectedProcess(isSelected ? null : process)}
+                    className={`bg-white rounded-xl border-2 p-4 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-blue-500 ring-1 ring-blue-200'
+                        : 'border-transparent hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          {process.estado && (
+                            <Badge className={`text-xs px-2 py-0.5 border ${getStatusStyle(process.estado)}`}>
+                              {process.estado}
                             </Badge>
-                            <span className="text-xs text-gray-500">
-                              ID: {process.id || 'N/A'}
+                          )}
+                          <span className="text-xs text-slate-400 font-mono">
+                            #{process.id || 'N/A'}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-900 leading-snug line-clamp-2 mb-2">
+                          {process.objeto || 'Sin descripción del objeto'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <Building className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate max-w-[180px]">{process.entidad || 'Sin entidad'}</span>
+                          </span>
+                          {fecha && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 flex-shrink-0" />
+                              {fecha}
                             </span>
-                          </div>
-                          
-                          <h4 className="font-semibold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">
-                            {process.objeto || 'Sin descripción del objeto'}
-                          </h4>
-                        </div>
-
-                        {/* Información de la entidad */}
-                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Building className="w-4 h-4 text-gray-500" />
-                            <span className="text-xs font-medium text-gray-700">Entidad</span>
-                          </div>
-                          <p className="text-sm text-gray-900 font-medium">
-                            {process.entidad || 'Sin entidad'}
-                          </p>
-                        </div>
-
-                        {/* Información del proveedor */}
-                        {process.proveedor && (
-                          <div className="mb-3 p-3 bg-blue-50 rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Users className="w-4 h-4 text-blue-500" />
-                              <span className="text-xs font-medium text-blue-700">Proveedor</span>
-                            </div>
-                            <p className="text-sm text-blue-900 font-medium">
-                              {process.proveedor}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Información del valor */}
-                        <div className="mb-3 p-3 bg-green-50 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <DollarSign className="w-4 h-4 text-green-500" />
-                            <span className="text-xs font-medium text-green-700">Valor del Contrato</span>
-                          </div>
-                          <p className="text-sm font-bold text-green-900">
-                            {formatValue(process.valor)}
-                          </p>
-                        </div>
-
-                        {/* Fecha */}
-                        <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="w-4 h-4" />
-                          <span className="text-xs">Fecha:</span>
-                          <span className="font-medium">{formatDate(process.fecha_firma)}</span>
-                        </div>
-
-                        {/* Botones de acción */}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectProcess(process);
-                            }}
-                            className={`flex-1 h-8 text-xs ${
-                              selectedProcess && selectedProcess.id === process.id
-                                ? 'bg-green-600 hover:bg-green-700 text-white'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'
-                            }`}
-                          >
-                            <FileText className="w-3 h-3 mr-1" />
-                            {selectedProcess && selectedProcess.id === process.id ? 'Seleccionado' : 'Seleccionar'}
-                          </Button>
-                          
-                          {process.url_proceso && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(process.url_proceso, '_blank');
-                              }}
-                              className="h-8 px-3 border-gray-300 hover:bg-gray-50 text-xs"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </Button>
+                          )}
+                          {valor && (
+                            <span className="flex items-center gap-1 font-medium text-emerald-700">
+                              <DollarSign className="w-3 h-3 flex-shrink-0" />
+                              {valor}
+                            </span>
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        {isSelected ? (
+                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full border-2 border-slate-200" />
+                        )}
+                        {process.url_proceso && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(process.url_proceso, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Ver en SECOP"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-        
-        {/* Footer Mejorado */}
-        <div className="flex justify-between items-center p-6 bg-gradient-to-r from-gray-50 to-blue-50 border-t border-blue-200">
-          <div className="flex-1">
-            {selectedProcess && (
-              <div className="bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-3 h-3 text-white" />
+
+        {/* FOOTER */}
+        <div className="flex-shrink-0 border-t border-slate-200 bg-white px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              {selectedProcess ? (
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate">
+                      {selectedProcess.objeto || 'Sin descripción'}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {selectedProcess.entidad || 'Sin entidad'}
+                    </p>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900">
-                    Proceso seleccionado:
-                  </span>
                 </div>
-                <p className="text-sm text-gray-700 font-medium mb-1 truncate max-w-md">
-                  {selectedProcess.objeto || 'Sin descripción'}
+              ) : (
+                <p className="text-xs text-slate-400">
+                  {hasResults
+                    ? 'Haz clic en un contrato para seleccionarlo'
+                    : 'Ningún proceso seleccionado'}
                 </p>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <span>Entidad: {selectedProcess.entidad || 'N/A'}</span>
-                  <span>•</span>
-                  <span>ID: {selectedProcess.id || 'N/A'}</span>
-                  <span>•</span>
-                  <span>Valor: {formatValue(selectedProcess.valor)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex gap-3 ml-4">
-            <Button
-              onClick={onClose}
-              variant="outline"
-              className="px-6 py-2 border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              Cancelar
-            </Button>
-            
-            <Button
-              onClick={handleConfirm}
-              disabled={!selectedProcess || loading}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white disabled:opacity-50"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Confirmar Selección
-            </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+                className="px-4 text-slate-600"
+              >
+                Cancelar
+              </Button>
+              {onSelectProcess && (
+                <Button
+                  size="sm"
+                  disabled={!selectedProcess}
+                  onClick={handleConfirm}
+                  className="px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold disabled:opacity-40"
+                >
+                  Usar proceso
+                  <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>

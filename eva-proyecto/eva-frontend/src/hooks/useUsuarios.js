@@ -142,6 +142,34 @@ export const useUsuarios = () => {
     [pagination.current_page, pagination.per_page, fetchUsuarios]
   );
 
+  // Dar de baja definitiva (libera email para reutilización, conserva historial)
+  const darDeBajaUsuario = useCallback(
+    async (id) => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await api.post(`${API_BASE_URL}/usuarios/${id}/dar-de-baja`);
+
+        const data = response.data;
+
+        if (data.success) {
+          await fetchUsuarios(pagination.current_page, pagination.per_page);
+          return data;
+        } else {
+          throw new Error(data.message || "Error al dar de baja al usuario");
+        }
+      } catch (err) {
+        console.error("Error dando de baja usuario:", err);
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pagination.current_page, pagination.per_page, fetchUsuarios]
+  );
+
   // Obtener usuario específico
   const getUsuario = useCallback(async (id) => {
     try {
@@ -203,6 +231,7 @@ export const useUsuarios = () => {
     createUsuario,
     updateUsuario,
     deleteUsuario,
+    darDeBajaUsuario,
     getUsuario,
     changePage,
     changePageSize,

@@ -32,7 +32,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AddPurchaseOrderModal } from "@/components/modals/add-purchase-order-modal";
-import { QueryPurchaseOrderModal } from "@/components/modals/query-purchase-order-modal";
 import { SecopConsultationModal } from "@/components/modals/secop-consultation-modal";
 import { usePurchaseOrders } from "../hooks/usePurchaseOrders";
 import { useOrdenesCompra } from "../hooks/useOrdenesCompra";
@@ -42,7 +41,6 @@ import SearchableSelect from "@/components/ui/searchable-select";
 
 export function PurchaseOrdersView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [secopModalOpen, setSecopModalOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,82 +122,59 @@ export function PurchaseOrdersView() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
-      {/* Responsive Header */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800 mb-1 sm:mb-2">
-          Órdenes de Compra
-        </h1>
-        <p className="text-slate-600 text-xs sm:text-sm lg:text-base">
-          Gestión y control de órdenes de compra hospitalarias
-        </p>
+    <div className="min-h-screen bg-[#F1F4F6] p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Órdenes de Compra
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Gestión y control de órdenes de compra hospitalarias
+          </p>
+        </div>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Agregar</span>
+            <span className="sm:hidden">+</span>
+          </button>
+          <button
+            onClick={() => setSecopModalOpen(true)}
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">SECOP</span>
+          </button>
+          <button
+            onClick={handleExportToExcel}
+            disabled={exportLoading}
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+          >
+            {exportLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">Excel</span>
+          </button>
+        </div>
       </div>
-      {/* Responsive Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4 sm:mb-6">
-        <Card className="bg-slate-800 border-slate-700 shadow-lg flex-1">
-          <CardContent className="p-1">
-            <div className="flex flex-col sm:flex-row gap-0.5">
-              <Button
-                onClick={() => setAddModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
-              >
-                <Plus className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Agregar</span>
-              </Button>
-              <Button
-                onClick={() => setQueryModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
-              >
-                <Search className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">Consulta</span>
-              </Button>
-              <Button
-                onClick={() => setSecopModalOpen(true)}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
-              >
-                <RefreshCw className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">SECOP</span>
-              </Button>
-              <Button
-                onClick={handleExportToExcel}
-                variant="ghost"
-                size="sm"
-                disabled={exportLoading}
-                className="text-white hover:bg-slate-700 hover:text-white text-xs h-8 px-2 flex-1 min-w-0 justify-start sm:justify-center"
-              >
-                {exportLoading ? (
-                  <Loader2 className="w-3 h-3 mr-1 flex-shrink-0 animate-spin" />
-                ) : (
-                  <Download className="w-3 h-3 mr-1 flex-shrink-0" />
-                )}
-                <span className="truncate">Excel</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      {/* Main Content Card */}
-      <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-        {/* Responsive Filters Section */}
-        <div className="bg-gradient-to-r from-teal-50 to-[#1d293d]/5 border-b border-teal-100">
-          <div className="p-3 sm:p-4 lg:p-6">
+      {/* Main Content */}
+      <div className="bg-white rounded-xl overflow-hidden">
+        {/* Filters Section */}
+        <div className="border-b border-slate-100">
+          <div className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-                Panel de Control
-              </h2>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                Filtros de búsqueda
+              </label>
               <div className="flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="bg-white/80 text-slate-700 border-slate-300 text-xs"
-                >
-                  Sistema Activo
-                </Badge>
                 <Button
                   variant="outline"
                   size="sm"
@@ -270,47 +245,29 @@ export function PurchaseOrdersView() {
         </div>
 
         {/* Results Info */}
-        <div className="p-3 sm:p-4 text-xs sm:text-sm text-slate-600 bg-slate-50 border-b">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            {loading ? (
-              <span>Cargando órdenes...</span>
-            ) : hasError ? (
-              <span className="text-red-600">Error al cargar órdenes</span>
-            ) : (
-              <span>
-                Mostrando órdenes: {showingFrom} a {showingTo} de {totalItems}{" "}
-                registros
-                {totalPages > 1 && (
-                  <span className="text-slate-500 ml-2">
-                    (Página {currentPage} de {totalPages})
-                  </span>
-                )}
-              </span>
-            )}
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="secondary"
-                className="bg-teal-100 text-teal-800 text-xs w-fit"
-              >
-                {hasError ? "Error" : loading ? "Cargando" : "Actualizada"}
-              </Badge>
-              {hasError && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={refresh}
-                  className="h-6 px-2 text-xs"
-                >
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                  Reintentar
-                </Button>
+        <div className="px-4 sm:px-5 py-3 text-sm text-slate-500 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          {loading ? (
+            <span>Cargando órdenes...</span>
+          ) : hasError ? (
+            <span className="text-red-600">Error al cargar órdenes</span>
+          ) : (
+            <span>
+              Mostrando <span className="font-semibold text-slate-700">{showingFrom}</span>–<span className="font-semibold text-slate-700">{showingTo}</span> de <span className="font-semibold text-slate-700">{totalItems}</span> registros
+              {totalPages > 1 && (
+                <span className="text-slate-400 ml-2">(Página {currentPage} de {totalPages})</span>
               )}
-            </div>
-          </div>
+            </span>
+          )}
+          {hasError && (
+            <Button size="sm" variant="outline" onClick={refresh} className="h-7 px-2 text-xs">
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Reintentar
+            </Button>
+          )}
         </div>
 
-        {/* Responsive Pagination Top */}
-        <div className="px-3 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 border-b bg-slate-50">
+        {/* Pagination Top */}
+        <div className="px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 border-b border-slate-100">
           <div className="flex items-center gap-2 text-xs sm:text-sm">
             <span className="text-slate-700">Mostrar</span>
             <Select
@@ -378,7 +335,7 @@ export function PurchaseOrdersView() {
                     variant={i === currentPage ? "default" : "outline"}
                     size="sm"
                     className={`h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm ${
-                      i === currentPage ? "bg-teal-600 hover:bg-teal-700" : ""
+                      i === currentPage ? "bg-blue-600 hover:bg-blue-700" : ""
                     }`}
                     onClick={() => changePage(i)}
                     disabled={loading}
@@ -485,17 +442,13 @@ export function PurchaseOrdersView() {
         </div>
 
         {/* Results Info Bottom */}
-        <div className="p-3 sm:p-4 text-xs sm:text-sm text-slate-600 border-t bg-slate-50">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span>Total de órdenes: {totalItems} órdenes</span>
-            <span className="text-xs text-slate-500">
-              Actualizado: {new Date().toLocaleString()}
-            </span>
-          </div>
+        <div className="px-4 sm:px-5 py-3 text-sm text-slate-500 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <span>Total: <span className="font-semibold text-slate-700">{totalItems}</span> órdenes</span>
+          <span className="text-xs text-slate-400">Actualizado: {new Date().toLocaleString()}</span>
         </div>
 
-        {/* Responsive Pagination Bottom */}
-        <div className="px-3 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-slate-50">
+        {/* Pagination Bottom */}
+        <div className="px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 border-t border-slate-100">
           <div className="flex items-center gap-2 text-xs sm:text-sm">
             <span className="text-slate-700">Mostrar</span>
             <Select
@@ -562,7 +515,7 @@ export function PurchaseOrdersView() {
                     variant={i === currentPage ? "default" : "outline"}
                     size="sm"
                     className={`h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm ${
-                      i === currentPage ? "bg-teal-600 hover:bg-teal-700" : ""
+                      i === currentPage ? "bg-blue-600 hover:bg-blue-700" : ""
                     }`}
                     onClick={() => changePage(i)}
                     disabled={loading}
@@ -597,20 +550,17 @@ export function PurchaseOrdersView() {
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
       {/* Modals */}
       <AddPurchaseOrderModal
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
       />
-      <QueryPurchaseOrderModal
-        open={queryModalOpen}
-        onOpenChange={setQueryModalOpen}
-      />
       <SecopConsultationModal
         open={secopModalOpen}
         onOpenChange={setSecopModalOpen}
       />
+      </div>
     </div>
   );
 }
@@ -684,7 +634,7 @@ function MobilePurchaseFilters({
         </Button>
         <Button 
           size="sm" 
-          className="flex-1 h-9 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+    className="bg-blue-600 hover:bg-blue-700 text-white"
           onClick={handleApplyFilters}
           disabled={loading}
         >
@@ -771,7 +721,7 @@ function DesktopPurchaseFilters({
           </Button>
           <Button
             size="sm"
-            className="flex-1 h-9 text-sm bg-teal-600 hover:bg-teal-700 text-white"
+            className="flex-1 h-9 text-sm bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleApplyFilters}
             disabled={loading}
           >
@@ -790,8 +740,8 @@ function DesktopPurchaseFilters({
 // Mobile Card Component
 function MobilePurchaseCard({ order }) {
   return (
-    <Card className="border border-slate-200 hover:shadow-md transition-shadow">
-      <CardContent className="p-3">
+    <div className="bg-white rounded-xl p-4">
+      <div>
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
@@ -848,8 +798,8 @@ function MobilePurchaseCard({ order }) {
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -895,8 +845,8 @@ function DesktopPurchaseRow({ order }) {
       </td>
       <td className="p-2 lg:p-4 border-r border-slate-200 align-top">
         <div className="flex items-center gap-2">
-          <div className="w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-br from-teal-100 to-[#1d293d]/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-teal-200">
-            <Package className="w-3 lg:w-4 h-3 lg:h-4 text-teal-600" />
+          <div className="w-6 lg:w-8 h-6 lg:h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0 border border-blue-100">
+            <Package className="w-3 lg:w-4 h-3 lg:h-4 text-blue-600" />
           </div>
           <div>
             <div className="font-medium text-slate-900 text-xs lg:text-sm">

@@ -8518,6 +8518,71 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         }
     })->middleware('auth:sanctum');
 
+    // Dar de baja definitiva a un usuario (libera el email para reutilización)
+    Route::post('usuarios/{id}/dar-de-baja', function($id) {
+        try {
+            $authUser = auth('sanctum')->user();
+
+            if (!$authUser) {
+                return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
+            }
+
+            if ($authUser->rol_id != 1) {
+                return response()->json(['success' => false, 'message' => 'Solo los super administradores pueden dar de baja usuarios'], 403);
+            }
+
+            $targetUser = DB::table('usuarios')->where('id', $id)->first();
+
+            if (!$targetUser) {
+                return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
+            }
+
+            if ($targetUser->rol_id == 1) {
+                return response()->json(['success' => false, 'message' => 'No se puede dar de baja a un super administrador'], 403);
+            }
+
+            // Verificar si ya está dado de baja (email ya tiene el prefijo BAJA_)
+            if ($targetUser->email && str_starts_with($targetUser->email, 'BAJA_')) {
+                return response()->json(['success' => false, 'message' => 'El usuario ya está dado de baja definitivamente'], 422);
+            }
+
+            DB::beginTransaction();
+            try {
+                $updates = [
+                    'active'  => 'false',
+                    'estado'  => 0,
+                ];
+
+                // Liberar el email prefijando con BAJA_<id>_ para conservar historial
+                // pero permitir que otro usuario registre el mismo correo
+                if ($targetUser->email) {
+                    $updates['email'] = 'BAJA_' . $id . '_' . $targetUser->email;
+                }
+
+                // Liberar también el username si aplica
+                if ($targetUser->username && !str_starts_with($targetUser->username, 'BAJA_')) {
+                    $updates['username'] = 'BAJA_' . $id . '_' . $targetUser->username;
+                }
+
+                DB::table('usuarios')->where('id', $id)->update($updates);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Usuario dado de baja exitosamente. El correo ' . $targetUser->email . ' ha sido liberado para un nuevo funcionario.',
+                    'email_liberado' => $targetUser->email,
+                ]);
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
+
+        } catch (Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error al dar de baja: ' . $e->getMessage()], 500);
+        }
+    })->middleware('auth:sanctum');
+
     // ==========================================
     // COMPLETE PURCHASE ORDERS API ENDPOINTS
     // ==========================================
