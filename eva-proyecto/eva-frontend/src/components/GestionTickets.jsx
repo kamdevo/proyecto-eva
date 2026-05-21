@@ -362,7 +362,7 @@ export default function GestionTickets() {
 
         <div className="space-y-2 mb-3">
           <div className="text-sm text-gray-600">
-            <p className="text-xs sm:text-sm font-medium text-gray-800">{ticket.descripcion}</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-800" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
           </div>
           <div className="grid grid-cols-1 gap-1 text-xs text-gray-600">
             <div><span className="font-medium">Reportante:</span> {ticket.reportante_nombre}</div>
@@ -716,7 +716,7 @@ export default function GestionTickets() {
                     </td>
                     <td className="px-3 py-4 align-top">
                       <div className="space-y-2">
-                        <div className="text-sm text-gray-900 font-medium leading-tight">{ticket.descripcion}</div>
+                        <div className="text-sm text-gray-900 font-medium leading-tight" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
                         <div className="text-xs text-gray-600 space-y-1">
                           <div className="truncate"><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
                           <div className="truncate"><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>

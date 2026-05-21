@@ -518,7 +518,7 @@ export default function MyTickets() {
                       </div>
 
                       <div className="space-y-2 mb-3">
-                        <p className="text-sm text-gray-800 font-medium">{ticket.descripcion}</p>
+                        <p className="text-sm text-gray-800 font-medium" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
                         <div className="grid grid-cols-1 gap-1 text-xs text-gray-600">
                           <div><span className="font-medium">Reportante:</span> {ticket.reportante_nombre}</div>
                           <div><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
@@ -656,7 +656,7 @@ export default function MyTickets() {
                           </td>
                           <td className="px-3 py-4 align-top">
                             <div className="space-y-2">
-                              <div className="text-sm text-gray-900 font-medium leading-tight">{ticket.descripcion}</div>
+                              <div className="text-sm text-gray-900 font-medium leading-tight" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
                               <div className="text-xs text-gray-600 space-y-1">
                                 <div className="truncate"><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
                                 <div className="truncate"><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>

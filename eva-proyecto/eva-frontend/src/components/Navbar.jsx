@@ -172,13 +172,12 @@ const AppSidebar = () => {
       label: "CAPACITACIONES",
       submenu: [{ label: "CAPACITACIONES", href: "/capacitaciones" }],
     },
-    // Only show DASHBOARD/REPORTES for admins (rol_id <= 2)
+    // Only show DASHBOARD for admins (rol_id <= 2)
     ...(user?.rol_id <= 2 ? [{
       icon: BarChart3,
       label: "DASHBOARD",
       submenu: [
-        { label: "REPORTES", href: "/dashboard/reportes" },
-        { label: "GRAFICAS", href: "/dashboard/graficas" },
+        { label: "DASHBOARD", href: "/dashboard/reportes" },
       ],
     }] : []),
     // Only show CONFIGURACIÓN for admin and advanced users (rol_id 1, 2, 3) 

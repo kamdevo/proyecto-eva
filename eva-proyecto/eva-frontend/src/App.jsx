@@ -30,9 +30,8 @@ const ProfilePage = lazy(() => import("./components/ProfilePage"));
 const MyTickets = lazy(() => import("./components/MyTickets"));
 const ClosedTickets = lazy(() => import("./components/ClosedTickets"));
 const DashboardView = lazy(() => import("./components/Dashboard"));
-const DashboardReportes = lazy(() => import("./components/DashboardReportesFuncional"));
+const DashboardUnificado = lazy(() => import("./components/DashboardUnificado"));
 const ContactsView = lazy(() => import("./components/vista-contactos-principal"));
-const ControlPanel = lazy(() => import("./components/control-panel"));
 const VistaAreasPrincipal = lazy(() => import("./components/vista-areas-principal"));
 const VistaPropietariosPrincipal = lazy(() => import("./components/vista-propietarios-principal"));
 const VistaServiciosPrincipal = lazy(() => import("./components/vista-servicios-principal"));
@@ -350,7 +349,7 @@ function AppContent() {
                   path="/dashboard/reportes"
                   element={
                     <ProtectedRoute>
-                      <DashboardReportes />
+                      <DashboardUnificado />
                     </ProtectedRoute>
                   }
                 />
@@ -366,7 +365,7 @@ function AppContent() {
                   path="/dashboard/graficas"
                   element={
                     <ProtectedRoute>
-                      <ControlPanel />
+                      <DashboardUnificado />
                     </ProtectedRoute>
                   }
                 />

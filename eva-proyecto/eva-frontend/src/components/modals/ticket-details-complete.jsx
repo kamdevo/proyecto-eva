@@ -692,7 +692,7 @@ export default function TicketDetailsModal({ isOpen, onClose, ticket, onRefresh,
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="border-l-2 border-gray-400 pl-3 rounded-lg col-span-2">
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 block">Descripción del problema presentado *</label>
-                  <p className="text-sm text-gray-900 mt-2">{ticket.descripcion || ticket.description || 'Datos no disponibles'}</p>
+                  <p className="text-sm text-gray-900 mt-2" dangerouslySetInnerHTML={{ __html: ticket.descripcion || ticket.description || 'Datos no disponibles' }} />
                 </div>
                 <div className="border-l-2 border-gray-400 pl-3 rounded-lg">
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 block">Empresa Asignada *</label>

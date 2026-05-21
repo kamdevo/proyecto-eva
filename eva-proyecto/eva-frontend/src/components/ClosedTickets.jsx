@@ -255,7 +255,7 @@ export default function ClosedTickets() {
             <Wrench className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-medium text-gray-700">Descripción:</p>
-              <p className="text-gray-600 line-clamp-2">{ticket.descripcion_problema || 'Sin descripción'}</p>
+              <p className="text-gray-600 line-clamp-2" dangerouslySetInnerHTML={{ __html: ticket.descripcion_problema || 'Sin descripción' }} />
             </div>
           </div>
 
@@ -550,7 +550,7 @@ export default function ClosedTickets() {
                         </td>
                         <td className="px-3 py-4 align-top">
                           <div className="space-y-2">
-                            <div className="text-sm text-gray-900 font-medium leading-tight">{ticket.descripcion}</div>
+                            <div className="text-sm text-gray-900 font-medium leading-tight" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
                             <div className="text-xs text-gray-600 space-y-1">
                               <div className="truncate"><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
                               <div className="truncate"><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>

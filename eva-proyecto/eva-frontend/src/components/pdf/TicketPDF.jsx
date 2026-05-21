@@ -1,6 +1,8 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 
+const stripHtml = (html) => html ? String(html).replace(/<[^>]*>/g, '') : '';
+
 // Estilos para el PDF
 const styles = StyleSheet.create({
   page: {
@@ -419,7 +421,7 @@ const TicketPDF = ({ ticket }) => {
           </View>
           <View style={styles.fieldFull}>
             <Text style={styles.fieldLabel}>Descripción del problema presentado *</Text>
-            <Text style={styles.fieldValue}>{ticket.descripcion || ticket.description || 'Datos no disponibles'}</Text>
+            <Text style={styles.fieldValue}>{stripHtml(ticket.descripcion || ticket.description) || 'Datos no disponibles'}</Text>
           </View>
           <View style={styles.fieldGrid}>
             <View style={styles.field}>

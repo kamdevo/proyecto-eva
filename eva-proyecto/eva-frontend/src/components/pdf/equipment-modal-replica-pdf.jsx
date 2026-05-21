@@ -1,5 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image, Link } from '@react-pdf/renderer';
 
+const stripHtml = (html) => html ? String(html).replace(/<[^>]*>/g, '') : '';
+
 // Estilos para PDF que replican el modal
 const styles = StyleSheet.create({
   page: {
@@ -580,9 +582,9 @@ const EquipmentModalReplicaPDF = ({ data }) => {
                 <Text style={styles.dataTableCell}>
                   {ticket.descripcion_completa 
                     ? (ticket.descripcion_completa.length > 80 
-                        ? ticket.descripcion_completa.substring(0, 80) + '...' 
-                        : ticket.descripcion_completa)
-                    : (ticket.descripcion_problema || ticket.descripcion || 'Sin descripción')}
+                        ? stripHtml(ticket.descripcion_completa).substring(0, 80) + '...' 
+                        : stripHtml(ticket.descripcion_completa))
+                    : stripHtml(ticket.descripcion_problema || ticket.descripcion) || 'Sin descripción'}
                 </Text>
                 <Text style={styles.dataTableCell}>{ticket.estado || ticket.estado_nombre || ({1:'Abierto',2:'Asignado',3:'Diagnosticado',4:'Cerrado',5:'Esperando cierre'}[Number(ticket.estado_id)]) || 'Sin estado'}</Text>
                 <Text style={styles.dataTableCell}>
