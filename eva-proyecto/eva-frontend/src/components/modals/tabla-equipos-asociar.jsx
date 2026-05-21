@@ -45,9 +45,7 @@ function ModalTablaEquipos({ open, onOpenChange, baja, onSuccess }) {
   // Cargar equipos cuando se abre el modal
   useEffect(() => {
     if (open) {
-      // Filtrar solo equipos activos (estado_id = 1)
       updateFilters({ 
-        estado_id: 1,
         page: 1,
         per_page: 15
       });
