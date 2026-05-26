@@ -1347,7 +1347,7 @@ export function AddEquipmentModal({
                     </SelectTrigger>
                     <SelectContent>
                       {catalogs.periodos_garantias?.map((pg) => (
-                        <SelectItem key={pg.id} value={pg.name}>
+                        <SelectItem key={pg.id} value={pg.id.toString()}>
                           {pg.name}
                         </SelectItem>
                       ))}

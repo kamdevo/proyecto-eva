@@ -3018,7 +3018,7 @@ export function EditEquipmentModal({
                       </SelectTrigger>
                       <SelectContent>
                         {dropdownOptions.periodosGarantias.map((pg) => (
-                          <SelectItem key={pg.id} value={pg.name}>
+                          <SelectItem key={pg.id} value={pg.id.toString()}>
                             {pg.name}
                           </SelectItem>
                         ))}

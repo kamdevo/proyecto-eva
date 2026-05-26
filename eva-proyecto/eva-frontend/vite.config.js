@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
       cors: true,
       proxy: {
         "/api": {
-          target: "http://localhost:8001",
+          target: process.env.BACKEND_URL || "http://localhost:8000",
           changeOrigin: true,
           secure: false,
           configure: (proxy) => {
@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         "/sanctum": {
-          target: "http://localhost:8001",
+          target: process.env.BACKEND_URL || "http://localhost:8000",
           changeOrigin: true,
           secure: false,
         },

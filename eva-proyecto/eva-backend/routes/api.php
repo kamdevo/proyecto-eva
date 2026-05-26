@@ -8049,7 +8049,8 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 $query->where(function($q) use ($search) {
                     $q->where('usuarios.nombre', 'like', "%{$search}%")
                       ->orWhere('usuarios.apellido', 'like', "%{$search}%")
-                      ->orWhere('usuarios.username', 'like', "%{$search}%");
+                      ->orWhere('usuarios.username', 'like', "%{$search}%")
+                      ->orWhere('usuarios.email', 'like', "%{$search}%");
                 });
             }
 
