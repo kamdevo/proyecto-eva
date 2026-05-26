@@ -3,6 +3,76 @@ import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/render
 
 const stripHtml = (html) => html ? String(html).replace(/<[^>]*>/g, '') : '';
 
+// Decodifica entidades HTML básicas (&nbsp;, &amp;, &lt;, &gt;, &quot;, &#39;)
+const decodeHtmlEntities = (str) => {
+  if (!str) return '';
+  return String(str)
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'");
+};
+
+// Convierte HTML básico (negrita, cursiva, subrayado, saltos de línea, listas)
+// en un array de elementos <Text> compatibles con @react-pdf/renderer.
+// Soporta: <strong>, <b>, <em>, <i>, <u>, <br>, <p>, <div>, <ul>, <ol>, <li>.
+const renderRichHtml = (html, baseStyle) => {
+  if (!html) return null;
+  const raw = String(html).trim();
+  if (!raw) return null;
+
+  // Normalizar saltos de línea derivados de tags de bloque
+  let normalized = raw
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|h[1-6])\s*>/gi, '\n')
+    .replace(/<\s*(p|div|h[1-6])[^>]*>/gi, '')
+    .replace(/<\s*li[^>]*>/gi, '• ')
+    .replace(/<\/\s*li\s*>/gi, '\n')
+    .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '');
+
+  // Tokenizar texto y tags de inline (bold, italic, underline)
+  const tokenRegex = /(<\/?\s*(?:strong|b|em|i|u)\s*>)/gi;
+  const parts = normalized.split(tokenRegex).filter(Boolean);
+
+  const stack = { bold: 0, italic: 0, underline: 0 };
+  const nodes = [];
+  let key = 0;
+
+  parts.forEach((part) => {
+    const tagMatch = part.match(/^<(\/?)\s*(strong|b|em|i|u)\s*>$/i);
+    if (tagMatch) {
+      const isClose = tagMatch[1] === '/';
+      const tag = tagMatch[2].toLowerCase();
+      const kind = tag === 'strong' || tag === 'b' ? 'bold'
+                 : tag === 'em'     || tag === 'i' ? 'italic'
+                 : 'underline';
+      stack[kind] = Math.max(0, stack[kind] + (isClose ? -1 : 1));
+      return;
+    }
+
+    // Eliminar cualquier otra etiqueta residual y decodificar entidades
+    const text = decodeHtmlEntities(part.replace(/<[^>]*>/g, ''));
+    if (!text) return;
+
+    const style = {};
+    if (stack.bold)      style.fontFamily = stack.italic ? 'Helvetica-BoldOblique' : 'Helvetica-Bold';
+    else if (stack.italic) style.fontFamily = 'Helvetica-Oblique';
+    if (stack.underline) style.textDecoration = 'underline';
+
+    nodes.push(
+      <Text key={key++} style={Object.keys(style).length ? style : undefined}>
+        {text}
+      </Text>
+    );
+  });
+
+  if (!nodes.length) return null;
+  return <Text style={baseStyle}>{nodes}</Text>;
+};
+
 // Estilos para el PDF
 const styles = StyleSheet.create({
   page: {
@@ -421,7 +491,8 @@ const TicketPDF = ({ ticket }) => {
           </View>
           <View style={styles.fieldFull}>
             <Text style={styles.fieldLabel}>Descripción del problema presentado *</Text>
-            <Text style={styles.fieldValue}>{stripHtml(ticket.descripcion || ticket.description) || 'Datos no disponibles'}</Text>
+            {renderRichHtml(ticket.descripcion || ticket.description, styles.fieldValue)
+              || <Text style={styles.fieldValue}>Datos no disponibles</Text>}
           </View>
           <View style={styles.fieldGrid}>
             <View style={styles.field}>
