@@ -16,9 +16,30 @@ const decodeHtmlEntities = (str) => {
     .replace(/&apos;/gi, "'");
 };
 
+// Analiza el atributo style de un tag para detectar negrita/cursiva/subrayado.
+// Soporta los formatos que generan los navegadores con execCommand:
+//   font-weight: bold | 600 | 700 | 800 | 900
+//   font-style: italic
+//   text-decoration: underline
+const parseInlineStyle = (attrs) => {
+  const out = { bold: false, italic: false, underline: false };
+  if (!attrs) return out;
+  const styleMatch = attrs.match(/style\s*=\s*("|')(.*?)\1/i);
+  const style = styleMatch ? styleMatch[2].toLowerCase() : '';
+  const fw = style.match(/font-weight\s*:\s*([^;]+)/);
+  if (fw) {
+    const v = fw[1].trim();
+    if (v === 'bold' || v === 'bolder' || parseInt(v, 10) >= 600) out.bold = true;
+  }
+  if (/font-style\s*:\s*italic/.test(style)) out.italic = true;
+  if (/text-decoration[^:]*:\s*[^;]*underline/.test(style)) out.underline = true;
+  return out;
+};
+
 // Convierte HTML básico (negrita, cursiva, subrayado, saltos de línea, listas)
 // en un array de elementos <Text> compatibles con @react-pdf/renderer.
-// Soporta: <strong>, <b>, <em>, <i>, <u>, <br>, <p>, <div>, <ul>, <ol>, <li>.
+// Soporta: <strong>, <b>, <em>, <i>, <u>, <span style="...">, <font>, <br>,
+//          <p>, <div>, <ul>, <ol>, <li>.
 const renderRichHtml = (html, baseStyle) => {
   if (!html) return null;
   const raw = String(html).trim();
@@ -33,34 +54,54 @@ const renderRichHtml = (html, baseStyle) => {
     .replace(/<\/\s*li\s*>/gi, '\n')
     .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '');
 
-  // Tokenizar texto y tags de inline (bold, italic, underline)
-  const tokenRegex = /(<\/?\s*(?:strong|b|em|i|u)\s*>)/gi;
+  // Tokenizar: separa tags de inline (apertura/cierre) del texto.
+  const tokenRegex = /(<\/?\s*(?:strong|b|em|i|u|span|font)(?:\s[^>]*)?>)/gi;
   const parts = normalized.split(tokenRegex).filter(Boolean);
 
-  const stack = { bold: 0, italic: 0, underline: 0 };
+  // Pila de marcos: cada apertura empuja qué estilos aporta; cada cierre saca.
+  const frames = [];
+  const active = () => frames.reduce(
+    (acc, f) => ({
+      bold: acc.bold || f.bold,
+      italic: acc.italic || f.italic,
+      underline: acc.underline || f.underline,
+    }),
+    { bold: false, italic: false, underline: false }
+  );
+
   const nodes = [];
   let key = 0;
 
   parts.forEach((part) => {
-    const tagMatch = part.match(/^<(\/?)\s*(strong|b|em|i|u)\s*>$/i);
-    if (tagMatch) {
-      const isClose = tagMatch[1] === '/';
-      const tag = tagMatch[2].toLowerCase();
-      const kind = tag === 'strong' || tag === 'b' ? 'bold'
-                 : tag === 'em'     || tag === 'i' ? 'italic'
-                 : 'underline';
-      stack[kind] = Math.max(0, stack[kind] + (isClose ? -1 : 1));
+    const openMatch = part.match(/^<\s*(strong|b|em|i|u|span|font)(\s[^>]*)?>$/i);
+    const closeMatch = part.match(/^<\/\s*(strong|b|em|i|u|span|font)\s*>$/i);
+
+    if (openMatch) {
+      const tag = openMatch[1].toLowerCase();
+      const attrs = openMatch[2] || '';
+      let frame = { bold: false, italic: false, underline: false };
+      if (tag === 'strong' || tag === 'b') frame.bold = true;
+      else if (tag === 'em' || tag === 'i') frame.italic = true;
+      else if (tag === 'u') frame.underline = true;
+      else frame = parseInlineStyle(attrs); // span / font
+      frames.push(frame);
       return;
     }
 
-    // Eliminar cualquier otra etiqueta residual y decodificar entidades
+    if (closeMatch) {
+      if (frames.length) frames.pop();
+      return;
+    }
+
+    // Texto: eliminar cualquier etiqueta residual y decodificar entidades
     const text = decodeHtmlEntities(part.replace(/<[^>]*>/g, ''));
     if (!text) return;
 
+    const a = active();
     const style = {};
-    if (stack.bold)      style.fontFamily = stack.italic ? 'Helvetica-BoldOblique' : 'Helvetica-Bold';
-    else if (stack.italic) style.fontFamily = 'Helvetica-Oblique';
-    if (stack.underline) style.textDecoration = 'underline';
+    if (a.bold)        style.fontFamily = a.italic ? 'Helvetica-BoldOblique' : 'Helvetica-Bold';
+    else if (a.italic) style.fontFamily = 'Helvetica-Oblique';
+    if (a.underline)   style.textDecoration = 'underline';
 
     nodes.push(
       <Text key={key++} style={Object.keys(style).length ? style : undefined}>

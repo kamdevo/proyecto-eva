@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\ServicioController;
 // use App\Models\Equipo; // COMENTADO: No usar modelo, usar consultas directas
 
 // Helper function for default permissions based on roles.md
+if (!function_exists('getDefaultPermissionsByRole')) {
 function getDefaultPermissionsByRole($rolId, $moduleName) {
     // Role 1 (Super Admin) - Full access to everything
     if ($rolId == 1) {
@@ -96,6 +97,7 @@ function getDefaultPermissionsByRole($rolId, $moduleName) {
     
     // Default: no permissions
     return ['leer' => 0, 'insertar' => 0, 'editar' => 0, 'eliminar' => 0];
+}
 }
 
 // ENDPOINT OPTIMIZADO PARA SELECTORES DE EQUIPOS (Ligero y rápido)
@@ -10768,6 +10770,7 @@ Route::get('debug/routes', function () {
  * Helper function para obtener estados de equipo con opción por defecto
  * Si la tabla estadoequipos está vacía, retorna opción "No disponible"
  */
+if (!function_exists('getEstadosEquipoWithDefault')) {
 function getEstadosEquipoWithDefault() {
     try {
         $estados = DB::table('estadoequipos')
@@ -10797,6 +10800,7 @@ function getEstadosEquipoWithDefault() {
             ]
         ];
     }
+}
 }
 
 // Test endpoint to create equipment with manual and plano data directly
