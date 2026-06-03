@@ -5873,12 +5873,16 @@ Route::get('v1/gestion-tickets', function(Request $request) {
         // Grupo 3 (id_empresa 27)   → solo subproceso_id = 1 o 2
         // Grupo 4 (cualquier otro)  → sin restricción
         //
-        // EXCEPCIÓN: cuando se consulta por equipo_id específico (hoja de vida /
+        // EXCEPCIÓN 1: cuando se consulta por equipo_id específico (hoja de vida /
         // modal editar), se muestran TODOS los tickets del equipo sin importar
         // el subproceso, para no ocultar tickets recién creados o de otras categorías.
+        //
+        // EXCEPCIÓN 2: cuando se consulta por reportante_id (página "Mis Tickets"),
+        // se muestran TODOS los tickets creados por el usuario sin importar el
+        // subproceso. Este filtro por empresa solo aplica en "Gestión de Tickets".
         // -------------------------------------------------------
         $authUser = auth('sanctum')->user();
-        if ($authUser && empty($equipoId)) {
+        if ($authUser && empty($equipoId) && empty($reportanteId)) {
             $idEmpresa = DB::table('usuarios')
                 ->where('id', $authUser->id)
                 ->value('id_empresa');
