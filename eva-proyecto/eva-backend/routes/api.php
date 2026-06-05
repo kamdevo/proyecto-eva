@@ -4317,7 +4317,7 @@ Route::put('v1/planes-mantenimientos/{id}', function (Request $request, $id) {
         $equipo = DB::table('equipos')
             ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
             ->where('equipos.id', $planActual->equipo_id)
-            ->select('equipos.id', 'frecuenciam.meses_frecuencia')
+            ->select('equipos.id', 'frecuenciam.name as frecuencia_nombre', 'equipos.frecuencia_id')
             ->first();
         
         // Calcular meses automáticamente si se proporciona mes1 y existe frecuencia
@@ -4325,9 +4325,38 @@ Route::put('v1/planes-mantenimientos/{id}', function (Request $request, $id) {
         $mes2 = null;
         $mes3 = null;
         
-        if ($mes1 && $equipo && $equipo->meses_frecuencia) {
-            $frecuenciaMeses = (int)$equipo->meses_frecuencia;
-            
+        $frecuenciaMeses = null;
+        if ($equipo) {
+            if ($equipo->frecuencia_nombre) {
+                $nombreUpper = strtoupper(trim($equipo->frecuencia_nombre));
+                if (str_contains($nombreUpper, '2 MESES')) {
+                    $frecuenciaMeses = 2;
+                } elseif (str_contains($nombreUpper, '3 MESES')) {
+                    $frecuenciaMeses = 3;
+                } elseif (str_contains($nombreUpper, '4 MESES')) {
+                    $frecuenciaMeses = 4;
+                } elseif (str_contains($nombreUpper, '6 MESES')) {
+                    $frecuenciaMeses = 6;
+                } elseif (str_contains($nombreUpper, 'ANUAL')) {
+                    $frecuenciaMeses = 12;
+                }
+            }
+            if ($frecuenciaMeses === null && $equipo->frecuencia_id) {
+                $frecuenciaIdMap = [
+                    1 => null, // N/R
+                    2 => 3,    // 3 MESES
+                    3 => 4,    // 4 MESES
+                    4 => 6,    // 6 MESES
+                    5 => 12,   // ANUAL
+                    6 => null, // GARANTIA
+                    7 => null, // COMODATO
+                    8 => 2     // 2 MESES
+                ];
+                $frecuenciaMeses = $frecuenciaIdMap[$equipo->frecuencia_id] ?? null;
+            }
+        }
+        
+        if ($mes1 && $frecuenciaMeses) {
             // Calcular mes2 sumando la frecuencia (con manejo de ciclo de 12 meses)
             $mes2Calculado = $mes1 + $frecuenciaMeses;
             if ($mes2Calculado <= 12) {
@@ -4404,7 +4433,7 @@ Route::put('v1/planes-mantenimientos/{id}', function (Request $request, $id) {
                 'mes1' => $mes1,
                 'mes2' => $mes2,
                 'mes3' => $mes3,
-                'frecuencia_meses' => $equipo->meses_frecuencia ?? 'N/A'
+                'frecuencia_meses' => $frecuenciaMeses ?? 'N/A'
             ]
         ]);
         
@@ -13384,12 +13413,41 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                     $equipoFrecuencia = DB::table('equipos')
                         ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
                         ->where('equipos.id', $equipoId)
-                        ->select('frecuenciam.meses_frecuencia')
+                        ->select('frecuenciam.name as frecuencia_nombre', 'equipos.frecuencia_id')
                         ->first();
                     
-                    if ($mes1 && $equipoFrecuencia && $equipoFrecuencia->meses_frecuencia) {
-                        $frecuenciaMeses = (int)$equipoFrecuencia->meses_frecuencia;
-                        
+                    $frecuenciaMeses = null;
+                    if ($equipoFrecuencia) {
+                        if ($equipoFrecuencia->frecuencia_nombre) {
+                            $nombreUpper = strtoupper(trim($equipoFrecuencia->frecuencia_nombre));
+                            if (str_contains($nombreUpper, '2 MESES')) {
+                                $frecuenciaMeses = 2;
+                            } elseif (str_contains($nombreUpper, '3 MESES')) {
+                                $frecuenciaMeses = 3;
+                            } elseif (str_contains($nombreUpper, '4 MESES')) {
+                                $frecuenciaMeses = 4;
+                            } elseif (str_contains($nombreUpper, '6 MESES')) {
+                                $frecuenciaMeses = 6;
+                            } elseif (str_contains($nombreUpper, 'ANUAL')) {
+                                $frecuenciaMeses = 12;
+                            }
+                        }
+                        if ($frecuenciaMeses === null && $equipoFrecuencia->frecuencia_id) {
+                            $frecuenciaIdMap = [
+                                1 => null, // N/R
+                                2 => 3,    // 3 MESES
+                                3 => 4,    // 4 MESES
+                                4 => 6,    // 6 MESES
+                                5 => 12,   // ANUAL
+                                6 => null, // GARANTIA
+                                7 => null, // COMODATO
+                                8 => 2     // 2 MESES
+                            ];
+                            $frecuenciaMeses = $frecuenciaIdMap[$equipoFrecuencia->frecuencia_id] ?? null;
+                        }
+                    }
+                    
+                    if ($mes1 && $frecuenciaMeses) {
                         // Calcular mes2 sumando la frecuencia
                         $mes2Calculado = $mes1 + $frecuenciaMeses;
                         if ($mes2Calculado <= 12) {

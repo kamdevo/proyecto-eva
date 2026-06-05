@@ -62,7 +62,7 @@ export function PlanesMantenimientoView() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [entriesPerPage, setEntriesPerPage] = useState("10");
-  const [selectedYear, setSelectedYear] = useState("2024"); // Año original para filtrar tabla
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString()); // Año para filtrar tabla
   
   // Generar años dinámicamente para el selector de subir Excel: año actual - 2 hasta año actual + 3
   const generateYears = () => {
@@ -78,6 +78,18 @@ export function PlanesMantenimientoView() {
   
   const availableYears = generateYears();
   const currentYear = new Date().getFullYear().toString();
+  
+  // Generar años dinámicamente para el selector de filtrar tabla: de 2020 hasta año actual + 3
+  const generateFilterYears = () => {
+    const startYear = 2020;
+    const endYear = parseInt(currentYear) + 3;
+    const years = [];
+    for (let year = startYear; year <= endYear; year++) {
+      years.push(year.toString());
+    }
+    return years.sort((a, b) => b - a); // De más reciente a más antiguo
+  };
+  const filterYears = generateFilterYears();
   
   const [uploadYear, setUploadYear] = useState(currentYear); // Año NUEVO para subir cronograma (dinámico)
   
@@ -643,13 +655,13 @@ export function PlanesMantenimientoView() {
             )}
 
             <div className="flex items-center gap-2">
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 className="h-7 sm:h-8 text-xs sm:text-sm"
               >
                 Enviar
-              </Button>
+              </Button> */}
               <Button
                 variant="outline"
                 size="sm"
@@ -678,11 +690,11 @@ export function PlanesMantenimientoView() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
-              <SelectItem value="2022">2022</SelectItem>
-              <SelectItem value="2021">2021</SelectItem>
-              <SelectItem value="2020">2020</SelectItem>
+              {filterYears.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
