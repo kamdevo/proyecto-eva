@@ -13483,6 +13483,17 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                 $processed++;
             }
             
+            // Actualizar el año de vigencia al año del plan subido
+            $vigenciaExists = DB::table('vigencias_mantenimiento')->exists();
+            if ($vigenciaExists) {
+                DB::table('vigencias_mantenimiento')->update(['anio' => $year]);
+            } else {
+                DB::table('vigencias_mantenimiento')->insert([
+                    'anio' => $year,
+                    'created_at' => now()
+                ]);
+            }
+
             DB::commit();
             
             // No need to delete file - processed directly from upload temp
