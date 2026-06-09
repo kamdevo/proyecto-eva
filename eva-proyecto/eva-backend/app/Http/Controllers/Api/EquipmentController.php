@@ -978,6 +978,7 @@ class EquipmentController extends ApiController
                     'equipos.manual_id',
                     'equipos.guia_id',
                     'equipos.tadquisicion_id',
+                    'equipos.tipo_id',
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
@@ -1166,6 +1167,7 @@ class EquipmentController extends ApiController
 
                 return [
                     'id' => $equipo->id,
+                    'tipo_id' => (int) ($equipo->tipo_id ?? 2),
                     // Compatibilidad: algunos componentes esperan propiedades al nivel superior
                     'propietario' => $topPropietario,
                     'clasificacion' => $topClasificacion,
@@ -1355,6 +1357,7 @@ class EquipmentController extends ApiController
                     'equipos.guia_id', 
                     'equipos.invima_id',
                     'equipos.tadquisicion_id',
+                    'equipos.tipo_id',
                     'servicios.name as servicios',
                     'areas.name as area',
                     'sedes.name as sede',
@@ -1657,6 +1660,7 @@ class EquipmentController extends ApiController
             $formattedEquipos = $equipos->map(function ($equipo) {
                 return [
                     'id' => $equipo->id,
+                    'tipo_id' => (int) ($equipo->tipo_id ?? 1),
                     'propietario' => $equipo->propietario,
                     'equipo' => [
                         'id' => $equipo->id,

@@ -320,7 +320,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
 
   const fetchArchivos = async (correctivoId) => {
     try {
-      const res = await apiClient.get(`/v1/correctivos-generales/${correctivoId}/archivos`);
+      const res = await apiClient.get(`/v1/correctivos-generales/${correctivoId}/archivos?tipo_id=${equipmentType}`);
       setArchivosCorrectivo(res.data?.data || []);
     } catch (err) {
       console.error('Error cargando archivos:', err);
@@ -335,6 +335,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
       const data = new FormData();
       data.append('archivo', nuevoArchivoFile);
       data.append('titulo', (nuevoArchivoTitulo || nuevoArchivoFile.name).substring(0, 95));
+      data.append('tipo_id', equipmentType);
       const res = await apiClient.post(`/v1/correctivos-generales/${correctivo.id}/archivos`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
@@ -359,7 +360,7 @@ function AddCorrectivoModal({ isOpen, onClose, equipmentId, equipmentName, onCor
 
   const handleDeleteArchivo = async (archivoId) => {
     try {
-      await apiClient.delete(`/v1/correctivos-generales/${correctivo.id}/archivos/${archivoId}`);
+      await apiClient.delete(`/v1/correctivos-generales/${correctivo.id}/archivos/${archivoId}?tipo_id=${equipmentType}`);
       setArchivosCorrectivo(prev => prev.filter(a => a.id !== archivoId));
       toast.success('Archivo eliminado');
     } catch (err) {

@@ -4986,20 +4986,36 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     });
 
     // Archivos de Correctivos Generales (múltiples archivos por correctivo)
-    Route::get('correctivos-generales/{id}/archivos', function ($id) {
-        $correctivo = DB::table('correctivos_generales')
-            ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
-            ->where('correctivos_generales.id', $id)
-            ->select('equipos.tipo_id')
-            ->first();
+    Route::get('correctivos-generales/{id}/archivos', function (Request $request, $id) {
+        $tipoId = $request->query('tipo_id');
 
-        if (!$correctivo) {
-            return response()->json(['success' => true, 'data' => []]);
+        if ($tipoId == 2) {
+            $tabla = 'correctivos_generales_archivos_ind';
+        } elseif ($tipoId == 1) {
+            $tabla = 'correctivos_generales_archivos';
+        } else {
+            $correctivo = DB::table('correctivos_generales')
+                ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
+                ->where('correctivos_generales.id', $id)
+                ->select('equipos.tipo_id')
+                ->first();
+
+            if (!$correctivo) {
+                $correctivo = DB::table('correctivos_generales_ind')
+                    ->join('equipos', 'equipos.id', '=', 'correctivos_generales_ind.equipo_id')
+                    ->where('correctivos_generales_ind.id', $id)
+                    ->select('equipos.tipo_id')
+                    ->first();
+            }
+
+            if (!$correctivo) {
+                return response()->json(['success' => true, 'data' => []]);
+            }
+
+            $tabla = $correctivo->tipo_id == 2
+                ? 'correctivos_generales_archivos_ind'
+                : 'correctivos_generales_archivos';
         }
-
-        $tabla = $correctivo->tipo_id == 2
-            ? 'correctivos_generales_archivos_ind'
-            : 'correctivos_generales_archivos';
 
         $archivos = DB::table($tabla)
             ->where('correctivo_general_id', $id)
@@ -5010,14 +5026,34 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     });
 
     Route::post('correctivos-generales/{id}/archivos', function (Request $request, $id) {
-        $correctivo = DB::table('correctivos_generales')
-            ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
-            ->where('correctivos_generales.id', $id)
-            ->select('equipos.tipo_id')
-            ->first();
+        $tipoId = $request->input('tipo_id') ?: $request->query('tipo_id');
 
-        if (!$correctivo) {
-            return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+        if ($tipoId == 2) {
+            $tabla = 'correctivos_generales_archivos_ind';
+        } elseif ($tipoId == 1) {
+            $tabla = 'correctivos_generales_archivos';
+        } else {
+            $correctivo = DB::table('correctivos_generales')
+                ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
+                ->where('correctivos_generales.id', $id)
+                ->select('equipos.tipo_id')
+                ->first();
+
+            if (!$correctivo) {
+                $correctivo = DB::table('correctivos_generales_ind')
+                    ->join('equipos', 'equipos.id', '=', 'correctivos_generales_ind.equipo_id')
+                    ->where('correctivos_generales_ind.id', $id)
+                    ->select('equipos.tipo_id')
+                    ->first();
+            }
+
+            if (!$correctivo) {
+                return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+            }
+
+            $tabla = $correctivo->tipo_id == 2
+                ? 'correctivos_generales_archivos_ind'
+                : 'correctivos_generales_archivos';
         }
 
         if (!$request->hasFile('archivo')) {
@@ -5033,10 +5069,6 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
         if ($file->getSize() > 20 * 1024 * 1024) {
             return response()->json(['success' => false, 'message' => 'El archivo excede el límite de 20MB'], 422);
         }
-
-        $tabla = $correctivo->tipo_id == 2
-            ? 'correctivos_generales_archivos_ind'
-            : 'correctivos_generales_archivos';
 
         // Truncar nombre del archivo para que quepa en varchar(100) con el timestamp
         $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
@@ -5069,24 +5101,40 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
     });
 
     Route::delete('correctivos-generales/{id}/archivos/{archivoId}', function (Request $request, $id, $archivoId) {
-        $correctivo = DB::table('correctivos_generales')
-            ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
-            ->where('correctivos_generales.id', $id)
-            ->select('equipos.tipo_id')
-            ->first();
+        $tipoId = $request->query('tipo_id');
 
-        if (!$correctivo) {
-            return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+        if ($tipoId == 2) {
+            $tabla = 'correctivos_generales_archivos_ind';
+        } elseif ($tipoId == 1) {
+            $tabla = 'correctivos_generales_archivos';
+        } else {
+            $correctivo = DB::table('correctivos_generales')
+                ->join('equipos', 'equipos.id', '=', 'correctivos_generales.equipo_id')
+                ->where('correctivos_generales.id', $id)
+                ->select('equipos.tipo_id')
+                ->first();
+
+            if (!$correctivo) {
+                $correctivo = DB::table('correctivos_generales_ind')
+                    ->join('equipos', 'equipos.id', '=', 'correctivos_generales_ind.equipo_id')
+                    ->where('correctivos_generales_ind.id', $id)
+                    ->select('equipos.tipo_id')
+                    ->first();
+            }
+
+            if (!$correctivo) {
+                return response()->json(['success' => false, 'message' => 'Correctivo no encontrado'], 404);
+            }
+
+            $tabla = $correctivo->tipo_id == 2
+                ? 'correctivos_generales_archivos_ind'
+                : 'correctivos_generales_archivos';
         }
-
-        $tabla = $correctivo->tipo_id == 2
-            ? 'correctivos_generales_archivos_ind'
-            : 'correctivos_generales_archivos';
 
         $archivo = DB::table($tabla)->where('id', $archivoId)->where('correctivo_general_id', $id)->first();
 
         if ($archivo) {
-            $filePath = public_path('assets/upload_correctivos_generales/' . $archivo->file);
+            $filePath = storage_path('app/public/correctivos_generales/' . $archivo->file);
             if (file_exists($filePath)) {
                 unlink($filePath);
             }

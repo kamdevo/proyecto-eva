@@ -5453,6 +5453,7 @@ export function EditEquipmentModal({
                     const fd = new FormData();
                     fd.append('archivo', archivoModalFile);
                     fd.append('titulo', (archivoModalTitulo || archivoModalFile.name).substring(0, 95));
+                    fd.append('tipo_id', equipment?.tipo_id || 1);
                     await httpService.post(`/v1/correctivos-generales/${archivoModalCorrectivoId}/archivos`, fd, {
                       headers: { 'Content-Type': 'multipart/form-data' },
                       timeout: 120000, // 2 minutos para archivos grandes
