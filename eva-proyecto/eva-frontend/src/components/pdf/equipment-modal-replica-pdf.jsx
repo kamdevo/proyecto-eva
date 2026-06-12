@@ -276,6 +276,21 @@ const EquipmentModalReplicaPDF = ({ data }) => {
     }
   };
 
+  const formatYear = (dateString, fallback = 'N/A') => {
+    if (!dateString || dateString === null || dateString === undefined || dateString === '') return fallback;
+    try {
+      const s = String(dateString);
+      const d = /^\d{4}-\d{2}-\d{2}$/.test(s)
+        ? new Date(s + 'T00:00:00')
+        : new Date(s);
+      const year = d.getFullYear();
+      return isNaN(year) ? fallback : String(year);
+    } catch (error) {
+      console.warn('Error formatting year:', dateString, error);
+      return fallback;
+    }
+  };
+
   // Logo del hospital - usar ruta pública directamente
   const logoHUV = '/images/logo_huv.jpg';
 
@@ -396,7 +411,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.tableCellHeader}>Año Fabricación</Text>
-            <Text style={styles.tableCellData}>{formatDate(data?.fecha_fabricacion, (() => { const f = data?.fecha_fabricacion; if (!f) return new Date().getFullYear(); const s = String(f); const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s); return d.getFullYear(); })())}</Text>
+            <Text style={styles.tableCellData}>{formatYear(data?.fecha_fabricacion)}</Text>
             <Text style={styles.tableCellHeader}>Garantía</Text>
             <Text style={styles.tableCellData}>{safeValue(data?.garantia)} años</Text>
           </View>

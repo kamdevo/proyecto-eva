@@ -923,6 +923,8 @@ export default function HospitalTicketModal({
                           <SelectItem value="LOCATIVO">LOCATIVO</SelectItem>
                           <SelectItem value="SISTEMAS">SISTEMAS</SelectItem>
                           <SelectItem value="ELECTRICO">ELÉCTRICO</SelectItem>
+                          <SelectItem value="MECANICO">MECÁNICO</SelectItem>
+                          <SelectItem value="CALDERA">CALDERA</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

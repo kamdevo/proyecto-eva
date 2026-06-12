@@ -679,6 +679,21 @@ export function ViewEquipmentModal({
     }
   };
 
+  const formatYear = (date, fallback = "No disponible") => {
+    if (!date || date === null || date === undefined || date === "")
+      return fallback;
+    
+    try {
+      const s = String(date);
+      const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00') : new Date(s);
+      const year = d.getFullYear();
+      return isNaN(year) ? fallback : String(year);
+    } catch (error) {
+      console.warn("Error formatting year:", date, error);
+      return fallback;
+    }
+  };
+
   // Handle manual selection (read-only modal, no actual selection)
   const handleSelectManual = (manual) => {
     console.log("Manual selection in view modal (read-only):", manual);
@@ -913,7 +928,7 @@ export function ViewEquipmentModal({
                     </tr>
                     <tr>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Año Fabricación</td>
-                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatDate(displayData.fecha_fabricacion, new Date(displayData.fecha_fabricacion).getFullYear())}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{formatYear(displayData.fecha_fabricacion)}</td>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Garantía</td>
                       <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.garantia)} años</td>
                     </tr>
