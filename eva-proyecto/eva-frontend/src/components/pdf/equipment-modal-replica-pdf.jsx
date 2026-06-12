@@ -256,20 +256,24 @@ const EquipmentModalReplicaPDF = ({ data }) => {
     return String(value);
   };
 
+  // Normaliza un valor a YYYY-MM-DD usando la MISMA regla que el modal de editar
+  // (toDateInputValue): se queda con la parte de fecha y exige formato estricto.
+  // Si el valor no es una fecha válida devuelve null -> nunca se parsea con
+  // new Date() de forma laxa (eso causaba que un dato mal formado mostrara el
+  // año actual, p. ej. 2026, en equipos sin año de fabricación).
+  const normalizeDateString = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const s = String(value).split(/[ T]/)[0];
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  };
+
   const formatDate = (dateString, fallback = 'N/A') => {
-    if (!dateString || dateString === null || dateString === undefined || dateString === '') return fallback;
+    const s = normalizeDateString(dateString);
+    if (!s) return fallback;
     try {
-      if (typeof dateString === 'string' && dateString.includes('-')) {
-        // Si es solo fecha (YYYY-MM-DD), agregar T00:00:00 para interpretar como local
-        const d = /^\d{4}-\d{2}-\d{2}$/.test(dateString)
-          ? new Date(dateString + 'T00:00:00')
-          : new Date(dateString);
-        return d.toLocaleDateString('es-ES');
-      }
-      if (typeof dateString === 'number') {
-        return new Date(dateString).toLocaleDateString('es-ES');
-      }
-      return String(dateString);
+      // Interpretar como fecha local (evita desfase por zona horaria)
+      const d = new Date(s + 'T00:00:00');
+      return isNaN(d.getTime()) ? fallback : d.toLocaleDateString('es-ES');
     } catch (error) {
       console.warn('Error formatting date:', dateString, error);
       return fallback;
@@ -277,13 +281,10 @@ const EquipmentModalReplicaPDF = ({ data }) => {
   };
 
   const formatYear = (dateString, fallback = 'N/A') => {
-    if (!dateString || dateString === null || dateString === undefined || dateString === '') return fallback;
+    const s = normalizeDateString(dateString);
+    if (!s) return fallback;
     try {
-      const s = String(dateString);
-      const d = /^\d{4}-\d{2}-\d{2}$/.test(s)
-        ? new Date(s + 'T00:00:00')
-        : new Date(s);
-      const year = d.getFullYear();
+      const year = new Date(s + 'T00:00:00').getFullYear();
       return isNaN(year) ? fallback : String(year);
     } catch (error) {
       console.warn('Error formatting year:', dateString, error);
