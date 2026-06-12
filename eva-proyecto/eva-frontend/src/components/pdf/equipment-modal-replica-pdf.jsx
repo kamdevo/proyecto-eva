@@ -559,7 +559,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
         <View style={styles.dataTable}>
           <View style={styles.dataTableHeader}>
             <Text style={styles.dataTableHeaderCell}>Fecha Calibración</Text>
-            <Text style={styles.dataTableHeaderCell}>Número de Correctivo</Text>
+            <Text style={styles.dataTableHeaderCell}>Número de Calibración</Text>
             <Text style={styles.dataTableHeaderCell}>Próxima</Text>
             <Text style={styles.dataTableHeaderCell}>Resultado</Text>
           </View>
@@ -567,7 +567,7 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             data.calibraciones.slice(0, 4).map((cal, index) => (
               <View key={index} style={styles.dataTableRow}>
                 <Text style={styles.dataTableCell}>{formatDate(cal.fecha_calibracion)}</Text>
-                <Text style={styles.dataTableCell}>#{cal.id || safeValue(cal.tipo_calibracion)}</Text>
+                <Text style={styles.dataTableCell}>{safeValue(cal.description || cal.tipo_calibracion)}</Text>
                 <Text style={styles.dataTableCell}>{formatDate(cal.proxima_calibracion)}</Text>
                 <Text style={styles.dataTableCell}>{safeValue(cal.resultado)}</Text>
               </View>
