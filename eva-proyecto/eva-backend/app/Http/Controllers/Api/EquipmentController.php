@@ -981,7 +981,7 @@ class EquipmentController extends ApiController
                     'equipos.tipo_id',
                     'servicios.name as servicios',
                     'areas.name as area',
-                    'sedes.name as sede',
+                    DB::raw('COALESCE(sedes_equipo.name, sedes.name) as sede'),
                     // Campos de ubicación hospitalaria específicos
                     'zonas.name as zona_hospitalaria',
                     'pisos.name as piso_servicio',
@@ -1076,6 +1076,7 @@ class EquipmentController extends ApiController
                 ->leftJoin('servicios', 'servicios.id', '=', 'equipos.servicio_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
                 ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
+                ->leftJoin('sedes as sedes_equipo', 'sedes_equipo.id', '=', 'equipos.sede_id')
                 ->leftJoin('zonas', 'zonas.id', '=', 'servicios.zona_id')
                 ->leftJoin('pisos', 'pisos.id', '=', 'servicios.piso_id')
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
@@ -1093,9 +1094,9 @@ class EquipmentController extends ApiController
 
             // Sección 2: Ubicación Geográfica
             if ($request->has('filtro_zona') && !empty($request->filtro_zona)) {
-                $query->where('sedes.id', $request->filtro_zona);
+                $query->where(DB::raw('COALESCE(NULLIF(equipos.sede_id,0), servicios.sede_id)'), $request->filtro_zona);
             } elseif ($request->has('sede_id') && !empty($request->sede_id)) {
-                $query->where('sedes.id', $request->sede_id);
+                $query->where(DB::raw('COALESCE(NULLIF(equipos.sede_id,0), servicios.sede_id)'), $request->sede_id);
             }
 
             if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar)) {
@@ -1360,7 +1361,7 @@ class EquipmentController extends ApiController
                     'equipos.tipo_id',
                     'servicios.name as servicios',
                     'areas.name as area',
-                    'sedes.name as sede',
+                    DB::raw('COALESCE(sedes_equipo.name, sedes.name) as sede'),
                     // Campos de ubicación hospitalaria específicos
                     'zonas.name as zona_hospitalaria',
                     'pisos.name as piso_servicio',
@@ -1461,6 +1462,7 @@ class EquipmentController extends ApiController
                 ->leftJoin('centros', 'centros.id', '=', 'servicios.centro_id')
                 ->leftJoin('areas', 'areas.id', '=', 'equipos.area_id')
                 ->leftJoin('sedes', 'sedes.id', '=', 'servicios.sede_id')
+                ->leftJoin('sedes as sedes_equipo', 'sedes_equipo.id', '=', 'equipos.sede_id')
                 ->leftJoin('zonas', 'zonas.id', '=', 'servicios.zona_id')
                 ->leftJoin('pisos', 'pisos.id', '=', 'servicios.piso_id')
                 ->leftJoin('estadoequipos', 'estadoequipos.id', '=', 'equipos.estadoequipo_id')
@@ -1522,9 +1524,9 @@ class EquipmentController extends ApiController
 
             // Sección 2: Ubicación Geográfica
             if ($request->has('filtro_zona') && !empty($request->filtro_zona)) {
-                $query->where('sedes.id', $request->filtro_zona);
+                $query->where(DB::raw('COALESCE(NULLIF(equipos.sede_id,0), servicios.sede_id)'), $request->filtro_zona);
             } elseif ($request->has('sede_id') && !empty($request->sede_id)) {
-                $query->where('sedes.id', $request->sede_id);
+                $query->where(DB::raw('COALESCE(NULLIF(equipos.sede_id,0), servicios.sede_id)'), $request->sede_id);
             }
 
             if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar)) {
@@ -2921,7 +2923,7 @@ class EquipmentController extends ApiController
                     // Ubicación (4 columnas)
                     'servicios.name as servicio',
                     'areas.name as area',
-                    'sedes.name as sede',
+                    DB::raw('COALESCE(sedes_equipo.name, sedes.name) as sede'),
                     'equipos.localizacion_actual',
                     
                     // Mantenimiento (9 columnas)
@@ -2967,7 +2969,7 @@ class EquipmentController extends ApiController
                     DB::raw("(SELECT COUNT(*) FROM ordenes WHERE equipo_id = equipos.id) as cuenta_tickets"),
                     
                     // Información adicional (7 columnas)
-                    DB::raw("COALESCE(sedes.name, 'N/A') as zona"),
+                    DB::raw("COALESCE(sedes_equipo.name, sedes.name, 'N/A') as zona"),
                     DB::raw("(SELECT GROUP_CONCAT(CONCAT(name, ' - ', telefono) SEPARATOR '; ') FROM contacto WHERE id IN (SELECT contacto_id FROM equipo_contacto WHERE equipo_id = equipos.id)) as informacion_contacto"),
                     'equipos.file',
                     'equipos.repuesto_pendiente',
@@ -2978,6 +2980,7 @@ class EquipmentController extends ApiController
                 ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
                 ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
                 ->leftJoin('sedes', 'servicios.sede_id', '=', 'sedes.id')
+                ->leftJoin('sedes as sedes_equipo', 'sedes_equipo.id', '=', 'equipos.sede_id')
                 ->leftJoin('estadoequipos', 'equipos.estadoequipo_id', '=', 'estadoequipos.id')
                 ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
                 ->leftJoin('ordenes_compra', 'equipos.orden_compra_id', '=', 'ordenes_compra.id')
@@ -3016,7 +3019,7 @@ class EquipmentController extends ApiController
 
             // Sección 2: Ubicación Geográfica
             if ($request->has('filtro_zona') && !empty($request->filtro_zona) && $request->filtro_zona !== 'all') {
-                $query->where('sedes.id', $request->filtro_zona);
+                $query->where(DB::raw('COALESCE(NULLIF(equipos.sede_id,0), servicios.sede_id)'), $request->filtro_zona);
             }
 
             if ($request->has('servicio_id_auxiliar') && !empty($request->servicio_id_auxiliar) && $request->servicio_id_auxiliar !== 'all') {
