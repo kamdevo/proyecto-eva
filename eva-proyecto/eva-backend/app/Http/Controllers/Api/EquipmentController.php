@@ -1870,14 +1870,25 @@ class EquipmentController extends ApiController
 
             // Intentar obtener información adicional de forma segura
             try {
-                $sede = DB::table('sedes')
-                    ->join('servicios', 'servicios.sede_id', '=', 'sedes.id')
-                    ->where('servicios.id', $equipo->servicio_id)
-                    ->select('sedes.id as sede_id', 'sedes.name as sede_nombre')
-                    ->first();
-                if ($sede) {
-                    $equipoData['sede_id'] = $sede->sede_id;
-                    $equipoData['sede_nombre'] = $sede->sede_nombre;
+                // La sede se guarda directamente en el equipo (equipos.sede_id).
+                // Para equipos antiguos sin sede propia, se deriva del servicio (compatibilidad).
+                $sedePropiaId = !empty($equipo->sede_id) ? (int) $equipo->sede_id : null;
+
+                if ($sedePropiaId) {
+                    $sedeRow = DB::table('sedes')
+                        ->where('id', $sedePropiaId)
+                        ->select('id as sede_id', 'name as sede_nombre')
+                        ->first();
+                    $equipoData['sede_id'] = $sedePropiaId;
+                    $equipoData['sede_nombre'] = $sedeRow->sede_nombre ?? null;
+                } else {
+                    $sede = DB::table('sedes')
+                        ->join('servicios', 'servicios.sede_id', '=', 'sedes.id')
+                        ->where('servicios.id', $equipo->servicio_id)
+                        ->select('sedes.id as sede_id', 'sedes.name as sede_nombre')
+                        ->first();
+                    $equipoData['sede_id'] = $sede->sede_id ?? null;
+                    $equipoData['sede_nombre'] = $sede->sede_nombre ?? null;
                 }
             } catch (\Exception $e) {
                 $equipoData['sede_id'] = null;

@@ -5461,6 +5461,7 @@ Route::post('v1/equipos-create', function(Request $request) {
             'code' => $request->input('code'),
             'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
             'servicio_id' => $request->input('servicio_id') ?: null,
+            'sede_id' => $request->input('sede_id') ?: null,
             'area_id' => $request->input('area_id') ?: 0,
             'propietario_id' => $request->input('propietario_id') ?: 0,
             'tipo_id' => $request->input('tipo_id') ?: 0,
@@ -6966,6 +6967,7 @@ Route::prefix('v1')->withoutMiddleware(['auth:sanctum'])->group(function () {
                 'name' => $request->input('name'),
                 'serial' => $request->input('numero_serie') ?: $request->input('serial'), // Mapear numero_serie -> serial
                 'servicio_id' => $request->input('servicio_id'),
+                'sede_id' => $request->input('sede_id') ?: null,
                 'area_id' => $request->input('area_id', 1), // Default to 1 if not provided
                 'propietario_id' => $request->input('propietario_id', 1), // Default to 1 if not provided
                 'tipo_id' => $request->input('tipo_id', 1), // Default to 1 if not provided
@@ -10975,13 +10977,19 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
 
         $updateData = $request->only([
             'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
-            'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
+            'servicio_id', 'sede_id', 'area_id', 'propietario_id', 'estadoequipo_id',
             'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'costo', 'vida_util',
             'localizacion_actual', 'verificacion_inventario', 'calibracion',
             'repuesto_pendiente', 'movilidad', 'propiedad', 'evaluacion_desempenio',
             'periodicidad', 'manual_id', 'guia_id', 'invima_id', 'orden_compra_id'
         ]);
+
+        // Normalizar sede_id: '', '0', 0 -> null (sede opcional)
+        if (array_key_exists('sede_id', $updateData)) {
+            $v = $updateData['sede_id'];
+            $updateData['sede_id'] = ($v === '' || $v === null || $v === '0' || $v === 0) ? null : (int) $v;
+        }
 
         // Normalizar FKs: convertir '', '0', 0 a null para evitar violar FK
         foreach (['manual_id', 'guia_id', 'invima_id', 'orden_compra_id'] as $fkField) {
@@ -11115,7 +11123,7 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
 
         $updateData = $request->only([
             'name', 'code', 'serial', 'marca', 'modelo', 'descripcion',
-            'servicio_id', 'area_id', 'propietario_id', 'estadoequipo_id',
+            'servicio_id', 'sede_id', 'area_id', 'propietario_id', 'estadoequipo_id',
             'fuente_id', 'tecnologia_id', 'frecuencia_id', 'cbiomedica_id',
             'criesgo_id', 'tadquisicion_id', 'tipo_id', 'disponibilidad_id',
             'costo', 'vida_util', 'garantia',
@@ -11128,6 +11136,12 @@ Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Req
             'fecha_acta_recibo', 'fecha_vencimiento_garantia', 'fecha_recepcion_almacen',
             'fecha_ad', 'otros'
         ]);
+
+        // Normalizar sede_id: '', '0', 0 -> null (sede opcional)
+        if (array_key_exists('sede_id', $updateData)) {
+            $v = $updateData['sede_id'];
+            $updateData['sede_id'] = ($v === '' || $v === null || $v === '0' || $v === 0) ? null : (int) $v;
+        }
 
         // Normalizar campos de fecha: '0000-00-00', '', null o inválidos -> null
         $dateFields = [

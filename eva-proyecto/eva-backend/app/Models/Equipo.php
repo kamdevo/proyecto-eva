@@ -126,6 +126,7 @@ class Equipo extends Model
         
         // Relaciones con otras entidades
         'servicio_id',
+        'sede_id',
         'area_id',
         'centro_id',
         'piso_id',
