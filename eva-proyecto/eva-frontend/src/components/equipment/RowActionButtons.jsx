@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Eye, Edit, Paperclip, FileText, Trash2, Files, UserX, AlertTriangle, FileStack } from "lucide-react";
+import { Eye, Edit, Paperclip, FileText, Trash2, Files, UserX, AlertTriangle, FileStack, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth.jsx";
 
@@ -19,6 +19,7 @@ export const RowActionButtons = memo(function RowActionButtons({
   onContingenciasClick,
   onMovimientosClick,
   onCapacitacionesClick,
+  onMigrateTypeClick,
   equipmentType = "biomedical", // "biomedical" | "industrial"
   showCopyButton = true,
   showDecommissionButton = true,
@@ -37,6 +38,7 @@ export const RowActionButtons = memo(function RowActionButtons({
           contingencias: "Contingencias",
           movimientos: "Movimientos",
           capacitaciones: "Capacitaciones",
+          migrateType: "Migrar a Biomédico",
         };
       case "biomedical":
       default:
@@ -51,6 +53,7 @@ export const RowActionButtons = memo(function RowActionButtons({
           contingencias: "Contingencias",
           movimientos: "Movimientos",
           capacitaciones: "Capacitaciones",
+          migrateType: "Migrar a Industrial",
         };
     }
   };
@@ -180,6 +183,20 @@ export const RowActionButtons = memo(function RowActionButtons({
           onClick={() => onDecommissionClick(equipment)}
         >
           <UserX className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
+        </Button>
+      )}
+
+      {/* Migrate Type Button (biomédico <-> industrial) */}
+      {onMigrateTypeClick && (
+        <Button
+          size="sm"
+          disabled={!canEdit(moduleName) || isBasicUser}
+          className={`bg-violet-50 hover:bg-violet-100 text-violet-600 rounded-sm transition-all w-8 h-8 xs:h-7 xs:w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 p-0 ${(!canEdit(moduleName) || isBasicUser) ? 'opacity-50 cursor-not-allowed hidden' : ''
+            }`}
+          title={tooltips.migrateType}
+          onClick={() => onMigrateTypeClick(equipment)}
+        >
+          <ArrowLeftRight className="w-2 h-2 xs:w-2.5 xs:h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4" />
         </Button>
       )}
 

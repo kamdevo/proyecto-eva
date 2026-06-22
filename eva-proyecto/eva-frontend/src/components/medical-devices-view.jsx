@@ -76,6 +76,7 @@ import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import { prefetchEquipment } from "@/services/equipmentPrefetchCache";
 import CopyEquipmentModal from "@/components/modals/copy-equipment-modal";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
+import { MigrateTypeConfirmModal } from "@/components/modals/migrate-type-confirm-modal";
 import AddObservacionModal from "@/components/modals/add-observacion-modal";
 import DarBajaEquipoModal from "@/components/modals/dar-baja-equipo-modal";
 
@@ -150,6 +151,7 @@ export function MedicalDevicesView() {
   const [viewEquipmentModalOpen, setViewEquipmentModalOpen] = useState(false);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [migrateTypeModalOpen, setMigrateTypeModalOpen] = useState(false);
   const [addObservacionModalOpen, setAddObservacionModalOpen] = useState(false);
   const [darBajaEquipoModalOpen, setDarBajaEquipoModalOpen] = useState(false);
   const [contingenciasModalOpen, setContingenciasModalOpen] = useState(false);
@@ -1579,6 +1581,10 @@ export function MedicalDevicesView() {
                           setSelectedEquipment(eq);
                           setDarBajaEquipoModalOpen(true);
                         }}
+                        onMigrateTypeClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setMigrateTypeModalOpen(true);
+                        }}
                         equipmentType="biomedical"
                         showCopyButton={false}
                       />
@@ -1794,6 +1800,10 @@ export function MedicalDevicesView() {
                           setSelectedEquipment(eq);
                           setCapacitacionesModalOpen(true);
                         }}
+                        onMigrateTypeClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setMigrateTypeModalOpen(true);
+                        }}
                         equipmentType="biomedical"
                         showCopyButton={false}
                       />
@@ -1947,6 +1957,15 @@ export function MedicalDevicesView() {
         onOpenChange={setDeleteConfirmModalOpen}
         equipment={selectedEquipment}
         onEquipmentDeleted={handleEquipmentDeleted}
+      />}
+      {migrateTypeModalOpen && <MigrateTypeConfirmModal
+        open={migrateTypeModalOpen}
+        onOpenChange={setMigrateTypeModalOpen}
+        equipment={selectedEquipment}
+        equipmentType="biomedical"
+        onMigrated={() => {
+          refresh();
+        }}
       />}
       {addObservacionModalOpen && <AddObservacionModal
         isOpen={addObservacionModalOpen}

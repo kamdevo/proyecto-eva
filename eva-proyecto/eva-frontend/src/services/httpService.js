@@ -341,5 +341,40 @@ export const deleteEquipment = async (equipmentId) => {
   }
 };
 
+/**
+ * Migrar el tipo de un equipo: biomédico (1) <-> industrial (2)
+ * @param {number} equipmentId
+ * @param {number} nuevoTipoId  1 = biomédico, 2 = industrial
+ */
+export const migrateEquipmentType = async (equipmentId, nuevoTipoId) => {
+  try {
+    console.log(`🔄 [EQUIPMENT] Migrando tipo del equipo ${equipmentId} -> tipo_id ${nuevoTipoId}`);
+
+    const response = await httpService.put(`/v1/equipos/${equipmentId}/migrar-tipo`, {
+      tipo_id: nuevoTipoId,
+    });
+
+    return {
+      success: true,
+      message: response.data.message || "Tipo de equipo migrado exitosamente",
+      data: response.data?.data,
+    };
+  } catch (error) {
+    console.error("❌ [EQUIPMENT] Error al migrar tipo de equipo:", error);
+
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Error desconocido al migrar tipo de equipo";
+
+    return {
+      success: false,
+      error: errorMessage,
+      status: error.response?.status,
+    };
+  }
+};
+
 // Exportar la instancia configurada
 export default httpService;

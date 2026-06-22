@@ -57,6 +57,7 @@ import { EditEquipmentModal } from "@/components/modals/edit-equipment-modal";
 import { ViewEquipmentModal } from "@/components/modals/view-equipment-modal";
 import { prefetchEquipment } from "@/services/equipmentPrefetchCache";
 import { DeleteConfirmModal } from "@/components/modals/delete-confirm-modal";
+import { MigrateTypeConfirmModal } from "@/components/modals/migrate-type-confirm-modal";
 import { LifeModal } from "@/components/modals/life-modal";
 
 // Parsear fecha como local (evita desfase de timezone con fechas ISO date-only)
@@ -122,6 +123,7 @@ function IndustrialDevices() {
   const [editEquipmentModalOpen, setEditEquipmentModalOpen] = useState(false);
   const [viewEquipmentModalOpen, setViewEquipmentModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [migrateTypeModalOpen, setMigrateTypeModalOpen] = useState(false);
   const [darBajaEquipoModalOpen, setDarBajaEquipoModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [copyEquipmentModalOpen, setCopyEquipmentModalOpen] = useState(false);
@@ -1305,6 +1307,10 @@ function IndustrialDevices() {
                           setSelectedEquipment(eq);
                           setCapacitacionesModalOpen(true);
                         }}
+                        onMigrateTypeClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setMigrateTypeModalOpen(true);
+                        }}
                         equipmentType="industrial"
                         showCopyButton={true}
                       />
@@ -1507,6 +1513,10 @@ function IndustrialDevices() {
                           setSelectedEquipment(eq);
                           setCapacitacionesModalOpen(true);
                         }}
+                        onMigrateTypeClick={(eq) => {
+                          setSelectedEquipment(eq);
+                          setMigrateTypeModalOpen(true);
+                        }}
                         equipmentType="industrial"
                         showCopyButton={true}
                       />
@@ -1605,6 +1615,15 @@ function IndustrialDevices() {
         equipment={selectedEquipment}
         onEquipmentDeleted={handleEquipmentDeleted}
         equipmentType="industrial"
+      />}
+      {migrateTypeModalOpen && <MigrateTypeConfirmModal
+        open={migrateTypeModalOpen}
+        onOpenChange={setMigrateTypeModalOpen}
+        equipment={selectedEquipment}
+        equipmentType="industrial"
+        onMigrated={() => {
+          refresh();
+        }}
       />}
       {copyEquipmentModalOpen && <CopyEquipmentModal
         open={copyEquipmentModalOpen}

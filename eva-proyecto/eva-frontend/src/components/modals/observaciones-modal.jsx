@@ -32,7 +32,7 @@ export function ObservacionesModal({ open, onOpenChange }) {
               <div className="flex items-center gap-2 mb-2">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <span className="font-medium text-blue-900">
-                  Así debe ser la información del archivo de excel ingresada
+                  Así puede ser la información del archivo de excel ingresada
                 </span>
               </div>
             </div>
@@ -146,8 +146,8 @@ export function ObservacionesModal({ open, onOpenChange }) {
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div className="text-amber-800">
-                    <strong>Importante:</strong> Asegúrese de que el archivo
-                    Excel tenga el formato exacto mostrado en la tabla de
+                    <strong>Importante:</strong> Es opcional que el archivo
+                    Excel tenga este formato exacto mostrado en la tabla, aunque es recomendado
                     ejemplo para evitar errores en la importación.
                   </div>
                 </div>

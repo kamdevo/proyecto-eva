@@ -11108,6 +11108,60 @@ Route::put('v1/equipos/{id}/update-no-auth', function (Request $request, $id) {
     \App\Http\Middleware\VerifyCsrfToken::class
 ]);
 
+// Migrar el tipo de un equipo: biomédico (tipo_id=1) <-> industrial (tipo_id=2)
+Route::put('v1/equipos/{id}/migrar-tipo', function (Request $request, $id) {
+    try {
+        $equipo = DB::table('equipos')->where('id', $id)->first();
+        if (!$equipo) {
+            return response()->json(['success' => false, 'message' => 'Equipo no encontrado'], 404);
+        }
+
+        // tipo_id: 1 = biomédico, 2 = industrial
+        $nuevoTipo = (int) $request->input('tipo_id');
+        if (!in_array($nuevoTipo, [1, 2], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tipo de equipo inválido (1=biomédico, 2=industrial)'
+            ], 422);
+        }
+
+        if ((int) $equipo->tipo_id === $nuevoTipo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El equipo ya pertenece a ese tipo'
+            ], 422);
+        }
+
+        DB::table('equipos')->where('id', $id)->update([
+            'tipo_id' => $nuevoTipo,
+            'fecha_cambio' => now(),
+        ]);
+
+        \Log::info('🔄 Migración de tipo de equipo', [
+            'equipo_id' => $id,
+            'tipo_anterior' => $equipo->tipo_id,
+            'tipo_nuevo' => $nuevoTipo,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $nuevoTipo === 2 ? 'Equipo migrado a Industrial' : 'Equipo migrado a Biomédico',
+            'data' => ['id' => (int) $id, 'tipo_id' => $nuevoTipo],
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('❌ Error migrando tipo de equipo: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al migrar tipo: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware([
+    'auth:sanctum',
+    'throttle:api',
+    \App\Http\Middleware\AdvancedRateLimit::class,
+    \App\Http\Middleware\VerifyCsrfToken::class
+]);
+
 // Equipment update route with image support (no auth for development/testing)
 Route::match(['put', 'post'], 'v1/equipos/{id}/update-with-image', function (Request $request, $id) {
     try {
@@ -13212,14 +13266,27 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
         $tempPath = $file->getRealPath();
         
         try {
-            // Initialize PhpSpreadsheet directly from uploaded file
-            $spreadsheet = IOFactory::load($tempPath);
+            // Cargar SOLO valores en caché (rápido y con poca memoria).
+            $reader = IOFactory::createReaderForFile($tempPath);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($tempPath);
             $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-            
+
+            // Leer la hoja acotando columnas y SIN recalcular fórmulas.
+            // Importante:
+            //  - Algunos Excel reportan miles de columnas "fantasma" (la dimensión
+            //    declarada llega hasta XFB), por eso se limita a 60 columnas; un
+            //    cronograma real no usa más que unas pocas decenas.
+            //  - calculateFormulas=false evita que el motor de fórmulas de
+            //    PhpSpreadsheet explote en memoria cuando el archivo trae fórmulas/tablas.
+            $highestRow = $worksheet->getHighestDataRow();
+            $maxCols = 60;
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($maxCols);
+            $rows = $worksheet->rangeToArray("A1:{$lastCol}{$highestRow}", null, false, false, false);
+
             \Log::info('📋 Total filas en Excel: ' . count($rows));
             
-            // Detect headers and column mapping
+            // Detect headers and column mapping (FLEXIBLE: tolera formatos variados)
             $headers = [];
             $dataStartRow = 0;
             $columnMap = [
@@ -13228,36 +13295,67 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                 'responsable' => null,
                 'periodicidad' => null
             ];
-            
-            // Check if first row contains headers
-            if (count($rows) > 0) {
-                $firstRow = array_map('strtolower', array_map('trim', $rows[0]));
-                
-                // Detect common header patterns
-                foreach ($firstRow as $index => $header) {
-                    if (in_array($header, ['id', 'equipo_id', 'equipo', 'id equipo'])) {
-                        $columnMap['equipo_id'] = $index;
-                        $headers[] = $header;
-                    } elseif (preg_match('/fecha[\s_]?\d+|mes[\s_]?\d+/', $header)) {
-                        // Match: fecha 1, fecha1, mes 1, mes1, fecha_1, mes_1, etc.
-                        $columnMap['fecha_cols'][] = $index;
-                        $headers[] = $header;
-                    } elseif (in_array($header, ['responsable', 'proveedor', 'empresa', 'nombre proveedor', 'nombre_proveedor'])) {
-                        $columnMap['responsable'] = $index;
-                        $headers[] = $header;
-                    } elseif (in_array($header, ['periodicidad', 'frecuencia'])) {
-                        $columnMap['periodicidad'] = $index;
-                        $headers[] = $header;
+
+            // Normaliza un texto de encabezado: minúsculas, sin acentos, sin espacios extra
+            $normalize = function ($v) {
+                $v = strtolower(trim((string) $v));
+                $v = strtr($v, [
+                    'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+                    'ü' => 'u', 'ñ' => 'n'
+                ]);
+                return preg_replace('/\s+/', ' ', $v);
+            };
+
+            // Detecta el mapeo de columnas a partir de una fila candidata a encabezado.
+            // Acepta sinónimos amplios y coincidencias parciales para no depender de un formato fijo.
+            $detectColumns = function ($rowVals) use ($normalize) {
+                $map = ['equipo_id' => null, 'fecha_cols' => [], 'responsable' => null, 'periodicidad' => null];
+                foreach ($rowVals as $index => $rawHeader) {
+                    $h = $normalize($rawHeader);
+                    if ($h === '') continue;
+
+                    if ($map['equipo_id'] === null && in_array($h, ['id', 'equipo_id', 'id equipo', 'equipo id', 'id del equipo', 'id equipo biomedico'], true)) {
+                        $map['equipo_id'] = $index;
+                    } elseif (preg_match('/(fecha|mes)[\s_]?\d+/', $h) || in_array($h, ['fecha', 'mes', 'meses'], true)) {
+                        // fecha 1, fecha1, mes 1, mes_1, fecha, mes, meses...
+                        $map['fecha_cols'][] = $index;
+                    } elseif ($map['responsable'] === null && (
+                        str_contains($h, 'responsable') || str_contains($h, 'proveedor') ||
+                        str_contains($h, 'tecnico') || str_contains($h, 'encargado') ||
+                        str_contains($h, 'ejecutor') || $h === 'empresa'
+                    )) {
+                        $map['responsable'] = $index;
+                    } elseif ($map['periodicidad'] === null && (
+                        str_contains($h, 'periodicidad') || str_contains($h, 'periocidad') ||
+                        str_contains($h, 'frecuencia') || str_contains($h, 'periodo')
+                    )) {
+                        $map['periodicidad'] = $index;
                     }
                 }
-                
-                // If headers detected, skip first row
-                if (count($headers) > 0) {
-                    array_shift($rows);
-                    $dataStartRow = 1;
-                    \Log::info('✅ Headers detectados: ' . implode(', ', $headers));
-                    \Log::info('📍 Mapeo de columnas: ' . json_encode($columnMap));
+                return $map;
+            };
+
+            // Busca la fila de encabezado dentro de las primeras filas (tolera títulos/banners arriba).
+            // La fila válida es la que identifica el ID del equipo y al menos una columna de fecha/mes.
+            $headerRowIndex = null;
+            $limitScan = min(count($rows), 15);
+            for ($r = 0; $r < $limitScan; $r++) {
+                $candidate = $detectColumns($rows[$r]);
+                if ($candidate['equipo_id'] !== null && !empty($candidate['fecha_cols'])) {
+                    $columnMap = array_merge($columnMap, $candidate);
+                    $headerRowIndex = $r;
+                    break;
                 }
+            }
+
+            if ($headerRowIndex !== null) {
+                // Descartar todo hasta (e incluyendo) la fila de encabezado
+                $rows = array_slice($rows, $headerRowIndex + 1);
+                $dataStartRow = $headerRowIndex + 1;
+                \Log::info('✅ Encabezado detectado en fila ' . $headerRowIndex);
+                \Log::info('📍 Mapeo de columnas: ' . json_encode($columnMap));
+            } else {
+                \Log::info('ℹ️ Sin encabezado reconocible; usando formato posicional (col 0=id, 1-3=meses, 4=responsable)');
             }
             
             $processed = 0;
@@ -13371,15 +13469,31 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                     return null;
                 };
                 
-                // Extract months from all date values
+                // Extract months from all date values.
+                // Soporta celdas combinadas: "MAYO/JUNIO", "MAYO - JUNIO", "MAYO Y JUNIO", "ENERO, JULIO".
                 $meses = [];
                 foreach ($fechaValues as $fechaValue) {
-                    $mes = $extractMonth($fechaValue);
-                    if ($mes !== null) {
-                        $meses[] = $mes;
+                    // Primero intenta la celda completa (cubre nombres de mes, fechas y seriales Excel)
+                    $mesEntero = $extractMonth($fechaValue);
+                    if ($mesEntero !== null) {
+                        $meses[] = $mesEntero;
+                        continue;
+                    }
+                    // Si no, divide en tokens y extrae cada mes presente
+                    $tokens = preg_split('/[\/,;&\-]+|\s+y\s+|\s+/i', (string) $fechaValue);
+                    foreach ($tokens as $token) {
+                        $token = trim($token);
+                        if ($token === '') continue;
+                        $mes = $extractMonth($token);
+                        if ($mes !== null) {
+                            $meses[] = $mes;
+                        }
                     }
                 }
-                
+                // Quitar duplicados y ordenar cronológicamente para asignar mes1/mes2/mes3
+                $meses = array_values(array_unique($meses));
+                sort($meses);
+
                 if (empty($meses)) {
                     $errors[] = "Fila {$rowNumber}: Debe especificar al menos una fecha/mes válido";
                     continue;
@@ -13471,60 +13585,33 @@ Route::post('v1/planes-mantenimientos/upload-excel', function (Request $request)
                     $mes3 = $mes3FromExcel;
                     \Log::info("📋 Fila {$rowNumber}: Usando meses del Excel - mes1={$mes1}, mes2=" . ($mes2 ?? 'NULL') . ", mes3=" . ($mes3 ?? 'NULL'));
                 } else {
-                    // Si NO vienen en el Excel, calcular automáticamente según frecuencia del equipo
-                    $equipoFrecuencia = DB::table('equipos')
-                        ->leftJoin('frecuenciam', 'equipos.frecuencia_id', '=', 'frecuenciam.id')
-                        ->where('equipos.id', $equipoId)
-                        ->select('frecuenciam.name as frecuencia_nombre', 'equipos.frecuencia_id')
-                        ->first();
-                    
-                    $frecuenciaMeses = null;
-                    if ($equipoFrecuencia) {
-                        if ($equipoFrecuencia->frecuencia_nombre) {
-                            $nombreUpper = strtoupper(trim($equipoFrecuencia->frecuencia_nombre));
-                            if (str_contains($nombreUpper, '2 MESES')) {
-                                $frecuenciaMeses = 2;
-                            } elseif (str_contains($nombreUpper, '3 MESES')) {
-                                $frecuenciaMeses = 3;
-                            } elseif (str_contains($nombreUpper, '4 MESES')) {
-                                $frecuenciaMeses = 4;
-                            } elseif (str_contains($nombreUpper, '6 MESES')) {
-                                $frecuenciaMeses = 6;
-                            } elseif (str_contains($nombreUpper, 'ANUAL')) {
-                                $frecuenciaMeses = 12;
-                            }
-                        }
-                        if ($frecuenciaMeses === null && $equipoFrecuencia->frecuencia_id) {
-                            $frecuenciaIdMap = [
-                                1 => null, // N/R
-                                2 => 3,    // 3 MESES
-                                3 => 4,    // 4 MESES
-                                4 => 6,    // 6 MESES
-                                5 => 12,   // ANUAL
-                                6 => null, // GARANTIA
-                                7 => null, // COMODATO
-                                8 => 2     // 2 MESES
-                            ];
-                            $frecuenciaMeses = $frecuenciaIdMap[$equipoFrecuencia->frecuencia_id] ?? null;
-                        }
-                    }
-                    
+                    // Si NO vienen mes2/mes3 en el Excel, completar (cuando aplique) según la
+                    // PERIODICIDAD DEL EXCEL — NO según la frecuencia guardada del equipo.
+                    // Así se respeta el cronograma: p. ej. ANUAL = una sola vez al año => solo
+                    // mes1 (no se inventa un segundo mes). Solo se autocompleta para frecuencias
+                    // con paso fijo; PERSONALIZADO u otras quedan con un único mes.
+                    $pasoMeses = [
+                        'MENSUAL'       => 1,
+                        'BIMESTRAL'     => 2,
+                        'TRIMESTRAL'    => 3,
+                        'CUATRIMESTRAL' => 4,
+                        'SEMESTRAL'     => 6,
+                        'ANUAL'         => 12,
+                    ];
+                    $frecuenciaMeses = $pasoMeses[$frecuencia] ?? null;
+
                     if ($mes1 && $frecuenciaMeses) {
-                        // Calcular mes2 sumando la frecuencia
                         $mes2Calculado = $mes1 + $frecuenciaMeses;
                         if ($mes2Calculado <= 12) {
                             $mes2 = $mes2Calculado;
-                            
-                            // Calcular mes3 sumando la frecuencia a mes2
                             $mes3Calculado = $mes2 + $frecuenciaMeses;
                             if ($mes3Calculado <= 12) {
                                 $mes3 = $mes3Calculado;
                             }
                         }
-                        
-                        \Log::info("🔢 Fila {$rowNumber}: Meses calculados automáticamente - mes1={$mes1}, mes2=" . ($mes2 ?? 'NULL') . ", mes3=" . ($mes3 ?? 'NULL') . " (frecuencia={$frecuenciaMeses} meses)");
+                        \Log::info("🔢 Fila {$rowNumber}: Meses completados según periodicidad del Excel ({$frecuencia}) - mes1={$mes1}, mes2=" . ($mes2 ?? 'NULL') . ", mes3=" . ($mes3 ?? 'NULL'));
                     } else {
-                        \Log::warning("⚠️ Fila {$rowNumber}: Sin frecuencia configurada en equipo y sin meses en Excel");
+                        \Log::info("📋 Fila {$rowNumber}: Solo mes1={$mes1} (periodicidad '{$frecuencia}' sin paso fijo o un único mes)");
                     }
                 }
                 
