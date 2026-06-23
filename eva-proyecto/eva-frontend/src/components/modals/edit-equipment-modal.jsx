@@ -150,6 +150,7 @@ export function EditEquipmentModal({
   const [archivoModalTitulo, setArchivoModalTitulo] = useState('');
   const [archivoModalFile, setArchivoModalFile] = useState(null);
   const [showAddRepuestoModal, setShowAddRepuestoModal] = useState(false);
+  const [editingRepuesto, setEditingRepuesto] = useState(null);
   const [showAddCorrectivoModal, setShowAddCorrectivoModal] = useState(false);
   const [showAddEspecificacionModal, setShowAddEspecificacionModal] = useState(false);
   const [equipoEspecificaciones, setEquipoEspecificaciones] = useState([]);
@@ -1447,6 +1448,28 @@ export function EditEquipmentModal({
           if (equipment?.id) await loadEquipmentHistory(equipment.id);
         } catch (err) {
           toast.error(err.response?.data?.message || 'Error al eliminar correctivo');
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
+        }
+      }
+    });
+  };
+
+  const handleDeleteRepuesto = async (id) => {
+    setConfirmModal({
+      open: true,
+      message: '¿Eliminar este repuesto/accesorio? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await httpService.delete(`/v1/equipo-repuestos/${id}`);
+          // Optimistic UI: remover inmediatamente del state
+          setEquipmentHistory(prev => ({
+            ...prev,
+            repuestos: (prev.repuestos || []).filter(r => r.id !== id)
+          }));
+          toast.success('Repuesto/accesorio eliminado');
+          if (equipment?.id) await loadEquipmentHistory(equipment.id);
+        } catch (err) {
+          toast.error(err.response?.data?.message || 'Error al eliminar repuesto/accesorio');
           if (equipment?.id) await loadEquipmentHistory(equipment.id);
         }
       }
@@ -4976,7 +4999,10 @@ export function EditEquipmentModal({
                       variant="default"
                       size="sm"
                       className="bg-purple-600 hover:bg-purple-700 text-white"
-                      onClick={() => setShowAddRepuestoModal(true)}
+                      onClick={() => {
+                        setEditingRepuesto(null);
+                        setShowAddRepuestoModal(true);
+                      }}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Agregar
@@ -5004,6 +5030,9 @@ export function EditEquipmentModal({
                           </th>
                           <th className="border border-gray-300 p-2 text-xs">
                             ARCHIVO RELACIONADO
+                          </th>
+                          <th className="border border-gray-300 p-2 text-xs">
+                            ACCIONES
                           </th>
                         </tr>
                       </thead>
@@ -5045,13 +5074,40 @@ export function EditEquipmentModal({
                                   "-"
                                 )}
                               </td>
+                              <td className="border border-gray-300 p-2 text-xs text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    onClick={() => {
+                                      setEditingRepuesto(repuesto);
+                                      setShowAddRepuestoModal(true);
+                                    }}
+                                    title="Editar repuesto/accesorio"
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDeleteRepuesto(repuesto.id)}
+                                    title="Eliminar repuesto/accesorio"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
                             <td
                               className="border border-gray-300 p-2 text-xs text-center text-gray-500"
-                              colSpan="5"
+                              colSpan="6"
                             >
                               No hay repuestos/accesorios registrados
                             </td>
@@ -5493,9 +5549,13 @@ export function EditEquipmentModal({
       {/* Modal para agregar repuesto */}
       <AddRepuestoModal
         isOpen={showAddRepuestoModal}
-        onClose={() => setShowAddRepuestoModal(false)}
+        onClose={() => {
+          setShowAddRepuestoModal(false);
+          setEditingRepuesto(null);
+        }}
         equipmentId={equipment?.id}
         equipmentName={equipment?.name || equipment?.equipo?.name}
+        repuesto={editingRepuesto}
         onRepuestoAdded={async () => {
           // Recargar historial del equipo
           if (equipment?.id) {

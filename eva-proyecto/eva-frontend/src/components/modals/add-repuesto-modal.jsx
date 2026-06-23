@@ -23,7 +23,9 @@ const AddRepuestoModal = ({
   equipmentId,
   equipmentName,
   onRepuestoAdded,
+  repuesto = null,
 }) => {
+  const isEditing = !!repuesto;
   const [formData, setFormData] = useState({
     repuesto_id: "",
     observacion: "",
@@ -39,20 +41,44 @@ const AddRepuestoModal = ({
   // Cargar repuestos desde la BD
   const { repuestos, loading: repuestosLoading } = useRepuestos();
 
-  // Reset form when modal opens/closes
+  // Reset / precargar el formulario al abrir el modal
   React.useEffect(() => {
     if (isOpen) {
-      setFormData({
-        repuesto_id: "",
-        observacion: "",
-        cantidad_entregada: "",
-        fecha: new Date().toISOString().split("T")[0],
-        file: null,
-      });
-      setRepuestoFreeText("");
+      if (repuesto) {
+        // Modo edición: precargar con los datos del registro
+        setFormData({
+          repuesto_id: repuesto.repuesto_id || "",
+          observacion: repuesto.observacion || "",
+          cantidad_entregada:
+            repuesto.cantidad_entregada != null
+              ? String(repuesto.cantidad_entregada)
+              : "",
+          fecha: repuesto.fecha
+            ? repuesto.fecha.toString().split(/[ T]/)[0]
+            : new Date().toISOString().split("T")[0],
+          file: null,
+        });
+        setRepuestoFreeText(
+          repuesto.repuesto_id
+            ? ""
+            : repuesto.repuesto_name ||
+                repuesto.name ||
+                repuesto.repuesto?.name ||
+                ""
+        );
+      } else {
+        setFormData({
+          repuesto_id: "",
+          observacion: "",
+          cantidad_entregada: "",
+          fecha: new Date().toISOString().split("T")[0],
+          file: null,
+        });
+        setRepuestoFreeText("");
+      }
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, repuesto]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -133,11 +159,14 @@ const AddRepuestoModal = ({
     }
 
     setIsSubmitting(true);
-    const toastId = 'add-repuesto';
+    const toastId = isEditing ? 'edit-repuesto' : 'add-repuesto';
 
     try {
-      toast.loading('Registrando repuesto/accesorio...', { id: toastId });
-      
+      toast.loading(
+        isEditing ? 'Actualizando repuesto/accesorio...' : 'Registrando repuesto/accesorio...',
+        { id: toastId }
+      );
+
       const formDataToSend = new FormData();
       formDataToSend.append("equipo_id", equipmentId);
       if (formData.repuesto_id) {
@@ -148,25 +177,41 @@ const AddRepuestoModal = ({
       formDataToSend.append("cantidad_entregada", formData.cantidad_entregada);
       formDataToSend.append("fecha", formData.fecha);
       formDataToSend.append("observacion", formData.observacion);
-      
+
       if (formData.file) {
         formDataToSend.append("file", formData.file);
       }
 
-      const response = await httpService.post("/v1/equipo-repuestos", formDataToSend, {
+      // Crear: POST /equipo-repuestos | Editar: POST /equipo-repuestos/{id}
+      const url = isEditing
+        ? `/v1/equipo-repuestos/${repuesto.id}`
+        : "/v1/equipo-repuestos";
+
+      const response = await httpService.post(url, formDataToSend, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       if (response.data.success) {
-        toast.success("Repuesto/Accesorio agregado exitosamente", { id: toastId });
+        toast.success(
+          isEditing
+            ? "Repuesto/Accesorio actualizado exitosamente"
+            : "Repuesto/Accesorio agregado exitosamente",
+          { id: toastId }
+        );
         if (onRepuestoAdded) {
           try { await onRepuestoAdded(); } catch (e) { console.warn('Error en onRepuestoAdded:', e); }
         }
         onClose();
       }
     } catch (error) {
-      console.error("Error al agregar repuesto:", error);
-      toast.error(error.response?.data?.message || "Error al agregar el repuesto/accesorio", { id: toastId });
+      console.error("Error al guardar repuesto:", error);
+      toast.error(
+        error.response?.data?.message ||
+          (isEditing
+            ? "Error al actualizar el repuesto/accesorio"
+            : "Error al agregar el repuesto/accesorio"),
+        { id: toastId }
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -178,7 +223,7 @@ const AddRepuestoModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-purple-700">
             <Package className="h-5 w-5" />
-            Agregar Repuesto/Accesorio
+            {isEditing ? "Editar Repuesto/Accesorio" : "Agregar Repuesto/Accesorio"}
           </DialogTitle>
           {equipmentName && (
             <p className="text-sm text-gray-600">
@@ -276,6 +321,11 @@ const AddRepuestoModal = ({
           {/* Archivo */}
           <div className="space-y-2">
             <Label htmlFor="archivo">Archivo Asociado</Label>
+            {isEditing && repuesto?.file && !formData.file && (
+              <p className="text-xs text-gray-500">
+                Archivo actual: {repuesto.file.toString().split("/").pop()}. Suba uno nuevo solo si desea reemplazarlo.
+              </p>
+            )}
             <FileDropzone
               file={formData.file}
               onFileChange={handleFileChange}
@@ -299,7 +349,7 @@ const AddRepuestoModal = ({
               className="bg-purple-600 hover:bg-purple-700"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Guardando..." : "Guardar Repuesto"}
+              {isSubmitting ? "Guardando..." : isEditing ? "Actualizar Repuesto" : "Guardar Repuesto"}
             </Button>
           </DialogFooter>
         </form>

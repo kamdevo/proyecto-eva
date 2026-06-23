@@ -1776,7 +1776,102 @@ Route::prefix('v1')->group(function () {
             ], 500);
         }
     });
-    
+
+    // Actualizar un repuesto/accesorio de un equipo (POST para soportar multipart/archivo)
+    Route::post('equipo-repuestos/{id}', function (Request $request, $id) {
+        try {
+            $registro = DB::table('equipo_repuestos')->where('id', $id)->first();
+            if (!$registro) {
+                return response()->json(['success' => false, 'message' => 'Registro no encontrado'], 404);
+            }
+
+            // Si viene repuesto_nombre en lugar de repuesto_id, crear o buscar el repuesto
+            if ($request->filled('repuesto_nombre') && !$request->filled('repuesto_id')) {
+                $nombre = trim($request->repuesto_nombre);
+                $existente = DB::table('repuestos')->whereRaw('LOWER(name) = ?', [strtolower($nombre)])->first();
+                if ($existente) {
+                    $request->merge(['repuesto_id' => $existente->id]);
+                } else {
+                    $nuevoId = DB::table('repuestos')->insertGetId([
+                        'name' => $nombre,
+                        'cantidad' => 0,
+                        'status' => 1,
+                        'created_at' => now(),
+                    ]);
+                    $request->merge(['repuesto_id' => $nuevoId]);
+                }
+            }
+
+            $validator = Validator::make($request->all(), [
+                'repuesto_id' => 'required|integer|exists:repuestos,id',
+                'cantidad_entregada' => 'required|integer|min:1',
+                'fecha' => 'required|date',
+                'observacion' => 'required|string',
+                'file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Errores de validación',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $updateData = [
+                'repuesto_id' => $request->repuesto_id,
+                'cantidad_entregada' => $request->cantidad_entregada,
+                'fecha' => $request->fecha,
+                'observacion' => $request->observacion,
+            ];
+
+            // Reemplazar archivo solo si se sube uno nuevo
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = time() . '_' . $file->getClientOriginalName();
+                $updateData['file'] = $file->storeAs('equipos/repuestos', $fileName, 'public');
+            }
+
+            DB::table('equipo_repuestos')->where('id', $id)->update($updateData);
+            $actualizado = DB::table('equipo_repuestos')->where('id', $id)->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Repuesto/accesorio actualizado exitosamente',
+                'data' => $actualizado
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al actualizar repuesto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar repuesto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Eliminar un repuesto/accesorio de un equipo
+    Route::delete('equipo-repuestos/{id}', function ($id) {
+        try {
+            $registro = DB::table('equipo_repuestos')->where('id', $id)->first();
+            if (!$registro) {
+                return response()->json(['success' => false, 'message' => 'Registro no encontrado'], 404);
+            }
+
+            DB::table('equipo_repuestos')->where('id', $id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Repuesto/accesorio eliminado exitosamente'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar repuesto: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar repuesto: ' . $e->getMessage()
+            ], 500);
+        }
+    });
+
     // Exportar todos los preventivos a Excel (DEBE estar ANTES de las rutas con {id})
     Route::get('planes-mantenimientos/export-excel', function (Request $request) {
         try {
