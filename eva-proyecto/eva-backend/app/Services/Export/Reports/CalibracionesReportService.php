@@ -22,6 +22,7 @@ class CalibracionesReportService extends ExportServiceBase
             // Use direct DB query instead of Eloquent to avoid relationship issues
             $query = \DB::table('calibracion')
                 ->leftJoin('equipos', 'calibracion.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
                 ->leftJoin('areas', 'equipos.area_id', '=', 'areas.id')
                 ->select([
                     'calibracion.id as codigo_calibracion',
@@ -46,6 +47,11 @@ class CalibracionesReportService extends ExportServiceBase
 
             if ($request->has('fecha_fin')) {
                 $query->where('calibracion.fecha_calibracion', '<=', $request->fecha_fin);
+            }
+
+            // Filtro por SEDE (dashboard): sede efectiva del equipo (propia o del servicio)
+            if ($request->filled('sede_id') && $request->sede_id !== 'all') {
+                $query->where(\DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $request->sede_id);
             }
 
             $calibraciones = $query->orderBy('calibracion.fecha_calibracion', 'desc')->get();

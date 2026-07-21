@@ -90,29 +90,29 @@ const GlobalEquipmentSearch = () => {
   }
 
   return (
-    <div className="flex items-center gap-2 max-w-md mx-auto">
+    <div className="flex items-center gap-2 w-[20rem] sm:w-[24rem] max-w-[70vw]">
       <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+        <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-blue-500 w-4 h-4" />
         <Input
           type="text"
           placeholder="Buscar equipos..."
           value={localSearch}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full pl-10 pr-10 h-9 text-sm bg-white border border-slate-200 rounded-md focus:border-teal-500 focus:ring-1 focus:ring-teal-200 transition-all duration-200"
+          className="w-full pl-10 pr-10 h-10 text-sm bg-slate-100 border border-slate-200 rounded-xl placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
         />
         {localSearch && (
           <Button
             onClick={handleClearSearch}
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 hover:bg-slate-100"
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0 text-slate-400 hover:text-slate-700 hover:bg-slate-200"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>
       {resultCount > 0 && (
-        <span className="text-xs text-white whitespace-nowrap">
+        <span className="text-xs font-semibold text-blue-600 whitespace-nowrap">
           {resultCount} resultados
         </span>
       )}

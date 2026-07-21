@@ -1908,6 +1908,12 @@ Route::prefix('v1')->group(function () {
                 ])
                 ->orderBy('mantenimiento.id', 'desc');
 
+            // Filtro por SEDE (dashboard): sede efectiva del equipo (propia o del servicio)
+            $sedeIdExport = $request->get('sede_id');
+            if (!empty($sedeIdExport) && $sedeIdExport !== 'all') {
+                $query->where(DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $sedeIdExport);
+            }
+
             $row = 2;
             foreach ($query->cursor() as $p) {
                 $sheet->setCellValue('A' . $row, $p->id);
@@ -6312,9 +6318,15 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
                 'ordenes.tecnico_cierre_text',
                 'tm_tipo.nombre as categoria_nombre',
                 'tm_sub.nombre as subcategoria_nombre'
-            ])
-            ->orderBy('ordenes.id', 'desc')
-            ->get();
+            ]);
+
+        // Filtro por SEDE (dashboard): sede efectiva del equipo (propia o del servicio)
+        $sedeIdExport = $request->get('sede_id');
+        if (!empty($sedeIdExport) && $sedeIdExport !== 'all') {
+            $tickets->where(DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $sedeIdExport);
+        }
+
+        $tickets = $tickets->orderBy('ordenes.id', 'desc')->get();
 
         $allData = [];
         foreach ($tickets as $ticket) {
@@ -14325,7 +14337,13 @@ Route::get('v1/mantenimientos-ejecutados', function (Request $request) {
         if ($anio && $anio !== 'all') {
             $query->whereYear('mantenimiento.fecha_mantenimiento', $anio);
         }
-        
+
+        // Filtro por SEDE (dashboard): sede efectiva del equipo (propia o del servicio)
+        $sedeId = $request->get('sede_id');
+        if (!empty($sedeId) && $sedeId !== 'all') {
+            $query->where(DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $sedeId);
+        }
+
         $total = $query->count();
         \Log::info("📊 Total mantenimientos encontrados: {$total}");
         
@@ -14849,7 +14867,13 @@ Route::get('v1/planes-mantenimientos', function (Request $request) {
         if ($anio && $anio !== 'all') {
             $query->whereYear($tabla . '.fecha_mantenimiento', $anio);
         }
-        
+
+        // Filtro por SEDE (dashboard): sede efectiva del equipo (propia o del servicio)
+        $sedeId = $request->get('sede_id');
+        if (!empty($sedeId) && $sedeId !== 'all') {
+            $query->where(DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $sedeId);
+        }
+
         $total = $query->count();
         
         // Ordenamiento
@@ -16527,6 +16551,23 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Crear especificación de equipo
     Route::post('v1/equipo-especificaciones', function (\Illuminate\Http\Request $request) {
+        // Permite crear un TÉRMINO nuevo del catálogo sobre la marcha (ej. "POTENCIA VEHICULAR"):
+        // si viene 'especificacion_nombre' (texto libre) y no un id, se busca o se crea en el catálogo.
+        if ($request->filled('especificacion_nombre') && !$request->filled('especificacion_id')) {
+            $nombre = trim($request->especificacion_nombre);
+            $existente = DB::table('especificacion')->whereRaw('LOWER(name) = ?', [mb_strtolower($nombre)])->first();
+            if ($existente) {
+                $request->merge(['especificacion_id' => $existente->id]);
+            } else {
+                $nuevoId = DB::table('especificacion')->insertGetId([
+                    'name' => $nombre,
+                    'status' => 1,
+                    'created_at' => now(),
+                ]);
+                $request->merge(['especificacion_id' => $nuevoId]);
+            }
+        }
+
         $request->validate([
             'equipo_id' => 'required|integer|exists:equipos,id',
             'especificacion_id' => 'required|integer|exists:especificacion,id',

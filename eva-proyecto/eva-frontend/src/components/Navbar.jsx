@@ -39,6 +39,8 @@ import {
   GraduationCap,
   User,
   ChevronRight,
+  ChevronDown,
+  LogOut,
   Search,
   AlignJustify,
   Package,
@@ -64,47 +66,73 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full bg-[#1D293D] text-white px-4 py-3 flex items-center justify-between z-50">
-      <div className="flex items-center gap-2 sm:gap-4">
-        <SidebarTrigger className="p-2" />
-        <h1 className="text-base sm:text-lg font-bold text-white">
-          EVA APLICATIVO
-        </h1>
+    <>
+      {/* ── Controles flotantes: izquierda (toggle + marca + búsqueda) ── */}
+      <div className="fixed top-4 left-3 sm:left-4 z-50 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg shadow-slate-900/[0.06] border border-slate-100 pl-1.5 pr-1 py-1.5">
+          <SidebarTrigger className="h-9 w-9 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900" />
+          <span className="hidden sm:block pr-2 text-sm font-extrabold tracking-tight text-slate-800 select-none">
+            EVA <span className="text-blue-600">APLICATIVO</span>
+          </span>
+        </div>
       </div>
 
-      {/* Global Equipment Search - Center */}
-      <div className="flex-1 max-w-md mx-4 hidden md:block">
-        <GlobalEquipmentSearch />
+      {/* ── Búsqueda global centrada (se auto-oculta fuera de páginas de equipos) ── */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40 hidden lg:block">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg shadow-slate-900/[0.06] border border-slate-100 px-2 py-1 [&:empty]:hidden">
+          <GlobalEquipmentSearch />
+        </div>
       </div>
 
-      <div>
+      {/* ── Control flotante: derecha (usuario) ── */}
+      <div className="fixed top-4 right-3 sm:right-4 z-50">
         <DropdownMenu>
-          <DropdownMenuTrigger>
-            <div className="flex items-center gap-1 sm:gap-2 text-xl sm:text-sm text-white cursor-pointer">
-              <User className="h-5 w-5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline text-lg ">
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg shadow-slate-900/[0.06] border border-slate-100 pl-1.5 pr-3 py-1.5 hover:bg-white transition-colors">
+              <span className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 text-blue-600" />
+              </span>
+              <span className="hidden sm:block text-sm font-semibold text-slate-700 max-w-[10rem] truncate">
                 {user?.nombre || "Usuario"}
               </span>
-              <span className="sm:hidden">{user?.nombre || "User"}</span>
-            </div>
+              <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="mr-2.5">
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Link to="/perfil">
-                  <p>Perfil</p>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={handleLogout}>
-                <p className="cursor-pointer">Salir</p>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className="w-60 rounded-2xl border-slate-100 shadow-xl p-1.5 origin-top-right duration-200 ease-out data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-top-1"
+          >
+            {/* Cabecera: el menú se siente una extensión del bloque de usuario */}
+            <div className="flex items-center gap-2.5 px-2.5 py-2">
+              <span className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 text-blue-600" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">
+                  {user?.nombre || "Usuario"}
+                </p>
+                <p className="text-xs text-slate-400 truncate">
+                  {user?.email || "Sesión activa"}
+                </p>
+              </div>
+            </div>
+            <div className="h-px bg-slate-100 my-1" />
+            <DropdownMenuItem asChild className="rounded-lg cursor-pointer py-2">
+              <Link to="/perfil" className="flex items-center gap-2">
+                <User className="h-4 w-4 text-slate-500" /> Perfil
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="rounded-lg cursor-pointer py-2 text-red-600 focus:text-red-600 focus:bg-red-50 flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" /> Salir
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+    </>
   );
 };
 
@@ -217,17 +245,17 @@ const AppSidebar = () => {
 
   return (
     <Sidebar
-      variant="sidebar"
+      variant="floating"
       side="left"
-      className="bg-slate-800 text-white border-none"
+      className="text-white border-none [&_[data-sidebar=sidebar]]:bg-[#2a377e] [&_[data-sidebar=sidebar]]:rounded-2xl [&_[data-sidebar=sidebar]]:border-white/10 [&_[data-sidebar=sidebar]]:shadow-xl"
     >
-      <SidebarHeader className="bg-slate-800 border-none">
-        <SidebarGroupLabel className="text-xs font-semibold text-white uppercase tracking-wider mb-4">
+      <SidebarHeader className="bg-[#2a377e] border-none pt-14 rounded-t-2xl">
+        <SidebarGroupLabel className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">
           NAVEGACIÓN PRINCIPAL
         </SidebarGroupLabel>
       </SidebarHeader>
 
-      <SidebarContent className="bg-slate-800">
+      <SidebarContent className="bg-[#2a377e] rounded-b-2xl">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
@@ -280,7 +308,7 @@ const AppSidebar = () => {
                         <NavLink
                           to={item.href}
                           className={({ isActive }) =>
-                            `w-full justify-start text-left h-auto py-3 px-3 hover:bg-white hover:text-gray-900 transition-all duration-200 text-white rounded-lg group shadow-sm hover:shadow-lg ${isActive ? "bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg" : ""
+                            `w-full justify-start text-left h-auto py-3 px-3 hover:bg-white/10 hover:backdrop-blur-sm hover:!text-white transition-all duration-200 text-white rounded-lg group shadow-sm hover:shadow-lg ${isActive ? "bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg" : ""
                             }`
                           }
                         >
@@ -305,7 +333,7 @@ const AppSidebar = () => {
                       >
                         <SidebarMenuButton
                           onClick={() => toggleSubmenu(item.label)}
-                          className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-white hover:text-gray-900 text-white transition-all duration-200 rounded-lg group shadow-sm hover:shadow-lg"
+                          className="w-full justify-start text-left h-auto py-3 px-3 hover:bg-white/10 hover:backdrop-blur-sm hover:!text-white text-white transition-all duration-200 rounded-lg group shadow-sm hover:shadow-lg"
                         >
                           <item.icon className="h-4 w-4 mr-3 flex-shrink-0 group-hover:scale-110 transition-all duration-300" />
                           <span className="flex-1 font-semibold">{item.label}</span>
@@ -348,7 +376,7 @@ const AppSidebar = () => {
                                       <NavLink
                                         to={subItem.href}
                                         className={({ isActive }) =>
-                                          `w-full justify-start text-left h-auto py-2 px-3 hover:bg-white hover:text-gray-900 text-sm transition-all duration-200 text-white rounded-md group shadow-sm hover:shadow-md ${isActive ? "bg-gradient-to-r from-blue-600/80 to-blue-700/80 font-semibold" : ""
+                                          `w-full justify-start text-left h-auto py-2 px-3 hover:bg-white/10 hover:backdrop-blur-sm hover:!text-white text-sm transition-all duration-200 text-white rounded-md group shadow-sm hover:shadow-md ${isActive ? "bg-gradient-to-r from-blue-600/80 to-blue-700/80 font-semibold" : ""
                                           }`
                                         }
                                       >

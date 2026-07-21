@@ -34,7 +34,7 @@ import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import EquipmentModalReplicaPDF from "../pdf/equipment-modal-replica-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
-import { prefetchEquipmentData, prefetchUserHistory, prefetchEquipmentTickets, prefetchCambiosHdv } from "@/services/equipmentPrefetchCache";
+import { prefetchEquipmentData, prefetchUserHistory, prefetchEquipmentTickets, prefetchCambiosHdv, refreshEquipmentCache } from "@/services/equipmentPrefetchCache";
 import { ManualSearchModal } from "./manual-search-modal";
 import { QuickGuideSearchModal } from "./quick-guide-search-modal";
 import TicketDetailsComplete from "./ticket-details-complete";
@@ -312,7 +312,12 @@ export function ViewEquipmentModal({
     setError(null);
 
     try {
-      // Load all data in parallel from cache (instant if prefetched on hover)
+      // Auto-refresh: limpiar la caché de este equipo para SIEMPRE traer datos
+      // frescos al abrir la hoja de vida (refleja especificaciones y demás cambios
+      // sin tener que recargar la página).
+      refreshEquipmentCache(equipmentId);
+
+      // Cargar todo en paralelo (comparten una sola petición a complete-info por dedupe)
       const [cachedData, userHistoryData, cambiosHdvData] = await Promise.all([
         prefetchEquipmentData(equipmentId),
         prefetchUserHistory(equipmentId).catch(() => []),
@@ -936,11 +941,37 @@ export function ViewEquipmentModal({
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Vida Útil</td>
                       <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.vida_util)} años</td>
                       <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">Voltaje</td>
-                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.v1)}</td>
+                      <td className="border border-gray-200 px-3 py-2 text-sm">{safeValue(displayData.voltaje || displayData.v1)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
+              {/* Lista completa de especificaciones técnicas registradas del equipo */}
+              {displayData.especificaciones && displayData.especificaciones.length > 0 && (
+                <div className="border border-gray-300 border-t-0">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left w-1/2">Especificación</th>
+                        <th className="border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 text-left">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayData.especificaciones.map((esp, i) => (
+                        <tr key={esp.id || i}>
+                          <td className="border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800">
+                            {safeValue(esp.especificacion_nombre || esp.nombre)}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-2 text-sm">
+                            {safeValue(esp.valor)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* PLAN DE EJECUCIÓN - NUEVA SECCIÓN */}

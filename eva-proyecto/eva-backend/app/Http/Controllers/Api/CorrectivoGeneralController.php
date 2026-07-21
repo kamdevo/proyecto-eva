@@ -169,6 +169,11 @@ class CorrectivoGeneralController extends Controller
                 $query->whereDate('cg.created_at', '<=', $request->fecha_hasta);
             }
 
+            // Filtro por SEDE (dashboard): sede efectiva del equipo (propia o del servicio)
+            if ($request->filled('sede_id') && $request->sede_id !== 'all') {
+                $query->where(DB::raw('COALESCE(e.sede_id, s.sede_id)'), $request->sede_id);
+            }
+
             // Filtro por equipo_id (específico para Hoja de Vida/Consultas)
             // Si es equipo industrial, consultar de correctivos_generales_ind
             if ($request->filled('equipo_id')) {
@@ -1482,6 +1487,9 @@ class CorrectivoGeneralController extends Controller
                     $qC->whereNull('cg.fecha_mantenimiento');
                 }
             }
+            if ($request->filled('sede_id') && $request->sede_id !== 'all') {
+                $qC->where(DB::raw('COALESCE(e.sede_id, s.sede_id)'), $request->sede_id);
+            }
             if ($limit) { $qC->limit($limit); }
 
             $correctivosGenerales = $qC->get();
@@ -1565,6 +1573,9 @@ class CorrectivoGeneralController extends Controller
                 } elseif ($request->status === 'pending') {
                     $qT->whereNull('o.fecha_fin');
                 }
+            }
+            if ($request->filled('sede_id') && $request->sede_id !== 'all') {
+                $qT->where(DB::raw('COALESCE(e.sede_id, s.sede_id)'), $request->sede_id);
             }
             if ($limit) { $qT->limit($limit); }
 

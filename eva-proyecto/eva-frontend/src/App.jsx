@@ -204,8 +204,8 @@ function AppContent() {
           <ErrorBoundary>
             <Navbar />
           </ErrorBoundary>
-          <SidebarInset>
-            <div className="pt-16">
+          <SidebarInset className="bg-slate-50">
+            <div className="pt-16 bg-slate-50">
               <Suspense fallback={<ContentLoadingFallback />}>
                 <Routes>
                 <Route

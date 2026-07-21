@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Download, FileSpreadsheet, FileText, Calendar, Activity,
-  BarChart3, Wrench, Package, Settings2,
+  BarChart3, Wrench, Package, Settings2, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ function KpiCard({ label, value, color, icon: Icon, loading }) {
   };
   const c = colors[color];
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 border-l-4 ${c.border} p-5`}>
+    <div className={`bg-white rounded-2xl border border-slate-100 border-l-4 ${c.border} p-5`}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className={`text-xs font-medium ${c.text} mb-2 leading-tight`}>{label}</p>
@@ -48,7 +48,7 @@ function KpiCard({ label, value, color, icon: Icon, loading }) {
 // ─── Stat card ───────────────────────────────────────────────────────────────
 function StatCard({ title, icon: Icon, iconColor, children, loading }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="bg-white rounded-2xl border border-slate-100 p-5">
       <div className="flex items-center gap-2 mb-4">
         <Icon className={`w-5 h-5 ${iconColor}`} />
         <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
@@ -64,7 +64,7 @@ function StatCard({ title, icon: Icon, iconColor, children, loading }) {
 // ─── Export card ─────────────────────────────────────────────────────────────
 function ExportCard({ title, description, icon: Icon, iconBg, iconColor, btnColor, onExport, loading }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col items-center text-center gap-3">
+    <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col items-center text-center gap-3">
       <div className={`w-14 h-14 ${iconBg} rounded-full flex items-center justify-center`}>
         <Icon className={`w-7 h-7 ${iconColor}`} />
       </div>
@@ -119,13 +119,32 @@ export default function DashboardUnificado() {
     biomedico: 0, industrial: 0, infraestructura: 0, total: 0, loading: true,
   });
 
-  // ── Mount: load resumen data ───────────────────────────────────────────────
+  // ── Filtro por SEDE ─────────────────────────────────────────────────────────
+  const [sedes, setSedes] = useState([]);
+  const [selectedSede, setSelectedSede] = useState("all"); // "all" = Todas las sedes
+  // Parámetro que se añade a todas las llamadas cuando hay una sede seleccionada
+  const sedeParams = (selectedSede && selectedSede !== "all") ? { sede_id: selectedSede } : {};
+
+  // ── Cargar catálogo de sedes (una vez) ─────────────────────────────────────
+  useEffect(() => {
+    httpService.get("/v1/sedes")
+      .then((res) => {
+        const d = res.data?.data?.data || res.data?.data || res.data || [];
+        setSedes(Array.isArray(d) ? d : []);
+      })
+      .catch(() => { /* sin sedes, el filtro solo mostrará 'Todas' */ });
+  }, []);
+
+  // ── Cargar/recargar datos del resumen al montar y al cambiar de sede ───────
   useEffect(() => {
     loadKPIs();
     loadPreventivos();
     loadCorrectivos();
     loadTickets();
-  }, []);
+    // Las gráficas de correctivos (tab Correctivos) deben recalcularse con la nueva sede
+    setTicketStats(prev => ({ ...prev, loading: true }));
+    if (activeTab === "correctivos") loadTicketStats();
+  }, [selectedSede]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load pie-chart data when Correctivos tab opens ─────────────────────────
   useEffect(() => {
@@ -139,13 +158,13 @@ export default function DashboardUnificado() {
     try {
       setLoading(prev => ({ ...prev, kpis: true }));
       const [eqRes, planRes, sinRes] = await Promise.all([
-        httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1 } }),
-        httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, incluido_en_plan_anio: currentYear } }),
-        httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, no_incluido_en_plan_anio: currentYear } }),
+        httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, ...sedeParams } }),
+        httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, incluido_en_plan_anio: currentYear, ...sedeParams } }),
+        httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, no_incluido_en_plan_anio: currentYear, ...sedeParams } }),
       ]);
       let comodato = 0;
       try {
-        const comRes = await httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, tadquisicion_id: 4 } });
+        const comRes = await httpService.get("/v1/equipos/medical-devices-complete", { params: { per_page: 1, tadquisicion_id: 4, ...sedeParams } });
         comodato = comRes.data.data?.total || comRes.data.total || 0;
       } catch { /* optional */ }
       setData(prev => ({
@@ -169,8 +188,8 @@ export default function DashboardUnificado() {
     try {
       setLoading(prev => ({ ...prev, preventivos: true }));
       const [planesRes, ejRes] = await Promise.all([
-        httpService.get("/v1/planes-mantenimientos",   { params: { anio: currentYear, per_page: 1 } }),
-        httpService.get("/v1/mantenimientos-ejecutados", { params: { anio: currentYear, per_page: 1 } }),
+        httpService.get("/v1/planes-mantenimientos",   { params: { anio: currentYear, per_page: 1, ...sedeParams } }),
+        httpService.get("/v1/mantenimientos-ejecutados", { params: { anio: currentYear, per_page: 1, ...sedeParams } }),
       ]);
       const programados = planesRes.data.data?.total || planesRes.data.total || 0;
       const ejecutados  = ejRes.data.data?.total     || ejRes.data.total     || 0;
@@ -188,9 +207,9 @@ export default function DashboardUnificado() {
     try {
       setLoading(prev => ({ ...prev, correctivos: true }));
       const [totRes, abRes, ceRes] = await Promise.all([
-        httpService.get("/v1/correctivos-generales", { params: { anio: currentYear, per_page: 1 } }),
-        httpService.get("/v1/correctivos-generales", { params: { anio: currentYear, per_page: 1, estado: 1 } }),
-        httpService.get("/v1/correctivos-generales", { params: { anio: currentYear, per_page: 1, estado: 4 } }),
+        httpService.get("/v1/correctivos-generales", { params: { anio: currentYear, per_page: 1, ...sedeParams } }),
+        httpService.get("/v1/correctivos-generales", { params: { anio: currentYear, per_page: 1, estado: 1, ...sedeParams } }),
+        httpService.get("/v1/correctivos-generales", { params: { anio: currentYear, per_page: 1, estado: 4, ...sedeParams } }),
       ]);
       setData(prev => ({
         ...prev,
@@ -212,10 +231,10 @@ export default function DashboardUnificado() {
     try {
       setLoading(prev => ({ ...prev, tickets: true }));
       const [totRes, abRes, asRes, ceRes] = await Promise.all([
-        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1 } }),
-        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, estado: 1 } }),
-        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, estado: 2 } }),
-        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, estado: 4 } }),
+        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, ...sedeParams } }),
+        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, estado: 1, ...sedeParams } }),
+        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, estado: 2, ...sedeParams } }),
+        httpService.get("/v1/gestion-tickets", { params: { anio: currentYear, per_page: 1, estado: 4, ...sedeParams } }),
       ]);
       setData(prev => ({
         ...prev,
@@ -237,7 +256,7 @@ export default function DashboardUnificado() {
   const loadTicketStats = async () => {
     try {
       setTicketStats(prev => ({ ...prev, loading: true }));
-      const base = { anio: currentYear, per_page: 1 };
+      const base = { anio: currentYear, per_page: 1, ...sedeParams };
       const [
         abRes, asRes, dxRes, ceRes, espRes,
         bioRes, indRes, infRes, totRes,
@@ -276,10 +295,15 @@ export default function DashboardUnificado() {
     try {
       setExportLoading(prev => ({ ...prev, [key]: true }));
       toast.loading(`Exportando ${key}...`, { id: `export-${key}` });
+      // Propagar el filtro de sede (y el año en preventivos) al export
+      const exportParams = {
+        ...(key === "preventivos" ? { anio: currentYear } : {}),
+        ...sedeParams,
+      };
       const response = await httpService.get(endpoint, {
         responseType: "blob",
         headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
-        ...(key === "preventivos" ? { params: { anio: currentYear } } : {}),
+        ...(Object.keys(exportParams).length > 0 ? { params: exportParams } : {}),
       });
       const url = window.URL.createObjectURL(response.data);
       const a = document.createElement("a");
@@ -373,8 +397,41 @@ export default function DashboardUnificado() {
           </Badge>
         </div>
 
+        {/* ── Filtro por Sede (aplica a todas las estadísticas) ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white rounded-2xl border border-slate-100 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="leading-tight">
+              <p className="text-sm font-semibold text-slate-900">Sede</p>
+              <p className="text-xs text-slate-500">Filtra las estadísticas por sede del hospital</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <Select value={selectedSede} onValueChange={setSelectedSede}>
+              <SelectTrigger className="w-full sm:w-56 h-10 text-sm">
+                <SelectValue placeholder="Todas las sedes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las sedes</SelectItem>
+                {sedes.map((s) => (
+                  <SelectItem key={s.id} value={s.id.toString()}>
+                    {s.name || s.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedSede !== "all" && (
+              <Badge className="bg-blue-100 text-blue-700 border-0 whitespace-nowrap">
+                Filtro activo
+              </Badge>
+            )}
+          </div>
+        </div>
+
         {/* ── Tab switcher ────────────────────────────────────── */}
-        <div className="flex gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit overflow-x-auto">
+        <div className="flex gap-1 bg-white border border-slate-100 rounded-2xl p-1 w-fit overflow-x-auto">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -446,7 +503,7 @@ export default function DashboardUnificado() {
             </div>
 
             {/* Exports */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Download className="w-5 h-5 text-blue-600" />
                 <h3 className="text-base font-semibold text-slate-900">Exportaciones Consolidadas</h3>
@@ -503,19 +560,30 @@ export default function DashboardUnificado() {
             ════════════════════════════════════════════════════════ */}
         {activeTab === "correctivos" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
               <h2 className="text-base font-semibold text-slate-900 mb-1">Estadísticas de Tickets — Correctivos</h2>
               <p className="text-xs text-slate-500 mb-6">Datos reales del año {currentYear} obtenidos en tiempo real</p>
 
               {ticketStats.loading ? (
-                <div className="flex flex-col items-center justify-center h-64 gap-3">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-                  <span className="text-sm text-slate-400">Cargando estadísticas...</span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="border border-slate-100 rounded-2xl p-4">
+                      <Skeleton className="h-3 w-28 mx-auto mb-5" />
+                      <div className="flex items-center justify-center h-48">
+                        <Skeleton className="h-44 w-44 rounded-full" />
+                      </div>
+                      <div className="flex justify-center flex-wrap gap-3 mt-5">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Por Estado */}
-                  <div className="border border-slate-100 rounded-xl p-4">
+                  <div className="border border-slate-100 rounded-2xl p-4">
                     <p className="text-xs font-semibold text-slate-500 text-center uppercase tracking-wider mb-3">
                       Por Estado
                     </p>
@@ -534,7 +602,7 @@ export default function DashboardUnificado() {
                   </div>
 
                   {/* Por Tipo de Equipo */}
-                  <div className="border border-slate-100 rounded-xl p-4">
+                  <div className="border border-slate-100 rounded-2xl p-4">
                     <p className="text-xs font-semibold text-slate-500 text-center uppercase tracking-wider mb-3">
                       Por Tipo de Equipo
                     </p>
@@ -555,6 +623,18 @@ export default function DashboardUnificado() {
               )}
             </div>
 
+            {/* Resumen numérico tickets — skeleton mientras carga */}
+            {ticketStats.loading && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-slate-100 border-l-4 border-l-slate-200 p-4">
+                    <Skeleton className="h-3 w-16 mb-2" />
+                    <Skeleton className="h-6 w-10" />
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Resumen numérico tickets */}
             {!ticketStats.loading && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -565,7 +645,7 @@ export default function DashboardUnificado() {
                   { label: "Cerrados",          value: ticketStats.cerrados,        color: "border-l-purple-500 text-purple-700 bg-purple-50" },
                   { label: "Esp. cierre",       value: ticketStats.esperandoCierre, color: "border-l-red-500    text-red-700    bg-red-50"    },
                 ].map(({ label, value, color }) => (
-                  <div key={label} className={`bg-white rounded-xl border border-slate-200 border-l-4 ${color.split(" ")[0]} p-4`}>
+                  <div key={label} className={`bg-white rounded-2xl border border-slate-100 border-l-4 ${color.split(" ")[0]} p-4`}>
                     <p className={`text-xs font-medium ${color.split(" ")[1]} mb-1`}>{label}</p>
                     <p className={`text-2xl font-bold ${color.split(" ")[1]}`}>{value}</p>
                   </div>
@@ -580,7 +660,7 @@ export default function DashboardUnificado() {
             ════════════════════════════════════════════════════════ */}
         {activeTab === "preventivos" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">Mantenimientos Preventivos</h2>
@@ -607,7 +687,7 @@ export default function DashboardUnificado() {
               ) : (
                 <div className="space-y-5">
                   {/* Big progress */}
-                  <div className="p-5 bg-[#F1F4F6] rounded-xl">
+                  <div className="p-5 bg-[#F1F4F6] rounded-2xl">
                     <div className="flex items-end justify-between mb-3">
                       <div>
                         <p className="text-xs text-slate-500 mb-1">Cumplimiento del plan</p>
@@ -626,11 +706,11 @@ export default function DashboardUnificado() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="border border-slate-200 rounded-xl p-4 text-center">
+                    <div className="border border-slate-200 rounded-2xl p-4 text-center">
                       <p className="text-xs text-slate-500 mb-1">Programados</p>
                       <p className="text-3xl font-bold text-slate-900">{data.preventivos.programados.toLocaleString()}</p>
                     </div>
-                    <div className="border border-green-200 rounded-xl p-4 text-center bg-green-50">
+                    <div className="border border-green-200 rounded-2xl p-4 text-center bg-green-50">
                       <p className="text-xs text-green-600 mb-1">Ejecutados</p>
                       <p className="text-3xl font-bold text-green-700">{data.preventivos.ejecutados.toLocaleString()}</p>
                     </div>
@@ -666,7 +746,7 @@ export default function DashboardUnificado() {
             TAB: EQUIPOS
             ════════════════════════════════════════════════════════ */}
         {activeTab === "equipos" && (
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <div className="flex items-center gap-2 mb-5">
               <Package className="w-5 h-5 text-blue-600" />
               <h2 className="text-base font-semibold text-slate-900">Información de Equipos</h2>
@@ -686,7 +766,7 @@ export default function DashboardUnificado() {
                   ].map(({ label, value, color }) => {
                     const [border, bg, text] = color.split(" ");
                     return (
-                      <div key={label} className={`border ${border} ${bg} rounded-xl p-4 text-center`}>
+                      <div key={label} className={`border ${border} ${bg} rounded-2xl p-4 text-center`}>
                         <p className={`text-xs ${text} opacity-70 mb-1`}>{label}</p>
                         <p className={`text-3xl font-bold ${text}`}>{value.toLocaleString()}</p>
                       </div>

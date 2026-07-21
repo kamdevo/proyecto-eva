@@ -420,9 +420,25 @@ const EquipmentModalReplicaPDF = ({ data }) => {
             <Text style={styles.tableCellHeader}>Vida Útil</Text>
             <Text style={styles.tableCellData}>{safeValue(data?.vida_util)} años</Text>
             <Text style={styles.tableCellHeader}>Voltaje</Text>
-            <Text style={styles.tableCellData}>{safeValue(data?.v1)}</Text>
+            <Text style={styles.tableCellData}>{safeValue(data?.voltaje || data?.v1)}</Text>
           </View>
         </View>
+
+        {/* Lista completa de especificaciones técnicas registradas */}
+        {data?.especificaciones && data.especificaciones.length > 0 && (
+          <View style={styles.table}>
+            {data.especificaciones.map((esp, i) => (
+              <View key={i} style={styles.tableRow}>
+                <Text style={[styles.tableCellHeader, { width: '35%' }]}>
+                  {safeValue(esp.especificacion_nombre || esp.nombre)}
+                </Text>
+                <Text style={[styles.tableCellData, { width: '65%', borderRightWidth: 0 }]}>
+                  {safeValue(esp.valor)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* INFORMACIÓN REGULATORIA Y FECHAS CRÍTICAS */}
         <Text style={styles.sectionTitle}>INFORMACIÓN REGULATORIA Y FECHAS CRÍTICAS</Text>

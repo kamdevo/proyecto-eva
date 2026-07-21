@@ -32,12 +32,15 @@ const AddEspecificacionModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState({});
+  // Texto libre para crear un TÉRMINO nuevo del catálogo (ej. "POTENCIA VEHICULAR")
+  const [especificacionFreeText, setEspecificacionFreeText] = useState("");
 
   // Cargar catálogo de especificaciones
   useEffect(() => {
     if (isOpen) {
       loadEspecificaciones();
       setFormData({ especificacion_id: "", valor: "", file: null });
+      setEspecificacionFreeText("");
       setErrors({});
     }
   }, [isOpen]);
@@ -59,7 +62,8 @@ const AddEspecificacionModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!formData.especificacion_id) newErrors.especificacion_id = "Seleccione una especificación";
+    if (!formData.especificacion_id && !especificacionFreeText.trim())
+      newErrors.especificacion_id = "Seleccione o escriba una especificación";
     if (!formData.valor.trim()) newErrors.valor = "El valor es obligatorio";
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
@@ -75,7 +79,12 @@ const AddEspecificacionModal = ({
 
       const fd = new FormData();
       fd.append("equipo_id", equipmentId);
-      fd.append("especificacion_id", formData.especificacion_id);
+      if (formData.especificacion_id) {
+        fd.append("especificacion_id", formData.especificacion_id);
+      } else if (especificacionFreeText.trim()) {
+        // Término nuevo: el backend lo crea en el catálogo si no existe
+        fd.append("especificacion_nombre", especificacionFreeText.trim());
+      }
       fd.append("valor", formData.valor);
       if (formData.file) {
         fd.append("file", formData.file);
@@ -151,14 +160,24 @@ const AddEspecificacionModal = ({
             <Label className="text-sm font-semibold text-gray-700">
               Especificación Técnica <span className="text-red-500">*</span>
             </Label>
+            <p className="text-xs text-gray-500">
+              Elige una del catálogo o escribe un término nuevo (ej. "POTENCIA VEHICULAR") y se creará automáticamente.
+            </p>
             <SearchableSelect
               options={especificaciones.map((esp) => ({ id: esp.id.toString(), name: esp.name }))}
               value={formData.especificacion_id.toString()}
               onValueChange={(val) => {
                 setFormData((prev) => ({ ...prev, especificacion_id: val }));
+                if (val) setEspecificacionFreeText("");
                 if (errors.especificacion_id) setErrors((prev) => ({ ...prev, especificacion_id: "" }));
               }}
-              placeholder={loadingEspecificaciones ? "Cargando..." : "Buscar especificación..."}
+              allowFreeInput={true}
+              onFreeInputChange={(text) => {
+                setEspecificacionFreeText(text);
+                if (text) setFormData((prev) => ({ ...prev, especificacion_id: "" }));
+                if (errors.especificacion_id) setErrors((prev) => ({ ...prev, especificacion_id: "" }));
+              }}
+              placeholder={loadingEspecificaciones ? "Cargando..." : "Buscar o escribir un término nuevo..."}
               disabled={loadingEspecificaciones}
             />
             {errors.especificacion_id && (

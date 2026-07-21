@@ -20,6 +20,22 @@ export function invalidateEquipmentCache(equipmentId) {
   }
 }
 
+/**
+ * Limpia SOLO las claves de un equipo (sin tocar 'options'). Se usa para forzar
+ * datos frescos cada vez que se abre la hoja de vida (auto-refresh), evitando
+ * mostrar datos en caché desactualizados tras editar especificaciones u otros campos.
+ */
+export function refreshEquipmentCache(equipmentId) {
+  if (equipmentId) {
+    cache.delete(`equip-${equipmentId}`);
+    cache.delete(`history-${equipmentId}`);
+    cache.delete(`especificaciones-${equipmentId}`);
+    cache.delete(`user-history-${equipmentId}`);
+    cache.delete(`tickets-${equipmentId}`);
+    cache.delete(`cambios-hdv-${equipmentId}`);
+  }
+}
+
 /** Invalida el historial y el cache de complete-info para que correctivos/preventivos recién creados aparezcan inmediatamente. */
 export function invalidateHistoryCache(equipmentId) {
   if (equipmentId) {

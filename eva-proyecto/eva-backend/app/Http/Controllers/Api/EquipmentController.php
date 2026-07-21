@@ -2330,6 +2330,35 @@ class EquipmentController extends ApiController
                 $equipoData['especificaciones'] = [];
             }
 
+            // 11b. Mapear especificaciones clave a los campos fijos de la hoja de vida
+            // (Potencia, Corriente, Voltaje). Así, al agregar/editar esas especificaciones
+            // en el modal de editar, se reflejan en "Características Técnicas y Especificaciones".
+            // Se mapea por NOMBRE del catálogo (robusto ante distintos IDs entre entornos):
+            //   "RANGO DE POTENCIA [W]"  -> potencia
+            //   "RANGO DE CORRIENTE [A]" -> corriente
+            //   "RANGO DE TENSIÓN [V]"   -> voltaje
+            $equipoData['potencia'] = $equipoData['potencia'] ?? null;
+            $equipoData['corriente'] = $equipoData['corriente'] ?? null;
+            $equipoData['voltaje'] = $equipoData['voltaje'] ?? null;
+            foreach (($equipoData['especificaciones'] ?? []) as $espec) {
+                $valor = $espec->valor ?? null;
+                if ($valor === null || trim((string) $valor) === '') continue;
+                $nombre = strtoupper(strtr((string) ($espec->especificacion_nombre ?? ''), [
+                    'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U'
+                ]));
+                if (str_contains($nombre, 'POTENCIA') && empty($equipoData['potencia'])) {
+                    $equipoData['potencia'] = $valor;
+                } elseif (str_contains($nombre, 'CORRIENTE') && empty($equipoData['corriente'])) {
+                    $equipoData['corriente'] = $valor;
+                } elseif (str_contains($nombre, 'TENSION') && empty($equipoData['voltaje'])) {
+                    $equipoData['voltaje'] = $valor;
+                }
+            }
+            // Respaldo de Voltaje: columna v1 (equipos biomédicos) si no hay especificación de tensión
+            if (empty($equipoData['voltaje']) && !empty($equipoData['v1'])) {
+                $equipoData['voltaje'] = $equipoData['v1'];
+            }
+
             // 12. Historial de Usuario (observaciones + documentos + mantenimientos)
             try {
                 $userHistory = [];
