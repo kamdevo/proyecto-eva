@@ -247,7 +247,7 @@ const AppSidebar = () => {
     <Sidebar
       variant="floating"
       side="left"
-      className="text-white border-none [&_[data-sidebar=sidebar]]:bg-[#2a377e] [&_[data-sidebar=sidebar]]:rounded-2xl [&_[data-sidebar=sidebar]]:border-white/10 [&_[data-sidebar=sidebar]]:shadow-xl"
+      className="text-white border-none [&_[data-slot=sidebar-inner]]:bg-[#2a377e] [&_[data-slot=sidebar-inner]]:rounded-2xl [&_[data-slot=sidebar-inner]]:border-white/10 [&_[data-slot=sidebar-inner]]:shadow-xl"
     >
       <SidebarHeader className="bg-[#2a377e] border-none pt-14 rounded-t-2xl">
         <SidebarGroupLabel className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">

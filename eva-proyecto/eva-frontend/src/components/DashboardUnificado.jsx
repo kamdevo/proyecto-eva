@@ -119,6 +119,9 @@ export default function DashboardUnificado() {
     biomedico: 0, industrial: 0, infraestructura: 0, total: 0, loading: true,
   });
 
+  // Órdenes por día y en proceso, por tipo (biomédico / industrial / infraestructura)
+  const [ordenesPorTipo, setOrdenesPorTipo] = useState(null);
+
   // ── Filtro por SEDE ─────────────────────────────────────────────────────────
   const [sedes, setSedes] = useState([]);
   const [selectedSede, setSelectedSede] = useState("all"); // "all" = Todas las sedes
@@ -141,6 +144,7 @@ export default function DashboardUnificado() {
     loadPreventivos();
     loadCorrectivos();
     loadTickets();
+    loadOrdenesPorTipo();
     // Las gráficas de correctivos (tab Correctivos) deben recalcularse con la nueva sede
     setTicketStats(prev => ({ ...prev, loading: true }));
     if (activeTab === "correctivos") loadTicketStats();
@@ -287,6 +291,18 @@ export default function DashboardUnificado() {
     } catch (e) {
       console.error(e);
       setTicketStats(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // ── Órdenes por día y en proceso, por tipo ─────────────────────────────────
+  const loadOrdenesPorTipo = async () => {
+    try {
+      const res = await httpService.get("/v1/ordenes/estadisticas-por-tipo", {
+        params: { ...sedeParams },
+      });
+      if (res.data?.success) setOrdenesPorTipo(res.data.data);
+    } catch (err) {
+      console.error("Error cargando órdenes por tipo:", err);
     }
   };
 
@@ -500,6 +516,67 @@ export default function DashboardUnificado() {
                   <StatRow label="Cerrados"  value={data.tickets.cerrados}  variant="green" />
                 </div>
               </StatCard>
+            </div>
+
+            {/* Órdenes por día y en proceso, por tipo de intervención */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <BarChart3 className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-sm font-semibold text-slate-900">Órdenes por día · por tipo de intervención</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-5">
+                Promedio de órdenes creadas por día activo y órdenes actualmente en proceso (no cerradas).
+              </p>
+              {!ordenesPorTipo ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-9" /><Skeleton className="h-9" /><Skeleton className="h-9" />
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {[
+                    { key: "biomedico",      label: "Biomédico",      bar: "bg-blue-500",   text: "text-blue-700",   chip: "bg-blue-50 text-blue-700" },
+                    { key: "industrial",     label: "Industrial",     bar: "bg-orange-500", text: "text-orange-700", chip: "bg-orange-50 text-orange-700" },
+                    { key: "infraestructura",label: "Infraestructura",bar: "bg-green-500",  text: "text-green-700",  chip: "bg-green-50 text-green-700" },
+                  ].map(({ key, label, bar, text, chip }) => {
+                    const t = ordenesPorTipo[key] || {};
+                    const max = Math.max(
+                      1,
+                      ordenesPorTipo.biomedico?.promedio_dia || 0,
+                      ordenesPorTipo.industrial?.promedio_dia || 0,
+                      ordenesPorTipo.infraestructura?.promedio_dia || 0
+                    );
+                    const pct = Math.round(((t.promedio_dia || 0) / max) * 100);
+                    return (
+                      <div key={key} className="flex items-center gap-3">
+                        <span className={`w-2.5 h-2.5 rounded-full ${bar} flex-shrink-0`} />
+                        <span className="text-sm text-slate-700 w-24 sm:w-28 flex-shrink-0 truncate">{label}</span>
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden min-w-[40px]">
+                          <div className={`h-full ${bar} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={`text-sm font-bold tabular-nums w-20 text-right ${text}`}>
+                          {(t.promedio_dia || 0).toFixed(2)}
+                          <span className="text-[10px] font-normal text-slate-400">/día</span>
+                        </span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${chip}`}>
+                          {t.en_proceso || 0} en proceso
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-1 border-t border-slate-100">
+                    <span className="text-sm font-medium text-slate-600">Combinado (todos los tipos)</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-slate-800 tabular-nums">
+                        {(ordenesPorTipo.combinado?.promedio_dia || 0).toFixed(2)}
+                        <span className="text-xs font-normal text-slate-400"> órdenes/día</span>
+                      </span>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">
+                        {ordenesPorTipo.combinado?.en_proceso || 0} en proceso
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Exports */}

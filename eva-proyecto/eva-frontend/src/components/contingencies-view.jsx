@@ -261,7 +261,7 @@ export function ContingenciesView() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
+      className="min-h-screen bg-gradient-to-br from-[#F1F4F6] to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
       {/* Responsive Header */}
       <div className="mb-4 sm:mb-6">
         <h1

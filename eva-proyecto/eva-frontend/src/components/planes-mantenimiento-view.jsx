@@ -425,7 +425,7 @@ export function PlanesMantenimientoView() {
   const isLoadingData = dataLoading || isLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#F1F4F6] to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
       {/* Header Responsivo */}
       <div className="mb-4 sm:mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">

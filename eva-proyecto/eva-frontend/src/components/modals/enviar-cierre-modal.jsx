@@ -201,7 +201,7 @@ export default function EnviarCierreModal({ isOpen, onClose, ticketId, ticketCod
         throw new Error(result.message || 'Error al enviar el ticket a cierre');
       }
 
-      toast.success("Ticket enviado a cierre exitosamente");
+      toast.success("Ticket cerrado exitosamente");
       
       // Limpiar de localStorage al enviar correctamente
       localStorage.removeItem(`enviar_cierre_state_${ticketId}`);

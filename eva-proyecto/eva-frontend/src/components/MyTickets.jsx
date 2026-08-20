@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import TicketsImg from "@/assets/Img/imagenes/mis-tickets-img.jpg";
 import Pagination from "@/components/common/Pagination";
 import ItemsPerPage from "@/components/common/ItemsPerPage";
 import {
@@ -314,19 +313,6 @@ export default function MyTickets() {
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-auto">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-2 sm:px-4 lg:px-6 py-2 sm:py-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex w-full justify-center">
-            <img
-              src={TicketsImg}
-              alt="Mis tickets - eva"
-              style={{ maxWidth: '300px', width: '100%' }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="p-1 sm:p-2 lg:p-4">
         <Card>
@@ -341,48 +327,54 @@ export default function MyTickets() {
 
           <CardContent className="p-2 sm:p-3">
             {/* Action Buttons - Crear Tickets */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4">
               {/* Equipos Biomédicos Modal */}
-              <Button
-                onClick={() => { setTicketType('biomedico'); setIsHospitalTicketModalOpen(true); }}
-                className="bg-white border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
-              >
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                  <Building className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
-                <div className="text-left min-w-0">
-                  <div className="font-semibold text-sm sm:text-base truncate">Equipos Biomédicos</div>
-                  <div className="text-xs sm:text-sm text-blue-600 truncate">Crea un ticket para equipos médicos y Licenciados</div>
-                </div>
-              </Button>
+              <div className="flex-1 min-w-[220px]">
+                <Button
+                  onClick={() => { setTicketType('biomedico'); setIsHospitalTicketModalOpen(true); }}
+                  className="bg-white/90 border-2 border-blue-200 text-blue-700 hover:bg-blue-500/10 hover:border-blue-400 py-2 sm:py-2.5 px-3 sm:px-4 transition-all duration-200 rounded-2xl w-full h-full"
+                >
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                    <Building className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold text-sm sm:text-base truncate">Equipos Biomédicos</div>
+                    <div className="text-xs sm:text-sm text-blue-600 truncate">Crea un ticket para equipos médicos y Licenciados</div>
+                  </div>
+                </Button>
+              </div>
 
               {/* Equipos Industriales Modal */}
-              <Button
-                onClick={() => { setTicketType('industrial'); setIsHospitalTicketModalOpen(true); }}
-                className="bg-white border-2 border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
-              >
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                  <Cog className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-                </div>
-                <div className="text-left min-w-0">
-                  <div className="font-semibold text-sm sm:text-base truncate">Equipos Industriales</div>
-                  <div className="text-xs sm:text-sm text-orange-600 truncate">Producción y Manufactura</div>
-                </div>
-              </Button>
+              <div className="flex-1 min-w-[220px]">
+                <Button
+                  onClick={() => { setTicketType('industrial'); setIsHospitalTicketModalOpen(true); }}
+                  className="bg-white/90 border-2 border-orange-200 text-orange-700 hover:bg-orange-500/10 hover:border-orange-400 py-2 sm:py-2.5 px-3 sm:px-4 transition-all duration-200 rounded-2xl w-full h-full"
+                >
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                    <Cog className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold text-sm sm:text-base truncate">Equipos Industriales</div>
+                    <div className="text-xs sm:text-sm text-orange-600 truncate">Producción y Manufactura</div>
+                  </div>
+                </Button>
+              </div>
 
               {/* Infraestructura y Movilidad Modal */}
-              <Button
-                onClick={() => { setTicketType('infraestructura'); setIsHospitalTicketModalOpen(true); }}
-                className="bg-white border-2 border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 py-3 sm:py-4 lg:py-6 px-3 sm:px-6 lg:px-8 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg w-full xl:w-auto"
-              >
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
-                  <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
-                </div>
-                <div className="text-left min-w-0">
-                  <div className="font-semibold text-sm sm:text-base truncate">Infraestructura</div>
-                  <div className="text-xs sm:text-sm text-green-600 truncate">Servicios y Movilidad</div>
-                </div>
-              </Button>
+              <div className="flex-1 min-w-[220px]">
+                <Button
+                  onClick={() => { setTicketType('infraestructura'); setIsHospitalTicketModalOpen(true); }}
+                  className="bg-white/90 border-2 border-green-200 text-green-700 hover:bg-green-500/10 hover:border-green-400 py-2 sm:py-2.5 px-3 sm:px-4 transition-all duration-200 rounded-2xl w-full h-full"
+                >
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center mr-2 sm:mr-4 flex-shrink-0">
+                    <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                  </div>
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold text-sm sm:text-base truncate">Infraestructura</div>
+                    <div className="text-xs sm:text-sm text-green-600 truncate">Servicios y Movilidad</div>
+                  </div>
+                </Button>
+              </div>
             </div>
 
 

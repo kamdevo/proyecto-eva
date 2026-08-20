@@ -16205,7 +16205,9 @@ Route::post('v1/tickets/{id}/enviar-cierre', function(Request $request, $id) {
         $set = '123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $code = substr(str_shuffle($set), 0, 12);
 
-        // Actualizar tabla ordenes - cambiar a estado "Esperando cierre" (5)
+        // Al completar el formulario de cierre (con firmas) el ticket queda CERRADO
+        // directamente. Se elimina el paso extra de "Esperando cierre" que dejaba
+        // tickets atascados aunque el cierre ya estuviera completo.
         DB::table('ordenes')
             ->where('id', $id)
             ->update([
@@ -16216,7 +16218,7 @@ Route::post('v1/tickets/{id}/enviar-cierre', function(Request $request, $id) {
                 'tecnico_cierre_text' => $request->tecnico_cierre_text,
                 'file_cierre' => $fileName,
                 'fecha_fin' => now(),
-                'estado_id' => 5, // 5 = Esperando cierre
+                'estado_id' => 4, // 4 = Cerrado (cierre directo al completar el formulario)
                 'cierre_id' => 15,
                 'code' => $code,
                 'cierre_active' => 'false', // String "false" según especificación
@@ -16293,6 +16295,55 @@ Route::post('v1/tickets/{id}/confirmar-cierre', function(Request $request, $id) 
     }
 });
 
+// Estadísticas de órdenes por TIPO (biomédico=1, industrial=2, infraestructura=3):
+// promedio de órdenes creadas por día activo y cantidad en proceso. Filtro por sede opcional.
+Route::get('v1/ordenes/estadisticas-por-tipo', function(Request $request) {
+    try {
+        $sedeId = $request->get('sede_id');
+        $aplicarSede = function ($q) use ($sedeId) {
+            if (!empty($sedeId) && $sedeId !== 'all') {
+                $q->where(DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $sedeId);
+            }
+            return $q;
+        };
+        $baseQuery = function () use ($aplicarSede) {
+            return $aplicarSede(
+                DB::table('ordenes')
+                    ->leftJoin('equipos', 'ordenes.equipo_id', '=', 'equipos.id')
+                    ->leftJoin('servicios', 'ordenes.servicio_id', '=', 'servicios.id')
+            );
+        };
+
+        $tipos = [1 => 'biomedico', 2 => 'industrial', 3 => 'infraestructura'];
+        $data = [];
+        foreach ($tipos as $sp => $key) {
+            $agg = $baseQuery()->where('ordenes.subproceso_id', $sp)
+                ->selectRaw('COUNT(*) total, COUNT(DISTINCT DATE(ordenes.fecha_inicio)) dias')->first();
+            $enProceso = $baseQuery()->where('ordenes.subproceso_id', $sp)
+                ->where('ordenes.estado_id', '!=', 4)->count();
+            $data[$key] = [
+                'total' => (int) $agg->total,
+                'dias_activos' => (int) $agg->dias,
+                'promedio_dia' => ($agg->dias > 0) ? round($agg->total / $agg->dias, 2) : 0,
+                'en_proceso' => (int) $enProceso,
+            ];
+        }
+
+        // Combinado (todos los tipos)
+        $aggC = $baseQuery()->selectRaw('COUNT(*) total, COUNT(DISTINCT DATE(ordenes.fecha_inicio)) dias')->first();
+        $data['combinado'] = [
+            'total' => (int) $aggC->total,
+            'promedio_dia' => ($aggC->dias > 0) ? round($aggC->total / $aggC->dias, 2) : 0,
+            'en_proceso' => (int) $baseQuery()->where('ordenes.estado_id', '!=', 4)->count(),
+        ];
+
+        return response()->json(['success' => true, 'data' => $data]);
+    } catch (\Exception $e) {
+        \Log::error('Error en estadisticas-por-tipo: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+});
+
 // 8. Subir archivo de cierre (después de enviar a cierre, antes de confirmar)
 Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id) {
     try {
@@ -16305,11 +16356,12 @@ Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id
             ], 404);
         }
 
-        // Validar que el ticket está en estado "Esperando cierre" (5)
-        if ($ticket->estado_id != 5) {
+        // Permitir subir el archivo de cierre cuando el ticket está Cerrado (4)
+        // o en Esperando cierre (5) — el cierre ahora es directo a estado 4.
+        if (!in_array((int) $ticket->estado_id, [4, 5], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Solo se puede subir archivo cuando el ticket está en estado "Esperando cierre"'
+                'message' => 'Solo se puede subir archivo de cierre en un ticket cerrado o en espera de cierre'
             ], 400);
         }
 

@@ -454,7 +454,7 @@ function IndustrialDevices() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-[#F1F4F6] from-[#F1F4F6] to-[#1d293d]/5 p-2 sm:p-4 lg:p-6">
       {/* Medical Equipment Management Header */}
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">

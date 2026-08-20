@@ -566,7 +566,7 @@ export function MedicalDevicesView() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-[#1d293d]/5 p-1 xs:p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
+    <div className="min-h-screen bg-[#F1F4F6] from-[#F1F4F6] to-[#1d293d]/5 p-1 xs:p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6">
       {/* Medical Equipment Management Header */}
       <div className="mb-3 sm:mb-4 md:mb-6">
         <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-slate-800 mb-1 sm:mb-2">

@@ -14,6 +14,7 @@ import { useLocation } from "react-router-dom";
 import { useIdleTimeout } from "./hooks/useIdleTimeout";
 import { toast } from "sonner";
 
+import "./App.css";
 // Componentes críticos (no lazy)
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -56,7 +57,7 @@ const VerificacionPendiente = lazy(() => import("./pages/VerificacionPendiente")
 
 // Componente de loading para páginas standalone (login, etc.)
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-[#1d293d]/5">
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F1F4F6] to-[#1d293d]/5">
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1d293d] mx-auto mb-4"></div>
       <p className="text-slate-600 text-sm">Cargando...</p>
@@ -204,8 +205,8 @@ function AppContent() {
           <ErrorBoundary>
             <Navbar />
           </ErrorBoundary>
-          <SidebarInset className="bg-slate-50">
-            <div className="pt-16 bg-slate-50">
+          <SidebarInset className="bg-[#F1F4F6]">
+            <div className="pt-16 bg-[#F1F4F6]">
               <Suspense fallback={<ContentLoadingFallback />}>
                 <Routes>
                 <Route
@@ -492,7 +493,7 @@ export default function App() {
             <PermissionAuthProvider>
               <EquipmentSearchProvider>
                 <TicketsProvider>
-                  <AppContent />
+                  <AppContent className="bg-gray-100" />
                 </TicketsProvider>
               </EquipmentSearchProvider>
             </PermissionAuthProvider>
