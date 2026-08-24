@@ -1,12 +1,13 @@
-/* Fondo general del body con imagen y fuente base */
+/* Fuente base.
+   NOTA: el fondo NO debe ir en `body`. Este archivo se carga de forma global
+   (LoginForm lo importa) y permanece cargado tras iniciar sesión, por lo que
+   un `body { background }` aquí pisa el fondo de la app (#F1F4F6) y deja en
+   blanco el área alrededor del sidebar flotante. El fondo del login vive en
+   `.login-container`, que ya cubre toda la pantalla (min-height: 100vh). */
 body {
   margin: 0;
   padding: 0;
   font-family: "Segoe UI", sans-serif;
-  background-color: #ffffff;
-  background-image: url("../img/bg-pattern.svg");
-  background-size: cover;
-  background-repeat: no-repeat;
 }
 
 /* Contenedor principal para centrar todo el contenido */
@@ -19,6 +20,7 @@ body {
   padding: 10px;
   box-sizing: border-box;
   position: relative;
+  background-color: #ffffff;
 }
 
 /* Contenedor interno para el logo y botón */
