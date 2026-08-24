@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Download, FileSpreadsheet, FileText, Calendar, Activity,
-  BarChart3, Wrench, Package, Settings2, Building2,
+  BarChart3, Wrench, Package, Settings2, Building2, Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +121,8 @@ export default function DashboardUnificado() {
 
   // Órdenes por día y en proceso, por tipo (biomédico / industrial / infraestructura)
   const [ordenesPorTipo, setOrdenesPorTipo] = useState(null);
+  // Estadísticas de calibraciones (total y por tipo)
+  const [calibStats, setCalibStats] = useState(null);
 
   // ── Filtro por SEDE ─────────────────────────────────────────────────────────
   const [sedes, setSedes] = useState([]);
@@ -145,6 +147,7 @@ export default function DashboardUnificado() {
     loadCorrectivos();
     loadTickets();
     loadOrdenesPorTipo();
+    loadCalibraciones();
     // Las gráficas de correctivos (tab Correctivos) deben recalcularse con la nueva sede
     setTicketStats(prev => ({ ...prev, loading: true }));
     if (activeTab === "correctivos") loadTicketStats();
@@ -306,6 +309,18 @@ export default function DashboardUnificado() {
     }
   };
 
+  // ── Calibraciones (total y por tipo) ───────────────────────────────────────
+  const loadCalibraciones = async () => {
+    try {
+      const res = await httpService.get("/v1/calibraciones/estadisticas", {
+        params: { ...sedeParams },
+      });
+      if (res.data?.success) setCalibStats(res.data.data);
+    } catch (err) {
+      console.error("Error cargando calibraciones:", err);
+    }
+  };
+
   // ── Export handlers ────────────────────────────────────────────────────────
   const makeExporter = (key, endpoint, filename) => async () => {
     try {
@@ -374,10 +389,11 @@ export default function DashboardUnificado() {
 
   // ── Tabs config ────────────────────────────────────────────────────────────
   const tabs = [
-    { key: "resumen",     label: "Resumen",      icon: BarChart3 },
-    { key: "correctivos", label: "Correctivos",  icon: Wrench },
-    { key: "preventivos", label: "Preventivos",  icon: Calendar },
-    { key: "equipos",     label: "Equipos",      icon: Package },
+    { key: "resumen",       label: "Resumen",       icon: BarChart3 },
+    { key: "correctivos",   label: "Correctivos",   icon: Wrench },
+    { key: "preventivos",   label: "Preventivos",   icon: Calendar },
+    { key: "calibraciones", label: "Calibraciones", icon: Gauge },
+    { key: "equipos",       label: "Equipos",       icon: Package },
   ];
 
   // ── Row badge helper ───────────────────────────────────────────────────────
@@ -816,6 +832,57 @@ export default function DashboardUnificado() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════
+            TAB: CALIBRACIONES
+            ════════════════════════════════════════════════════════ */}
+        {activeTab === "calibraciones" && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Gauge className="w-5 h-5 text-teal-600" />
+              <h2 className="text-base font-semibold text-slate-900">Calibraciones registradas</h2>
+            </div>
+            <p className="text-xs text-slate-500 mb-6">
+              Cantidad de calibraciones en el sistema{selectedSede !== "all" ? " para la sede seleccionada" : ""}.
+            </p>
+
+            {!calibStats ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Skeleton className="h-24 rounded-xl" /><Skeleton className="h-24 rounded-xl" />
+                <Skeleton className="h-24 rounded-xl" /><Skeleton className="h-24 rounded-xl" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <KpiCard label="Total de Calibraciones"      value={calibStats.total}              color="cyan"   icon={Gauge}    loading={false} />
+                  <KpiCard label="Calibraciones Biomédicas"    value={calibStats.biomedico}          color="green"  icon={Activity} loading={false} />
+                  <KpiCard label="Calibraciones Industriales"  value={calibStats.industrial}         color="orange" icon={Settings2} loading={false} />
+                  <KpiCard label="Equipos Calibrados"          value={calibStats.equipos_calibrados} color="red"    icon={Package}  loading={false} />
+                </div>
+
+                {/* Distribución biomédico vs industrial */}
+                <div className="mt-6">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                    <span>Biomédico ({(calibStats.biomedico || 0).toLocaleString()})</span>
+                    <span>Industrial ({(calibStats.industrial || 0).toLocaleString()})</span>
+                  </div>
+                  <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+                    {(() => {
+                      const t = (calibStats.biomedico || 0) + (calibStats.industrial || 0) || 1;
+                      const b = Math.round(((calibStats.biomedico || 0) / t) * 100);
+                      return (
+                        <>
+                          <div className="h-full bg-green-500" style={{ width: `${b}%` }} />
+                          <div className="h-full bg-orange-500" style={{ width: `${100 - b}%` }} />
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

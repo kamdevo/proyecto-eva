@@ -16344,6 +16344,38 @@ Route::get('v1/ordenes/estadisticas-por-tipo', function(Request $request) {
     }
 });
 
+// Estadísticas de CALIBRACIONES para el dashboard (total y por tipo de equipo). Filtro por sede opcional.
+Route::get('v1/calibraciones/estadisticas', function(Request $request) {
+    try {
+        $sedeId = $request->get('sede_id');
+        $base = function () use ($sedeId) {
+            $q = DB::table('calibracion')
+                ->leftJoin('equipos', 'calibracion.equipo_id', '=', 'equipos.id')
+                ->leftJoin('servicios', 'equipos.servicio_id', '=', 'servicios.id')
+                ->where('calibracion.status', 1);
+            if (!empty($sedeId) && $sedeId !== 'all') {
+                $q->where(DB::raw('COALESCE(equipos.sede_id, servicios.sede_id)'), $sedeId);
+            }
+            return $q;
+        };
+
+        $total = $base()->count();
+        $biomedico = $base()->where('equipos.tipo_id', 1)->count();
+        $industrial = $base()->where('equipos.tipo_id', 2)->count();
+        $equipos = $base()->distinct('calibracion.equipo_id')->count('calibracion.equipo_id');
+
+        return response()->json(['success' => true, 'data' => [
+            'total' => (int) $total,
+            'biomedico' => (int) $biomedico,
+            'industrial' => (int) $industrial,
+            'equipos_calibrados' => (int) $equipos,
+        ]]);
+    } catch (\Exception $e) {
+        \Log::error('Error en calibraciones/estadisticas: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+});
+
 // 8. Subir archivo de cierre (después de enviar a cierre, antes de confirmar)
 Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id) {
     try {
