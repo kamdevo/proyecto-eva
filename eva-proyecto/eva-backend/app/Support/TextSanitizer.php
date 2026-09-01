@@ -35,7 +35,9 @@ class TextSanitizer
 
         // Saltos de línea: <br> y los cierres de bloque.
         $html = preg_replace('/<\s*br\b[^>]*>/i', '<br>', $html);
-        $html = preg_replace('/<\s*\/\s*(div|p|li|tr|h[1-6]|blockquote)\s*>/i', '<br>', $html);
+        // Ojo: también la APERTURA separa. Sin esto, "texto<div>mas" quedaba
+        // pegado como "textomas" (no hay </div> intermedio que los separe).
+        $html = preg_replace('/<\s*\/?\s*(div|p|li|tr|h[1-6]|blockquote)\b[^>]*>/i', '<br>', $html);
 
         // Tras normalizar, las etiquetas permitidas ya no tienen atributos.
         $html = strip_tags($html, '<strong><br>');
@@ -61,7 +63,7 @@ class TextSanitizer
 
         // Los saltos estructurales se conservan como saltos de línea reales.
         $text = preg_replace('/<\s*br\b[^>]*>/i', "\n", $text);
-        $text = preg_replace('/<\s*\/\s*(div|p|li|tr|h[1-6]|blockquote)\s*>/i', "\n", $text);
+        $text = preg_replace('/<\s*\/?\s*(div|p|li|tr|h[1-6]|blockquote)\b[^>]*>/i', "\n", $text);
 
         $text = strip_tags($text);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -70,9 +72,9 @@ class TextSanitizer
         $text = str_replace("\xC2\xA0", ' ', $text);
         $text = preg_replace('/[ \t]+/', ' ', $text);
         $text = preg_replace('/ *\n */', "\n", $text);
-        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = preg_replace('/\n{2,}/', "\n", $text);
 
-        return trim($text);
+        return preg_replace('/^(?:\s|\xC2\xA0)+|(?:\s|\xC2\xA0)+$/u', '', $text);
     }
 
     /** ¿El valor trae etiquetas HTML? Útil para diagnóstico y limpieza. */
@@ -108,10 +110,12 @@ class TextSanitizer
     /** Colapsa saltos repetidos y recorta los de los extremos. */
     private static function tidy(string $html): string
     {
-        $html = preg_replace('/(?:\s*<br>\s*){3,}/i', '<br><br>', $html);
+        // Los limites de bloque generan saltos duplicados; se colapsan a uno.
+        $html = preg_replace('/(?:\s*<br>\s*){2,}/i', '<br>', $html);
         $html = preg_replace('/^(?:\s*<br>\s*)+/i', '', $html);
         $html = preg_replace('/(?:\s*<br>\s*)+$/i', '', $html);
 
-        return trim($html);
+        // trim() no elimina el espacio duro (&nbsp;), que dejaba sangrias raras.
+        return preg_replace('/^(?:\s|\xC2\xA0)+|(?:\s|\xC2\xA0)+$/u', '', $html);
     }
 }

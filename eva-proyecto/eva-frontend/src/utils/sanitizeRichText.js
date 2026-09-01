@@ -55,6 +55,11 @@ function walk(node) {
       return;
     }
 
+    // Un bloque separa por AMBOS lados: sin el salto de apertura,
+    // "texto<div>mas" quedaba pegado como "textomas".
+    const isBlock = BLOCK_TAGS.has(tag);
+    if (isBlock && out && !/<br>$/.test(out)) out += "<br>";
+
     const inner = walk(child);
     if (inner.trim()) {
       // Se conserva la negrita venga como etiqueta o como estilo en línea.
@@ -62,7 +67,7 @@ function walk(node) {
         ? `<strong>${inner}</strong>`
         : inner;
     }
-    if (BLOCK_TAGS.has(tag)) out += "<br>";
+    if (isBlock) out += "<br>";
   });
   return out;
 }
@@ -70,10 +75,10 @@ function walk(node) {
 /** Colapsa saltos repetidos y recorta los de los extremos. */
 function tidy(html) {
   return html
-    .replace(/(?:\s*<br\s*\/?>\s*){3,}/gi, "<br><br>")
+    .replace(/(?:\s*<br\s*\/?>\s*){2,}/gi, "<br>")
     .replace(/^(?:\s*<br\s*\/?>\s*)+/i, "")
     .replace(/(?:\s*<br\s*\/?>\s*)+$/i, "")
-    .trim();
+    .replace(/^[\s ]+|[\s ]+$/g, "");
 }
 
 /**
@@ -99,7 +104,7 @@ function stripTags(raw) {
   return String(raw)
     .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "")
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(div|p|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<\/?(div|p|li|tr|h[1-6]|blockquote)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, "")
     .replace(/&nbsp;/gi, " ")
     .replace(/&quot;/gi, '"')
@@ -118,18 +123,21 @@ export function htmlToPlainText(input) {
   if (!raw.trim()) return "";
 
   if (typeof window === "undefined" || typeof window.DOMParser === "undefined") {
-    return stripTags(raw).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    return stripTags(raw).replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").replace(/^[\s ]+|[\s ]+$/g, "");
   }
 
   const doc = new window.DOMParser().parseFromString(
-    `<body>${raw.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|li|tr|h[1-6])>/gi, "\n$&")}</body>`,
+    `<body>${raw.replace(/<br\s*\/?>/gi, "\n").replace(/<\/?(div|p|li|tr|h[1-6]|blockquote)\b[^>]*>/gi, "\n")}</body>`,
     "text/html"
   );
+  // Fuera el contenido de <script>/<style>, que no es texto del usuario.
+  doc.body.querySelectorAll("script, style, noscript").forEach((el) => el.remove());
+
   return (doc.body.textContent || "")
     .replace(/\u00a0/g, " ")
     .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(/\n{2,}/g, "\n")
+    .replace(/^[\s ]+|[\s ]+$/g, "");
 }
 
 export default sanitizeRichHtml;

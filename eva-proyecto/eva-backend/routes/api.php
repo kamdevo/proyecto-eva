@@ -16205,9 +16205,8 @@ Route::post('v1/tickets/{id}/enviar-cierre', function(Request $request, $id) {
         $set = '123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
         $code = substr(str_shuffle($set), 0, 12);
 
-        // Al completar el formulario de cierre (con firmas) el ticket queda CERRADO
-        // directamente. Se elimina el paso extra de "Esperando cierre" que dejaba
-        // tickets atascados aunque el cierre ya estuviera completo.
+        // El ticket pasa a "Esperando cierre". El cierre definitivo lo hace
+        // el endpoint confirmar-cierre, que es el segundo paso del proceso.
         DB::table('ordenes')
             ->where('id', $id)
             ->update([
@@ -16218,7 +16217,7 @@ Route::post('v1/tickets/{id}/enviar-cierre', function(Request $request, $id) {
                 'tecnico_cierre_text' => $request->tecnico_cierre_text,
                 'file_cierre' => $fileName,
                 'fecha_fin' => now(),
-                'estado_id' => 4, // 4 = Cerrado (cierre directo al completar el formulario)
+                'estado_id' => 5, // 5 = Esperando cierre
                 'cierre_id' => 15,
                 'code' => $code,
                 'cierre_active' => 'false', // String "false" según especificación
@@ -16390,10 +16389,10 @@ Route::post('v1/tickets/{id}/upload-cierre-file', function(Request $request, $id
 
         // Permitir subir el archivo de cierre cuando el ticket está Cerrado (4)
         // o en Esperando cierre (5) — el cierre ahora es directo a estado 4.
-        if (!in_array((int) $ticket->estado_id, [4, 5], true)) {
+        if ($ticket->estado_id != 5) {
             return response()->json([
                 'success' => false,
-                'message' => 'Solo se puede subir archivo de cierre en un ticket cerrado o en espera de cierre'
+                'message' => 'Solo se puede subir archivo de cierre en un ticket en espera de cierre'
             ], 400);
         }
 
