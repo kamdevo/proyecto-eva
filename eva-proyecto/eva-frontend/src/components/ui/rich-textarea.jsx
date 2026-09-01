@@ -1,12 +1,18 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import { Bold } from "lucide-react";
+import { sanitizeRichHtml, htmlToPlainText } from "@/utils/sanitizeRichText";
 
 /**
  * RichTextarea — campo de texto enriquecido (solo negrita).
  * Almacena HTML internamente y expone el texto plano + HTML.
  *
+ * IMPORTANTE: todo lo que entra se sanea a <strong>/<br>. Sin esto, pegar
+ * desde Gmail/Word inyecta el HTML de origen completo (con style, font-family,
+ * etc.), que terminaba guardado en la base de datos y salía crudo en los
+ * exportes a Excel y en los correos.
+ *
  * Props:
- *   value       : string HTML — el valor actual (puede ser plano o con <b>)
+ *   value       : string HTML — el valor actual (puede ser plano o con <strong>)
  *   onChange    : (plainText: string, html: string) => void
  *   placeholder : string
  *   rows        : number (aprox altura)
@@ -32,9 +38,10 @@ export default function RichTextarea({
       isInternalUpdate.current = false;
       return;
     }
-    // Evitar re-render si el HTML ya es igual
-    if (el.innerHTML !== value) {
-      el.innerHTML = value;
+    // El valor externo puede venir sucio (registros antiguos): se sanea antes de pintarlo.
+    const safe = sanitizeRichHtml(value);
+    if (el.innerHTML !== safe) {
+      el.innerHTML = safe;
     }
   }, [value]);
 
@@ -42,7 +49,8 @@ export default function RichTextarea({
     const el = editorRef.current;
     if (!el || !onChange) return;
     isInternalUpdate.current = true;
-    const html = el.innerHTML;
+    // Red de seguridad: nunca se emite HTML fuera del contrato <strong>/<br>.
+    const html = sanitizeRichHtml(el.innerHTML);
     const plain = el.innerText || el.textContent || "";
     onChange(plain, html);
   }, [onChange]);
@@ -60,10 +68,53 @@ export default function RichTextarea({
     }
   };
 
+  // Puerta de entrada principal del HTML basura: se intercepta el pegado,
+  // se sanea (conservando la negrita) y se inserta ya limpio.
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const clipboard = e.clipboardData || window.clipboardData;
+    if (!clipboard) return;
+
+    const html = clipboard.getData("text/html");
+    const text = clipboard.getData("text/plain");
+
+    const safe = html
+      ? sanitizeRichHtml(html)
+      : sanitizeRichHtml(
+          // El texto plano se escapa y sus saltos se vuelven <br>.
+          String(text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\r?\n/g, "<br>")
+        );
+
+    if (safe) document.execCommand("insertHTML", false, safe);
+    emitChange();
+  };
+
+  // Se evita arrastrar contenido con formato hacia el editor.
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const text = e.dataTransfer?.getData("text/plain");
+    if (text) {
+      document.execCommand(
+        "insertHTML",
+        false,
+        String(text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\r?\n/g, "<br>")
+      );
+      emitChange();
+    }
+  };
+
   const minH = `${rows * 1.6}rem`;
   const plainLen = editorRef.current
     ? (editorRef.current.innerText || editorRef.current.textContent || "").length
-    : (value.replace(/<[^>]*>/g, "")).length;
+    : htmlToPlainText(value).length;
 
   return (
     <div className={`flex flex-col gap-0 ${className}`}>
@@ -87,6 +138,8 @@ export default function RichTextarea({
         suppressContentEditableWarning
         onInput={emitChange}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onDrop={handleDrop}
         data-placeholder={placeholder}
         style={{ minHeight: minH }}
         className={

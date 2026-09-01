@@ -39,6 +39,7 @@ import { TicketsTableSkeleton } from "@/components/skeletons/TicketsTableSkeleto
 import httpService from "@/services/httpService";
 import { useSedes } from "@/hooks/useRoles";
 import { useAuth } from "@/hooks/useAuth";
+import { sanitizeRichHtml } from "@/utils/sanitizeRichText";
 // import EquiposModal from "@/components/modals/EquiposModal";
 // import PersonalModal from "@/components/modals/PersonalModal";
 // import ParticipantesModal from "@/components/modals/ParticipantesModal";
@@ -362,7 +363,7 @@ export default function GestionTickets() {
 
         <div className="space-y-2 mb-3">
           <div className="text-sm text-gray-600">
-            <p className="text-xs sm:text-sm font-medium text-gray-800" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
+            <p className="text-xs sm:text-sm font-medium text-gray-800" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(ticket.descripcion) }} />
           </div>
           <div className="grid grid-cols-1 gap-1 text-xs text-gray-600">
             <div><span className="font-medium">Reportante:</span> {ticket.reportante_nombre}</div>
@@ -716,7 +717,7 @@ export default function GestionTickets() {
                     </td>
                     <td className="px-3 py-4 align-top">
                       <div className="space-y-2">
-                        <div className="text-sm text-gray-900 font-medium leading-tight" dangerouslySetInnerHTML={{ __html: ticket.descripcion }} />
+                        <div className="text-sm text-gray-900 font-medium leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(ticket.descripcion) }} />
                         <div className="text-xs text-gray-600 space-y-1">
                           <div className="truncate"><span className="font-medium">Área:</span> {ticket.area_nombre || 'N/A'}</div>
                           <div className="truncate"><span className="font-medium">Servicio:</span> {ticket.servicio_nombre || 'N/A'}</div>

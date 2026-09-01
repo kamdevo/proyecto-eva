@@ -16,6 +16,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import RichTextarea from "../ui/rich-textarea";
+import { sanitizeRichHtml } from "@/utils/sanitizeRichText";
 import {
   Select,
   SelectContent,
@@ -444,7 +445,7 @@ export default function HospitalTicketModal({
     const createTicketPromise = async () => {
       // Preparar datos para el backend
       const ticketData = {
-        descripcion: formData.descripcionProblemaHtml || formData.descripcionProblema || "Ticket creado desde el sistema",
+        descripcion: sanitizeRichHtml(formData.descripcionProblemaHtml || formData.descripcionProblema) || "Ticket creado desde el sistema",
         subproceso_id: ticketType === "biomedico" ? 1 : ticketType === "industrial" ? 2 : 3,
         equipo_id: ticketType !== "infraestructura" ? (formData.equipo_id || null) : null,
         nombre_equipo: ticketType === "infraestructura" ? "N/A - Infraestructura" : (formData.equipo || "No especificado"),

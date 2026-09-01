@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import RichTextarea from "@/components/ui/rich-textarea";
+import { sanitizeRichHtml } from "@/utils/sanitizeRichText";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -208,7 +209,7 @@ export default function TicketEditModal({ isOpen, onClose, ticket, onSave }) {
                 <div className="mt-2">
                   <RichTextarea
                     value={editedTicket.description}
-                    onChange={(plain, html) => setEditedTicket(prev => ({ ...prev, description: html }))}
+                    onChange={(plain, html) => setEditedTicket(prev => ({ ...prev, description: sanitizeRichHtml(html) }))}
                     rows={3}
                     placeholder="Descripción del problema..."
                   />

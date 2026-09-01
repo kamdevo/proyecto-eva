@@ -3726,7 +3726,7 @@ Route::post('v1/crear-ticket', function (Request $request) {
         // Preparar datos completos para la tabla ordenes
         $ticketData = [
             // Campos obligatorios
-            'descripcion' => $request->descripcion,
+            'descripcion' => \App\Support\TextSanitizer::sanitizeRich($request->descripcion),
             'fecha_inicio' => now(),
             'estado_id' => 1, // Abierto
             'reportante_id' => $request->reportante_id,
@@ -4000,7 +4000,7 @@ Route::put('v1/tickets/{id}', function (Request $request, $id) {
         $updateData = [];
         
         // Campos opcionales del formulario
-        if ($request->has('descripcion')) $updateData['descripcion'] = $request->descripcion;
+        if ($request->has('descripcion')) $updateData['descripcion'] = \App\Support\TextSanitizer::sanitizeRich($request->descripcion);
         if ($request->has('asunto')) $updateData['asunto'] = $request->asunto;
         if ($request->has('fecha_fin')) $updateData['fecha_fin'] = $request->fecha_fin;
         if ($request->has('estado_id')) $updateData['estado_id'] = $request->estado_id;
@@ -6352,7 +6352,7 @@ Route::get('v1/gestion-tickets/export-excel', function(Request $request) {
             $allData[] = [
                 $ticket->id,
                 $ticket->asunto ?? '',
-                $ticket->descripcion ?? '',
+                \App\Support\TextSanitizer::toPlainText($ticket->descripcion ?? ''),
                 $ticket->fecha_inicio ?? '',
                 $ticket->fecha_fin ?? '',
                 $estado,
