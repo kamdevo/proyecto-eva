@@ -34,6 +34,7 @@ import { MinimalTestPDF } from "../pdf/minimal-test-pdf";
 import EquipmentModalReplicaPDF from "../pdf/equipment-modal-replica-pdf";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import { resolverManualParaFicha } from "@/services/manualesService";
 import { prefetchEquipmentData, prefetchUserHistory, prefetchEquipmentTickets, prefetchCambiosHdv, refreshEquipmentCache } from "@/services/equipmentPrefetchCache";
 import { ManualSearchModal } from "./manual-search-modal";
 import { QuickGuideSearchModal } from "./quick-guide-search-modal";
