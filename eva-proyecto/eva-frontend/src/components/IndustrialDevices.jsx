@@ -962,12 +962,16 @@ function IndustrialDevices() {
                           {/* Logo del propietario */}
                           {equipment.propietario?.logo_url && (
                             <div className="mt-2 flex justify-center">
-                              <img 
-                                src={equipment.propietario.logo_url}
-                                alt={equipment.propietario?.nombre || equipment.propietario}
-                                className="h-16 xs:h-20 sm:h-24 md:h-28 object-contain"
-                                onError={(e) => e.target.style.display = 'none'}
-                              />
+                              {/* Caja de dimensiones FIJAS: un logo ancho no debe
+                                  ensanchar la celda ni arrastrar toda la tabla. */}
+                              <div className="h-12 w-24 sm:h-14 sm:w-28 flex items-center justify-center overflow-hidden">
+                                <img
+                                  src={equipment.propietario.logo_url}
+                                  alt={equipment.propietario?.nombre || equipment.propietario}
+                                  className="max-h-full max-w-full object-contain"
+                                  onError={(e) => e.target.style.display = 'none'}
+                                />
+                              </div>
                             </div>
                           )}
                         </div>

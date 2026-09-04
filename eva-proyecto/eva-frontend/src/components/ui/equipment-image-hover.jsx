@@ -37,7 +37,7 @@ export const EquipmentImageHover = memo(function EquipmentImageHover({
     <>
       {/* Imagen original con hover */}
       <div
-        className={`equipment-image-container relative rounded-lg cursor-pointer ${className}`}
+        className={`equipment-image-container relative rounded-lg overflow-hidden cursor-pointer ${className}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >

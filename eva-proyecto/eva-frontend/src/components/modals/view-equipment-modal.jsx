@@ -441,36 +441,13 @@ export function ViewEquipmentModal({
       // Cargar información del manual si existe manual_id
       if (equipmentDetails.manual_id && equipmentDetails.manual_id !== 0) {
         try {
-          const response = await httpService.get(`/v1/manuales`);
-          console.log("📖 Respuesta completa de manuales:", response.data);
-          
-          let manualesArray = [];
-          
-          // Manejar diferentes estructuras de respuesta
-          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
-            // Estructura con paginación: { data: { data: [...] } }
-            manualesArray = response.data.data.data;
-          } else if (response.data?.data && Array.isArray(response.data.data)) {
-            // Estructura simple: { data: [...] }
-            manualesArray = response.data.data;
-          } else if (Array.isArray(response.data)) {
-            // Array directo: [...]
-            manualesArray = response.data;
-          }
-          
-          console.log("📖 Array de manuales procesado:", manualesArray);
-          
-          if (manualesArray.length > 0) {
-            const manual = manualesArray.find(m => 
-              m.id.toString() === equipmentDetails.manual_id.toString()
-            );
-            console.log("📖 Manual encontrado:", manual);
-            if (manual) {
-              setSelectedManualInfo(manual);
-              console.log("📖 Manual cargado en vista:", manual.descripcion);
-            } else {
-              console.warn("📖 Manual no encontrado con ID:", equipmentDetails.manual_id);
-            }
+          // Se resuelve POR ID (ver manualesService): el listado pagina de a 10
+          // sobre ~180 manuales y antes casi nunca encontraba el asociado.
+          const manual = await resolverManualParaFicha(equipmentDetails.manual_id);
+          if (manual) {
+            setSelectedManualInfo(manual);
+          } else {
+            console.warn("📖 Manual no encontrado con ID:", equipmentDetails.manual_id);
           }
         } catch (error) {
           console.error("Error loading manual in view:", error);

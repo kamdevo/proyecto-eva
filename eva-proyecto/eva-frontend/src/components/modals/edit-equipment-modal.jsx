@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import httpService from "@/services/httpService";
+import { resolverManualParaFicha } from "@/services/manualesService";
 import {
   prefetchDropdownOptions,
   prefetchEquipmentData,
@@ -1868,36 +1869,14 @@ export function EditEquipmentModal({
       if (completeEquipmentData.manual_id && completeEquipmentData.manual_id !== 0 && completeEquipmentData.manual_id !== "0") {
         console.log("📖 Buscando manual ID:", completeEquipmentData.manual_id);
         try {
-          const response = await httpService.get(`/v1/manuales`);
-          console.log("📖 Respuesta completa de manuales:", response.data);
-          
-          let manualesArray = [];
-          
-          // Manejar diferentes estructuras de respuesta
-          if (response.data?.data?.data && Array.isArray(response.data.data.data)) {
-            // Estructura con paginación: { data: { data: [...] } }
-            manualesArray = response.data.data.data;
-          } else if (response.data?.data && Array.isArray(response.data.data)) {
-            // Estructura simple: { data: [...] }
-            manualesArray = response.data.data;
-          } else if (Array.isArray(response.data)) {
-            // Array directo: [...]
-            manualesArray = response.data;
-          }
-          
-          console.log("📖 Array de manuales procesado:", manualesArray);
-          
-          if (manualesArray.length > 0) {
-            const manual = manualesArray.find(m => 
-              m.id.toString() === completeEquipmentData.manual_id.toString()
-            );
-            console.log("📖 Manual encontrado:", manual);
-            if (manual) {
-              setSelectedManualInfo(manual);
-              console.log("📖 Manual info establecida:", manual.descripcion);
-            } else {
-              console.warn("📖 Manual no encontrado con ID:", completeEquipmentData.manual_id);
-            }
+          // Se resuelve POR ID. Antes se pedia el listado completo y se buscaba
+          // con .find(), pero ese endpoint pagina de a 10 sobre ~180 manuales:
+          // el manual guardado no aparecia y la ficha decia "Sin manual asociado".
+          const manual = await resolverManualParaFicha(completeEquipmentData.manual_id);
+          if (manual) {
+            setSelectedManualInfo(manual);
+          } else {
+            console.warn("📖 Manual no encontrado con ID:", completeEquipmentData.manual_id);
           }
         } catch (error) {
           console.error("❌ Error loading manual info:", error);

@@ -3499,6 +3499,39 @@ Route::get('v1/manuales', function (Request $request) {
     }
 })->withoutMiddleware(['auth:sanctum']);
 
+// Obtener UN manual por id.
+// Necesario porque el listado pagina de a 10 sobre ~180 manuales: resolver un
+// manual asociado recorriendo la lista fallaba salvo que estuviera en la primera
+// pagina alfabetica, y el equipo mostraba "Sin manual asociado" pese a tenerlo.
+// No filtra por status, para que las asociaciones historicas sigan resolviendo.
+Route::get('v1/manuales/{id}', function ($id) {
+    try {
+        $manual = DB::table('manuales')
+            ->select('id', 'descripcion', 'url', 'status')
+            ->where('id', (int) $id)
+            ->first();
+
+        if (!$manual) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Manual no encontrado'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $manual,
+            'message' => 'Manual obtenido exitosamente'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('📖 [MANUALES] Error obteniendo manual por id: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener el manual: ' . $e->getMessage()
+        ], 500);
+    }
+})->withoutMiddleware(['auth:sanctum']);
+
 // Crear nuevo manual
 Route::post('v1/manuales', function (Request $request) {
     try {
