@@ -1372,9 +1372,9 @@ export function MedicalDevicesView() {
                         </div>
                         <div className="text-slate-600 bg-[#1d293d]/5 p-1 xs:p-2 rounded text-[8px] xs:text-[9px] sm:text-xs border border-[#1d293d]/30 flex justify-between items-center">
                           {device.mantenimiento?.ultimaCalibración
-                            ? new Date(
+                            ? parseLocalDate(
                               device.mantenimiento.ultimaCalibración
-                            ).toLocaleDateString()
+                            )?.toLocaleDateString()
                             : "Sin registros"}
                           <Link
                             size={15}
